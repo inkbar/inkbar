@@ -610,7 +610,7 @@
     "file": "check-pattern-text.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted",
+    "describes": "The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly under the region, so an apply removes it, and the pattern, used nowhere else, leaves the file",
     "secrets": ["SECRET", "ALPHA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -618,7 +618,8 @@
         "page": 0,
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
-    ]
+    ],
+    "gone": ["/PatternType"]
   },
   "bad-black-box": {
     "file": "bad-black-box.pdf",
@@ -973,7 +974,7 @@
     "file": "redact-drawing-pattern.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320",
+    "describes": "A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320. The square lies wholly under the region, so the apply removes it, and the pattern, used nowhere else, leaves the file",
     "secrets": [],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -981,7 +982,8 @@
         "page": 0,
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
-    ]
+    ],
+    "gone": ["/PatternType"]
   },
   "redact-page-rotate-90": {
     "file": "redact-page-rotate-90.pdf",
@@ -1225,7 +1227,7 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ],
-    "refused": "the redaction cuts the band but does not enter the pattern, so the cell still holds the text under the region, and the check counts it"
+    "refused": "the apply cuts a hole in the band and leaves the pattern's cell, which still holds the text under the region; the check tiles the cell over the region and counts the text"
   },
   "redact-drawing-pattern-past-mark": {
     "file": "redact-drawing-pattern-past-mark.pdf",
@@ -1240,6 +1242,137 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ],
-    "leaks": "the apply cuts a hole in the band but leaves the pattern, whose cell still draws the quadrilateral under the region, and the check does not count vector drawing inside a pattern"
+    "refused": "the apply cuts a hole in the band and leaves the pattern's cell, which still draws the quadrilateral under the region; the check tiles the cell over the region and counts it, and no whole tile shows elsewhere"
+  },
+  "redact-drawing-pattern-side": {
+    "file": "redact-drawing-pattern-side.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x 30..60, y 130..170 and a blue square at x 260..320; the region (x 10..70, y 90..210) covers the band's whole left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [10, 210, 70, 210, 10, 90, 70, 90]
+      }
+    ],
+    "refused": "the apply cuts the band back to x 70, where it no longer reaches the region, and leaves the cell, which still draws the quadrilateral there; the check tiles the cell over the region wherever the band lies"
+  },
+  "redact-drawing-hatch": {
+    "file": "redact-drawing-hatch.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a hatch: a tiling pattern whose 20 pt cell draws one magenta diagonal. Whole tiles show beside the region (x and y 110..190), so what lies under it is a repeat of what stays in view",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-mesh": {
+    "file": "redact-drawing-mesh.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A free-form triangle mesh shading (type 4) of two magenta triangles over x 125..275, y 125..175, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": "the apply only clips the shading and leaves its mesh in the file, where removing the clip shows it again; the check counts a mesh shading whose own box meets the region"
+  },
+  "redact-drawing-function-shading": {
+    "file": "redact-drawing-function-shading.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A function-based shading (type 1) over x 125..275, y 125..175, magenta shading to pink, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": "the apply only clips the shading and leaves its function in the file; the check counts a function-based shading whose own box meets the region"
+  },
+  "redact-drawing-mesh-pattern": {
+    "file": "redact-drawing-mesh-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A rectangle at x 125..275, y 125..175 filled with a shading pattern whose shading is the triangle mesh of redact-drawing-mesh; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": "the apply cuts the square and leaves the mesh in the file; the check counts a mesh shading used as a pattern by any object that paints with it"
+  },
+  "redact-mask-group-past-mark": {
+    "file": "redact-mask-group-past-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A blue band at x 20..380, y 130..190 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the word and not the whole band",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 175, 215, 175, 45, 140, 215, 140]
+      }
+    ],
+    "refused": "the apply cuts a hole in the band and leaves the mask's group, which still draws the text under the region; the check reads mask groups where the mask was set"
+  },
+  "redact-mask-group-under-mark": {
+    "file": "redact-mask-group-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle, so the apply removes it and its mask with it",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 175, 215, 175, 45, 140, 215, 140]
+      }
+    ]
+  },
+  "redact-image-under-mark": {
+    "file": "redact-image-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared drawn small, over x 120..180, y 135..165, wholly under the region (x and y 110..190): the apply leaves no image in the file",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-text-form-under-mark": {
+    "file": "redact-text-form-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A form at (120, 140) whose only content, SECRET-ALPHA in Helvetica 8, lies wholly under the region (x 110..195, y 110..190); KEEP-BETA in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 195, 190, 110, 110, 195, 110]
+      }
+    ]
   }
 }

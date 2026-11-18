@@ -426,10 +426,11 @@ function checkPatternText() {
       pages: 1,
       opens: true,
       describes:
-        'The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted',
+        'The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly under the region, so an apply removes it, and the pattern, used nowhere else, leaves the file',
       secrets: ['SECRET', 'ALPHA'],
       keeps: ['KEEP-BETA'],
       regions: [region(0, OVER_WORD)],
+      gone: ['/PatternType'],
     }
   )
 }
@@ -823,7 +824,7 @@ function redactTextPattern() {
       'A band at x 20..380, y 170..240 filled with a tiling pattern whose one cell, the size of the page, is grey with SECRET-ALPHA at (50, 200), under the region; KEEP-BETA at (300, 100) in the page content',
       {
         refused:
-          'the redaction cuts the band but does not enter the pattern, so the cell still holds the text under the region, and the check counts it',
+          "the apply cuts a hole in the band and leaves the pattern's cell, which still holds the text under the region; the check tiles the cell over the region and counts the text",
       }
     )
   )
@@ -1180,7 +1181,8 @@ function redactDrawing() {
         )} 0 R >>`
     ),
     drawingRow(
-      'A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320'
+      'A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320. The square lies wholly under the region, so the apply removes it, and the pattern, used nowhere else, leaves the file',
+      { gone: ['/PatternType'] }
     )
   )
   // One cell the size of the page, so what it draws under the region appears nowhere else.
@@ -1199,9 +1201,206 @@ function redactDrawing() {
     drawingRow(
       'A band at x 20..380, y 100..200 filled with a tiling pattern whose one cell, the size of the page, draws a magenta quadrilateral under the region (x and y 110..190) and a blue square at x 260..320, y 120..180 beside it',
       {
-        leaks:
-          'the apply cuts a hole in the band but leaves the pattern, whose cell still draws the quadrilateral under the region, and the check does not count vector drawing inside a pattern',
+        refused:
+          "the apply cuts a hole in the band and leaves the pattern's cell, which still draws the quadrilateral under the region; the check tiles the cell over the region and counts it, and no whole tile shows elsewhere",
       }
+    )
+  )
+  // The same band and cell, with the mark across the band's whole left end: after the apply the
+  // band no longer reaches the mark, and the cell still draws under it.
+  write(
+    'redact-drawing-pattern-side',
+    onePage(
+      `q /Pattern cs /P0 scn 20 100 360 100 re f Q\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) =>
+        `/Pattern << /P0 ${o.add(
+          stream(
+            `/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 ${WIDTH} ${HEIGHT}] /XStep ${WIDTH} /YStep ${HEIGHT} /Resources << >>`,
+            `1 0 1 rg 30 130 m 60 135 l 55 170 l 35 165 l h f\n${BLUE_SQUARE}`
+          )
+        )} 0 R >>`
+    ),
+    drawingRow(
+      "A band at x 20..380, y 100..200 filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x 30..60, y 130..170 and a blue square at x 260..320; the region (x 10..70, y 90..210) covers the band's whole left end",
+      {
+        regions: [region(0, [10, 90, 70, 210])],
+        refused:
+          'the apply cuts the band back to x 70, where it no longer reaches the region, and leaves the cell, which still draws the quadrilateral there; the check tiles the cell over the region wherever the band lies',
+      }
+    )
+  )
+  // A hatch: a 20 pt cell of one magenta line, filling a band that reaches past the region.
+  write(
+    'redact-drawing-hatch',
+    onePage(
+      `q /Pattern cs /P0 scn 20 100 360 100 re f Q\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) =>
+        `/Pattern << /P0 ${o.add(
+          stream(
+            '/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 20 20] /XStep 20 /YStep 20 /Resources << >>',
+            '1 0 1 RG 2 w 0 0 m 20 20 l S'
+          )
+        )} 0 R >>`
+    ),
+    drawingRow(
+      'A band at x 20..380, y 100..200 filled with a hatch: a tiling pattern whose 20 pt cell draws one magenta diagonal. Whole tiles show beside the region (x and y 110..190), so what lies under it is a repeat of what stays in view'
+    )
+  )
+  meshAndFunctionShadings()
+}
+
+/**
+ * A free-form triangle mesh (type 4) of two magenta triangles over x 125..275, y 125..175, so a
+ * region over its left end leaves its right end in view.
+ */
+const MESH =
+  '/ShadingType 4 /ColorSpace /DeviceRGB /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8 /Decode [0 65535 0 65535 0 1 0 1 0 1]'
+function meshData(): Buffer {
+  const vertices = [
+    [125, 125, 255, 0, 255],
+    [275, 125, 200, 40, 230],
+    [200, 175, 230, 20, 255],
+    [125, 175, 210, 60, 240],
+    [275, 175, 255, 10, 200],
+    [200, 125, 220, 30, 250],
+  ] as const
+  return Buffer.concat(
+    vertices.map(([x, y, r, g, b]) => {
+      const vertex = Buffer.alloc(8)
+      vertex.writeUInt16BE(x, 1)
+      vertex.writeUInt16BE(y, 3)
+      vertex.set([r, g, b], 5)
+      return vertex
+    })
+  )
+}
+
+function meshAndFunctionShadings() {
+  write(
+    'redact-drawing-mesh',
+    onePage(
+      `q 120 120 160 60 re W n /Sh0 sh Q\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) => `/Shading << /Sh0 ${o.add(stream(MESH, meshData()))} 0 R >>`
+    ),
+    drawingRow(
+      'A free-form triangle mesh shading (type 4) of two magenta triangles over x 125..275, y 125..175, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end',
+      {
+        refused:
+          'the apply only clips the shading and leaves its mesh in the file, where removing the clip shows it again; the check counts a mesh shading whose own box meets the region',
+      }
+    )
+  )
+  write(
+    'redact-drawing-function-shading',
+    onePage(`q 120 120 160 60 re W n /Sh0 sh Q\n${line(100, 50, 'KEEP-BETA')}`, (o) => {
+      const fn = o.add(
+        stream(
+          '/FunctionType 4 /Domain [0 1 0 1] /Range [0 1 0 1 0 1]',
+          '{ exch pop 0.5 mul 1 exch 1 }'
+        )
+      )
+      const shading = o.add(
+        `<< /ShadingType 1 /ColorSpace /DeviceRGB /Domain [0 1 0 1] /Matrix [150 0 0 50 125 125] /Function ${fn} 0 R >>`
+      )
+      return `/Shading << /Sh0 ${shading} 0 R >>`
+    }),
+    drawingRow(
+      'A function-based shading (type 1) over x 125..275, y 125..175, magenta shading to pink, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end',
+      {
+        refused:
+          'the apply only clips the shading and leaves its function in the file; the check counts a function-based shading whose own box meets the region',
+      }
+    )
+  )
+  write(
+    'redact-drawing-mesh-pattern',
+    onePage(
+      `q /Pattern cs /P0 scn 125 125 150 50 re f Q\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) =>
+        `/Pattern << /P0 << /PatternType 2 /Shading ${o.add(stream(MESH, meshData()))} 0 R >> >>`
+    ),
+    drawingRow(
+      'A rectangle at x 125..275, y 125..175 filled with a shading pattern whose shading is the triangle mesh of redact-drawing-mesh; the region (x and y 110..190) covers its left end',
+      {
+        refused:
+          'the apply cuts the square and leaves the mesh in the file; the check counts a mesh shading used as a pattern by any object that paints with it',
+      }
+    )
+  )
+}
+
+/**
+ * A blue rectangle painted through a soft mask whose luminosity group draws SECRET-ALPHA (black
+ * on white) at (50, 150), under the region x 45..215, y 140..175. `rect` is the rectangle.
+ */
+function maskGroupPage(rect: string) {
+  return onePage(
+    `q /GS0 gs 0 0 1 rg ${rect} re f Q\n${line(100, 50, 'KEEP-BETA')}`,
+    (o) => {
+      const font = o.add(HELVETICA)
+      const group = o.add(
+        stream(
+          `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /Group << /S /Transparency /CS /DeviceGray >> /Resources << /Font << /F1 ${font} 0 R >> >>`,
+          `1 g 0 0 ${WIDTH} ${HEIGHT} re f 0 g ${line(50, 150, 'SECRET-ALPHA')}`
+        )
+      )
+      return `/ExtGState << /GS0 << /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G ${group} 0 R >> >> >>`
+    }
+  )
+}
+
+const UNDER_MASK: [number, number, number, number] = [45, 140, 215, 175]
+
+function redactMaskGroups() {
+  write(
+    'redact-mask-group-past-mark',
+    maskGroupPage('20 130 360 60'),
+    textRow(
+      'A blue band at x 20..380, y 130..190 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the word and not the whole band',
+      {
+        regions: [region(0, UNDER_MASK)],
+        refused:
+          "the apply cuts a hole in the band and leaves the mask's group, which still draws the text under the region; the check reads mask groups where the mask was set",
+      }
+    )
+  )
+  write(
+    'redact-mask-group-under-mark',
+    maskGroupPage('60 145 120 25'),
+    textRow(
+      'A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle, so the apply removes it and its mask with it',
+      { regions: [region(0, UNDER_MASK)] }
+    )
+  )
+}
+
+function redactUnderMark() {
+  write(
+    'redact-image-under-mark',
+    imagePage(
+      (o) => o.add(stream(COLOUR_IMAGE, colourPixels())),
+      'q 60 0 0 30 120 135 cm /Im0 Do Q'
+    ),
+    imageRow(
+      'The colour pattern of redact-image-shared drawn small, over x 120..180, y 135..165, wholly under the region (x and y 110..190): the apply leaves no image in the file',
+      { regions: [region(0, [110, 110, 190, 190])] }
+    )
+  )
+  write(
+    'redact-text-form-under-mark',
+    onePage(`q 1 0 0 1 120 140 cm /Fm0 Do Q\n${line(100, 50, 'KEEP-BETA')}`, (o) => {
+      const font = o.add(HELVETICA)
+      const form = o.add(
+        stream(
+          `/Type /XObject /Subtype /Form /BBox [0 0 70 30] /Resources << /Font << /F1 ${font} 0 R >> >>`,
+          'BT /F1 8 Tf 5 10 Td (SECRET-ALPHA) Tj ET'
+        )
+      )
+      return `/XObject << /Fm0 ${form} 0 R >>`
+    }),
+    textRow(
+      'A form at (120, 140) whose only content, SECRET-ALPHA in Helvetica 8, lies wholly under the region (x 110..195, y 110..190); KEEP-BETA in the page content',
+      { regions: [region(0, [110, 110, 195, 190])] }
     )
   )
 }
@@ -1418,6 +1617,9 @@ function writeEncrypted(
     )
       .toString('latin1')
       .replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
+      // The old encryption dictionary, kept as an object nothing refers to, has a /U that
+      // depends on the random /ID.
+      .replace(/\/U <[0-9a-f]*>/, '')
   try {
     writeFileSync(plainFile, plain)
     execFileSync('qpdf', [
@@ -1619,6 +1821,8 @@ redactImageEncoded()
 redactImageMasks()
 redactImagePlacements()
 redactDrawing()
+redactMaskGroups()
+redactUnderMark()
 redactPages()
 redactCopies()
 redactAnnotationLoupe()

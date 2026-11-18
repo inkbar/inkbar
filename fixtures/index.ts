@@ -44,11 +44,6 @@ export interface FixtureMeta {
    * the action fails and hands over nothing. Absent when the regions redact cleanly.
    */
   refused?: string
-  /**
-   * Why redacting the `regions` leaves content under them that the strict check does not see:
-   * a known leak, stated so the tests assert it until it is fixed. Absent for every other file.
-   */
-  leaks?: string
 }
 
 export const manifest = manifestJson as Record<FixtureName, FixtureMeta>

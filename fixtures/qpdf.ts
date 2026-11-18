@@ -93,3 +93,98 @@ export async function qpdfQdf(
     return (await readFile(out)).toString('latin1')
   })
 }
+
+/** A value in qpdf's JSON form of a file's objects. */
+type QpdfValue =
+  string | number | boolean | null | QpdfValue[] | { [key: string]: QpdfValue }
+type QpdfDict = { [key: string]: QpdfValue }
+
+/** An image in a file, as `qpdfImages` lists it. */
+export interface QpdfImage {
+  /** Its reference, as `"7 0 R"`. */
+  ref: string
+  /** A page names it in its own `/XObject` resources, or it is the mask of an image that does. */
+  onPage: boolean
+  /** Its samples with every filter qpdf can undo undone, or undefined when one is left. */
+  samples: Uint8Array | undefined
+}
+
+/**
+ * Every image in the file: each stream with `/Subtype /Image`, or with `/Width` and `/Height` and
+ * no `/Subtype` (a page thumbnail), objects nothing refers to included.
+ */
+export async function qpdfImages(
+  saved: Uint8Array,
+  password?: string
+): Promise<QpdfImage[]> {
+  return withFile(saved, async (file) => {
+    const pass = password === undefined ? [] : [`--password=${password}`]
+    const json = (
+      await qpdfStdout([...pass, '--json=2', '--json-key=qpdf', file])
+    ).toString('utf8')
+    const objects = (JSON.parse(json) as { qpdf: [unknown, Record<string, QpdfValue>] })
+      .qpdf[1]
+    const isDict = (v: QpdfValue | undefined): v is QpdfDict =>
+      typeof v === 'object' && v !== null && !Array.isArray(v)
+    const resolve = (v: QpdfValue | undefined): QpdfValue | undefined => {
+      if (typeof v !== 'string' || !v.endsWith(' R')) return v
+      const object = objects[`obj:${v}`]
+      return isDict(object) ? (object.value ?? object) : undefined
+    }
+    const streamDict = (ref: string) => {
+      const object = objects[`obj:${ref}`]
+      const stream = isDict(object) ? object.stream : undefined
+      return isDict(stream) && isDict(stream.dict) ? stream.dict : undefined
+    }
+    const isImage = (dict: QpdfDict | undefined) =>
+      dict !== undefined &&
+      (dict['/Subtype'] === '/Image' ||
+        (dict['/Subtype'] === undefined && '/Width' in dict && '/Height' in dict))
+    const refs = Object.keys(objects)
+      .filter((key) => key.startsWith('obj:'))
+      .map((key) => key.slice(4))
+    const onPage = new Set<string>()
+    for (const ref of refs) {
+      const page = resolve(ref)
+      if (!isDict(page) || page['/Type'] !== '/Page') continue
+      const resources = resolve(page['/Resources'])
+      const xobjects = isDict(resources) ? resolve(resources['/XObject']) : undefined
+      if (!isDict(xobjects)) continue
+      for (const value of Object.values(xobjects)) {
+        if (typeof value !== 'string' || !isImage(streamDict(value))) continue
+        onPage.add(value)
+        for (const key of ['/SMask', '/Mask']) {
+          const mask = streamDict(value)?.[key]
+          if (typeof mask === 'string' && mask.endsWith(' R')) onPage.add(mask)
+        }
+      }
+    }
+    const images: QpdfImage[] = []
+    for (const ref of refs.filter((r) => isImage(streamDict(r)))) {
+      const number = ref.split(' ')[0] as string
+      const samples = await qpdfStdout([
+        ...pass,
+        '--decode-level=all',
+        `--show-object=${number}`,
+        '--filtered-stream-data',
+        file,
+      ]).then(
+        (data) => new Uint8Array(data),
+        () => undefined
+      )
+      images.push({ ref, onPage: onPage.has(ref), samples })
+    }
+    return images
+  })
+}
+
+/** qpdf's standard output for `args`, a run that ends in warnings included. */
+async function qpdfStdout(args: string[]): Promise<Buffer> {
+  return run('qpdf', args, { encoding: 'buffer', maxBuffer: 1 << 28 }).then(
+    ({ stdout }) => stdout,
+    (error: { code?: number; stdout?: Buffer }) => {
+      if (error.code !== 3 || error.stdout === undefined) throw error
+      return error.stdout
+    }
+  )
+}

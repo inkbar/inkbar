@@ -17,7 +17,13 @@ import {
   type RedactionRegion as FixtureRegion,
 } from '@inkbar/fixtures'
 import { holdsText } from '@inkbar/fixtures/pdf-bytes'
-import { qpdfAvailable, qpdfCheck, qpdfQdf, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
+import {
+  qpdfAvailable,
+  qpdfCheck,
+  qpdfImages,
+  qpdfQdf,
+  requireQpdfInCi,
+} from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
@@ -275,7 +281,21 @@ function insideRings(runs: Point[][], [x, y]: Point, evenOdd: boolean): boolean 
   return evenOdd ? crossings % 2 === 1 : winding !== 0
 }
 
-const BLACK = new Set(['#000000', 'rgb(0, 0, 0)'])
+/** Points 2 pt apart inside the regions, each at least MARGIN inside its region. */
+function inside(quads: number[][]): Point[] {
+  const points: Point[] = []
+  for (const quad of quads) {
+    const xs = quad.filter((_, i) => i % 2 === 0)
+    const ys = quad.filter((_, i) => i % 2 === 1)
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += 2)
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y += 2)
+        if (insideQuad(quad, [x, y], MARGIN)) points.push([x, y])
+  }
+  return points
+}
+
+/** Black is an applied mark's overlay, white is paper: neither is content to these readers. */
+const BLACK = new Set(['#000000', 'rgb(0, 0, 0)', '#ffffff', 'rgb(255, 255, 255)'])
 
 /** An operator list as PDF.js gives one, for a page or inside a tiling pattern. */
 interface OperatorList {
@@ -286,18 +306,22 @@ interface OperatorList {
 /**
  * What one page paints under and beside its regions, by its PDF.js operator list: each image
  * sample (by the centre of its cell) that is not paper, points along every path filled or
- * stroked in a colour other than black (an applied mark's overlay is black), and points 2 pt
+ * stroked in a colour other than black or white (an applied mark's overlay is black), and points 2 pt
  * apart inside the clip of every shading. A path filled with a tiling pattern also paints what
  * the pattern's cell draws, read once at the cell's own place and counted only under a region,
  * since a cell's place says nothing about what the pattern paints beside it. Text is left to the
  * text reader.
  *
- * It samples outlines, not interiors: a path counts where its edges run, so a filled shape larger
- * than a region, with no edge inside it, paints nothing under the region here. And it reads a
- * pattern's cell once, without tiling it. That suits these fixtures, which put every vertex of
- * the drawing under a region inside it and give a pattern one cell where it matters. It would
- * miss a fill whose outline lies wholly outside a region (the apply cutting no hole in it), and a
- * pattern whose content reaches a region only in a repeated cell.
+ * A filled path also counts points 2 pt apart inside each region that lie inside it, by its fill
+ * rule and its clips, so a fill that covers a region without an edge in it is seen there; after
+ * an apply such a fill must have a hole where the region is. Points inside a fill count only
+ * under a region, so the count beside the regions stays the count of outlines.
+ *
+ * It reads a pattern's cell once, at its own place, without tiling it. That suits these
+ * fixtures, which give a pattern one cell where the content matters, and a hatch, whose cell
+ * repeats what stays in view. It would miss a pattern whose content reaches a region only in a
+ * repeated cell. Text inside a cell or a soft mask group is not read as page text either: the
+ * byte reader covers those.
  */
 async function paintedOn(
   page: PdfjsPage,
@@ -322,6 +346,7 @@ async function paintedOn(
     OPS.closeFillStroke,
     OPS.closeEOFillStroke,
   ])
+  const evenOddFills = new Set([OPS.eoFill, OPS.eoFillStroke, OPS.closeEOFillStroke])
   const store = (id: string) => (id.startsWith('g_') ? page.commonObjs : page.objs)
   const coloured = (colour: unknown) =>
     colour !== 'transparent' && !BLACK.has(colour as string)
@@ -436,6 +461,15 @@ async function paintedOn(
           const stroked = strokes.has(paint) && coloured(state.stroke)
           if (filled || stroked)
             for (const p of along(runs)) tally(quads, p, counts, 'drawing', depth > 0)
+          if (filled) {
+            const evenOdd = evenOddFills.has(paint)
+            for (const p of inside(quads))
+              if (
+                insideRings(runs, p, evenOdd) &&
+                state.clips.every((c) => insideRings(c.runs, p, c.evenOdd))
+              )
+                tally(quads, p, counts, 'drawing', true)
+          }
           if (filled) await pattern(state.fill)
           if (stroked) await pattern(state.stroke)
           break
@@ -543,11 +577,8 @@ async function plainBytes(bytes: Uint8Array, password?: string): Promise<Uint8Ar
   )
 }
 
-const redactable = rows.filter(
-  (name) => manifest[name].refused === undefined && manifest[name].leaks === undefined
-)
+const redactable = rows.filter((name) => manifest[name].refused === undefined)
 const refused = rows.filter((name) => manifest[name].refused !== undefined)
-const leaking = rows.filter((name) => manifest[name].leaks !== undefined)
 
 describe('the fixtures', () => {
   test.each(rows)(
@@ -631,9 +662,50 @@ describe.runIf(redactable.length)('redacted', () => {
           expect(holdsText(plain, word), word).toBe(false)
       for (const word of gone) expect(holdsText(plain, word), word).toBe(false)
 
-      if (qpdfAvailable) expect(await qpdfCheck(bytes, password)).toEqual({ ok: true })
+      if (qpdfAvailable) {
+        expect(await qpdfCheck(bytes, password)).toEqual({ ok: true })
+        // Every image left in the file, used or not: each must be one a page shows. Where the
+        // images painted nothing beside the regions, every image left must be blank: one value.
+        const painted = sum(before, 'under', 'image') + sum(before, 'beside', 'image')
+        if (painted > 0) {
+          const images = await qpdfImages(bytes, password)
+          expect(images.filter((i) => !i.onPage).map((i) => i.ref)).toEqual([])
+          if (sum(before, 'beside', 'image') === 0) {
+            const source = await qpdfImages(await fixtureBytes(name), password)
+            expect(source.some((i) => !flat(i.samples))).toBe(true)
+            for (const image of images) expect(flat(image.samples), image.ref).toBe(true)
+          }
+        }
+      }
     }
   )
+})
+
+/** Whether an image's samples are known and all one value. */
+const flat = (samples: Uint8Array | undefined) =>
+  samples !== undefined && samples.length > 0 && samples.every((b) => b === samples[0])
+
+test.runIf(qpdfAvailable)('the image reader lists an image no page shows', async () => {
+  // redact-copy-thumbnail's /Thumb is an image in the file that no page paints.
+  const thumb = await qpdfImages(await fixtureBytes('redact-copy-thumbnail'))
+  expect(thumb.map((i) => i.onPage)).toEqual([false])
+  expect(flat(thumb[0]?.samples)).toBe(false)
+  // An image a page shows, its soft mask, and a stencil, which qpdf's own page list leaves out.
+  for (const [name, count] of [
+    ['redact-image-smask', 2],
+    ['redact-image-stencil', 1],
+    ['redact-image-jpeg', 1],
+  ] as const) {
+    const images = await qpdfImages(await fixtureBytes(name))
+    expect(
+      images.map((i) => i.onPage),
+      name
+    ).toEqual(Array(count).fill(true))
+    expect(
+      images.every((i) => i.samples !== undefined),
+      name
+    ).toBe(true)
+  }
 })
 
 test('the image used twice still paints all of itself on the unmarked page', async () => {
@@ -657,13 +729,24 @@ test('a redacted encrypted file still needs its password', async () => {
 })
 
 /**
- * What the strict check reports for each refused fixture. PDF.js reads neither a pattern's cell
- * nor an annotation's appearance as page text, so with no secret in the page text after the
- * apply, the finding comes from the pattern or the loupe.
+ * For each refused fixture: the field the strict check reports, and what an independent reader
+ * still finds in the saved file, which shows the refusal is needed. `secrets`: the byte reader
+ * finds every secret. `drawing`: PDF.js paints drawing under a region (from a pattern's cell).
+ * A string: the byte reader finds it. PDF.js reads neither a pattern's cell, a mask group nor an
+ * annotation's appearance as page text, so with no secret in the page text after the apply, a
+ * text finding comes from the pattern, the group or the loupe.
  */
-const refusedBy: Partial<Record<FixtureName, 'text' | 'image' | 'drawing'>> = {
-  'redact-text-pattern': 'text',
-  'redact-annotation-loupe': 'text',
+const refusedBy: Partial<
+  Record<FixtureName, { field: 'text' | 'image' | 'drawing'; remains: string }>
+> = {
+  'redact-text-pattern': { field: 'text', remains: 'secrets' },
+  'redact-annotation-loupe': { field: 'text', remains: 'secrets' },
+  'redact-drawing-pattern-past-mark': { field: 'drawing', remains: 'drawing' },
+  'redact-drawing-pattern-side': { field: 'drawing', remains: 'drawing' },
+  'redact-drawing-mesh': { field: 'drawing', remains: '/ShadingType 4' },
+  'redact-drawing-function-shading': { field: 'drawing', remains: '/ShadingType 1' },
+  'redact-drawing-mesh-pattern': { field: 'drawing', remains: '/ShadingType 4' },
+  'redact-mask-group-past-mark': { field: 'text', remains: 'secrets' },
 }
 
 describe.runIf(refused.length)('refused', () => {
@@ -674,13 +757,11 @@ describe.runIf(refused.length)('refused', () => {
       const bytes = await redacted(name)
       const findings = await strictCheck(name, bytes)
       expect(findings).not.toBeInstanceOf(EngineError)
-      const field = refusedBy[name]
-      expect(field, 'refusedBy names the field the check reports').toBeDefined()
+      const expected = refusedBy[name]
+      expect(expected, 'refusedBy says what the check reports').toBeDefined()
+      const { field, remains } = expected as NonNullable<typeof expected>
       expect((findings as RedactionFindings).candidates).toContainEqual(
-        expect.objectContaining({
-          [field as string]: 'present',
-          verdict: 'content-remains',
-        })
+        expect.objectContaining({ [field]: 'present', verdict: 'content-remains' })
       )
       const marked = new Set(regions.map((r) => r.page))
       const after = await readPages(bytes, regions, password)
@@ -689,29 +770,14 @@ describe.runIf(refused.length)('refused', () => {
           for (const word of secrets)
             expect(page.text, `page ${i}: ${word}`).not.toContain(word)
       })
-    }
-  )
-})
-
-/*
- * Known leaks: the strict check calls the region clean, so the action hands the file over, and an
- * independent reader still finds what was under the region. Each asserts both, so it fails once
- * the leak is fixed or the check refuses it.
- */
-describe.runIf(leaking.length)('known leaks', () => {
-  test.each(leaking)(
-    '%s: the strict check passes and a reader still finds content',
-    async (name) => {
-      const { regions = [] } = manifest[name]
-      const bytes = await redacted(name)
-      const findings = await strictCheck(name, bytes)
-      expect(findings).not.toBeInstanceOf(EngineError)
-      for (const candidate of (findings as RedactionFindings).candidates)
-        expect(candidate).toMatchObject({ verdict: 'clean' })
-      const after = await readPages(bytes, regions)
-      expect(
-        sum(after, 'under', 'image') + sum(after, 'under', 'drawing')
-      ).toBeGreaterThan(0)
+      // The content is still in the saved file.
+      const plain = await plainBytes(bytes, password)
+      if (remains === 'secrets') {
+        expect(secrets.length).toBeGreaterThan(0)
+        for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
+      } else if (remains === 'drawing')
+        expect(sum(after, 'under', 'drawing')).toBeGreaterThan(0)
+      else expect(holdsText(plain, remains), remains).toBe(true)
     }
   )
 })
