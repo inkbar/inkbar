@@ -45,6 +45,26 @@ function geometryOf(a: Annotation): Rect {
 }
 
 /**
+ * Whether a box on a page overlaps one of `regions` on an open interval, so a box that only
+ * touches an edge does not.
+ */
+function hitsRegions(
+  regions: RedactionPlan['regions']
+): (page: number, rect: Rect) => boolean {
+  const boxes = regions.map((r) => ({ page: r.page, rects: r.quads.map(rectFromQuad) }))
+  return (page, rect) =>
+    boxes.some((b) => b.page === page && b.rects.some((r) => rectsIntersect(r, rect)))
+}
+
+/**
+ * Whether a mark of `plan` overlaps `a` by its own geometry, by the rule `planRedaction` removes
+ * session annotations by: for the file's own annotations, which the engine removes itself.
+ */
+export function overlapsMark(plan: RedactionPlan, a: Annotation): boolean {
+  return hitsRegions(plan.regions)(a.page, geometryOf(a))
+}
+
+/**
  * Decides what applying redactions does: which session annotations are the marks and what they
  * cover, which other session annotations go with the content under them, and which are written
  * after. Annotations that came from the file and are locked are in neither list.
@@ -64,9 +84,7 @@ export function planRedaction(
     page: m.page,
     quads: m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect),
   }))
-  const boxes = regions.map((r) => ({ page: r.page, rects: r.quads.map(rectFromQuad) }))
-  const hit = (page: number, rect: Rect): boolean =>
-    boxes.some((b) => b.page === page && b.rects.some((r) => rectsIntersect(r, rect)))
+  const hit = hitsRegions(regions)
 
   const goes = (a: Annotation): boolean => {
     if (a.type === 'redact' || a.type === 'mask') return false

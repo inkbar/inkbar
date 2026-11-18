@@ -16,7 +16,11 @@ describe('EngineLoader', () => {
   it('asks of the engine only what the engine has', () => {
     expectTypeOf<EngineModule.Engine>().toExtend<SaveEngine>()
     expectTypeOf<EngineModule.EngineDocument>().toExtend<SaveEngineDocument>()
-    expectTypeOf<keyof SaveEngine>().toEqualTypeOf<'open' | 'destroy'>()
-    expectTypeOf<keyof SaveEngineDocument>().toEqualTypeOf<'write' | 'save'>()
+    expectTypeOf<keyof SaveEngine>().toEqualTypeOf<
+      'open' | 'checkRedaction' | 'destroy'
+    >()
+    expectTypeOf<keyof SaveEngineDocument>().toEqualTypeOf<
+      'write' | 'redact' | 'save' | 'close'
+    >()
   })
 })

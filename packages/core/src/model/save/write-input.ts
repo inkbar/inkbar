@@ -8,7 +8,7 @@ import { savedDataFor } from '../annotations/saved-data'
 import { isReply } from '../annotations/threads'
 
 import type { FieldChange } from './changes'
-import type { DrawContext, TextMeasure } from '../annotations/drawing/types'
+import type { DrawContext, Drawing, TextMeasure } from '../annotations/drawing/types'
 import type { Annotation } from '../annotations/types'
 import type { FormField } from '../form/types'
 import type { Rect } from '../geometry'
@@ -77,6 +77,8 @@ export interface WriteAnnotationOptions {
   helpers: Omit<PaintHelpers, 'page'>
   /** What text is laid out with: the screen's measure, or the standard tables when absent. */
   measure?: TextMeasure | undefined
+  /** What to paint in place of the annotation's own drawing, such as a mark's overlay. */
+  drawing?: Drawing | undefined
   /** The data to store; `savedDataFor` of the annotation when absent. Fixtures only. */
   data?: (bounds: Rect) => string
 }
@@ -100,10 +102,12 @@ export async function writeAnnotation(
   // The engine writes `inReplyTo` as a reply. One whose parent is neither written nor in the
   // file shows on the page, so it is written as what it shows; its data keeps the link.
   delete annotation.inReplyTo
-  const drawing = describeDrawing(a, {
-    page: options.page,
-    measure: options.measure ?? standardMeasure,
-  })
+  const drawing =
+    options.drawing ??
+    describeDrawing(a, {
+      page: options.page,
+      measure: options.measure ?? standardMeasure,
+    })
   if (!drawing) throw new Error(`An annotation of type ${a.type} has no drawing`)
   // The box is settled before the data is made, so the rect stored is the rect written.
   const appearance = boxed(
@@ -233,7 +237,7 @@ export async function buildWriteInput(state: {
  * `structuredClone` refuses. Binary data and anything else that is not a plain object or an
  * array is kept as it is.
  */
-function plainData<T>(value: T): T {
+export function plainData<T>(value: T): T {
   if (Array.isArray(value)) return value.map(plainData) as T
   if (value === null || typeof value !== 'object') return value
   const proto = Object.getPrototypeOf(value) as unknown

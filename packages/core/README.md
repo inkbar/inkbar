@@ -197,7 +197,7 @@ const doc = await openDocument(file, {
 
 - Each annotation becomes a standard PDF annotation that other programs can list, select and delete: a highlight is a Highlight, a note a Text annotation, a text box a FreeText, a drawing an Ink annotation, and so on. A loupe or a mask becomes a Stamp. Its look is drawn from the same description the screen uses, so it matches what you see in Inkbar, apart from the differences below. A comment goes in the annotation's contents, and replies are saved as replies.
 - Changed form values. Fields you did not change keep the look they came with.
-- A redaction mark becomes a Redact annotation. It is not applied: the text and images under it are still in the file and can still be copied.
+- A redaction mark becomes a Redact annotation. A save does not apply it: the text and images under it are still in the file and can still be copied. [Applying redactions](#applying-redactions) removes them.
 
 A file with a digital signature is saved by appending the changes after the signed bytes, so the signature still verifies; other viewers report that the file changed after signing. Any other file is rewritten. An encrypted file keeps its password.
 
@@ -228,6 +228,38 @@ XFA forms are not supported.
 ### When a save fails
 
 When the engine cannot be loaded or cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'engine'` when the engine could not be loaded or started, as when offline, and `'write'` when it could not open or write this file. When one annotation is the cause, `details.annotation` holds its id. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
+
+### Applying redactions
+
+`doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`, the redacted file and what was done. It needs the `engine` option. The engine applies the marks to the file as it was opened:
+
+1. It removes the text, image samples and drawing under each mark and leaves an opaque box in the mark's fill colour in its place, with the mark's overlay text if it has one.
+2. It removes every annotation a mark overlaps, Inkbar's and the file's own, and writes the other annotations and the changed form values after.
+3. It removes the file's metadata, attached files, scripts, page thumbnails and private application data.
+4. It rewrites the whole file, so no earlier version stays inside it.
+5. It checks the bytes it wrote under each mark. The check reads the file's objects, so content hidden under an opaque box counts.
+
+The open document does not change: its annotations, `doc.changed`, `doc.save()` and `doc.getData()` stay as they were. To show the redacted file, open the bytes. Marks Inkbar saved earlier count as marks, and in an encrypted file, where they come back locked, the engine applies them too. Redact annotations from other programs are left in place and counted.
+
+`result` holds:
+
+- `marks` and `pages`: the marks applied and the pages they were on. A mark with no area or wholly off its page is skipped.
+- `removed.session`: the ids of the session annotations removed with the content. `removed.file`: how many of the file's own annotations went, pop-up windows included.
+- `foreignMarks`: other programs' Redact annotations, left unapplied. `ownLockedMarks`: Inkbar's earlier marks applied in an encrypted file.
+- `sanitised`: what was removed from the file. `hiddenLayers` and `signed`: whether the file has hidden layers, and whether it held a digital signature.
+- `findings`: what the check found under each mark: places and verdicts, never the file's text.
+
+`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: the marks, their pages, the other annotations they overlap, and whether the file is signed.
+
+When it fails, nothing is handed over. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is `'engine'` when the engine could not be loaded or started, `'apply'` when it could not apply the marks or write the rest, and `'verify'` when the check could not run or found content under a mark. `details.page` and `details.annotation` name the page and the annotation when one was the cause, and at `'verify'` `details.regions` lists the page and rectangle of each place the check failed. A save in flight finishes first, and a second call while one runs gets the same promise.
+
+Known limits:
+
+- Hidden layers are not cleaned.
+- The removed words may also appear where Inkbar does not look: bookmark titles, comments on other annotations, form values, alternate text for screen readers.
+- A scanned page is one image: a mark removes the pixels under it, and there is no text to remove. OCR text layers are removed like any text.
+- Scripts are removed, so forms stop calculating.
+- A signed file's signature stops verifying.
 
 ## Annotation changes
 

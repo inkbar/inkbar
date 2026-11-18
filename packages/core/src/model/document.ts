@@ -39,6 +39,7 @@ import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
+import { applyRedactions, redactionPreview, type RedactionState } from './redaction/apply'
 import {
   canonical,
   canonicalAnnotation,
@@ -70,6 +71,7 @@ import type {
 import type { Destination, RawDestination } from './destination'
 import type { FieldsMode, FormField } from './form/types'
 import type { OutlineItem } from './outline'
+import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -90,10 +92,17 @@ export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
 
 export type {
   EngineLoader,
+  RedactEngineResult,
+  RedactionCandidate,
+  RedactionFindings,
+  RedactionRegion,
+  RedactionSanitised,
+  RedactSaveInput,
   SaveEngine,
   SaveEngineDocument,
   SaveInput,
 } from './save/saver'
+export type { RedactionPreview, RedactionResult } from './redaction/types'
 export type {
   TextPicture,
   TextPictureRequest,
@@ -254,6 +263,25 @@ export interface InkDocument {
    * save until then keeps them.
    */
   readonly changed: Readable<boolean>
+  /**
+   * Applies every redaction mark of the session to the file as opened: removes the text, image
+   * samples and drawing under each one, leaves an opaque box in its place, removes the
+   * annotations a mark overlaps, writes the others and the changed form values after, sanitises
+   * the file and rewrites it. Then checks the bytes, under each mark, by their objects. Resolves
+   * with the redacted bytes and what was done; the open document, its annotations and `changed`
+   * stay as they were. Needs the `engine` option: rejects with EngineUnavailable without it, with
+   * NothingToRedact when there is no mark, and with RedactionFailed when the engine could not be
+   * started (`details.stage: 'engine'`), could not apply the marks or write the rest (`'apply'`,
+   * with `details.page` and `details.annotation` when it names them), or the check could not
+   * run or found content under a mark (`'verify'`, with the places in `details.regions`). It
+   * waits for a save in flight, and a call while one runs gets the same promise.
+   */
+  applyRedactions(): Promise<{ bytes: Uint8Array; result: RedactionResult }>
+  /**
+   * What `applyRedactions()` would do, without loading the engine: the marks, the pages they are
+   * on, the other annotations they overlap, and whether the file is signed.
+   */
+  redactionPreview(): RedactionPreview
   destroy(): void
   /**
    * @internal True when the document was opened with an `engine` loader: download and print
@@ -724,17 +752,52 @@ export async function openDocument(
    * The file copies of the lifted annotations, which a save removes. One with no object to
    * remove fails the save: writing it again beside its file copy would leave two.
    */
-  const liftedRefs = (): AnnotationRef[] =>
+  const liftedRefs = (
+    code: 'SaveFailed' | 'RedactionFailed' = 'SaveFailed'
+  ): AnnotationRef[] =>
     [...liftedFrom.values()].map(({ annotation, pdfjsId }) => {
       const ref = refOfPdfjsId(pdfjsId)
       if (!ref)
         throw new InkError(
-          'SaveFailed',
+          code,
           `The file's copy of the annotation ${annotation.id} cannot be found to replace`,
-          { stage: 'write', annotation: annotation.id }
+          { stage: code === 'SaveFailed' ? 'write' : 'apply', annotation: annotation.id }
         )
       return { page: annotation.page, objectNumber: ref.num }
     })
+
+  /** The session as applying redactions reads it. */
+  const redactionState = (): RedactionState => ({
+    annotations: sessionList(),
+    formFields: form.fields.get(),
+    values: form.values.get(),
+    fieldChanges: fieldChanges(),
+  })
+  /** The apply running, which a second call shares. */
+  let applying: Promise<{ bytes: Uint8Array; result: RedactionResult }> | undefined
+  const apply = async (): Promise<{ bytes: Uint8Array; result: RedactionResult }> => {
+    if (destroyed) throw destroyedError()
+    await ready
+    await baselineTaken
+    if (destroyed) throw destroyedError()
+    if (!handles || !baseline) throw statusError(status.get())
+    if (!saver)
+      throw new InkError(
+        'EngineUnavailable',
+        'Applying redactions needs @inkbar/engine: pass the engine option.'
+      )
+    const { measure, ...helpers } = options.pictures ?? {}
+    return applyRedactions({
+      ...redactionState(),
+      pages,
+      lifted: liftedRefs('RedactionFailed'),
+      fileParents: fileParents(),
+      helpers,
+      measure,
+      encrypted: info.isEncrypted,
+      saver,
+    })
+  }
 
   /**
    * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
@@ -924,6 +987,17 @@ export async function openDocument(
       })
     },
     changed: readonly(changed),
+    applyRedactions() {
+      if (applying) return applying
+      const running = apply()
+      applying = running
+      const settle = () => {
+        if (applying === running) applying = undefined
+      }
+      running.then(settle, settle)
+      return running
+    },
+    redactionPreview: () => redactionPreview(redactionState()),
     destroy() {
       if (destroyed) return
       destroyed = true

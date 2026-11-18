@@ -6,6 +6,8 @@ export type InkErrorCode =
   | 'AssetLoadFailed'
   | 'EngineUnavailable'
   | 'SaveFailed'
+  | 'NothingToRedact'
+  | 'RedactionFailed'
   | 'ControlledMutationIgnored'
   | 'DocumentDestroyed'
   | 'PageOutOfRange'
