@@ -31,6 +31,7 @@ export const en: InkMessages = {
     }),
     redactSigned: 'This file is signed. Its signature will stop verifying.',
     redactConfirm: 'Apply',
+    redactCancel: 'Cancel',
     redacting: 'Applying redactions…',
     redactFailed: 'The redactions could not be applied. Nothing was changed.',
     redactUnverified: 'Some content could not be removed, so nothing was changed.',

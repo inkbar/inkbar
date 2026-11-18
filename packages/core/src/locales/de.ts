@@ -40,6 +40,7 @@ export const de: InkMessages = {
     redactSigned:
       'Diese Datei ist signiert. Ihre Signatur wird danach nicht mehr gültig sein.',
     redactConfirm: 'Anwenden',
+    redactCancel: 'Abbrechen',
     redacting: 'Schwärzungen werden angewendet…',
     redactFailed:
       'Die Schwärzungen konnten nicht angewendet werden. Es wurde nichts geändert.',

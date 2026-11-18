@@ -41,6 +41,7 @@ export const fr: InkMessages = {
     }),
     redactSigned: 'Ce fichier est signé. Sa signature ne sera plus valide.',
     redactConfirm: 'Appliquer',
+    redactCancel: 'Annuler',
     redacting: 'Application des caviardages…',
     redactFailed: 'Impossible d’appliquer les caviardages. Rien n’a été modifié.',
     redactUnverified:

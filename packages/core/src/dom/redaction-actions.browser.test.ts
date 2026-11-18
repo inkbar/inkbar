@@ -22,11 +22,12 @@ afterEach(() => {
 })
 
 /** A fixture opened as a viewer opens it, with the real engine as its loader unless `bare`. */
-async function open(name: FixtureName = 'redact-text', bare = false) {
+async function open(name: FixtureName = 'redact-text', bare = false, password?: string) {
   const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
   const doc = await openDocument(fixtureUrl(name), {
     assets: browserAssets(),
     pictures: savePictures(document),
+    password,
     ...(bare ? {} : { engine: loader }),
   })
   opened.push(doc)
@@ -52,6 +53,8 @@ function deferred<T>() {
 describe('canRedact', () => {
   it('follows the marks, and needs an engine', async () => {
     const { doc } = await open()
+    // A count of the marks: no preview, with its overlap pass, on each change.
+    const preview = vi.spyOn(doc, 'redactionPreview')
     const can = canRedact(doc)
     expect(canRedact(doc)).toBe(can)
     const seen: boolean[] = []
@@ -63,10 +66,35 @@ describe('canRedact', () => {
     expect(can.get()).toBe(false)
     expect(seen).toEqual([true, false])
     stop()
+    expect(preview).not.toHaveBeenCalled()
 
     const { doc: bare } = await open('redact-text', true)
     markSecret(bare)
     expect(canRedact(bare).get()).toBe(false)
+  })
+})
+
+describe('canRedact in an encrypted file', () => {
+  it('counts the locked marks an earlier save left', async () => {
+    const { doc } = await open('encrypted-aes', false, 'inkbar')
+    // Over "Enc" of the file's one word, Encrypted, on the baseline y 700.
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 70, y: 695, width: 25, height: 20 },
+    })
+    const saved = await doc.save()
+    const back = await openDocument(saved, {
+      assets: browserAssets(),
+      pictures: savePictures(document),
+      password: 'inkbar',
+      engine: () => import('@inkbar/engine'),
+    })
+    opened.push(back)
+    await back.ready
+    // Nothing comes back editable: the mark is locked, and still applies.
+    expect(back.annotations.list.get().filter((a) => a.source !== 'pdf')).toEqual([])
+    expect(canRedact(back).get()).toBe(true)
   })
 })
 
@@ -78,7 +106,7 @@ describe('runRedaction', () => {
     const changed = doc.changed.get()
     const confirm = vi.fn((_: RedactionPreview) => Promise.resolve(false))
     const apply = vi.spyOn(doc, 'applyRedactions')
-    const out = await runRedaction(doc, { confirm, messages: en })
+    const out = await runRedaction(doc, { confirm })
     expect(out).toBeNull()
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(confirm.mock.calls[0]![0]).toEqual({
@@ -103,17 +131,21 @@ describe('runRedaction', () => {
     const confirm = vi.fn((_: RedactionPreview) => answer.promise)
     const apply = vi.spyOn(doc, 'applyRedactions')
     const busy = redactionBusy(doc)
-    const first = runRedaction(doc, { confirm, messages: en })
+    const first = runRedaction(doc, { confirm })
     // While the confirmation is open: nothing else starts.
-    await expect(runRedaction(doc, { confirm, messages: en })).resolves.toBeNull()
+    await expect(runRedaction(doc, { confirm })).resolves.toBeNull()
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(busy.get()).toBe(false)
+    // A press the moment it starts applying: the same.
+    let during: Promise<unknown> | undefined
+    const stop = busy.subscribe((on) => {
+      if (on) during ??= runRedaction(doc, { confirm })
+    })
     answer.resolve(true)
-    await vi.waitFor(() => expect(busy.get()).toBe(true))
-    // While it applies: the same.
-    await expect(runRedaction(doc, { confirm, messages: en })).resolves.toBeNull()
-    expect(confirm).toHaveBeenCalledTimes(1)
     const out = await first
+    stop()
+    await expect(during).resolves.toBeNull()
+    expect(confirm).toHaveBeenCalledTimes(1)
     expect(apply).toHaveBeenCalledTimes(1)
     expect(out!.result.marks).toBe(1)
     expect(out!.bytes.byteLength).toBeGreaterThan(0)
@@ -124,9 +156,7 @@ describe('runRedaction', () => {
     const { doc } = await open('redact-text', true)
     markSecret(doc)
     const confirm = vi.fn(() => Promise.resolve(true))
-    const error = await runRedaction(doc, { confirm, messages: en }).catch(
-      (e: unknown) => e
-    )
+    const error = await runRedaction(doc, { confirm }).catch((e: unknown) => e)
     // Without an engine nothing is asked.
     expect(confirm).not.toHaveBeenCalled()
     expect(error).toMatchObject({ code: 'EngineUnavailable' })

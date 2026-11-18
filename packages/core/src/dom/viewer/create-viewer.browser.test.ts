@@ -4018,6 +4018,197 @@ describe('applying redactions', () => {
     expect(hostList.map((a) => a.id)).toEqual([square.id])
     expect(next.annotations.list.get().map((a) => a.id)).toEqual([square.id])
     expect(reasons.filter((r) => r !== 'redaction' && r !== 'file')).toEqual([])
+    expect(reasons.filter((r) => r === 'redaction')).toHaveLength(1)
+  })
+
+  it('a controlled host and the viewer agree in a file with annotations of its own', async () => {
+    let hostList: Annotation[] = []
+    const proposals: { reason: string; ids: string[] }[] = []
+    const onChange = (next: Annotation[], change: AnnotationChange) => {
+      proposals.push({
+        reason: change.kind === 'replace' ? change.reason : change.kind,
+        ids: next.map((a) => a.id),
+      })
+      hostList = next
+      viewer.document.get()?.annotations.setControlledValue(next)
+    }
+    const { viewer } = make('redact-annotations', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      annotations: { mode: 'controlled', initial: [], onChange },
+      onReady: (d) => d.annotations.setControlledValue(hostList),
+    })
+    const { doc } = await ready(viewer)
+    await until(() => doc.annotations.list.get().some((a) => a.source === 'pdf'))
+    const kept = addSquare(doc)
+    // Under the mark: it goes with the content.
+    const under = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 60, y: 170, width: 40, height: 30 },
+    })
+    const mark = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 40, y: 150, width: 200, height: 100 },
+    })
+    expect(hostList.map((a) => a.id)).toEqual([kept.id, under.id, mark.id])
+    proposals.length = 0
+
+    const result = await viewer.applyRedactions()
+    expect(result!.removed.session).toEqual([under.id])
+    expect(result!.removed.file).toBeGreaterThan(0)
+    const redaction = proposals.filter((p) => p.reason === 'redaction')
+    expect(redaction).toEqual([{ reason: 'redaction', ids: [kept.id] }])
+    const next = await reopened(viewer, doc)
+    await until(() => next.annotations.get(kept.id) !== undefined)
+    await settle()
+    const session = () =>
+      next.annotations.list
+        .get()
+        .filter((a) => a.source !== 'pdf')
+        .map((a) => a.id)
+    expect(hostList.map((a) => a.id)).toEqual([kept.id])
+    expect(session()).toEqual(hostList.map((a) => a.id))
+    expect(next.annotations.list.get().some((a) => a.type === 'redact')).toBe(false)
+  })
+
+  it('keeps the file name for Download after applying', async () => {
+    const clicked: HTMLAnchorElement[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push(this)
+    })
+    const data = await (await fetch(fixtureUrl('redact-text'))).arrayBuffer()
+    const { viewer } = make('redact-text', {
+      source: new File([data], 'contract.pdf', { type: 'application/pdf' }),
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const { doc } = await ready(viewer)
+    expect(doc.fileName).toBe('contract.pdf')
+    markSecret(doc)
+    await viewer.applyRedactions()
+    const next = await reopened(viewer, doc)
+    expect(next.fileName).toBe('contract.pdf')
+    expect(next.key).toBe(doc.key)
+    await viewer.download()
+    expect(clicked.map((a) => a.download)).toEqual(['contract.pdf'])
+  })
+
+  it('a throwing onRedacted still reopens and tells the reader', async () => {
+    const errors: InkError[] = []
+    const thrown = new Error('host failed')
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onRedacted: () => {
+        throw thrown
+      },
+      onError: (e) => errors.push(e),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await expect(viewer.applyRedactions()).resolves.toMatchObject({ marks: 1 })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]!.cause).toBe(thrown)
+    await reopened(viewer, doc)
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 redaction applied.')
+  })
+
+  it('a reopen that fails shows only the open failure', async () => {
+    const errors: InkError[] = []
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      // The host spoils the bytes the viewer reopens on.
+      onRedacted: ({ bytes }) => bytes.fill(0),
+      onError: (e) => errors.push(e),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await viewer.applyRedactions()
+    await until(() => viewer.status.get().state === 'error')
+    await settle()
+    expect(errors.map((e) => e.code)).toEqual(['InvalidPdf'])
+    expect(alertText()).toBeNull()
+  })
+
+  it('the dialog closes, answering no, when its document is replaced', async () => {
+    const errors: InkError[] = []
+    const onRedacted = vi.fn()
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      onRedacted,
+      onError: (e) => errors.push(e),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    const applying = viewer.applyRedactions()
+    await until(() => dialog() !== null)
+    viewer.open(fixtureUrl('text-simple'))
+    expect(dialog()).toBeNull()
+    await expect(applying).resolves.toBeNull()
+    await reopened(viewer, doc)
+    expect(onRedacted).not.toHaveBeenCalled()
+    expect(errors).toEqual([])
+    expect(document.querySelector('[data-ink-dialog-overlay]')).toBeNull()
+  })
+
+  it('destroying the viewer while the dialog is open closes it and applies nothing', async () => {
+    const onRedacted = vi.fn()
+    const { viewer } = make('redact-text', { engine: realEngine(), onRedacted })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    const apply = vi.spyOn(doc, 'applyRedactions')
+    const applying = viewer.applyRedactions()
+    await until(() => dialog() !== null)
+    viewer.destroy()
+    expect(dialog()).toBeNull()
+    expect(document.querySelector('[data-ink-dialog-overlay]')).toBeNull()
+    await expect(applying).resolves.toBeNull()
+    expect(apply).not.toHaveBeenCalled()
+    expect(onRedacted).not.toHaveBeenCalled()
+  })
+
+  it('destroying the viewer during the reopen shows nothing', async () => {
+    const onReady = vi.fn()
+    const errors: InkError[] = []
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onReady,
+      onError: (e) => errors.push(e),
+      // The reopen starts right after the host hears.
+      onRedacted: () => queueMicrotask(() => viewer.destroy()),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await viewer.applyRedactions()
+    await settle()
+    await new Promise((r) => setTimeout(r, 300))
+    expect(onReady).toHaveBeenCalledTimes(1)
+    expect(errors).toEqual([])
+    expect(alertText()).toBeNull()
+  })
+
+  it('keeps the single-page layout', async () => {
+    const { viewer } = make('text-simple', {
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const { doc, engine } = await ready(viewer)
+    engine.viewport.setMode('single')
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 72, y: 600, width: 200, height: 40 },
+    })
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    expect(viewer.viewport.get()!.mode.get()).toBe('single')
   })
 
   it('a failed check leaves the document and its marks as they were and says why', async () => {

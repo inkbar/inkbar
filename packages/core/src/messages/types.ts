@@ -37,6 +37,8 @@ export interface InkMessages {
     redactSigned: string
     /** The confirmation's button that applies. */
     redactConfirm: string
+    /** The confirmation's button that closes it, applying nothing. */
+    redactCancel: string
     /** The control's text while the marks are applied. */
     redacting: string
     redactFailed: string

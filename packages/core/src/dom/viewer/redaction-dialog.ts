@@ -93,7 +93,7 @@ export function createRedactionDialog(opts: RedactionDialogOptions): RedactionDi
   function paint(): void {
     const m = messages
     title.textContent = m.viewer.redactTitle
-    cancelButton.textContent = m.password.cancel
+    cancelButton.textContent = m.viewer.redactCancel
     confirmButton.textContent = m.viewer.redactConfirm
     if (shown)
       description.replaceChildren(...linesOf(m, shown).map((line) => h('p', {}, line)))

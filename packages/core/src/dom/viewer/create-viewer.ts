@@ -140,7 +140,7 @@ export interface CreateViewerOptions extends Omit<
   /**
    * The redaction marks were applied (`applyRedactions`): `bytes` is the redacted file, which a
    * host that stores files stores, and `result` says what was done. Called before the viewer
-   * reopens on the bytes.
+   * reopens on the bytes, which keep the file's name and key.
    */
   onRedacted?(this: void, event: { bytes: Uint8Array; result: RedactionResult }): void
   /**
@@ -153,7 +153,9 @@ export interface CreateViewerOptions extends Omit<
    * The document failed to open, a form script failed, signing a field was refused, a
    * download or print could not write its copy (`SaveFailed`), or applying redactions failed
    * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`). For the last two the viewer
-   * also tells the reader in its message box.
+   * also tells the reader in its message box. An `onRedacted` that throws is reported here as
+   * a `RedactionFailed` with `details.callback: 'onRedacted'` and the thrown value as its
+   * `cause`; the redacted file still opens.
    */
   onError?(this: void, error: InkError): void
 }
@@ -289,6 +291,10 @@ interface LoadOptions {
   view?: ViewState
   /** The list a controlled document starts from, in place of the option's `initial`. */
   initial?: Annotation[]
+  /** The name to save under, in place of the one the source gives. */
+  fileName?: string
+  /** Runs once the document is ready and `onReady` has run; not when the load fails. */
+  shown?: () => void
 }
 
 const noop = () => undefined
@@ -715,6 +721,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     })
   /** The password the open document was opened with: a redacted copy opens with it too. */
   let openedWith: string | undefined
+  // The dialog speaks of one document: when that one closes or another opens, it closes,
+  // answering no, so Apply never reaches a document that has gone.
+  const stopDialogFollow = current.subscribe(() => {
+    redactionDialog.close()
+    answer(false)
+  })
 
   let loads = 0
   let destroyed = false
@@ -776,6 +788,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         openOpts?.initial && annotations?.mode === 'controlled'
           ? { ...annotations, initial: openOpts.initial }
           : annotations,
+      _fileName: openOpts?.fileName,
     }).then(
       (doc) => {
         // A later `open` or `destroy` superseded this load.
@@ -807,7 +820,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         // A status subscriber may have opened another document already.
         if (load !== loads) return
         onReady?.(doc)
-        if (load === loads) releaseFormErrors()
+        if (load !== loads) return
+        releaseFormErrors()
+        if (load === loads) openOpts?.shown?.()
       },
       (cause: unknown) => {
         // Only a programmer error (missing assets) rejects; it gets the error state too.
@@ -842,7 +857,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         : (redactionConfirm ?? askInDialog)
     let out: { bytes: Uint8Array; result: RedactionResult } | null
     try {
-      out = await runRedaction(doc, { confirm, messages: words() })
+      out = await runRedaction(doc, { confirm })
     } catch (error) {
       redactionFailed(error)
       return null
@@ -850,8 +865,22 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     // Destroyed, or another document opened, meanwhile: there is nothing to reopen.
     if (!out || destroyed || current.get() !== doc) return null
     const { bytes, result } = out
-    onRedacted?.({ bytes, result })
-    // `onRedacted` may have opened another document already.
+    try {
+      onRedacted?.({ bytes, result })
+    } catch (error) {
+      // The reader confirmed: the reopen goes ahead, and the host hears what it threw.
+      onError?.(
+        isInkError(error)
+          ? error
+          : new InkError(
+              'RedactionFailed',
+              `onRedacted threw: ${error instanceof Error ? error.message : String(error)}`,
+              { callback: 'onRedacted' },
+              error
+            )
+      )
+    }
+    // `onRedacted` or `onError` may have opened another document already.
     if (destroyed || current.get() !== doc) return result
     const vp = viewport.get()
     const tc = tools.get()
@@ -865,16 +894,26 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
             tool: tc.active.get(),
           }
         : undefined
-    // A controlled host is proposed its list without what the apply removed, once; the
-    // reopened document starts from it, so the proposal its lifting makes agrees.
+    // A controlled host is proposed its list without the marks and the annotations removed
+    // with them, once; the reopened document starts from it, so the proposal its lifting
+    // makes agrees.
     let initial: Annotation[] | undefined
     if (doc.annotations.mode === 'controlled') {
       const gone = new Set(result.removed.session)
-      initial = doc.annotations.list
-        .get()
-        .filter((a) => a.source !== 'pdf' && a.type !== 'redact' && !gone.has(a.id))
+      // What the host holds: the file's own annotations never pass through it.
+      const hostList = doc.annotations.list.get().filter((a) => a.source !== 'pdf')
+      initial = hostList.filter((a) => a.type !== 'redact' && !gone.has(a.id))
       doc.annotations.replaceAll(initial, 'redaction')
       if (destroyed || current.get() !== doc) return result
+    }
+    // Said once the redacted file shows; a reopen that fails shows its own failure instead.
+    const shown = (): void => {
+      const m = words().viewer
+      const said = [m.redactDone({ marks: result.marks })]
+      if (result.hiddenLayers) said.push(m.redactHiddenLayers)
+      if (result.foreignMarks > 0)
+        said.push(m.redactForeign({ count: result.foreignMarks }))
+      formAlert.show(said.join(' '))
     }
     // The new document has a history of its own: the old one goes with it.
     open(
@@ -883,14 +922,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         ...(openedWith === undefined ? {} : { password: openedWith }),
         ...(view && { view }),
         ...(initial && { initial }),
+        fileName: doc.fileName,
+        shown,
       }
     )
-    const m = words().viewer
-    const said = [m.redactDone({ marks: result.marks })]
-    if (result.hiddenLayers) said.push(m.redactHiddenLayers)
-    if (result.foreignMarks > 0)
-      said.push(m.redactForeign({ count: result.foreignMarks }))
-    formAlert.show(said.join(' '))
     return result
   }
 
@@ -954,6 +989,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       stopMessages()
       stopPrompt()
       passwordDialog.destroy()
+      stopDialogFollow()
       redactionDialog.destroy()
       answer(false)
       host.destroy()

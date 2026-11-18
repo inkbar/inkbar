@@ -156,6 +156,11 @@ export interface OpenOptions {
    * nor JPEG.
    */
   pictures?: SavePictures | undefined
+  /**
+   * @internal The name to save under, in place of the one the source gives: a viewer reopening
+   * on redacted bytes keeps the name of the file they came from.
+   */
+  _fileName?: string | undefined
 }
 
 /** What a save needs from a browser: see `OpenOptions.pictures`. */
@@ -887,7 +892,7 @@ export async function openDocument(
 
   const doc: InkDocument = {
     key: resolved.key,
-    fileName: sourceFileName(source),
+    fileName: options._fileName ?? sourceFileName(source),
     async getData() {
       if (destroyed) throw destroyedError()
       await ready

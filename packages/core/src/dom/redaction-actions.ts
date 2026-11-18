@@ -22,8 +22,6 @@ export interface RunRedactionOptions {
    * apply. `createRedactionDialog` is the built-in confirmation.
    */
   confirm: (preview: RedactionPreview) => Promise<boolean>
-  /** The words of the run. Pass the same to `redactionFailure` to word a failure. */
-  messages: InkMessages
 }
 
 interface RedactionState {
@@ -40,6 +38,17 @@ const stateByDoc = new WeakMap<InkDocument, RedactionState>()
 /** Whether a preview has anything to apply: marks, or earlier marks of an encrypted file. */
 const hasMarks = (p: RedactionPreview): boolean => p.marks > 0 || p.lockedMarks > 0
 
+/**
+ * Whether `doc` holds a mark, counted cheaply for a control that follows every change: a
+ * session redaction mark, or in an encrypted file a locked one Inkbar may have saved earlier
+ * (the ones `redactionPreview().lockedMarks` counts). The preview's overlap pass waits for the
+ * press.
+ */
+const holdsMarks = (doc: InkDocument): boolean =>
+  doc.annotations.list
+    .get()
+    .some((a) => a.type === 'redact' && (a.source !== 'pdf' || doc.info.isEncrypted))
+
 function stateOf(doc: InkDocument): RedactionState {
   let found = stateByDoc.get(doc)
   if (!found) {
@@ -47,9 +56,7 @@ function stateOf(doc: InkDocument): RedactionState {
     found = {
       busy,
       busyView: readonly(busy),
-      can: derived(doc.annotations.list, () =>
-        doc._saves ? hasMarks(doc.redactionPreview()) : false
-      ),
+      can: derived(doc.annotations.list, () => doc._saves && holdsMarks(doc)),
       running: false,
     }
     stateByDoc.set(doc, found)

@@ -187,6 +187,7 @@
   "viewer.openFailed": "This document could not be opened.",
   "viewer.pageFailed": "Page {page} could not be shown.",
   "viewer.preparingFile": "Preparing your file…",
+  "viewer.redactCancel": "Cancel",
   "viewer.redactConfirm": "Apply",
   "viewer.redactDone": "{\"one\":\"{marks} redaction applied.\",\"other\":\"{marks} redactions applied.\"}",
   "viewer.redactFailed": "The redactions could not be applied. Nothing was changed.",

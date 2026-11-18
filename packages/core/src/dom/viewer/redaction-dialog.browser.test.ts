@@ -113,7 +113,7 @@ describe('createRedactionDialog', () => {
     )
     expect(lines()[0]).toBe(fr.viewer.redactSummary({ marks: 1, pages: 1 }))
     expect(buttons().map((b) => b.textContent)).toEqual([
-      fr.password.cancel,
+      fr.viewer.redactCancel,
       fr.viewer.redactConfirm,
     ])
   })
