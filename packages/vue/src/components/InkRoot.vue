@@ -309,6 +309,17 @@ function setTestHook(doc: InkDocument | undefined): void {
  * host passes a new `src` or password.
  */
 let reopened: RedactionReopen | null = null
+/**
+ * The host's list as it stood when it was proposed the list without the marks, and that
+ * proposal. Until the host passes another list, the old one (marks included) is never pushed
+ * into the redacted file: the viewer shows the proposed list instead.
+ */
+let staleHost: { list: Annotation[] | undefined; proposed: Annotation[] } | null = null
+/** The host's list, or the proposed one while the host still holds the stale list. */
+function hostList(): Annotation[] | undefined {
+  const current = props.annotations
+  return staleHost && current === staleHost.list ? staleHost.proposed : current
+}
 /** Runs once the next load's document is ready and `ready` has gone out. */
 let onShown: ((doc: InkDocument) => void) | undefined
 /** The password the open document was opened with: a redacted copy opens with it too. */
@@ -345,6 +356,12 @@ function start(): void {
 async function open(retryPassword?: string): Promise<void> {
   const gen = ++generation
   const re = reopened
+  // The list and the view are for the first open of the redacted file only: a later open of it
+  // (a password attempt) starts as any open does.
+  if (re && (re.initial || re.view))
+    reopened = { ...re, initial: undefined, view: undefined }
+  // A new source: the host's list is its own again.
+  if (!re) staleHost = null
   const src = re ? re.source : props.src
   const shown = onShown
   onShown = undefined
@@ -373,7 +390,7 @@ async function open(retryPassword?: string): Promise<void> {
       annotations: controlled.value
         ? {
             mode: 'controlled',
-            initial: re?.initial ?? props.annotations ?? [],
+            initial: re?.initial ?? hostList() ?? [],
             onChange: (next, change) => {
               // Lifting is no edit: the list the host answers with re-seeds the history.
               if (change.kind === 'replace' && change.reason === 'file')
@@ -413,8 +430,9 @@ async function open(retryPassword?: string): Promise<void> {
   }
   if (re?.view) keptViews.set(doc, re.view)
   // The prop may have changed while the file loaded, when there was no store to apply it to.
-  if (doc.annotations.mode === 'controlled' && props.annotations !== undefined)
-    doc.annotations.setControlledValue(props.annotations)
+  const current = hostList()
+  if (doc.annotations.mode === 'controlled' && current !== undefined)
+    doc.annotations.setControlledValue(current)
   // The same for the fields; a document whose fields opened uncontrolled ignores the push.
   if (props.fields !== undefined) doc.form.setControlledValue(props.fields)
   // A form script that fails leaves the form fillable; the failure goes to `error`. Subscribed
@@ -607,8 +625,10 @@ let unmounted = false
  * redacted file in place of `src`, with the same key, file name, password and view. Controlled,
  * the host is proposed its list without the marks and the annotations removed with them (reason
  * `'redaction'`), and the history starts again from its answer. Resolves with what was done, or
- * null when the reader cancelled or nothing was applied. A failure leaves the document as it
- * was, is shown in InkViewport's message box and emitted as `error`; it does not reject.
+ * null when the reader cancelled, nothing was applied, or the root unmounted or another
+ * document opened while it ran. A failure leaves the document as it was, is shown in
+ * InkViewport's message box and emitted as `error`; it does not reject. A `src` the host passes
+ * from its `redacted` listener opens in place of the redacted file.
  */
 async function applyRedactions(): Promise<RedactionResult | null> {
   const doc = document.value
@@ -643,10 +663,16 @@ async function applyRedactions(): Promise<RedactionResult | null> {
         : undefined
     },
     password: openedWith,
-    // Armed before Vue hands the host's answer back, so the answer is the restart, not a step.
-    proposed: () => refHistory.replaced(),
+    proposed: (initial) => {
+      staleHost = { list: props.annotations, proposed: initial }
+      // Armed before Vue hands the host's answer back, so the answer is the restart, not a step.
+      refHistory.replaced()
+    },
   })
   if (!out?.reopen) return out?.result ?? null
+  // A `src` the host passed from its `redacted` listener has opened already (Vue's flush runs
+  // before this continuation): that source stays, and the redacted file is not opened.
+  if (unmounted || document.value !== doc) return out.result
   const reopen = out.reopen
   reopened = reopen
   // Said once the redacted file shows, after InkViewport has built for it (a build empties its
@@ -747,6 +773,9 @@ watch([() => identity(props.src), () => props.password], start)
 watch(
   () => props.annotations,
   (next) => {
+    // The host has not answered the redaction's proposal yet: its old list stays out.
+    if (staleHost && next === staleHost.list) return
+    staleHost = null
     if (next && document.value?.annotations.mode === 'controlled')
       document.value.annotations.setControlledValue(next)
   }

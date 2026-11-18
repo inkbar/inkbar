@@ -246,6 +246,41 @@ test('a src change mid-apply opens the new source and nothing else', async ({
   await expect(page.locator('[data-ink-form-alert-message]')).toHaveCount(0)
 })
 
+test('a src passed from inside the redacted listener opens in place of the redacted file', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: {
+      src: fixtureUrl('redact-text'),
+      assets,
+      engine: 'held',
+      swap: fixtureUrl('text-simple'),
+    },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect.poll(() => docKey(page)).toContain('text-simple')
+  await page.waitForTimeout(200)
+  expect(await docKey(page)).toContain('text-simple')
+  await expect(cmp.getByTestId('redacted')).toHaveText('1')
+  await expect(cmp.getByTestId('errors')).toHaveText('')
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveCount(0)
+})
+
+const addSquare = (page: Page) =>
+  page.evaluate(() => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    root.__inkDocument!.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 300, y: 400, width: 100, height: 60 },
+    })
+  })
+
 for (const answer of ['now', 'late'] as const) {
   test(`controlled with history (answered ${answer}): the first edit after the reopen is an undo step`, async ({
     mount,
@@ -262,28 +297,34 @@ for (const answer of ['now', 'late'] as const) {
     await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
     const list = cmp.getByTestId('list')
     const undo = page.getByRole('button', { name: 'Undo' })
+    const apply = cmp.locator('[data-ink-apply-redactions]')
+    const marks = cmp.locator('.ink-annotation[data-type="redact"]')
     await mark(page)
     await expect(list).toHaveText('redact')
     await expect(undo).toBeEnabled()
-    await cmp.locator('[data-ink-apply-redactions]').click()
+    await apply.click()
     await expect.poll(() => writing(page)).toBe(true)
     await finish(page)
     await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
       '1 redaction applied.'
     )
+    if (answer === 'late') {
+      // The host still holds its old list: the redacted file shows the proposed one instead.
+      await page.waitForTimeout(150)
+      await expect(list).toHaveText('redact')
+      await expect(marks).toHaveCount(0)
+      await expect(apply).toBeDisabled()
+      await expect(undo).toBeDisabled()
+      await page.evaluate(() => window.__releaseAnswer!())
+    }
     await expect(list).toHaveText('')
     await page.waitForTimeout(150)
     await expect(undo).toBeDisabled()
+    await expect(marks).toHaveCount(0)
+    await expect(apply).toBeDisabled()
 
     // The reader's first edit on the redacted file is a step, and undoing it takes it away.
-    await page.evaluate(() => {
-      const root = document.querySelector('[data-ink-root]') as Hooked
-      root.__inkDocument!.annotations.add({
-        type: 'square',
-        page: 0,
-        rect: { x: 300, y: 400, width: 100, height: 60 },
-      })
-    })
+    await addSquare(page)
     await expect(list).toHaveText('square')
     await expect(undo).toBeEnabled()
     await undo.click()
@@ -291,3 +332,118 @@ for (const answer of ['now', 'late'] as const) {
     await expect(undo).toBeDisabled()
   })
 }
+
+test('a controlled host that never answers still sees no marks on the redacted file', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: {
+      src: fixtureUrl('redact-text'),
+      assets,
+      engine: 'held',
+      controlled: 'never',
+    },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await page.waitForTimeout(300)
+  await expect(cmp.getByTestId('list')).toHaveText('redact')
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
+  await expect(apply).toBeDisabled()
+})
+
+test('an edit made before a late answer is proposed on top of the proposed list', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', controlled: 'late' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await addSquare(page)
+  // The mark, the redaction's proposal, then the edit: no mark comes back with it.
+  await expect(cmp.getByTestId('proposals')).toHaveText('redact||square')
+  await expect(cmp.getByTestId('list')).toHaveText('square')
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
+})
+
+test('opening the redacted file again uses the kept view and the proposed list once', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', controlled: 'now' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const tooled = cmp.locator('[data-ink-tool]')
+  const undo = page.getByRole('button', { name: 'Undo' })
+  await cmp.locator('[data-tool="redact-area"]').click()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'redact-area')
+  await cmp.locator('[data-tool="select-text"]').click()
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'select-text')
+  await addSquare(page)
+  await expect(undo).toBeEnabled()
+
+  // A password attempt opens the same source again, as a new open: from the host's list,
+  // with the reader's tool and an empty history.
+  await page.locator('[data-ink-form-alert-ok]').click()
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    ;(window as { __before?: unknown }).__before = root.__inkDocument
+  })
+  await cmp.getByTestId('retry').click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const root = document.querySelector('[data-ink-root]') as Hooked
+        const doc = root.__inkDocument
+        return doc !== undefined && doc !== (window as { __before?: unknown }).__before
+      })
+    )
+    .toBe(true)
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await expect(cmp.locator('.ink-annotation[data-type="square"]')).toHaveCount(1)
+  await expect(cmp.getByTestId('list')).toHaveText('square')
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'select-text')
+  await expect(undo).toBeDisabled()
+})
+
+test("the slot's disabled follows the host's own disabled", async ({ mount, page }) => {
+  const cmp = await mount(Harness, {
+    props: {
+      src: fixtureUrl('redact-text'),
+      assets,
+      engine: 'held',
+      own: true,
+      disabled: true,
+    },
+  })
+  const own = cmp.locator('button.host-apply')
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await expect(cmp.getByTestId('probe')).toHaveAttribute('data-can-redact', 'true')
+  await expect(own).toBeDisabled()
+  await expect(own).toHaveAttribute('data-disabled', 'true')
+})

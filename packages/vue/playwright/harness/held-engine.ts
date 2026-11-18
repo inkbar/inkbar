@@ -17,6 +17,8 @@ export interface HeldEngine {
 declare global {
   interface Window {
     __heldEngine?: HeldEngine
+    /** The redaction harness: hands the host's held answer to the proposal back to the root. */
+    __releaseAnswer?: () => void
   }
 }
 

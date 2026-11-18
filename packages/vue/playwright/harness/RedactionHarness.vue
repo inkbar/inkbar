@@ -5,13 +5,16 @@
  * `confirm` passes `redactionConfirm` as a function answering yes or no, recording the marks
  * of each preview in `previews`; without it the root applies without asking. `throwing` makes
  * the `redacted` listener throw, and `shown: false` unmounts the root. `controlled` keeps the
- * annotations in the host with history on, answering each proposal at once, or (`late`) the
- * one that follows a `redacted` event after a delay; their types show in `list`. The codes of the errors
- * the root emits show in `errors`, the `redacted` events in `redacted`, and `useRedaction` in
- * `probe`.
+ * annotations in the host with history on, answering each proposal at once; with `late` the
+ * one that follows a `redacted` event waits for the page to call `window.__releaseAnswer()`,
+ * and with `never` it is dropped. Their types show in `list`, and the types of every proposal
+ * the host hears in `proposals` (one list per `|`). `disabled` is the host's own `disabled` on
+ * the control. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
+ * again. The codes of the errors the root emits show in `errors`, the `redacted` events in
+ * `redacted`, and `useRedaction` in `probe`.
  */
 import { allTools } from '@inkbar/core/dom'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 import InkApplyRedactions from '../../src/components/InkApplyRedactions.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
@@ -22,6 +25,7 @@ import InkViewport from '../../src/components/InkViewport.vue'
 
 import { heldEngine } from './held-engine'
 import RedactionProbe from './RedactionProbe.vue'
+import RetryButton from './RetryButton.vue'
 
 import type {
   Annotation,
@@ -40,9 +44,17 @@ const props = withDefaults(
     confirm?: 'yes' | 'no' | undefined
     throwing?: boolean
     shown?: boolean
-    controlled?: 'now' | 'late' | undefined
+    controlled?: 'now' | 'late' | 'never' | undefined
+    disabled?: boolean
+    swap?: DocumentSource | undefined
   }>(),
-  { engine: undefined, confirm: undefined, shown: true, controlled: undefined }
+  {
+    engine: undefined,
+    confirm: undefined,
+    shown: true,
+    controlled: undefined,
+    swap: undefined,
+  }
 )
 const loader = props.engine ? heldEngine() : undefined
 const tools = allTools()
@@ -55,13 +67,16 @@ const ask = (preview: RedactionPreview) => {
   return Promise.resolve(props.confirm === 'yes')
 }
 const annotations = ref<Annotation[]>([])
+const proposals = ref<string[]>([])
 /** Set by the `redacted` event: the next proposal is the redaction's. */
 let redactionNext = false
 function answer(next: Annotation[]): void {
-  const late = props.controlled === 'late' && redactionNext
+  proposals.value.push(next.map((a) => a.type).join(' '))
+  const held = props.controlled !== 'now' && redactionNext
   redactionNext = false
-  if (late) setTimeout(() => (annotations.value = next), 50)
-  else annotations.value = next
+  if (!held) annotations.value = next
+  else if (props.controlled === 'late')
+    window.__releaseAnswer = () => (annotations.value = next)
 }
 /** Controlled: the list and its updates, with history on. Uncontrolled: neither. */
 const model = computed(() =>
@@ -73,9 +88,12 @@ const model = computed(() =>
       }
     : {}
 )
+/** Set by `onRedacted` from `swap`: the host's new source. */
+const swapped = shallowRef<DocumentSource | null>(null)
 function onRedacted(): void {
   redacted.value++
   redactionNext = true
+  if (props.swap) swapped.value = props.swap
   if (props.throwing) throw new Error('host failed')
 }
 </script>
@@ -85,7 +103,7 @@ function onRedacted(): void {
     <InkRoot
       v-if="shown"
       v-bind="model"
-      :src="src"
+      :src="swapped ?? src"
       :assets="assets"
       :zoom="1"
       :tools="tools"
@@ -95,13 +113,19 @@ function onRedacted(): void {
       @redacted="onRedacted"
     >
       <InkToolbar>
+        <InkToolButton tool="select-text" />
         <InkToolButton tool="redact-area" />
         <InkUndo />
-        <InkApplyRedactions v-if="own" v-slot="{ label, busy, disabled }" as-child>
+        <InkApplyRedactions
+          v-if="own"
+          v-slot="{ label, busy, disabled: off }"
+          as-child
+          :disabled="props.disabled"
+        >
           <button
             class="host-apply"
             :data-busy="String(busy)"
-            :data-disabled="String(disabled)"
+            :data-disabled="String(off)"
           >
             {{ label }}
           </button>
@@ -111,10 +135,12 @@ function onRedacted(): void {
       <!-- Test-only box: the scroll container needs a bounded height. -->
       <div style="height: 400px; width: 600px"><InkViewport /></div>
       <RedactionProbe />
+      <RetryButton />
     </InkRoot>
     <output data-testid="errors">{{ errors.join(' ') }}</output>
     <output data-testid="previews">{{ previews.join(' ') }}</output>
     <output data-testid="redacted">{{ redacted }}</output>
+    <output data-testid="proposals">{{ proposals.join('|') }}</output>
     <output data-testid="list">{{ annotations.map((a) => a.type).join(' ') }}</output>
   </div>
 </template>

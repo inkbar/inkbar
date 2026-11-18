@@ -4,8 +4,9 @@
  * (InkRoot's `redactionConfirm`), removes the content under them and shows the redacted file.
  * Disabled until the document is ready, was opened with InkRoot's `engine` and holds a mark.
  * While the marks are applied the button says so and is `aria-busy` and `aria-disabled`,
- * keeping focus, and a press does nothing. The slot receives `{ label, busy, disabled }`, for
- * a host's own content or, with `asChild`, its own element.
+ * keeping focus, and a press does nothing. `disabled` turns it off whatever the state. The
+ * slot receives `{ label, busy, disabled }`, for a host's own content or, with `asChild`, its
+ * own element.
  */
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -13,7 +14,10 @@ import { computed } from 'vue'
 import { useMessages } from '../composables/useMessages'
 import { useRedaction } from '../composables/useRedaction'
 
-withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
+const props = withDefaults(defineProps<{ asChild?: boolean; disabled?: boolean }>(), {
+  asChild: false,
+  disabled: false,
+})
 defineSlots<{
   default?(props: { label: string; busy: boolean; disabled: boolean }): unknown
 }>()
@@ -23,7 +27,7 @@ const messages = useMessages()
 const label = computed(() =>
   busy.value ? messages.value.viewer.redacting : messages.value.viewer.applyRedactions
 )
-const disabled = computed(() => !canRedact.value && !busy.value)
+const disabled = computed(() => props.disabled || (!canRedact.value && !busy.value))
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
   type: 'button',
