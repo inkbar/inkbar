@@ -35,12 +35,19 @@ export {
 } from './file-actions'
 export type { DownloadOptions, FileKeysOptions, PrintOptions } from './file-actions'
 export {
+  applyRedactionsFlow,
   canRedact,
   redactionBusy,
+  redactionDoneMessage,
   redactionFailure,
   runRedaction,
 } from './redaction-actions'
-export type { RunRedactionOptions } from './redaction-actions'
+export type {
+  RedactionFlowOptions,
+  RedactionReopen,
+  RedactionView,
+  RunRedactionOptions,
+} from './redaction-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'
 export { createPageRenderer } from './page-renderer'

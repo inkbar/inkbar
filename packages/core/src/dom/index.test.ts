@@ -55,6 +55,8 @@ describe('@inkbar/core/dom entry', () => {
         'canRedact',
         'redactionBusy',
         'redactionFailure',
+        'applyRedactionsFlow',
+        'redactionDoneMessage',
         'createRedactionDialog',
         'createApplyRedactionsButton',
       ])

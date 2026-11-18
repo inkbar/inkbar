@@ -34,7 +34,7 @@ import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
-import { redactionFailure, runRedaction } from '../redaction-actions'
+import { applyRedactionsFlow, type RedactionView } from '../redaction-actions'
 import { savePictures } from '../save-pictures'
 import {
   createSearchController,
@@ -63,12 +63,10 @@ import type { RecordBase } from '../../model/records'
 import type { RedactionPreview, RedactionResult } from '../../model/redaction/types'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
-import type { LayoutMode } from '../layout'
 import type { Navigation } from '../navigation'
 import type { Command, InkPlugin } from '../plugins/define'
-import type { Tool, ToolController, ToolId } from '../tools'
-import type { ViewRotation } from '../transform'
-import type { Viewport, ZoomValue } from '../viewport'
+import type { Tool, ToolController } from '../tools'
+import type { Viewport } from '../viewport'
 
 /**
  * The engine options, less what the viewer owns: the container, the document, the tool style
@@ -275,20 +273,11 @@ export interface Viewer {
   destroy(): void
 }
 
-/** What a reopen on redacted bytes keeps of the view it replaces. */
-interface ViewState {
-  zoom: ZoomValue
-  page: number
-  mode: LayoutMode
-  rotation: ViewRotation
-  tool: ToolId
-}
-
 /** What a load is given beyond the source. */
 interface LoadOptions {
   password?: string | undefined
   /** The view to open at, in place of the options'. */
-  view?: ViewState
+  view?: RedactionView
   /** The list a controlled document starts from, in place of the option's `initial`. */
   initial?: Annotation[]
   /** The name to save under, in place of the one the source gives. */
@@ -542,7 +531,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
    * Mounts the engine and the thread popover for a ready document; returns their teardown.
    * `kept` is the view of the document it replaces, after applying redactions.
    */
-  function start(doc: InkDocument, kept?: ViewState): () => void {
+  function start(doc: InkDocument, kept?: RedactionView): () => void {
     const store = doc.annotations
     const threads = withThreads
       ? createThreadPopover({
@@ -840,93 +829,47 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     )
   }
 
-  /** A failed apply: the reader is told why and the host hears, unless the viewer has gone. */
-  const redactionFailed = (error: unknown): void => {
-    const failure = redactionFailure(error, words())
-    if (!failure || destroyed) return
-    formAlert.show(failure.message)
-    onError?.(failure.error)
-  }
-
   async function applyRedactions(): Promise<RedactionResult | null> {
     const doc = current.get()
     if (destroyed || !doc || status.get().state !== 'ready') return null
-    const confirm =
-      redactionConfirm === false
-        ? () => Promise.resolve(true)
-        : (redactionConfirm ?? askInDialog)
-    let out: { bytes: Uint8Array; result: RedactionResult } | null
-    try {
-      out = await runRedaction(doc, { confirm })
-    } catch (error) {
-      redactionFailed(error)
-      return null
-    }
-    // Destroyed, or another document opened, meanwhile: there is nothing to reopen.
-    if (!out || destroyed || current.get() !== doc) return null
-    const { bytes, result } = out
-    try {
-      onRedacted?.({ bytes, result })
-    } catch (error) {
-      // The reader confirmed: the reopen goes ahead, and the host hears what it threw.
-      onError?.(
-        isInkError(error)
-          ? error
-          : new InkError(
-              'RedactionFailed',
-              `onRedacted threw: ${error instanceof Error ? error.message : String(error)}`,
-              { callback: 'onRedacted' },
-              error
-            )
-      )
-    }
-    // `onRedacted` or `onError` may have opened another document already.
-    if (destroyed || current.get() !== doc) return result
-    const vp = viewport.get()
-    const tc = tools.get()
-    const view: ViewState | undefined =
-      vp && tc
-        ? {
-            zoom: vp.zoom.get(),
-            page: vp.currentPage.get(),
-            mode: vp.mode.get(),
-            rotation: vp.rotation.get(),
-            tool: tc.active.get(),
-          }
-        : undefined
-    // A controlled host is proposed its list without the marks and the annotations removed
-    // with them, once; the reopened document starts from it, so the proposal its lifting
-    // makes agrees.
-    let initial: Annotation[] | undefined
-    if (doc.annotations.mode === 'controlled') {
-      const gone = new Set(result.removed.session)
-      // What the host holds: the file's own annotations never pass through it.
-      const hostList = doc.annotations.list.get().filter((a) => a.source !== 'pdf')
-      initial = hostList.filter((a) => a.type !== 'redact' && !gone.has(a.id))
-      doc.annotations.replaceAll(initial, 'redaction')
-      if (destroyed || current.get() !== doc) return result
-    }
-    // Said once the redacted file shows; a reopen that fails shows its own failure instead.
-    const shown = (): void => {
-      const m = words().viewer
-      const said = [m.redactDone({ marks: result.marks })]
-      if (result.hiddenLayers) said.push(m.redactHiddenLayers)
-      if (result.foreignMarks > 0)
-        said.push(m.redactForeign({ count: result.foreignMarks }))
-      formAlert.show(said.join(' '))
-    }
-    // The new document has a history of its own: the old one goes with it.
-    open(
-      { data: bytes, key: doc.key },
-      {
-        ...(openedWith === undefined ? {} : { password: openedWith }),
-        ...(view && { view }),
-        ...(initial && { initial }),
-        fileName: doc.fileName,
-        shown,
-      }
-    )
-    return result
+    const out = await applyRedactionsFlow(doc, {
+      confirm:
+        redactionConfirm === false
+          ? () => Promise.resolve(true)
+          : (redactionConfirm ?? askInDialog),
+      isCurrent: () => !destroyed && current.get() === doc,
+      notify: (event) => onRedacted?.(event),
+      callbackName: 'onRedacted',
+      onError: (error) => onError?.(error),
+      showFailure: (message) => formAlert.show(message),
+      messages: words,
+      view: () => {
+        const vp = viewport.get()
+        const tc = tools.get()
+        return vp && tc
+          ? {
+              zoom: vp.zoom.get(),
+              page: vp.currentPage.get(),
+              mode: vp.mode.get(),
+              rotation: vp.rotation.get(),
+              tool: tc.active.get(),
+            }
+          : undefined
+      },
+      password: openedWith,
+    })
+    if (!out?.reopen) return out?.result ?? null
+    const { source, fileName, password: pw, view, initial, message } = out.reopen
+    // The new document has a history of its own: the old one goes with it. The message is said
+    // once the redacted file shows; a reopen that fails shows its own failure instead.
+    open(source, {
+      ...(pw === undefined ? {} : { password: pw }),
+      ...(view && { view }),
+      ...(initial && { initial }),
+      fileName,
+      shown: () => formAlert.show(message),
+    })
+    return out.result
   }
 
   open(initial)
