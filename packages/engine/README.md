@@ -34,7 +34,7 @@ Units and orientation:
 
 Writing annotations:
 
-- `write({ remove, annotations })` removes the listed annotations, by page and object number, then appends each annotation to its page in the order given. Each one's dictionary is written from its Gloss form (`gloss-format`), its look is the `Appearance` passed with it, and its `data` string is stored with it. A reply (an annotation with `inReplyTo`) is a hidden note linked to its parent, which must be written in the same call, and needs no appearance.
+- `write({ remove, annotations })` removes the listed annotations, by page and object number, then appends each annotation to its page in the order given. Each one's dictionary is written from its Gloss form (`gloss-format`), its look is the `Appearance` passed with it, and its `data` string is stored with it. A reply (an annotation with `inReplyTo`) is a hidden note linked to its parent, which must be written in the same call, and needs no appearance. To reply to an annotation already in the file, pass `replyTo` with its page and object number instead; if that annotation is not on the page, the write fails naming the reply.
 - An `Appearance` gives the bounds, which become the annotation's rectangle, the drawing operators in user space, and the resources they name: standard fonts, opacities, PNG or JPEG images, pages of the same document, and nested forms. Resource names are made of A-Z, a-z and 0-9.
 - Every `write` starts from the document as opened, so a second call replaces the first. `save` then gives the written file.
 - `fields` (form values) is not supported yet; any entry rejects with `write-failed`.

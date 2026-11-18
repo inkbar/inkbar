@@ -5,6 +5,7 @@ export type InkErrorCode =
   | 'AssetConfigMissing'
   | 'AssetLoadFailed'
   | 'EngineUnavailable'
+  | 'SaveFailed'
   | 'ControlledMutationIgnored'
   | 'DocumentDestroyed'
   | 'PageOutOfRange'

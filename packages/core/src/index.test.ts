@@ -1,3 +1,7 @@
+import { existsSync } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import pkg from '../package.json' with { type: 'json' }
@@ -50,4 +54,31 @@ describe('messages', () => {
     ])
       expect(Object.keys(entry), name).toContain(name)
   })
+})
+
+describe('the built package', () => {
+  const dist = join(import.meta.dirname, '..', 'dist')
+  // CI builds before it tests; a local run without a build skips this.
+  it.skipIf(!existsSync(dist) && !process.env.CI)(
+    'holds no engine code: only types from @inkbar/engine',
+    async () => {
+      const files = (await readdir(dist, { recursive: true, withFileTypes: true }))
+        .filter((f) => f.isFile())
+        .map((f) => join(f.parentPath, f.name))
+      expect(files.some((f) => f.endsWith('.mjs'))).toBe(true)
+      const found: string[] = []
+      for (const file of files) {
+        const text = await readFile(file, 'utf8')
+        if (text.includes('inkbar-pdfium')) found.push(`${file}: inkbar-pdfium`)
+        if (
+          file.endsWith('.mjs') &&
+          /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["']@inkbar\/engine/.test(
+            text
+          )
+        )
+          found.push(`${file}: imports @inkbar/engine`)
+      }
+      expect(found).toEqual([])
+    }
+  )
 })

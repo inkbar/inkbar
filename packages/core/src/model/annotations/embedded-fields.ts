@@ -113,10 +113,13 @@ export interface LiftedAnnotation {
  * The annotations the file holds that Inkbar wrote and nothing has changed since, in file
  * order: page by page, each in `/Annots` order. Calls `objects` once; none comes back for an
  * encrypted or unreadable file, which lifts nothing. When two carry the same id, the first is
- * lifted. A reply is lifted only with the annotation it replies to. Never throws.
+ * lifted. A reply is lifted only with the annotation it replies to, or when it replies to one
+ * of `inFile`: the ids of the file's own annotations, which stay in the list locked. Never
+ * throws.
  */
 export async function readLifted(
-  objects: () => Promise<PdfObjects | undefined>
+  objects: () => Promise<PdfObjects | undefined>,
+  inFile: ReadonlySet<string> = new Set()
 ): Promise<LiftedAnnotation[]> {
   const found: LiftedAnnotation[] = []
   try {
@@ -146,16 +149,25 @@ export async function readLifted(
   } catch {
     // What was read before the failure stands.
   }
-  return withParents(found)
+  return withParents(found, inFile)
 }
 
-/** `found` without the replies whose parent is not among them, nor replies to those. */
-function withParents(found: LiftedAnnotation[]): LiftedAnnotation[] {
+/**
+ * `found` without the replies whose parent is neither among them nor in `inFile`, nor replies
+ * to those.
+ */
+function withParents(
+  found: LiftedAnnotation[],
+  inFile: ReadonlySet<string>
+): LiftedAnnotation[] {
   let kept = found
   for (;;) {
     const ids = new Set(kept.map((f) => f.annotation.id))
     const next = kept.filter(
-      (f) => f.annotation.inReplyTo === undefined || ids.has(f.annotation.inReplyTo)
+      (f) =>
+        f.annotation.inReplyTo === undefined ||
+        ids.has(f.annotation.inReplyTo) ||
+        inFile.has(f.annotation.inReplyTo)
     )
     if (next.length === kept.length) return kept
     kept = next

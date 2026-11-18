@@ -16,6 +16,7 @@ export { openDocument } from './model/document'
 export type {
   DocumentInfo,
   DocumentStatus,
+  EngineLoader,
   InkDocument,
   InkStatus,
   LockedStatus,

@@ -181,11 +181,16 @@ describe('document annotations', () => {
     off.destroy()
   })
 
-  it('save rejects with EngineUnavailable', async () => {
+  it('save rejects with EngineUnavailable when there are changes and no engine', async () => {
     const doc = await openDocument(await fixtureBytes('text-simple'), {
       assets: nodeAssets(),
     })
     await doc.ready
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 1, y: 1, width: 9, height: 9 },
+    })
     const saving = doc.save()
     await expect(saving).rejects.toMatchObject({ code: 'EngineUnavailable' })
     await expect(saving).rejects.toThrow(/@inkbar\/engine/)
