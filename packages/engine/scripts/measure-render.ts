@@ -55,28 +55,41 @@ async function measure(name: FileName): Promise<void> {
   // taken after each step.
   const timer = setInterval(sample, 5)
 
-  let start = performance.now()
-  const engine = await createEngine({ wasm, worker: false })
-  const started = ms(start)
-  sample()
-  start = performance.now()
-  const doc = await engine.open(bytes)
-  const opened = ms(start)
-  sample()
-  start = performance.now()
-  const first = await doc.renderPage(0, { scale: SCALE })
-  const firstPage = ms(start)
-  sample()
-  const count = Math.min(PAGES, doc.pageCount)
-  start = performance.now()
-  for (let page = 1; page < count; page++) {
-    await doc.renderPage(page, { scale: SCALE })
+  const steps = async () => {
+    let start = performance.now()
+    const engine = await createEngine({ wasm, worker: false })
+    const started = ms(start)
     sample()
+    try {
+      start = performance.now()
+      const doc = await engine.open(bytes)
+      const opened = ms(start)
+      sample()
+      start = performance.now()
+      const first = await doc.renderPage(0, { scale: SCALE })
+      const firstPage = ms(start)
+      sample()
+      const count = Math.min(PAGES, doc.pageCount)
+      start = performance.now()
+      for (let page = 1; page < count; page++) {
+        await doc.renderPage(page, { scale: SCALE })
+        sample()
+      }
+      const rest = count > 1 ? ms(start) : '-'
+      return { started, opened, first, firstPage, count, rest }
+    } finally {
+      await engine.destroy()
+    }
   }
-  const rest = count > 1 ? ms(start) : '-'
-  clearInterval(timer)
+  let measured: Awaited<ReturnType<typeof steps>>
+  try {
+    measured = await steps()
+  } finally {
+    // Cleared on a throw too, or the timer keeps the process alive.
+    clearInterval(timer)
+  }
   sample()
-  await engine.destroy()
+  const { started, opened, first, firstPage, count, rest } = measured
 
   const row = (label: string, value: string) =>
     console.log(`  ${label.padEnd(30)}${value}`)
