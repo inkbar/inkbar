@@ -63,6 +63,35 @@ Two things to know about this wrapper:
 
 In Node (22.3 or later) the engine runs in the calling thread and reads the wasm from the package on disk.
 
+## Fallback fonts
+
+Some PDFs name a font without embedding it. The engine has no system fonts. It draws the standard Latin fonts, such as Helvetica, Times and Arial, from its own set. Japanese, Chinese, Korean, Cyrillic or Greek text in a font the file does not carry needs a font from you, or the engine draws it wrong or leaves it out.
+
+Pass `fallbackFonts`: for each key, a URL, a file path in Node, or the font's bytes.
+
+| Key                   | Text it draws                                                      |
+| --------------------- | ------------------------------------------------------------------ |
+| `japanese`            | Japanese                                                           |
+| `simplified-chinese`  | Simplified Chinese                                                 |
+| `traditional-chinese` | Traditional Chinese                                                |
+| `korean`              | Korean                                                             |
+| `default`             | Cyrillic, Greek and other scripts the four keys above do not cover |
+
+[`@inkbar/fonts`](https://www.npmjs.com/package/@inkbar/fonts) ships a font for each key. Each Chinese, Japanese or Korean font is 4 to 8 MB. Serve the package's `files/` directory and pass its URL:
+
+```ts
+import { fontUrls } from '@inkbar/fonts'
+
+const engine = await createEngine({ fallbackFonts: fontUrls('/fonts/') })
+```
+
+- The engine fetches a font the first time a page needs it, before it draws, writes to or redacts that page. It fetches each font once per engine.
+- A file that embeds its fonts, or names only the standard Latin fonts, fetches nothing. With no `fallbackFonts`, the engine fetches nothing.
+- Besides its wasm and worker, these fonts are the only files the engine requests, and only from the URLs you give. In a worker the engine fetches them itself, after resolving relative URLs against the page.
+- `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none or the fetch failed. The engine still draws the page.
+- The engine does not retry a failed fetch while it runs. A fetch fails on a network error, a status other than 2xx, or a file that is not a font.
+- Bytes you pass are read when a page first needs them, so leave them unchanged.
+
 ## What it does not do
 
 - It does not embed fonts. An appearance can name the twelve standard PDF fonts, and each viewer draws those with its own equivalent.
@@ -138,7 +167,7 @@ Ownership and lifetimes:
 - `renderPage` and `save` return buffers that belong to the caller. In a worker, the engine moves the pixels to your thread without copying them.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
 - `destroy()` rejects queued calls with `aborted`, stops a running render and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for any other running call to finish. A `close()` after `destroy()` resolves.
-- A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A render that finishes before the engine sees the abort still resolves. Other calls that have started run to the end and may still reject.
+- A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A render that finishes before the engine sees the abort still resolves. An abort while the render waits for a fallback font also rejects with `aborted`; the font is fetched again next time. Other calls that have started run to the end and may still reject.
 
 Errors:
 

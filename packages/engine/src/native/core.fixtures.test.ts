@@ -120,7 +120,7 @@ function cut(
     const from = ((top + y) * page.width + left) * 4
     data.set(page.data.subarray(from, from + width * 4), y * width * 4)
   }
-  return { width, height, data }
+  return { width, height, data, missingFonts: page.missingFonts }
 }
 
 /** `page` turned a quarter clockwise. */
@@ -133,7 +133,7 @@ function turned(page: RenderedPage): RenderedPage {
       const from = ((page.height - 1 - x) * page.width + y) * 4
       data.set(page.data.subarray(from, from + 4), (y * width + x) * 4)
     }
-  return { width, height, data }
+  return { width, height, data, missingFonts: page.missingFonts }
 }
 
 const isWhite = (data: Uint8ClampedArray) => data.every((v) => v === 255)

@@ -1,4 +1,4 @@
-import { EngineCore, nextTask } from '../native/core.ts'
+import { EngineCore, nextTask, type CoreOptions } from '../native/core.ts'
 import { loadNative } from '../native/module.ts'
 
 import { CallQueue } from './queue.ts'
@@ -6,13 +6,14 @@ import { CallQueue } from './queue.ts'
 import type { Request, Transport } from '../protocol.ts'
 
 /**
- * Runs a request on the core. A render runs in slices and stops once `aborted` says true; every
- * other call runs to the end.
+ * Runs a request on the core. A render, write or redact first fetches the fallback fonts of the
+ * pages it loads; that fetch, and a render's slices, stop once `signal` aborts. Every other call
+ * runs to the end.
  */
 export function dispatch(
   core: EngineCore,
   request: Request,
-  aborted: () => boolean
+  signal: AbortSignal
 ): unknown {
   switch (request.op) {
     case 'open':
@@ -20,12 +21,17 @@ export function dispatch(
     case 'pageInfo':
       return core.pageInfo(request.doc, request.index)
     case 'renderPage':
-      return core.renderPageSliced(request.doc, request.index, request.options, aborted)
+      return core.renderPageSliced(
+        request.doc,
+        request.index,
+        request.options,
+        () => signal.aborted,
+        signal
+      )
     case 'write':
-      core.write(request.doc, request.input)
-      return undefined
+      return core.writeAfterFonts(request.doc, request.input, signal)
     case 'redact':
-      return core.redact(request.doc, request.input)
+      return core.redactAfterFonts(request.doc, request.input, signal)
     case 'save':
       return core.save(request.doc, request.mode)
     case 'close':
@@ -41,8 +47,8 @@ export class InThreadTransport implements Transport {
   // Yielding between calls lets a queued call be aborted while another runs.
   readonly #queue = new CallQueue(nextTask)
   #destroying: Promise<void> | undefined
-  /** Set when `destroy()` is called: it stops a running render. */
-  #ending = false
+  /** Aborted when `destroy()` is called: it stops a running render. */
+  readonly #ending = new AbortController()
 
   constructor(core: EngineCore) {
     this.#core = core
@@ -54,12 +60,16 @@ export class InThreadTransport implements Transport {
   }
 
   call<T>(request: Request, signal?: AbortSignal): Promise<T> {
-    const aborted = () => this.#ending || signal?.aborted === true
-    return this.#queue.enqueue(() => dispatch(this.#core, request, aborted) as T, signal)
+    return this.#queue.enqueue(() => {
+      const stop = signal
+        ? AbortSignal.any([signal, this.#ending.signal])
+        : this.#ending.signal
+      return dispatch(this.#core, request, stop) as T
+    }, signal)
   }
 
   destroy(): Promise<void> {
-    this.#ending = true
+    this.#ending.abort()
     this.#destroying ??= this.#queue.destroy().then(() => {
       this.#core.destroy()
     })
@@ -67,8 +77,9 @@ export class InThreadTransport implements Transport {
   }
 }
 
-export async function createInThreadTransport(source: {
-  wasm: string | URL | Uint8Array
-}): Promise<InThreadTransport> {
-  return new InThreadTransport(new EngineCore(await loadNative(source)))
+export async function createInThreadTransport(
+  source: { wasm: string | URL | Uint8Array },
+  options: CoreOptions = {}
+): Promise<InThreadTransport> {
+  return new InThreadTransport(new EngineCore(await loadNative(source), options))
 }

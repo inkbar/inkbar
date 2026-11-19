@@ -96,7 +96,20 @@ export interface RenderedPage {
    * caller; the engine keeps no reference to it.
    */
   data: Uint8ClampedArray
+  /**
+   * Fallback fonts this page needed and did not get: no entry in `fallbackFonts`, or the fetch
+   * failed. Empty when none.
+   */
+  missingFonts: readonly FontKey[]
 }
+
+/**
+ * A fallback font, for text whose font is not in the file: one for each script that needs its
+ * own, and `default` for the rest that a file can name without embedding, such as Cyrillic and
+ * Greek.
+ */
+export type FontKey =
+  'japanese' | 'simplified-chinese' | 'traditional-chinese' | 'korean' | 'default'
 
 /**
  * How `save` writes the document. `'rewrite'` writes the whole file anew. `'incremental'`

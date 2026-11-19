@@ -1,21 +1,33 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { generateSlowPage } from '@inkbar/fixtures/generate-large'
-import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { fontFiles, fontUrls } from '@inkbar/fonts'
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
+import { keysOf } from './fonts.ts'
 import {
   createEngine,
   EngineError,
   type Engine,
   type EngineDocument,
+  type EngineOptions,
+  type FontKey,
   type RenderedPage,
+  type WriteInput,
 } from './index.ts'
+import { EngineCore } from './native/core.ts'
+import { loadNative } from './native/module.ts'
+import { withFunctions } from './native/testing.ts'
+import { mark } from './redaction/testing.ts'
+import { InThreadTransport } from './transport/in-thread.ts'
 
+import type { Native } from './native/functions.ts'
 import type { Request, Transport } from './protocol.ts'
 
 const PDF_MAGIC = new TextEncoder().encode('%PDF-')
@@ -471,3 +483,379 @@ test.each([
     expect((await doc.renderPage(0)).width).toBe(612)
   }
 )
+
+describe('fallback fonts', () => {
+  const FONT_DIR = dirname(
+    createRequire(import.meta.url).resolve('@inkbar/fonts/files/NotoSans-Regular.ttf')
+  )
+  const fontPath = (key: FontKey) => join(FONT_DIR, fontFiles[key])
+  /** Served by the stubbed fetch below from the package's files; any other name is a 404. */
+  const FONT_HOST = 'https://fonts.test/'
+  const ALL = fontUrls(FONT_HOST)
+  /** The page's two lines of text in the unembedded font, in pixels at scale 1 on A4. */
+  const TEXT_BAND = { left: 72, right: 400, top: 842 - 790, bottom: 842 - 690 }
+
+  let requests: string[]
+  /** Called before a stubbed fetch answers, so a test can hold it. */
+  let beforeAnswer: (url: string, signal: AbortSignal | undefined) => Promise<void>
+
+  beforeEach(() => {
+    requests = []
+    beforeAnswer = () => Promise.resolve()
+    vi.stubGlobal('fetch', async (input: string | URL, init?: RequestInit) => {
+      const url = String(input)
+      requests.push(url)
+      await beforeAnswer(url, init?.signal ?? undefined)
+      init?.signal?.throwIfAborted()
+      const key = (Object.keys(fontFiles) as FontKey[]).find(
+        (k) => url === FONT_HOST + fontFiles[k]
+      )
+      if (!key) return new Response('not found', { status: 404 })
+      return new Response(await readFile(fontPath(key)))
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** Pixels in the text band darker than mid grey. */
+  function inked(page: RenderedPage): number {
+    let count = 0
+    for (let y = TEXT_BAND.top; y < TEXT_BAND.bottom; y++)
+      for (let x = TEXT_BAND.left; x < TEXT_BAND.right; x++)
+        if ((page.data[(y * page.width + x) * 4] as number) < 128) count++
+    return count
+  }
+
+  /**
+   * An engine in this thread over a module whose registrations are recorded. `misses()` takes
+   * the keys the font mapper missed since the last call, and fails when one was registered:
+   * the keys a page needs and the keys the mapper asks for would then disagree.
+   */
+  async function fontEngine(fallbackFonts?: EngineOptions['fallbackFonts']) {
+    const native = await loadNative({ wasm })
+    const registered = new Set<FontKey>()
+    const fn: Native = {
+      ...native.fn,
+      INK_Fonts_Register: (bit, data, size) => {
+        const ok = native.fn.INK_Fonts_Register(bit, data, size)
+        if (ok) for (const key of keysOf(bit)) registered.add(key)
+        return ok
+      },
+    }
+    const core = new EngineCore(
+      withFunctions(native, fn),
+      fallbackFonts && { fallbackFonts }
+    )
+    const fonts = engineOver(new InThreadTransport(core))
+    const misses = () => {
+      const missed = keysOf(native.fn.INK_Fonts_TakeMisses())
+      expect(missed.filter((key) => registered.has(key))).toEqual([])
+      return missed
+    }
+    return { engine: fonts, registered, misses }
+  }
+
+  test('a file that names no unembedded font fetches nothing', async () => {
+    const { engine: fonts, misses } = await fontEngine(ALL)
+    for (const name of ['text-simple', 'unembedded-arial'] as const) {
+      const opened = await fonts.open(await fixtureBytes(name))
+      const page = await opened.renderPage(0)
+      expect(page.missingFonts).toEqual([])
+      misses()
+    }
+    expect(requests).toEqual([])
+    await fonts.destroy()
+  })
+
+  test('every render lists its missing fonts, empty when there are none', async () => {
+    const page = await doc.renderPage(0)
+    expect(page.missingFonts).toEqual([])
+    const opened = await engine.open(await fixtureBytes('unembedded-japanese'))
+    expect((await opened.renderPage(0)).missingFonts).toEqual(['japanese'])
+  })
+
+  test('a page fetches the font it needs once, and draws its text with it', async () => {
+    const { engine: fonts, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    const first = await opened.renderPage(0)
+    expect(first.missingFonts).toEqual([])
+    expect(misses()).toEqual([])
+    expect(requests).toEqual([ALL.japanese])
+    const again = await opened.renderPage(0)
+    expect(again.missingFonts).toEqual([])
+    expect(again.data).toEqual(first.data)
+    expect(requests).toHaveLength(1)
+
+    // Without the font the two lines are not drawn as text.
+    const bare = await fontEngine()
+    const page = await (
+      await bare.engine.open(await fixtureBytes('unembedded-japanese'))
+    ).renderPage(0)
+    expect(page.missingFonts).toEqual(['japanese'])
+    expect(bare.misses()).toEqual(['japanese'])
+    expect(inked(first)).toBeGreaterThan(500)
+    expect(inked(first)).toBeGreaterThan(inked(page) * 4)
+    await bare.engine.destroy()
+    await fonts.destroy()
+  })
+
+  test('with no fallback fonts a page still renders and lists what it missed', async () => {
+    const plain = await createEngine({ wasm, worker: false })
+    const opened = await plain.open(await fixtureBytes('unembedded-japanese'))
+    const page = await opened.renderPage(0)
+    expect(page.missingFonts).toEqual(['japanese'])
+    expect(page.width).toBe(595)
+    expect(requests).toEqual([])
+    await plain.destroy()
+  })
+
+  test('a source that 404s is fetched once and listed as missing', async () => {
+    const { engine: fonts, misses } = await fontEngine({
+      japanese: `${FONT_HOST}nothing-here.otf`,
+    })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    expect((await opened.renderPage(0)).missingFonts).toEqual(['japanese'])
+    expect(misses()).toEqual(['japanese'])
+    const other = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    expect((await other.renderPage(0)).missingFonts).toEqual(['japanese'])
+    misses()
+    expect(requests).toHaveLength(1)
+    await fonts.destroy()
+  })
+
+  test('bytes the engine cannot use as a font fail the key for good', async () => {
+    const { engine: fonts } = await fontEngine({ korean: new Uint8Array() })
+    const opened = await fonts.open(await fixtureBytes('unembedded-korean'))
+    expect((await opened.renderPage(0)).missingFonts).toEqual(['korean'])
+    expect((await opened.renderPage(0)).missingFonts).toEqual(['korean'])
+    await fonts.destroy()
+  })
+
+  test('no later redraw changes a page: lazy fonts equal fonts given up front', async () => {
+    const japaneseBytes = new Uint8Array(await readFile(fontPath('japanese')))
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+
+    // Up front: a fresh engine given the bytes, and the page needing them is the first call.
+    const upFront = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: japaneseBytes },
+    })
+    const expected = await (await upFront.open(japaneseFile)).renderPage(0, { scale: 2 })
+    await upFront.destroy()
+
+    // Lazy: the document is opened and read, another page is drawn, then the font is fetched.
+    const { engine: lazy, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await lazy.open(japaneseFile)
+    await opened.pageInfo(0)
+    await (await lazy.open(bytes)).renderPage(0)
+    expect(requests).toEqual([])
+    const actual = await opened.renderPage(0, { scale: 2 })
+    expect(requests).toEqual([ALL.japanese])
+    misses()
+    expect(actual.missingFonts).toEqual([])
+    expect(actual.width).toBe(expected.width)
+    expect(Buffer.from(actual.data).equals(Buffer.from(expected.data))).toBe(true)
+    await lazy.destroy()
+  })
+
+  test.each(['unembedded-cyrillic', 'unembedded-greek'] as const)(
+    '%s draws its text with the default font',
+    async (name) => {
+      const { engine: fonts, misses } = await fontEngine({ default: ALL.default })
+      const page = await (await fonts.open(await fixtureBytes(name))).renderPage(0)
+      expect(page.missingFonts).toEqual([])
+      expect(misses()).toEqual([])
+      expect(requests).toEqual([ALL.default])
+      expect(inked(page)).toBeGreaterThan(500)
+      await fonts.destroy()
+    }
+  )
+
+  test('in Node a path or a file: URL is read from disk', async () => {
+    const fromDisk = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: {
+        japanese: fontPath('japanese'),
+        korean: pathToFileURL(fontPath('korean')),
+      },
+    })
+    for (const name of ['unembedded-japanese', 'unembedded-korean'] as const) {
+      const page = await (await fromDisk.open(await fixtureBytes(name))).renderPage(0)
+      expect(page.missingFonts, name).toEqual([])
+      expect(inked(page), name).toBeGreaterThan(500)
+    }
+    expect(requests).toEqual([])
+    await fromDisk.destroy()
+  })
+
+  test('an abort during a slow font fetch rejects, and a later render fetches the font', async () => {
+    let arrived: (() => void) | undefined
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    beforeAnswer = (_url, signal) =>
+      new Promise((_resolve, reject) => {
+        arrived?.()
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('The fetch was aborted.', 'AbortError'))
+        })
+      })
+    const { engine: fonts, registered } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    const controller = new AbortController()
+    const running = opened.renderPage(0, { signal: controller.signal })
+    await waiting
+    const started = performance.now()
+    controller.abort()
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+    expect(performance.now() - started).toBeLessThan(100)
+    expect(registered.size).toBe(0)
+
+    beforeAnswer = () => Promise.resolve()
+    const page = await opened.renderPage(0)
+    expect(page.missingFonts).toEqual([])
+    expect(inked(page)).toBeGreaterThan(500)
+    expect(requests).toEqual([ALL.japanese, ALL.japanese])
+    await fonts.destroy()
+  })
+
+  test('destroy during a font fetch resolves and rejects the render', async () => {
+    let arrived: (() => void) | undefined
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    beforeAnswer = () =>
+      new Promise(() => {
+        arrived?.()
+      })
+    const slowFonts = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: ALL.japanese },
+    })
+    const opened = await slowFonts.open(await fixtureBytes('unembedded-japanese'))
+    const running = opened.renderPage(0)
+    await waiting
+    await expect(slowFonts.destroy()).resolves.toBeUndefined()
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+  })
+
+  /** A square annotation on page 0, clear of the text band. */
+  const square = (): WriteInput => {
+    const bounds = { x: 400, y: 300, width: 100, height: 80 }
+    return {
+      annotations: [
+        {
+          page: 0,
+          annotation: {
+            id: 'square',
+            page: 0,
+            rect: bounds,
+            opacity: 1,
+            type: 'square',
+            width: 1,
+          },
+          appearance: {
+            bounds,
+            content: new TextEncoder().encode('0 0 1 rg 400 300 100 80 re f'),
+          },
+          data: '{"id":"square"}',
+        },
+      ],
+    }
+  }
+
+  test('a write fetches the fonts of the pages it loads, so a later render draws them', async () => {
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+    // Up front: the font is registered before the document the write goes to is loaded.
+    const upFront = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: new Uint8Array(await readFile(fontPath('japanese'))) },
+    })
+    await (await upFront.open(japaneseFile)).renderPage(0)
+    const reference = await upFront.open(japaneseFile)
+    await reference.write(square())
+    const expected = await reference.renderPage(0)
+    await upFront.destroy()
+
+    const { engine: lazy, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await lazy.open(japaneseFile)
+    await opened.write(square())
+    expect(requests).toEqual([ALL.japanese])
+    misses()
+    const actual = await opened.renderPage(0)
+    misses()
+    expect(actual.missingFonts).toEqual([])
+    expect(inked(actual)).toBeGreaterThan(500)
+    expect(Buffer.from(actual.data).equals(Buffer.from(expected.data))).toBe(true)
+    expect(requests).toHaveLength(1)
+    await lazy.destroy()
+  })
+
+  test('with fallback fonts, redact then save gives the same bytes whether or not the page was drawn first', async () => {
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+    const marks = [mark('m1', { page: 0, quad: [72, 785, 130, 785, 72, 755, 130, 755] })]
+    const redactAndSave = async (drawFirst: boolean) => {
+      const { engine: fonts, misses } = await fontEngine({ japanese: ALL.japanese })
+      const opened = await fonts.open(japaneseFile)
+      if (drawFirst) await opened.renderPage(0)
+      await opened.redact({ marks })
+      misses()
+      const saved = await opened.save()
+      await fonts.destroy()
+      return withoutId(saved)
+    }
+    const drawn = await redactAndSave(true)
+    const notDrawn = await redactAndSave(false)
+    expect(notDrawn).toBe(drawn)
+    expect(requests).toEqual([ALL.japanese, ALL.japanese])
+  })
+
+  test('a write or redact on pages that need no font fetches nothing', async () => {
+    const { engine: fonts } = await fontEngine(ALL)
+    const opened = await fonts.open(bytes)
+    await opened.write(square())
+    const other = await fonts.open(bytes)
+    await other.redact({
+      marks: [mark('m1', { page: 0, quad: [72, 700, 130, 700, 72, 680, 130, 680] })],
+    })
+    expect(requests).toEqual([])
+    await fonts.destroy()
+  })
+
+  test('destroy during the font fetch of a write resolves and rejects the write', async () => {
+    let arrived: (() => void) | undefined
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    beforeAnswer = () =>
+      new Promise(() => {
+        arrived?.()
+      })
+    const slowFonts = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: ALL.japanese },
+    })
+    const opened = await slowFonts.open(await fixtureBytes('unembedded-japanese'))
+    const writing = opened.write(square())
+    await waiting
+    await expect(slowFonts.destroy()).resolves.toBeUndefined()
+    await expect(writing).rejects.toMatchObject({ code: 'aborted' })
+  })
+
+  test('a render that fetches a font does not change what save writes', async () => {
+    const { engine: fonts } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    const before = await opened.save({ mode: 'rewrite' })
+    await opened.renderPage(0)
+    expect(requests).toHaveLength(1)
+    expect(withoutId(await opened.save({ mode: 'rewrite' }))).toBe(withoutId(before))
+    await fonts.destroy()
+  })
+})

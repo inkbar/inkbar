@@ -237,3 +237,44 @@ test('destroy stops a running render rather than waiting for it', async () => {
   expect(worker.terminated).toBe(true)
   expect(await running).toMatchObject({ code: 'aborted' })
 })
+
+test('fallback font URLs reach the worker absolute, and bytes pass through', async () => {
+  const worker = new ManualWorker()
+  const bytes = new Uint8Array([1, 2, 3])
+  await createWorkerTransport(worker as unknown as Worker, new Uint8Array(0), {
+    fallbackFonts: {
+      japanese: 'https://fonts.test/jp.otf',
+      korean: new URL('https://fonts.test/kr.otf'),
+      default: bytes,
+    },
+  })
+  const init = worker.posted.find(
+    (message) => 'type' in message && message.type === 'init'
+  )
+  expect(init).toMatchObject({
+    fallbackFonts: {
+      japanese: 'https://fonts.test/jp.otf',
+      korean: 'https://fonts.test/kr.otf',
+      default: bytes,
+    },
+  })
+})
+
+test('a relative font URL with no page to resolve it against rejects and terminates the worker', async () => {
+  const worker = new ManualWorker()
+  const error: unknown = await createWorkerTransport(
+    worker as unknown as Worker,
+    new Uint8Array(0),
+    { fallbackFonts: { japanese: 'fonts/jp.otf' } }
+  ).catch((reason: unknown) => reason)
+  expect(error).toMatchObject({ code: 'engine-failure' })
+  expect((error as Error).message).toContain('fonts/jp.otf')
+  expect(worker.terminated).toBe(true)
+  expect(worker.posted).toEqual([])
+})
+
+test('without fallback fonts the start-up message carries none', async () => {
+  const worker = new ManualWorker()
+  await createWorkerTransport(worker as unknown as Worker, new Uint8Array(0))
+  expect(worker.posted[0]).not.toHaveProperty('fallbackFonts')
+})

@@ -4,6 +4,7 @@ import { loadNative } from '../native/module.ts'
 
 import { dispatch } from './in-thread.ts'
 
+import type { CoreOptions } from '../native/core.ts'
 import type { FromWorker, ToWorker, WireError } from '../protocol.ts'
 
 /** The parts of a worker's global scope the host uses. */
@@ -52,28 +53,31 @@ export function transferables(value: unknown): Transferable[] {
   return []
 }
 
-const loadCore = async (wasm: string | Uint8Array) =>
-  new EngineCore(await loadNative({ wasm }))
+const loadCore = async (wasm: string | Uint8Array, options: CoreOptions) =>
+  new EngineCore(await loadNative({ wasm }), options)
 
 /** Answers the page's requests on `scope`. `load` is replaced by tests. */
 export function serve(
   scope: WorkerScope,
-  load: (wasm: string | Uint8Array) => Promise<EngineCore> = loadCore
+  load: (
+    wasm: string | Uint8Array,
+    options: CoreOptions
+  ) => Promise<EngineCore> = loadCore
 ): void {
   let core: Promise<EngineCore> | undefined
-  /** The calls not yet answered, each with whether the page has asked to stop it. */
-  const calls = new Map<number, { aborted: boolean }>()
+  /** The calls not yet answered, each aborted once the page asks to stop it. */
+  const calls = new Map<number, AbortController>()
 
   scope.addEventListener('message', (event) => {
     const message = event.data
     if ('type' in message && message.type === 'abort') {
       // An abort for a call already answered finds nothing and is dropped.
-      const call = calls.get(message.id)
-      if (call) call.aborted = true
+      calls.get(message.id)?.abort()
       return
     }
     if ('type' in message) {
-      core = load(message.wasm)
+      // The page sends absolute URLs, so a font is fetched from where the page meant.
+      core = load(message.wasm, { fallbackFonts: message.fallbackFonts })
       core.then(
         () => {
           scope.postMessage({ type: 'ready' })
@@ -85,14 +89,14 @@ export function serve(
       return
     }
     const { id, request } = message
-    const call = { aborted: false }
+    const call = new AbortController()
     calls.set(id, call)
     void (async () => {
       let ready: EngineCore | undefined
       try {
         ready = await core!
         // A render returns here between slices, so an abort message for it is handled meanwhile.
-        const value = await dispatch(ready, request, () => call.aborted)
+        const value = await dispatch(ready, request, call.signal)
         calls.delete(id)
         // The pixels move to the page rather than being copied.
         scope.postMessage({ id, ok: true, value }, transferables(value))

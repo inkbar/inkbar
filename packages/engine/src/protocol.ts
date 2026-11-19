@@ -1,5 +1,6 @@
 import type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
 import type {
+  FontKey,
   OpenOptions,
   RedactInput,
   RedactionRegion,
@@ -35,7 +36,12 @@ export interface Transport {
  * render still running; for any other call it changes nothing.
  */
 export type ToWorker =
-  | { type: 'init'; wasm: string | Uint8Array }
+  | {
+      type: 'init'
+      wasm: string | Uint8Array
+      /** Absolute URLs or bytes, per key. */
+      fallbackFonts?: Partial<Record<FontKey, string | Uint8Array>>
+    }
   | { type: 'abort'; id: number }
   | { id: number; request: Request }
 

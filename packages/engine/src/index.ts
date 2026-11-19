@@ -7,6 +7,7 @@ export type {
   AnnotationRef,
   Appearance,
   CheckRedactionOptions,
+  FontKey,
   OpenOptions,
   PageInfo,
   Rect,

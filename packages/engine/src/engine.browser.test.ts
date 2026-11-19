@@ -1,5 +1,6 @@
 import { generateSlowPage } from '@inkbar/fixtures/generate-large'
 import { fixtureUrl } from '@inkbar/fixtures/urls'
+import { fontFiles, fontUrls } from '@inkbar/fonts'
 import { afterEach, describe, expect, test } from 'vitest'
 
 import wasm from '../vendor/inkbar-pdfium.wasm?url'
@@ -607,4 +608,108 @@ test('the engine requests nothing but its wasm and worker', async () => {
         /\.(mjs|wasm)$/.test(parsed.pathname))
     expect(allowed, url).toBe(true)
   }
+})
+
+describe('fallback fonts', () => {
+  /** The paths the test server has been asked for under `/inkbar-fonts/`, in order. */
+  const fontLog = async () =>
+    (await (await fetch('/inkbar-fonts-log')).json()) as string[]
+  /** The font requests made while `work` runs. */
+  async function fontRequests(work: () => Promise<void>): Promise<string[]> {
+    const before = (await fontLog()).length
+    await work()
+    return (await fontLog()).slice(before)
+  }
+  /** Pixels darker than mid grey in the page's two lines of unembedded text, at scale 1 on A4. */
+  function inked(page: { width: number; data: Uint8ClampedArray }): number {
+    let count = 0
+    for (let y = 842 - 790; y < 842 - 690; y++)
+      for (let x = 72; x < 400; x++)
+        if ((page.data[(y * page.width + x) * 4] as number) < 128) count++
+    return count
+  }
+
+  test('a worker fetches a font from a relative URL resolved against the page, once', async () => {
+    // Relative to the page, not to the worker script, whose base differs.
+    const sources = fontUrls('inkbar-fonts/')
+    const expected = new URL(sources.japanese, location.href).pathname
+    const engine = await start({ worker, wasm, fallbackFonts: sources })
+    const bytes = await fixture('unembedded-japanese')
+    let pages: Awaited<ReturnType<EngineDocument['renderPage']>>[] = []
+    const requested = await fontRequests(async () => {
+      const doc = await engine.open(bytes)
+      pages = [await doc.renderPage(0), await doc.renderPage(0)]
+    })
+    expect(requested).toEqual([expected])
+    for (const page of pages) {
+      expect(page.missingFonts).toEqual([])
+      expect(inked(page)).toBeGreaterThan(500)
+    }
+  })
+
+  test('in the page thread too, and a file that needs no font fetches none', async () => {
+    const engine = await start({
+      worker: false,
+      wasm,
+      fallbackFonts: fontUrls('/inkbar-fonts/'),
+    })
+    const plain = await fontRequests(async () => {
+      for (const name of ['text-simple', 'unembedded-arial'] as const)
+        expect(
+          (await (await engine.open(await fixture(name))).renderPage(0)).missingFonts
+        ).toEqual([])
+    })
+    expect(plain).toEqual([])
+    const korean = await fontRequests(async () => {
+      const page = await (
+        await engine.open(await fixture('unembedded-korean'))
+      ).renderPage(0)
+      expect(page.missingFonts).toEqual([])
+      expect(inked(page)).toBeGreaterThan(500)
+    })
+    expect(korean).toEqual([`/inkbar-fonts/${fontFiles.korean}`])
+  })
+
+  test('a font that 404s is listed as missing and not requested again', async () => {
+    const engine = await start({
+      worker,
+      wasm,
+      fallbackFonts: { japanese: '/inkbar-fonts/nothing-here.otf' },
+    })
+    const bytes = await fixture('unembedded-japanese')
+    const requested = await fontRequests(async () => {
+      const doc = await engine.open(bytes)
+      expect((await doc.renderPage(0)).missingFonts).toEqual(['japanese'])
+      expect((await doc.renderPage(0)).missingFonts).toEqual(['japanese'])
+    })
+    expect(requested).toEqual(['/inkbar-fonts/nothing-here.otf'])
+  })
+
+  test('aborting a render during its font fetch in the worker rejects it promptly', async () => {
+    const engine = await start({
+      worker,
+      wasm,
+      fallbackFonts: { japanese: `/inkbar-fonts/hang/${fontFiles.japanese}` },
+    })
+    const doc = await engine.open(await fixture('unembedded-japanese'))
+    const before = (await fontLog()).length
+    const controller = new AbortController()
+    const running = doc.renderPage(0, { signal: controller.signal })
+    await expect
+      .poll(async () => (await fontLog()).length, { timeout: 10_000 })
+      .toBeGreaterThan(before)
+    const started = performance.now()
+    controller.abort()
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+    expect(performance.now() - started).toBeLessThan(500)
+    // Not failed: the next render asks again.
+    const again = doc.renderPage(0)
+    await expect
+      .poll(async () => (await fontLog()).length, { timeout: 10_000 })
+      .toBeGreaterThan(before + 1)
+    const destroying = performance.now()
+    await engine.destroy()
+    expect(performance.now() - destroying).toBeLessThan(1_000)
+    await expect(again).rejects.toMatchObject({ code: 'aborted' })
+  })
 })

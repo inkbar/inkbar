@@ -5,6 +5,7 @@ import { createWorkerTransport } from './transport/worker.ts'
 import type { Request, Transport } from './protocol.ts'
 import type {
   CheckRedactionOptions,
+  FontKey,
   OpenOptions,
   PageInfo,
   RedactInput,
@@ -28,6 +29,12 @@ export interface EngineOptions {
    * terminates it if start-up or the worker fails, and on `destroy()`.
    */
   worker?: string | URL | Worker | false
+  /**
+   * Where to get a font for text whose own font is not in the file. A URL (or, in Node, a file
+   * path) or the bytes, per key. A font is fetched the first time a page needs it, once per engine.
+   * Bytes are read then too, so leave them unchanged. With none, nothing is fetched.
+   */
+  fallbackFonts?: Partial<Record<FontKey, string | URL | Uint8Array>>
 }
 
 /**
@@ -329,12 +336,12 @@ function startWorker(worker: string | URL | Worker | undefined): {
 }
 
 /**
- * Starts an engine. It loads the WebAssembly module and, in a worker, the worker script. It
- * requests nothing else. It rejects with `engine-failure`, naming the URL, when the module or
- * the worker cannot be loaded.
+ * Starts an engine. It loads the WebAssembly module and, in a worker, the worker script. Later it
+ * fetches only the `fallbackFonts` a page needs. It rejects with `engine-failure`, naming the
+ * URL, when the module or the worker cannot be loaded, or a font URL is not valid.
  */
 export async function createEngine(options: EngineOptions = {}): Promise<Engine> {
-  const { worker } = options
+  const { worker, fallbackFonts } = options
   if (worker !== false && typeof Worker !== 'undefined') {
     const wasm = options.wasm ?? new URL('./inkbar-pdfium.wasm', import.meta.url)
     let started: ReturnType<typeof startWorker>
@@ -356,9 +363,12 @@ export async function createEngine(options: EngineOptions = {}): Promise<Engine>
       )
     }
     return engineOver(
-      await createWorkerTransport(started.worker, wasm, { url: started.url })
+      await createWorkerTransport(started.worker, wasm, {
+        url: started.url,
+        fallbackFonts,
+      })
     )
   }
   const wasm = options.wasm ?? (await defaultWasm())
-  return engineOver(await createInThreadTransport({ wasm }))
+  return engineOver(await createInThreadTransport({ wasm }, { fallbackFonts }))
 }
