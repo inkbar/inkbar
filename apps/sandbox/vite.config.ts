@@ -34,6 +34,8 @@ export default defineConfig({
         svelte: entry('./svelte/index.html'),
         vanilla: entry('./vanilla/index.html'),
         plugin: entry('./plugin/index.html'),
+        // The in-browser smoke check that real browsers and devices run (src/smoke/).
+        smoke: entry('./smoke/index.html'),
       },
     },
   },
