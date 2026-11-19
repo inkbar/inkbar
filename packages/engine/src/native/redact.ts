@@ -72,14 +72,13 @@ function reaches(corners: Corners, box: Rect): boolean {
     number,
     number,
   ]
-  // The corners in order around the quad: top left, top right, bottom right, bottom left.
-  const area = Math.abs(
-    x1 * y2 - x2 * y1 + (x2 * y4 - x4 * y2) + (x4 * y3 - x3 * y4) + (x3 * y1 - x1 * y3)
-  )
+  // A region has an area unless its corners span no width or no height. The order the corners
+  // are stored in does not matter: a rectangle stored around its edge is still a rectangle.
   const xs = [x1, x2, x3, x4]
   const ys = [y1, y2, y3, y4]
   return (
-    area > 0 &&
+    Math.max(...xs) > Math.min(...xs) &&
+    Math.max(...ys) > Math.min(...ys) &&
     Math.max(...xs) > box.x &&
     Math.min(...xs) < box.x + box.width &&
     Math.max(...ys) > box.y &&

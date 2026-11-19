@@ -356,6 +356,27 @@ test('skips a mark with no area and one outside the page', async () => {
   }
 })
 
+test('applies a rectangle whose corners are stored around its edge, not as Gloss orders them', async () => {
+  // The fixture's region, with its bottom corners swapped: right, then left.
+  const [over] = marksOf('redact-text') as [WriteAnnotation]
+  const quad = (over.annotation as { quads: { p3: object; p4: object }[] }).quads[0]!
+  const crossed: WriteAnnotation = {
+    ...over,
+    annotation: {
+      ...over.annotation,
+      quads: [{ ...quad, p3: quad.p4, p4: quad.p3 }],
+    } as GlossAnnotation,
+  }
+  const doc = await engine.open(await fixtureBytes('redact-text'))
+  try {
+    const result = await doc.redact({ marks: [crossed] })
+    expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+    await expectClean('redact-text', await doc.save())
+  } finally {
+    await doc.close()
+  }
+})
+
 test('redacts a mark with no quads by its rectangle, not its appearance bounds', async () => {
   const [over] = marksOf('redact-text') as [WriteAnnotation]
   const { quads: _, ...annotation } = over.annotation

@@ -33,19 +33,14 @@ export interface RedactionOptions {
 }
 
 /**
- * Whether a quad has an area: one of none covers nothing and cannot be looked under. A quad with
- * a number that is not finite counts as having one, so writing it reports the fault.
+ * Whether a quad has an area: one whose corners span no width or no height covers nothing and
+ * cannot be looked under. Any other quad counts, whatever order its corners are stored in, and
+ * so does one with a number that is not finite, so writing it reports the fault.
  */
 function hasArea(q: Quad): boolean {
-  const { p1, p2, p3, p4 } = q
-  // The corners in order around the quad: top left, top right, bottom right, bottom left.
-  const area =
-    p1.x * p2.y -
-    p2.x * p1.y +
-    (p2.x * p4.y - p4.x * p2.y) +
-    (p4.x * p3.y - p3.x * p4.y) +
-    (p3.x * p1.y - p1.x * p3.y)
-  return area !== 0
+  const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
+  const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]
+  return Math.max(...xs) !== Math.min(...xs) && Math.max(...ys) !== Math.min(...ys)
 }
 
 const boundsOf = (points: readonly { x: number; y: number }[]): Rect => {

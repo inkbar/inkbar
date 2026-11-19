@@ -845,6 +845,54 @@ describe('applyRedactions with the engine', () => {
     expect(text).toContain('KEEP-BETA')
   })
 
+  /** A rectangle with its corners stored around it (top left, top right, bottom right, bottom left), not in Gloss order. */
+  const crossed = (x: number, y: number, width: number, height: number): Quad => ({
+    p1: { x, y: y + height },
+    p2: { x: x + width, y: y + height },
+    p3: { x: x + width, y },
+    p4: { x, y },
+  })
+
+  /** What an apply of `doc` came to: the result and the page text after, or the error. */
+  async function outcome(doc: InkDocument) {
+    try {
+      const { bytes, result } = await doc.applyRedactions()
+      return { result, text: await (await openBytes(bytes)).pageText(0) }
+    } catch (error) {
+      return { error }
+    }
+  }
+
+  it('a crossed rectangle over text is never skipped', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [crossed(45, 190, 170, 35)],
+    })
+    const out = await outcome(doc)
+    expect(out).toMatchObject({ result: { marks: 1 } })
+    expect(out.text).not.toContain('SECRET')
+    expect(out.text).toContain('KEEP-BETA')
+  })
+
+  it('a crossed rectangle beside a real piece is never skipped', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 45, y: 190, width: 365, height: 35 },
+      quads: [quad(45, 190, 170, 35), crossed(300, 195, 110, 22)],
+    })
+    const out = await outcome(doc)
+    expect(out).toMatchObject({ result: { marks: 1 } })
+    expect(out.text).not.toContain('SECRET')
+    expect(out.text).not.toContain('KEEP-BETA')
+  })
+
   it('rejects NothingToRedact when every mark has no area', async () => {
     const { loader } = realEngine()
     const doc = await open('redact-text', { engine: loader })
