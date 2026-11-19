@@ -138,24 +138,35 @@ test('error codes cross the worker boundary', async () => {
       ],
     })
   ).rejects.toMatchObject({ code: 'write-failed', annotation: 'bare' })
-  // A redaction that fails on one mark names its page and the mark.
+  // A redaction the engine refuses names its page, the reason and the marks.
+  const hatch = await engine.open(await fixture('redact-drawing-hatch'))
   await expect(
-    doc.redact({
+    hatch.redact({
       marks: [
         {
           page: 0,
           annotation: {
-            id: 'bare-mark',
+            id: 'over-hatch',
             type: 'redact',
             page: 0,
-            rect: { x: 10, y: 10, width: 10, height: 10 },
+            rect: { x: 110, y: 110, width: 80, height: 80 },
             opacity: 1,
+          },
+          appearance: {
+            bounds: { x: 110, y: 110, width: 80, height: 80 },
+            content: new TextEncoder().encode('0 g 110 110 80 80 re f'),
           },
           data: '{}',
         },
       ],
     })
-  ).rejects.toMatchObject({ code: 'redaction-failed', page: 0, annotation: 'bare-mark' })
+  ).rejects.toMatchObject({
+    code: 'redaction-failed',
+    page: 0,
+    reason: 'unremovable-content',
+    marks: ['over-hatch'],
+    kinds: ['pattern'],
+  })
 })
 
 test('redacts through the worker', async () => {
