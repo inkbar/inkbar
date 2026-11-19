@@ -714,6 +714,14 @@ describe('redactionPreview', () => {
     })
   })
 
+  it('counts only the marks that have an area, in marks and in pages', async () => {
+    const doc = await open('redact-text')
+    markOver(doc, { x: 45, y: 190, width: 0, height: 35 })
+    expect(doc.redactionPreview()).toMatchObject({ marks: 0, pages: 0 })
+    markOver(doc)
+    expect(doc.redactionPreview()).toMatchObject({ marks: 1, pages: 1 })
+  })
+
   it("counts the file's own annotations a mark overlaps", async () => {
     const doc = await open('redact-annotations')
     // The fixture's stamp and note lie under x 40..240, y 150..250.

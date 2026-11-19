@@ -88,7 +88,8 @@ export function redactionPreview(state: RedactionState): RedactionPreview {
     (a) => a.source === 'pdf' && a.type !== 'redact' && overlapsMark(p, a)
   ).length
   return {
-    marks: p.marks.length,
+    // A mark with no area is skipped by the apply, so it is not counted, as `pages` leaves it out.
+    marks: p.regions.filter((r) => r.quads.length > 0).length,
     pages: p.pages,
     overlapped: p.removed.length + fileOverlapped,
     signed: state.formFields.some((f) => f.signed === 'certificate'),
