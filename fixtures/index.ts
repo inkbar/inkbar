@@ -7,7 +7,7 @@ import manifestJson from './manifest.json' with { type: 'json' }
 import type { FixtureName } from './urls'
 
 export { FIXTURE_NAMES, fixtureUrl, type FixtureName } from './urls'
-export { generateLarge } from './generate-large'
+export { generateLarge, generateSlowPage } from './generate-large'
 
 /**
  * Where a test puts a redaction mark: a page index counting from 0 and a quad in PDF user space,

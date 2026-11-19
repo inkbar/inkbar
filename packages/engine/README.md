@@ -135,10 +135,10 @@ Saving:
 Ownership and lifetimes:
 
 - `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way, and `renderPage` its options.
-- `renderPage` and `save` return buffers that belong to the caller.
+- `renderPage` and `save` return buffers that belong to the caller. In a worker, the engine moves the pixels to your thread without copying them.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
-- `destroy()` rejects queued calls with `aborted` and closes every document. In a worker it waits up to two seconds for the running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for the running call to finish. A `close()` after `destroy()` resolves.
-- A `signal` cancels a call only while it waits in the queue. A call that has started runs to the end and may still reject.
+- `destroy()` rejects queued calls with `aborted`, stops a running render and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for the running call to finish. A `close()` after `destroy()` resolves.
+- A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A render that finishes before the engine sees the abort still resolves. Other calls that have started run to the end and may still reject.
 
 Errors:
 

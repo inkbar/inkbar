@@ -10,9 +10,11 @@ interface Job {
 }
 
 /**
- * Runs jobs one at a time, in the order they were queued. A queued job can be
- * aborted and never runs; a job that has started always finishes. Shared by
- * every transport so they all queue and abort the same way.
+ * Runs jobs one at a time, in the order they were queued: the next job starts only once the
+ * running one has settled, even when that one waits on the event loop between steps, as a sliced
+ * render does. A queued job can be aborted and never runs. The queue stops listening to a job's
+ * signal when the job starts; stopping a running job is the transport's part. Shared by every
+ * transport so they all queue and abort the same way.
  */
 export class CallQueue {
   readonly #jobs: Job[] = []

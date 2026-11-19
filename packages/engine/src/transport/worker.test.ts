@@ -16,6 +16,7 @@ class FakeWorker extends EventTarget {
   }
 
   postMessage(message: ToWorker): void {
+    if ('type' in message && message.type === 'abort') return
     const replies =
       'type' in message ? [{ type: 'ready' } as const] : this.answer(message)
     queueMicrotask(() => {
@@ -31,7 +32,7 @@ class FakeWorker extends EventTarget {
 
 test('after the worker reports an internal error the engine stops and terminates it', async () => {
   const fake = new FakeWorker((message) => {
-    if (!('id' in message)) return []
+    if (!('request' in message)) return []
     if (message.request.op === 'open')
       return [{ id: message.id, ok: true, value: { id: 1, pageCount: 1 } }]
     return [
@@ -64,11 +65,15 @@ test('after the worker reports an internal error the engine stops and terminates
 class ManualWorker extends EventTarget {
   terminated = false
   readonly waiting: number[] = []
+  /** Every message the page posted, start-up included. */
+  readonly posted: ToWorker[] = []
 
   postMessage(message: ToWorker): void {
+    this.posted.push(message)
     let reply: FromWorker | undefined
-    if ('type' in message) reply = { type: 'ready' }
-    else if (message.request.op === 'open')
+    if ('type' in message) {
+      if (message.type === 'init') reply = { type: 'ready' }
+    } else if (message.request.op === 'open')
       reply = { id: message.id, ok: true, value: { id: 1, pageCount: 1 } }
     else this.waiting.push(message.id)
     if (reply)
@@ -80,6 +85,20 @@ class ManualWorker extends EventTarget {
   answer(id: number): void {
     const data: FromWorker = { id, ok: true, value: { width: 1, height: 1, rotation: 0 } }
     this.dispatchEvent(new MessageEvent('message', { data }))
+  }
+
+  refuse(id: number): void {
+    const data: FromWorker = {
+      id,
+      ok: false,
+      error: { code: 'aborted', message: 'The call was aborted.' },
+    }
+    this.dispatchEvent(new MessageEvent('message', { data }))
+  }
+
+  /** The abort messages posted so far. */
+  get aborts(): ToWorker[] {
+    return this.posted.filter((message) => 'type' in message && message.type === 'abort')
   }
 
   terminate(): void {
@@ -151,4 +170,70 @@ test('a second destroy returns the first one', async () => {
   const transportDestroy = engine.destroy()
   expect(engine.destroy()).toBe(transportDestroy)
   await transportDestroy
+})
+
+test('aborting a running render tells the worker which call to stop', async () => {
+  const { worker, doc } = await manualEngine()
+  const c = new AbortController()
+  const running = doc.renderPage(0, { signal: c.signal })
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  const id = worker.waiting[0]!
+  c.abort()
+  expect(worker.aborts).toEqual([{ type: 'abort', id }])
+  worker.refuse(id)
+  await expect(running).rejects.toMatchObject({ name: 'EngineError', code: 'aborted' })
+  // The listener is gone once the call settled: a second abort posts nothing.
+  c.abort()
+  expect(worker.aborts).toHaveLength(1)
+})
+
+test('aborting a queued render rejects it without telling the worker', async () => {
+  const { worker, doc } = await manualEngine()
+  const first = doc.pageInfo(0)
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  const c = new AbortController()
+  const queued = doc.renderPage(0, { signal: c.signal })
+  c.abort()
+  await expect(queued).rejects.toMatchObject({ code: 'aborted' })
+  expect(worker.aborts).toEqual([])
+  worker.answer(worker.waiting[0]!)
+  await expect(first).resolves.toMatchObject({ width: 1 })
+  expect(worker.waiting).toHaveLength(1)
+})
+
+test('a render that answers before its abort is handled still resolves, once', async () => {
+  const { worker, doc } = await manualEngine()
+  const c = new AbortController()
+  const running = doc.renderPage(0, { signal: c.signal })
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  const id = worker.waiting[0]!
+  worker.answer(id)
+  c.abort()
+  // The reply came first, so the abort is not sent and the call keeps its result.
+  await expect(running).resolves.toMatchObject({ width: 1 })
+  expect(worker.aborts).toEqual([])
+})
+
+test('aborting a running call that is not a render posts nothing', async () => {
+  const { worker, engine } = await manualEngine()
+  const c = new AbortController()
+  const running = engine.checkRedaction(new Uint8Array([1]), { signal: c.signal })
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  c.abort()
+  expect(worker.aborts).toEqual([])
+  worker.answer(worker.waiting[0]!)
+  await running
+})
+
+test('destroy stops a running render rather than waiting for it', async () => {
+  const { worker, engine, doc } = await manualEngine()
+  const running = doc.renderPage(0).catch((reason: unknown) => reason)
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  const id = worker.waiting[0]!
+  const destroyed = engine.destroy()
+  expect(worker.aborts).toEqual([{ type: 'abort', id }])
+  worker.refuse(id)
+  await destroyed
+  expect(worker.terminated).toBe(true)
+  expect(await running).toMatchObject({ code: 'aborted' })
 })

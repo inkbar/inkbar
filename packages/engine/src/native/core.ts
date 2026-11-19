@@ -31,11 +31,33 @@ const FPDF_ANNOT = 0x01
 const RENDER_WIDGETS = 0x8000
 const FPDF_REVERSE_BYTE_ORDER = 0x10
 const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
-/** The longest one slice of a render runs, in milliseconds. */
-const RENDER_SLICE_MS = 1000
+/**
+ * The longest one slice of a render runs, in milliseconds. Between slices a sliced render returns
+ * to the event loop, so an abort is seen within about one slice.
+ */
+export const SLICE_MS = 8
 
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
 const CLOSED = 'The document is closed.'
+const BUSY = 'A render is running; the engine runs one call at a time.'
+
+/**
+ * Resolves in a later task, so messages and events that arrived meanwhile are handled first. A
+ * channel message is used rather than `setTimeout(0)`, which browsers hold back to 4 ms once
+ * timers nest, a third of every 8 ms slice. Each wait has its own channel, closed once used, so
+ * no open port keeps a Node process alive.
+ */
+export function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel()
+    port1.onmessage = () => {
+      port1.close()
+      resolve()
+    }
+    port2.postMessage(null)
+  })
+}
+
 // Emscripten's abort texts when an allocation or memory growth fails.
 const ALLOCATION_ABORT = /\bOOM\b|out of memory|Cannot enlarge memory|bad_alloc/i
 
@@ -163,6 +185,10 @@ export class EngineCore {
   #nextId = 1
   #destroyed = false
   #stopped = false
+  /** True while a sliced render is between its first and last slice. */
+  #rendering = false
+  /** Set by `destroy()` during a sliced render, which then stops and destroys the engine. */
+  #destroyAfterRender = false
 
   constructor(native: NativeModule) {
     this.#native = native
@@ -210,6 +236,7 @@ export class EngineCore {
   open(bytes: Uint8Array, options: OpenOptions = {}): { id: number; pageCount: number } {
     if (this.#destroyed)
       throw new EngineError('engine-failure', 'The engine is destroyed.')
+    this.#checkIdle()
     return this.#guard(() => this.#open(bytes, options))
   }
 
@@ -314,30 +341,85 @@ export class EngineCore {
     }
   }
 
+  /** Draws a page in one go. */
   renderPage(
     id: number,
     index: number,
     options: RenderRequestOptions = {}
   ): RenderedPage {
+    const steps = this.#renderSteps(id, index, options)
+    return this.#guard(() => {
+      let step = steps.next()
+      while (!step.done) step = steps.next()
+      return step.value
+    })
+  }
+
+  /**
+   * Draws a page in slices of `SLICE_MS`, returning to the event loop between them. Before each
+   * slice it asks `aborted`; once that says true, or `destroy()` has been called, the render
+   * ends, frees what it took and rejects with `aborted`.
+   */
+  async renderPageSliced(
+    id: number,
+    index: number,
+    options: RenderRequestOptions,
+    aborted: () => boolean
+  ): Promise<RenderedPage> {
+    const steps = this.#renderSteps(id, index, options)
+    this.#rendering = true
+    try {
+      for (;;) {
+        if (aborted() || this.#destroyAfterRender)
+          throw new EngineError('aborted', 'The call was aborted.')
+        const step = this.#guard(() => steps.next())
+        if (step.done) return step.value
+        await nextTask()
+      }
+    } finally {
+      // A render stopped part way runs its cleanup here: it ends the render, then frees the
+      // bitmap and the page. A finished or failed render has already done so. After a trap the
+      // module is not called again.
+      try {
+        if (!this.#stopped) this.#guard(() => steps.return(undefined as never))
+      } finally {
+        this.#rendering = false
+        if (this.#destroyAfterRender) this.destroy()
+      }
+    }
+  }
+
+  /**
+   * Checks the arguments at once, then draws when stepped: the first step loads the page and
+   * starts the render, and each step after runs one slice. It pauses after every slice that
+   * leaves more to do, and returns the pixels. Ending it early (`return`) ends the render and
+   * frees what it took.
+   */
+  #renderSteps(
+    id: number,
+    index: number,
+    options: RenderRequestOptions
+  ): Generator<undefined, RenderedPage> {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     if (!isRecord(options)) throw new ArgumentError('the options must be an object')
     const hide = hiddenObjects(options.hide)
-    return this.#guard(() => this.#render(entry, index, options, hide))
+    return this.#render(entry, index, options, hide)
   }
 
   /**
    * Draws a page through the fork's sliced render, which leaves out the annotations in `hide`
    * and puts the document back as it was before it returns from starting.
    */
-  #render(
+  *#render(
     entry: OpenDocument,
     index: number,
     options: RenderRequestOptions,
     hide: readonly number[]
-  ): RenderedPage {
-    return this.#withPage(entry, index, (page) => {
-      const fn = this.#fn
+  ): Generator<undefined, RenderedPage> {
+    const fn = this.#fn
+    const page = this.#loadPage(entry, index)
+    try {
       const geometry = renderGeometry(this.#info(page), options)
       const { width, height } = geometry
       const flags =
@@ -371,8 +453,11 @@ export class EngineCore {
         )
         if (render === 0)
           throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
-        let state = 0
-        while (state === 0) state = fn.INK_Render_Continue(render, RENDER_SLICE_MS)
+        let state = fn.INK_Render_Continue(render, SLICE_MS)
+        while (state === 0) {
+          yield
+          state = fn.INK_Render_Continue(render, SLICE_MS)
+        }
         if (state !== 1)
           throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
         return this.#copyBitmap(bitmap, width, height)
@@ -384,7 +469,9 @@ export class EngineCore {
           fn.FPDFBitmap_Destroy(bitmap)
         }
       }
-    })
+    } finally {
+      if (!this.#stopped) fn.FPDF_ClosePage(page)
+    }
   }
 
   /** The bitmap's pixels as tightly packed rows, in memory the caller owns. */
@@ -572,6 +659,7 @@ export class EngineCore {
     if (this.#destroyed)
       throw new EngineError('engine-failure', 'The engine is destroyed.')
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
+    this.#checkIdle()
     checkRegions(options.regions)
     return this.#guard(() => {
       const fn = this.#fn
@@ -700,6 +788,7 @@ export class EngineCore {
 
   /** Closes a document. After an internal error it only forgets it: the module is not called. */
   close(id: number): void {
+    this.#checkIdle()
     const entry = this.#documents.get(id)
     if (!entry) return
     this.#documents.delete(id)
@@ -715,6 +804,11 @@ export class EngineCore {
    * called. A trap while shutting down stops the engine but does not make `destroy` throw.
    */
   destroy(): void {
+    if (this.#rendering) {
+      // The render's page and bitmap are still in use: stop it, then destroy once it has ended.
+      this.#destroyAfterRender = true
+      return
+    }
     if (!this.#stopped && !this.#destroyed) {
       try {
         for (const id of [...this.#documents.keys()]) this.close(id)
@@ -743,6 +837,7 @@ export class EngineCore {
 
   #get(id: number): OpenDocument {
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
+    this.#checkIdle()
     const entry = this.#documents.get(id)
     if (!entry) throw new EngineError('engine-failure', CLOSED)
     return entry
@@ -753,17 +848,27 @@ export class EngineCore {
       throw new ArgumentError(`page index ${index} is outside 0..${entry.pageCount - 1}`)
   }
 
-  #withPage<T>(entry: OpenDocument, index: number, use: (page: number) => T): T {
+  /** Refuses a call that arrives while a sliced render is between slices. */
+  #checkIdle(): void {
+    if (this.#rendering) throw new EngineError('engine-failure', BUSY)
+  }
+
+  #loadPage(entry: OpenDocument, index: number): number {
     const fn = this.#fn
     const page = fn.FPDF_LoadPage(entry.doc, index)
     if (page === 0)
       throw new EngineError('engine-failure', `Page ${index} could not be loaded.`, {
         pdfiumError: fn.FPDF_GetLastError(),
       })
+    return page
+  }
+
+  #withPage<T>(entry: OpenDocument, index: number, use: (page: number) => T): T {
+    const page = this.#loadPage(entry, index)
     try {
       return use(page)
     } finally {
-      if (!this.#stopped) fn.FPDF_ClosePage(page)
+      if (!this.#stopped) this.#fn.FPDF_ClosePage(page)
     }
   }
 

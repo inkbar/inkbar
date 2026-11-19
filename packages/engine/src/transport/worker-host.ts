@@ -56,9 +56,17 @@ export function serve(
   load: (wasm: string | Uint8Array) => Promise<EngineCore> = loadCore
 ): void {
   let core: Promise<EngineCore> | undefined
+  /** The calls not yet answered, each with whether the page has asked to stop it. */
+  const calls = new Map<number, { aborted: boolean }>()
 
   scope.addEventListener('message', (event) => {
     const message = event.data
+    if ('type' in message && message.type === 'abort') {
+      // An abort for a call already answered finds nothing and is dropped.
+      const call = calls.get(message.id)
+      if (call) call.aborted = true
+      return
+    }
     if ('type' in message) {
       core = load(message.wasm)
       core.then(
@@ -72,13 +80,19 @@ export function serve(
       return
     }
     const { id, request } = message
+    const call = { aborted: false }
+    calls.set(id, call)
     void (async () => {
       let ready: EngineCore | undefined
       try {
         ready = await core!
-        const value = dispatch(ready, request)
+        // A render returns here between slices, so an abort message for it is handled meanwhile.
+        const value = await dispatch(ready, request, () => call.aborted)
+        calls.delete(id)
+        // The pixels move to the page rather than being copied.
         scope.postMessage({ id, ok: true, value }, transferables(value))
       } catch (error) {
+        calls.delete(id)
         scope.postMessage({ id, ok: false, error: toWire(error) })
         // The instance is unusable. The page fails what is pending and terminates the worker.
         if (ready?.stopped)

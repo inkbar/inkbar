@@ -30,9 +30,14 @@ export interface Transport {
   destroy(): Promise<void>
 }
 
-/** Messages between the page and the worker. */
+/**
+ * Messages between the page and the worker. `abort` asks the worker to stop call `id` if it is a
+ * render still running; for any other call it changes nothing.
+ */
 export type ToWorker =
-  { type: 'init'; wasm: string | Uint8Array } | { id: number; request: Request }
+  | { type: 'init'; wasm: string | Uint8Array }
+  | { type: 'abort'; id: number }
+  | { id: number; request: Request }
 
 /** An `EngineError` or, marked by `range`, a `RangeError`. */
 export type WireError =
