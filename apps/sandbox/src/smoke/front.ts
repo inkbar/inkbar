@@ -40,7 +40,8 @@ export type MountFront = (el: HTMLElement, props: FrontProps) => Front
 /** The tools every front end offers, beside `select-text` and `select`. */
 export const tools = () => [highlightTool(), drawTool(), redactAreaTool()]
 
-export const engine = () => import('@inkbar/engine')
+/** The sandbox's engine loader, with the fallback fonts. */
+export { engine } from '../shared/engine.ts'
 
 /** Applies without the dialog: the page has no one to answer it. */
 export const redactionConfirm = (): Promise<boolean> => Promise.resolve(true)

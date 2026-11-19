@@ -428,6 +428,12 @@ importers:
       '@inkbar/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@inkbar/fixtures':
+        specifier: workspace:*
+        version: link:../../fixtures
+      '@inkbar/fonts':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@inkbar/icons':
         specifier: workspace:*
         version: link:../../packages/icons

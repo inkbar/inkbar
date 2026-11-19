@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./fake-server": "./src/fake-server.ts",
+    "./engine-reader": "./src/engine-reader.ts",
     "./form-actions": "./src/form-actions.ts",
     "./links-fixture": "./src/links-fixture.ts",
     "./page-count": "./src/page-count.ts",

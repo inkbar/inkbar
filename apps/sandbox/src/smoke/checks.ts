@@ -8,6 +8,9 @@
 import { fr } from '@inkbar/core/locales/fr'
 import { assets } from 'virtual:inkbar-assets'
 
+import { readerOf, setEngineReader } from '../shared/reader.ts'
+import { watchRequests, type RequestWatch } from '../shared/requests.ts'
+
 import { SLACK_MS, SkipCheck, type SmokeCheck } from './run.ts'
 
 import type { Front, MountFront } from './front.ts'
@@ -24,6 +27,19 @@ const HANDBOOK = `${BASE}documents/handbook.pdf`
 /** The letter, encrypted; its password is "inkbar". */
 const LOCKED = `${BASE}documents/locked.pdf`
 const PASSWORD = 'inkbar'
+/** One A4 page of Latin text in the standard fonts. */
+const TEXT_SIMPLE = `${BASE}fixtures/text-simple.pdf`
+/**
+ * One A4 page: two lines of Japanese, 24 pt from x 72, on baselines 760 and 700, in a font the
+ * file does not carry, and a Latin line in Helvetica on baseline 640.
+ */
+const JAPANESE = `${BASE}fixtures/unembedded-japanese.pdf`
+/** The fallback font for Japanese text, as the build serves it. */
+const JAPANESE_FONT = /\/fonts\/NotoSansJP-Regular\.otf$/
+/** The engine's WebAssembly binary, under its built name or its own. */
+const ENGINE_BINARY = /\/inkbar-pdfium[^/]*\.wasm$/
+/** Where PDF.js's worker and files are served (`inkbar()` from `@inkbar/core/vite`). */
+const PDFJS_FILES = `${BASE}inkbar/`
 
 /** Text the first record holds once, which the redaction removes. */
 const SECRET = '07700 900123'
@@ -99,6 +115,33 @@ function inked(canvas: HTMLCanvasElement): number {
     if (data[i]! < 200 || data[i + 1]! < 200 || data[i + 2]! < 200) count++
   return count
 }
+
+/**
+ * How many sampled pixels are darker than paper inside `box`, a part of an A4 page in points
+ * measured from its top-left, on a canvas that shows the whole page.
+ */
+function inkedIn(
+  canvas: HTMLCanvasElement,
+  box: { left: number; top: number; right: number; bottom: number }
+): number {
+  const context = canvas.getContext('2d')
+  assert(context, 'the canvas gave no 2D context')
+  const x = (pt: number) => Math.round((pt / 595) * canvas.width)
+  const y = (pt: number) => Math.round((pt / 842) * canvas.height)
+  const { data } = context.getImageData(
+    x(box.left),
+    y(box.top),
+    x(box.right) - x(box.left),
+    y(box.bottom) - y(box.top)
+  )
+  let count = 0
+  for (let i = 0; i < data.length; i += 4 * 3)
+    if (data[i]! < 200 || data[i + 1]! < 200 || data[i + 2]! < 200) count++
+  return count
+}
+
+/** Lets reports from the workers arrive: each posts its entries as they come in. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 500))
 
 /**
  * Puts `value` in an input as typing would, through the element's own value setter, so a
@@ -211,6 +254,43 @@ export function smokeChecks(
   const hasHighlight = (): boolean =>
     host.querySelector(`[data-annotation="${HIGHLIGHT_ID}"]`) !== null
 
+  /**
+   * Opens `url` in a viewer of its own, with core's switch for drawing pages with the engine on
+   * or off, and runs `test` on the document and its first page canvas, once drawn. The canvas
+   * joins the page only once drawn; read its pixels once, as a browser warns of repeated reads.
+   * The viewer goes and the switch is off again however `test` ends, so the checks after see
+   * the page as it was.
+   */
+  async function drawnWith<T>(
+    url: string,
+    engineOn: boolean,
+    test: (doc: InkDocument, canvas: HTMLCanvasElement) => T | Promise<T>
+  ): Promise<T> {
+    let opened: InkDocument | undefined
+    let viewer: Front | undefined
+    setEngineReader(engineOn)
+    try {
+      viewer = mountFront(host, {
+        source: { url, key: `smoke-${engineOn ? 'engine' : 'pdfjs'}-${url}` },
+        messages: undefined,
+        onReady: (doc) => (opened ??= doc),
+        onRedacted: () => undefined,
+        onApply: () => undefined,
+      })
+      const doc = await until('the document opening', () => opened, 20_000)
+      const canvas = await until(
+        'the page canvas',
+        () => page(0)?.querySelector<HTMLCanvasElement>('canvas[data-ink-canvas]'),
+        20_000
+      )
+      return await test(doc, canvas)
+    } finally {
+      viewer?.unmount()
+      host.replaceChildren()
+      setEngineReader(false)
+    }
+  }
+
   const checks: SmokeCheck[] = [
     {
       name: 'engine loads in a worker and opens the file',
@@ -228,6 +308,88 @@ export function smokeChecks(
         } finally {
           await doc.close()
         }
+      },
+    },
+    {
+      name: 'with the switch on, the engine draws the page',
+      timeout: 30_000,
+      async run() {
+        await drawnWith(TEXT_SIMPLE, true, (doc, canvas) => {
+          const reader = readerOf(doc)
+          assert(reader === 'engine', `the page was drawn by ${reader}`)
+          const dark = inked(canvas)
+          assert(dark > 50, `the page canvas is blank (${dark} dark samples)`)
+        })
+      },
+    },
+    {
+      name: 'the engine draws Japanese text with the fallback font, fetched once',
+      timeout: 30_000,
+      async run() {
+        const watch = watchRequests()
+        // Core reports a missing fallback font with a console warning.
+        const warnings: string[] = []
+        const warn = console.warn
+        console.warn = (...args: unknown[]) => {
+          warnings.push(args.map(String).join(' '))
+          warn.apply(console, args)
+        }
+        const fontRequests = (w: RequestWatch) =>
+          w.list().filter((r) => JAPANESE_FONT.test(new URL(r.name).pathname))
+        try {
+          await drawnWith(JAPANESE, true, async (doc, canvas) => {
+            const reader = readerOf(doc)
+            assert(reader === 'engine', `the page was drawn by ${reader}`)
+            // Both Japanese lines, and none of the Latin line under them.
+            const dark = inkedIn(canvas, { left: 72, top: 50, right: 280, bottom: 150 })
+            assert(dark > 100, `the Japanese lines are blank (${dark} dark samples)`)
+            await until(
+              'the Japanese font request',
+              () => fontRequests(watch).length,
+              10_000
+            )
+            await settle()
+          })
+        } finally {
+          console.warn = warn
+          watch.stop()
+        }
+        const missing = warnings.filter((w) => w.startsWith('Inkbar: no fallback font'))
+        assert(missing.length === 0, missing.join('; '))
+        const requests = fontRequests(watch)
+        assert(
+          requests.length === 1,
+          `the Japanese font was fetched ${requests.length} times`
+        )
+      },
+    },
+    {
+      name: 'with the switch off, opening a file fetches no engine binary',
+      timeout: 30_000,
+      async run() {
+        const watch = watchRequests()
+        try {
+          await drawnWith(TEXT_SIMPLE, false, async (doc, canvas) => {
+            const reader = readerOf(doc)
+            assert(reader === 'pdfjs', `the page was drawn by ${reader}`)
+            const dark = inked(canvas)
+            assert(dark > 50, `the page canvas is blank (${dark} dark samples)`)
+            await settle()
+          })
+        } finally {
+          watch.stop()
+        }
+        const binary = watch
+          .list()
+          .filter((r) => ENGINE_BINARY.test(new URL(r.name).pathname))
+        assert(
+          binary.length === 0,
+          `the engine binary was fetched from ${binary[0]?.from}`
+        )
+        const others = watch
+          .workers()
+          .filter((w) => !new URL(w).pathname.startsWith(PDFJS_FILES))
+        assert(others.length === 0, `a worker other than PDF.js's started: ${others[0]}`)
       },
     },
     {

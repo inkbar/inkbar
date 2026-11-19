@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Inkbar measure</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        background: #fff;
+        color: #111;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+      form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        margin: 0 0 12px;
+      }
+      select,
+      button,
+      input {
+        min-height: 36px;
+        font: inherit;
+      }
+      [data-measure-results] {
+        margin: 0 0 12px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font:
+          12px/1.4 ui-monospace,
+          monospace;
+      }
+      /* The page as drawn: one canvas, which grows with each zoom step, scrolled inside this box. */
+      [data-measure-page] {
+        position: relative;
+        height: 320px;
+        overflow: auto;
+        border: 1px solid #ccc;
+      }
+      [data-measure-page] > div {
+        position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Inkbar measure</h1>
+    <form data-measure-form>
+      <label
+        >File
+        <select name="file"></select
+      ></label>
+      <label
+        >Reader
+        <select name="reader">
+          <option value="pdfjs">pdfjs</option>
+          <option value="engine">engine</option>
+        </select>
+      </label>
+      <button type="submit">Measure</button>
+      <label
+        >Or your own PDF <input type="file" accept="application/pdf,.pdf" name="own"
+      /></label>
+    </form>
+    <pre data-measure-results aria-live="polite"></pre>
+    <div data-measure-page></div>
+    <script type="module" src="/src/measure/main.ts"></script>
+  </body>
+</html>
