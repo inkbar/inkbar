@@ -145,6 +145,38 @@ test('controlled annotations with history on: the list has no marks and Undo is 
   await expect(undo).toBeDisabled()
 })
 
+test('a mark over content the apply cannot remove is refused, and the mark is selected', async ({
+  page,
+}) => {
+  await page.goto('/?doc=redact-drawing-hatch&confirm=0')
+  await waitForFirstPage(page)
+  // Over the band the hatch pattern fills: (110, 110) to (190, 190) on the 400 by 300 pt page.
+  await page.locator('[data-tool="redact-area"]').click()
+  const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+  const scale = box.width / 400
+  await page.mouse.move(box.x + 110 * scale, box.y + (300 - 190) * scale)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 190 * scale, box.y + (300 - 110) * scale, { steps: 5 })
+  await page.mouse.up()
+  await expect(marks(page)).toHaveCount(1)
+  await page.locator('[data-tool="select-text"]').click()
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('Escape')
+  await expect(marks(page)).not.toHaveAttribute('data-state', 'selected')
+
+  await applyButton(page).click()
+  await expect(alert(page)).toHaveText(
+    '1 mark covers content that cannot be removed. Move or delete it and try again.'
+  )
+  // The document is as it was: the mark is still there, now selected, and nothing was handed over.
+  await expect(marks(page)).toHaveCount(1)
+  await expect(marks(page)).toHaveAttribute('data-state', 'selected')
+  await expect(textLayer(page)).toContainText('KEEP-BETA')
+  await expect(page.getByTestId('status')).toHaveAttribute('data-applied', '')
+  expect(await page.evaluate(() => window.__inkbarRedacted)).toBeUndefined()
+  await expect(applyButton(page)).toBeEnabled()
+})
+
 test('redactionConfirm={false} applies without the dialog', async ({ page }) => {
   await page.goto('/?doc=redact-text&confirm=0')
   await waitForFirstPage(page)

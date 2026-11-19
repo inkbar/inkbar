@@ -169,17 +169,24 @@
     builtWith = { gap, buffer, pinchZoom, custom }
     // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
     ctx.setOpenedToolIds(toolIdsOf(ctx.hostTools, ctx.pluginHost))
+    // Opened on redacted bytes: the view of the document it replaced. It is handed over once, so
+    // only this first build of the reopened document starts from it.
+    const kept = ctx.keptView(doc)
     engine = mountViewer({
       container: el,
       document: doc,
-      zoom: ctx.zoomModel ?? 'fit-width',
-      ...(ctx.pageModel === undefined ? {} : { page: ctx.pageModel }),
-      mode,
-      rotation,
+      zoom: kept?.zoom ?? ctx.zoomModel ?? 'fit-width',
+      ...(kept
+        ? { page: kept.page }
+        : ctx.pageModel === undefined
+          ? {}
+          : { page: ctx.pageModel }),
+      mode: kept?.mode ?? mode,
+      rotation: kept?.rotation ?? rotation,
       gap,
       buffer,
       pinchZoom,
-      tool: ctx.tool,
+      tool: kept?.tool ?? ctx.tool,
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.

@@ -14,6 +14,8 @@
     InkMessagesInput,
     InkStatus,
     PdfAssets,
+    RedactionPreview,
+    RedactionResult,
   } from '@inkbar/core'
   import type {
     DecorateAnnotation,
@@ -132,17 +134,36 @@
      * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
      * over the file with this session's annotations and changed form values written into it:
      * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
-     * before. Without it they hand over the file as it was opened, and the engine is not
-     * bundled. Read when a document opens: a change applies from the next open.
+     * before. Without it they hand over the file as it was opened, the redaction marks cannot
+     * be applied (InkApplyRedactions stays disabled), and the engine is not bundled. Read when
+     * a document opens: a change applies from the next open.
      */
     engine?: EngineLoader | undefined
+    /**
+     * How applying redactions (InkApplyRedactions, `useRedaction`) asks before it applies.
+     * Default: the built-in dialog (`createRedactionDialog`). A function asks your own way with
+     * what the apply will do: resolve true to apply. `false` applies without asking, for a host
+     * that has asked already.
+     */
+    redactionConfirm?:
+      false | ((preview: RedactionPreview) => Promise<boolean>) | undefined
+    /**
+     * The redaction marks were applied: `bytes` is the redacted file, which the root now shows
+     * in place of `src` (a host that stores files stores these), and `result` says what was done.
+     * When it throws, `onError` hears a `RedactionFailed` error with `details.callback`
+     * `'onRedacted'`, and the redacted file still opens. A `src` change made in it opens that
+     * source instead of the redacted file.
+     */
+    onRedacted?:
+      ((event: { bytes: Uint8Array; result: RedactionResult }) => void) | undefined
     onReady?: ((doc: InkDocument) => void) | undefined
     /**
      * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
-     * fillable), a signature field refused its signing (`FieldSigned`, `FieldReadOnly`), or a
-     * download or print could not write its copy (`SaveFailed`, also shown to the reader in
-     * InkViewport's message box). An error from while the document opened comes after
-     * `onReady`.
+     * fillable), a signature field refused its signing (`FieldSigned`, `FieldReadOnly`), a
+     * download or print could not write its copy (`SaveFailed`), or applying redactions failed
+     * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`); the last two kinds are also
+     * shown to the reader in InkViewport's message box. An error from while the document opened
+     * comes after `onReady`.
      */
     onError?: ((error: InkError) => void) | undefined
     onActivate?: ((id: string) => void) | undefined
@@ -170,12 +191,14 @@
     writable,
   } from '@inkbar/core'
   import {
+    applyRedactionsFlow,
     attachFileKeys,
     attachHistoryKeys,
     fileActionFailure,
     createMessageState,
     createPasswordPrompt,
     createPluginHost,
+    createRedactionDialog,
     createSearchController,
     createToolOptions,
     cssVariableDefaults,
@@ -192,7 +215,7 @@
     viewerSearchOf,
   } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
-  import { flushSync, untrack } from 'svelte'
+  import { flushSync, tick, untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
 
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
@@ -205,6 +228,9 @@
     Navigation,
     PasswordPrompt,
     PluginHost,
+    RedactionDialog,
+    RedactionReopen,
+    RedactionView,
     SearchController,
     ToolController,
     Viewport,
@@ -240,6 +266,8 @@
     locale: localeProp,
     history: historyProp,
     engine: engineProp,
+    redactionConfirm,
+    onRedacted,
     onReady,
     onError,
     onActivate,
@@ -286,12 +314,18 @@
   })
   const words = useReadable(() => messageState, messageState.get())
 
-  /** Who shows the reader a failed download's or print's message: InkViewport, when mounted. */
+  /**
+   * Who shows the reader a failed download's or print's message, and what applying redactions
+   * did: InkViewport, when mounted.
+   */
   let fileMessageListeners: ((message: string) => void)[] = []
+  function showMessage(message: string): void {
+    for (const show of fileMessageListeners) show(message)
+  }
   function reportFileError(error: unknown): void {
     const failure = fileActionFailure(error, messageState.get().messages)
     if (!failure) return
-    for (const show of fileMessageListeners) show(failure.message)
+    showMessage(failure.message)
     onError?.(failure.error)
   }
   const lang = $derived(
@@ -357,6 +391,48 @@
     snapshotHistory.observe(annotations)
   })
 
+  /**
+   * The redacted file shown in place of `src` (what `applyRedactionsFlow` said to open), until
+   * the host passes a new `src` or password. Each reopen bumps `reopens`, which opens it.
+   */
+  let reopened: RedactionReopen | null = null
+  let reopens = $state(0)
+  /** What to tell the reader once the reopened document shows; read by the open that follows. */
+  let toTell: string | null = null
+  /**
+   * The host's list as it stood before it was proposed the list without the marks, and that
+   * proposal. Until the host passes another list, the old one (marks included) is never pushed
+   * into the redacted file: the viewer shows the proposed list instead.
+   */
+  let staleHost: { list: Annotation[] | undefined; proposed: Annotation[] } | null = null
+  /**
+   * The host's list just before the redaction's proposal reached it. A binding writes the
+   * proposal at once, so by the time `proposed` runs a host that answered at once already holds
+   * its answer, which must not count as the stale list.
+   */
+  let beforeRedaction: Annotation[] | undefined
+  /** The host's list, or the proposed one while the host still holds the stale list. */
+  function hostList(): Annotation[] | undefined {
+    const current = untrack(() => annotations)
+    return staleHost && current === staleHost.list ? staleHost.proposed : current
+  }
+  /** The password the open document was opened with: a redacted copy opens with it too. */
+  let openedWith: string | undefined
+  /** The view each document opened on redacted bytes starts from, until InkViewport reads it. */
+  const keptViews = new WeakMap<InkDocument, RedactionView>()
+  /**
+   * The built-in confirmation, made on first use (so never on the server) and kept until the
+   * root unmounts. `answer` settles the question it is showing.
+   */
+  let redactionDialog: RedactionDialog | null = null
+  let answer: (apply: boolean) => void = noop
+  // The dialog speaks of one document: when that one closes or another opens, it closes,
+  // answering no, so Apply never reaches a document that has gone.
+  function closeDialog(): void {
+    redactionDialog?.close()
+    answer(false)
+  }
+
   // Open for a new source identity or password. The effect reads them through deriveds, which
   // notify only when the value changes: a host that spreads its props, or passes a new URL under
   // the same key, invalidates `src` without changing the identity. Everything else is read under
@@ -388,11 +464,23 @@
     const id = sourceIdentity
     const pw = sourcePassword
     const tried = attempt
+    void reopens
     // A new source or password from the host: the prompt starts over, even when a retry landed
     // in the same flush, so the typed password never reaches the new source.
     const newSource =
       lastSource === null || lastSource.identity !== id || lastSource.password !== pw
     lastSource = { identity: id, password: pw }
+    // The redacted file stood in for the old source only.
+    if (newSource) reopened = null
+    const re = reopened
+    // The list and the view are for the first open of the redacted file only: a later open of
+    // it (a password attempt) starts as any open does.
+    if (re && (re.initial || re.view))
+      reopened = { ...re, initial: undefined, view: undefined }
+    // A new source: the host's list is its own again.
+    if (!re) staleHost = null
+    const message = re ? toTell : null
+    toTell = null
     if (newSource || tried === startedAttempt) {
       retryPassword = null
       untrack(() => prompt.reset())
@@ -403,8 +491,10 @@
     /** The snapshot history's hold on a controlled document's store. */
     let detach: () => void = noop
     let stopFormErrors: () => void = noop
-    untrack(() => snapshotHistory.clear())
-    const source = untrack(() => src)
+    // A controlled reopen after applying redactions keeps the history as `proposed` left it:
+    // emptied, and starting again from the host's answer, which may still be on its way.
+    if (!re?.initial) untrack(() => snapshotHistory.clear())
+    const source = re ? re.source : untrack(() => src)
     if (source === null) {
       retryPassword = null
       override = null
@@ -439,7 +529,7 @@
       annotations: controlledProp
         ? {
             mode: 'controlled' as const,
-            initial: annotations ?? [],
+            initial: re?.initial ?? hostList() ?? [],
             onChange: (next: Annotation[], change: AnnotationChange) => {
               // A proposal made in the tick this root unmounts or reopens never reaches
               // the host. Writing the bindable hands it to a bound host now; the effect
@@ -448,6 +538,9 @@
               // Lifting is no edit: the list the host answers with re-seeds the history.
               if (change.kind === 'replace' && change.reason === 'file')
                 snapshotHistory.lifted(change.lifted)
+              // Read before the write: a bound host holds its answer as soon as it is written.
+              if (change.kind === 'replace' && change.reason === 'redaction')
+                beforeRedaction = untrack(() => annotations)
               annotations = next
               onAnnotationsChange?.(next)
               onChange?.(change)
@@ -468,24 +561,24 @@
               },
             }
           : { mode: 'uncontrolled' as const },
+      _fileName: re?.fileName,
     }))
     /*
      * The typed password goes in as an argument and is used only in the `openDocument` call:
      * no closure captures it, so nothing here keeps it once the load has started.
      */
     void (async (attemptPassword: string | undefined) => {
+      const opening = attemptPassword ?? (re ? re.password : pw)
       try {
-        const doc = await openDocument(source, {
-          ...base,
-          password: attemptPassword ?? pw,
-        })
+        const doc = await openDocument(source, { ...base, password: opening })
         if (cancelled) {
           doc.destroy()
           return
         }
         opened = doc
+        if (re?.view) keptViews.set(doc, re.view)
         // The prop may have changed while the file loaded, when there was no store to apply it to.
-        const current = untrack(() => annotations)
+        const current = hostList()
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
         // The same for the fields; a document whose fields opened uncontrolled ignores the push.
@@ -500,6 +593,7 @@
           else onError?.(e)
         })
         documentNow = doc
+        openedWith = opening
         document = doc
         // Controlled edits run the plugins' reactions inside their own snapshot step.
         if (doc.annotations.mode === 'controlled')
@@ -520,6 +614,12 @@
           held = undefined
           if (!cancelled) for (const e of early) onError?.(e)
         }
+        // Said once the redacted file shows, after InkViewport has built for it (a build empties
+        // its message box); a reopen that fails shows its own failure instead.
+        if (message !== null && s.state === 'ready')
+          void tick().then(() => {
+            if (!cancelled && documentNow === doc) showMessage(message)
+          })
       } catch (cause) {
         if (cancelled) return
         const error =
@@ -536,12 +636,14 @@
     })(takeRetry())
     return () => {
       cancelled = true
+      closeDialog()
       // Cleared first, so the plugins close their stores while the document is still alive.
       hostDocument.set(null)
       detach()
       stopFormErrors()
       opened?.destroy()
       documentNow = null
+      openedWith = undefined
       document = null
       setTestHook(ref, undefined)
     }
@@ -551,6 +653,9 @@
   $effect(() => {
     const list = annotations
     const doc = document
+    // The host has not answered the redaction's proposal yet: its old list stays out.
+    if (staleHost && list === staleHost.list) return
+    staleHost = null
     if (list && doc?.annotations.mode === 'controlled')
       untrack(() => doc.annotations.setControlledValue(list))
   })
@@ -597,6 +702,99 @@
     reportedPage = p
     page = p
     onPageChange?.(p)
+  }
+
+  /** False until the root has mounted and once it has unmounted: an apply then stops. */
+  let alive = false
+  $effect(() => {
+    alive = true
+    return () => {
+      alive = false
+      redactionDialog?.destroy()
+      redactionDialog = null
+      answer(false)
+    }
+  })
+  // New words relabel the dialog in place.
+  $effect(() => {
+    const m = words.current.messages
+    untrack(() => redactionDialog?.setMessages(m))
+  })
+
+  function askInDialog(preview: RedactionPreview): Promise<boolean> {
+    redactionDialog ??= createRedactionDialog({
+      messages: messageState.get().messages,
+      onConfirm: () => answer(true),
+      onCancel: () => answer(false),
+    })
+    const dialog = redactionDialog
+    return new Promise<boolean>((resolve) => {
+      answer = (apply) => {
+        answer = noop
+        resolve(apply)
+      }
+      dialog.open(preview)
+    })
+  }
+
+  /**
+   * Applies the open document's redaction marks through core's `applyRedactionsFlow`: asks first
+   * (`redactionConfirm`), removes the content under them, calls `onRedacted`, then shows the
+   * redacted file in place of `src`, with the same key, file name, password and view.
+   * Controlled, the host is proposed its list without the marks and the annotations removed with
+   * them (reason `'redaction'`), and the history starts again from its answer. Resolves with
+   * what was done, or null when the reader cancelled, nothing was applied, or the root unmounted
+   * or another document opened while it ran. A failure leaves the document as it was, is shown
+   * in InkViewport's message box and reaches `onError`; it does not reject.
+   */
+  async function applyRedactions(): Promise<RedactionResult | null> {
+    const doc = documentNow
+    if (!doc || doc.status.get().state !== 'ready') return null
+    const ask = redactionConfirm
+    const out = await applyRedactionsFlow(doc, {
+      confirm: ask === false ? () => Promise.resolve(true) : (ask ?? askInDialog),
+      isCurrent: () => alive && documentNow === doc,
+      notify: (event) => onRedacted?.(event),
+      callbackName: 'onRedacted',
+      onError: (error) => onError?.(error),
+      showFailure: showMessage,
+      messages: () => messageState.get().messages,
+      view: () => {
+        const vp = viewport
+        const tc = tools
+        return vp && tc
+          ? {
+              zoom: vp.zoom.get(),
+              page: vp.currentPage.get(),
+              mode: vp.mode.get(),
+              rotation: vp.rotation.get(),
+              tool: tc.active.get(),
+            }
+          : undefined
+      },
+      password: openedWith,
+      proposed: (initial) => {
+        staleHost = { list: beforeRedaction, proposed: initial }
+        beforeRedaction = undefined
+        // Armed before Svelte's next effect flush hands the host's list to the history, so
+        // that list is the restart, not a step.
+        snapshotHistory.replaced()
+      },
+    })
+    if (!out?.reopen) return out?.result ?? null
+    // A `src` the host passed from `onRedacted` has opened already (Svelte's effect flush runs
+    // before this continuation): that source stays, and the redacted file is not opened.
+    if (!alive || documentNow !== doc) return out.result
+    reopened = out.reopen
+    toTell = out.reopen.message
+    // The open effect runs again and opens the redacted file; the old document goes with it.
+    reopens += 1
+    return out.result
+  }
+  function keptView(doc: InkDocument): RedactionView | undefined {
+    const view = keptViews.get(doc)
+    keptViews.delete(doc)
+    return view
   }
 
   const snapCanUndo = useReadable(() => snapshotHistory.canUndo, false)
@@ -882,6 +1080,8 @@
         fileMessageListeners = fileMessageListeners.filter((s) => s !== show)
       }
     },
+    applyRedactions,
+    keptView,
   }
   setInkContext(context, () => activatedNow)
 
