@@ -8,13 +8,17 @@ import type { Quad, Rect } from '../geometry'
 export interface RedactionPlan {
   /** Session redact annotations, in list order. */
   marks: readonly Annotation[]
-  /** Per mark: its page and quads (from `quads`, else its `rect`). */
+  /**
+   * Per mark, in the order of `marks`: its page and the quads it removes under (from `quads`,
+   * else its `rect`), leaving out a quad of no area. A mark with none left is skipped by the
+   * apply, as one off its page is.
+   */
   regions: readonly { page: number; quads: readonly Quad[] }[]
   /** Session annotations removed with the content, replies after their notes. */
   removed: readonly Annotation[]
   /** Session annotations that are written after the apply. */
   kept: readonly Annotation[]
-  /** Pages with at least one mark. */
+  /** Pages with at least one mark that has an area. */
   pages: number
 }
 
@@ -26,6 +30,22 @@ export interface RedactionOptions {
    * signature is drawn.
    */
   fieldRects?: ReadonlyMap<string, readonly { page: number; rect: Rect }[]>
+}
+
+/**
+ * Whether a quad has an area: one of none covers nothing and cannot be looked under. A quad with
+ * a number that is not finite counts as having one, so writing it reports the fault.
+ */
+function hasArea(q: Quad): boolean {
+  const { p1, p2, p3, p4 } = q
+  // The corners in order around the quad: top left, top right, bottom right, bottom left.
+  const area =
+    p1.x * p2.y -
+    p2.x * p1.y +
+    (p2.x * p4.y - p4.x * p2.y) +
+    (p4.x * p3.y - p3.x * p4.y) +
+    (p3.x * p1.y - p1.x * p3.y)
+  return area !== 0
 }
 
 const boundsOf = (points: readonly { x: number; y: number }[]): Rect => {
@@ -83,7 +103,9 @@ export function planRedaction(
   const marks = session.filter((a): a is RedactAnnotation => a.type === 'redact')
   const regions = marks.map((m) => ({
     page: m.page,
-    quads: m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect),
+    quads: (m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect)).filter(
+      hasArea
+    ),
   }))
   const hit = hitsRegions(regions)
 
@@ -125,6 +147,6 @@ export function planRedaction(
     regions,
     removed,
     kept: session.filter((a) => a.type !== 'redact' && !gone.has(a.id)),
-    pages: new Set(regions.map((r) => r.page)).size,
+    pages: new Set(regions.filter((r) => r.quads.length > 0).map((r) => r.page)).size,
   }
 }

@@ -299,7 +299,7 @@ After a successful apply, `onRedacted({ bytes, result })` hears the redacted fil
 
 `result` holds:
 
-- `marks` and `pages`: the marks applied and the pages they were on. A mark with no area or wholly off its page is skipped.
+- `marks` and `pages`: the marks applied and the pages they were on. A mark with no area or wholly off its page is skipped, and a mark drawn in several pieces applies without its pieces that have no area.
 - `removed.session`: the ids of the session annotations removed with the content. `removed.file`: how many of the file's own annotations went, pop-up windows included.
 - `foreignMarks`: other programs' Redact annotations, left unapplied. `ownLockedMarks`: Inkbar's earlier marks applied in an encrypted file.
 - `fieldsSkipped`: the names of the changed form fields not written, because a mark removed their widgets.

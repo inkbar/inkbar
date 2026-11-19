@@ -811,6 +811,56 @@ describe('applyRedactions with the engine', () => {
     expect(await back.pageText(0)).not.toContain('SECRET')
   })
 
+  it('applies a mark without its pieces of no area', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [quad(45, 190, 170, 35), quad(300, 195, 0, 22)],
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    expect(result.findings.candidates.map((c) => c.verdict)).toEqual(['clean'])
+    const text = await (await openBytes(bytes)).pageText(0)
+    expect(text).not.toContain('SECRET')
+    expect(text).toContain('KEEP-BETA')
+  })
+
+  it('skips a mark of no area beside one that applies', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    markOver(doc)
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 300, y: 195, width: 0, height: 22 },
+      quads: [quad(300, 195, 0, 22), quad(300, 195, 110, 0)],
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    const text = await (await openBytes(bytes)).pageText(0)
+    expect(text).not.toContain('SECRET')
+    expect(text).toContain('KEEP-BETA')
+  })
+
+  it('rejects NothingToRedact when every mark has no area', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    markOver(doc, { x: 45, y: 190, width: 170, height: 0 })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [quad(45, 190, 0, 35)],
+    })
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      name: 'InkError',
+      code: 'NothingToRedact',
+    })
+  })
+
   it("applies Inkbar's earlier marks in an encrypted file", async () => {
     const { loader } = realEngine()
     const password = manifest['encrypted-aes'].password
