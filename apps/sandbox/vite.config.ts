@@ -40,5 +40,6 @@ export default defineConfig({
     },
   },
   server: { port: 5190, strictPort: true },
-  preview: { port: 4190, strictPort: true },
+  // bs-local.com is how devices reach this machine through the BrowserStack Local tunnel.
+  preview: { port: 4190, strictPort: true, allowedHosts: ['bs-local.com'] },
 })

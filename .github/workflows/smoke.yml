@@ -1,8 +1,8 @@
 name: smoke
 
-# The smoke page (apps/sandbox/src/smoke/) in real Safari on a Mac. It runs on release pull
-# requests, on pull requests that change the smoke check itself, and by hand. It is not a
-# required check.
+# The smoke page (apps/sandbox/src/smoke/) in real browsers: Safari on a Mac, and phones, tablets
+# and Windows browsers on BrowserStack. It runs on release pull requests, on pull requests that
+# change the smoke check itself, and by hand. It is not a required check.
 on:
   pull_request:
   workflow_dispatch:
@@ -77,5 +77,59 @@ jobs:
         with:
           name: smoke-safari
           path: ${{ runner.temp }}/safari.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Phones, tablets and Windows browsers on BrowserStack. It stays off until the repository
+  # variable BROWSERSTACK_SMOKE is 'true', and is skipped, not failed, without the secrets
+  # BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY, as in a pull request from a fork.
+  browserstack:
+    needs: changes
+    if: needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+    steps:
+      - id: secrets
+        run: |
+          if [ -n "$BROWSERSTACK_USERNAME" ] && [ -n "$BROWSERSTACK_ACCESS_KEY" ]; then
+            echo available=true >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No BrowserStack credentials in this run, so the BrowserStack smoke check is skipped."
+            echo available=false >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.secrets.outputs.available == 'true'
+        uses: actions/checkout@v4
+      - if: steps.secrets.outputs.available == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.secrets.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.secrets.outputs.available == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.secrets.outputs.available == 'true'
+        uses: ./.github/actions/turbo-cache
+        with:
+          name: smoke-browserstack
+      - if: steps.secrets.outputs.available == 'true'
+        run: pnpm exec turbo run build --filter=@inkbar/sandbox
+      # The run serves the sandbox, starts the BrowserStack Local tunnel, runs one session per
+      # target, five at a time, and stops the tunnel (browserstack/tunnel.ts).
+      - if: steps.secrets.outputs.available == 'true'
+        run: pnpm --filter @inkbar/smoke browserstack
+      # In case the run was cut short before it could stop the tunnel.
+      - if: always() && steps.secrets.outputs.available == 'true'
+        run: pkill -f BrowserStackLocal || true
+      - if: failure() && steps.secrets.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-browserstack
+          path: |
+            apps/smoke/test-results
+            !apps/smoke/test-results/browserstack-local.log
           if-no-files-found: ignore
           retention-days: 7

@@ -6,11 +6,14 @@
   "scripts": {
     "build": "echo skip",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint safari.ts",
+    "lint": "eslint safari.ts browserstack",
     "serve": "pnpm --filter @inkbar/sandbox exec vite preview --host 127.0.0.1 --port 3010 --strictPort",
-    "safari": "node safari.ts"
+    "safari": "node safari.ts",
+    "browserstack": "playwright test -c browserstack/playwright.config.ts"
   },
   "devDependencies": {
-    "@types/node": "^24"
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24",
+    "browserstack-local": "1.5.16"
   }
 }

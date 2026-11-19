@@ -6,5 +6,5 @@
     "erasableSyntaxOnly": true,
     "types": ["node"]
   },
-  "include": ["safari.ts"]
+  "include": ["safari.ts", "browserstack/**/*.ts"]
 }
