@@ -1,0 +1,16 @@
+{
+  "name": "@inkbar/smoke",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo skip",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint safari.ts",
+    "serve": "pnpm --filter @inkbar/sandbox exec vite preview --host 127.0.0.1 --port 3010 --strictPort",
+    "safari": "node safari.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24"
+  }
+}

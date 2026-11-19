@@ -496,6 +496,12 @@ importers:
         specifier: ^3.3.13
         version: 3.3.13(typescript@6.0.3)
 
+  apps/smoke:
+    devDependencies:
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+
   fixtures:
     dependencies:
       pdf-lib:

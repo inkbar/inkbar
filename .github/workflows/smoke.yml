@@ -1,0 +1,81 @@
+name: smoke
+
+# The smoke page (apps/sandbox/src/smoke/) in real Safari on a Mac. It runs on release pull
+# requests, on pull requests that change the smoke check itself, and by hand. It is not a
+# required check.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Whether to run. A paths filter on the trigger would also filter out release pull requests,
+  # which change no smoke file, so the test happens here.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's merge commit and its first parent, the base it merges into.
+          fetch-depth: 2
+      - id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          paths='^(\.github/workflows/smoke\.yml|apps/smoke/|apps/sandbox/smoke/|apps/sandbox/src/smoke/)'
+          if [ "$EVENT" != pull_request ]; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          elif [[ "$HEAD_REF" == release-please--* ]]; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          elif git diff --name-only HEAD^1 HEAD | grep -qE "$paths"; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          else
+            echo run=false >> "$GITHUB_OUTPUT"
+          fi
+
+  # Real Safari through safaridriver, against the sandbox's production build.
+  safari:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/turbo-cache
+        with:
+          name: smoke-safari
+      - run: pnpm exec turbo run build --filter=@inkbar/sandbox
+      - name: Serve the sandbox
+        run: |
+          pnpm --filter @inkbar/smoke serve > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:3010/smoke/ && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/preview.log"
+          exit 1
+      # Safari takes automation only once it is allowed, which needs an administrator.
+      - run: sudo safaridriver --enable
+      - run: pnpm --filter @inkbar/smoke safari --screenshot "$RUNNER_TEMP/safari.png"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-safari
+          path: ${{ runner.temp }}/safari.png
+          if-no-files-found: ignore
+          retention-days: 7
