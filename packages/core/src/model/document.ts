@@ -7,6 +7,7 @@ import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { readOutline } from '../pdfjs/outline'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
+import { readTextContent } from '../pdfjs/text-content'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
 import {
@@ -853,7 +854,7 @@ export async function openDocument(
     if (destroyed) throw destroyedError()
     if (!handles) throw statusError(status.get())
     const p = await handles.getPage(page)
-    const tc = await p.getTextContent()
+    const tc = await readTextContent(p)
     // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
     const placed =
       glyphs && tc.items.length > 0
