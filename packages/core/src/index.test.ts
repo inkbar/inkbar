@@ -81,6 +81,36 @@ describe('the built package', () => {
     }
   )
 
+  // A document opened as usual downloads none of the engine reader: it is a chunk of its own,
+  // which only a dynamic import loads, once the internal switch selects it.
+  it.skipIf(!existsSync(dist) && !process.env.CI)(
+    'keeps the engine reader in a chunk that only a dynamic import loads',
+    async () => {
+      const files = (await readdir(dist, { recursive: true, withFileTypes: true }))
+        .filter((f) => f.isFile() && f.name.endsWith('.mjs'))
+        .map((f) => join(f.parentPath, f.name))
+      const texts = new Map(
+        await Promise.all(files.map(async (f) => [f, await readFile(f, 'utf8')] as const))
+      )
+      const holders = [...texts].flatMap(([file, text]) =>
+        text.includes('function createEngineReader(') ? [file] : []
+      )
+      expect(holders).toHaveLength(1)
+      const chunk = holders[0]!.slice(dist.length + 1)
+      expect(['index.mjs', 'dom.mjs']).not.toContain(chunk)
+      const name = JSON.stringify(`./${chunk}`)
+      const dynamic: string[] = []
+      const fixed: string[] = []
+      for (const [file, text] of texts) {
+        if (text.includes(`import(${name})`)) dynamic.push(file)
+        if (text.includes(`from ${name}`) || text.includes(`import ${name}`))
+          fixed.push(file)
+      }
+      expect(dynamic).toHaveLength(1)
+      expect(fixed).toEqual([])
+    }
+  )
+
   // A host that has not installed the engine checks these with `skipLibCheck: false`.
   it.skipIf(!existsSync(dist) && !process.env.CI)(
     'declares no type from @inkbar/engine, here or in the bindings',
