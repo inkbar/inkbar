@@ -4,6 +4,8 @@ Draws the first three pages of every fixture that opens with both of core's read
 
 It opens each fixture twice with `openDocument`, once with `globalThis.__INKBAR_READER__ = 'engine'` set first and once without, and draws through `doc._reader.draw` at 2 pixels per point, pixel ratio 1, the page's own `/Rotate`, nothing hidden. That switch and `_reader` are internal to core. This package is the one place outside core that uses them.
 
+`src/placement.browser.test.ts` checks what the main suite does not: a page turned on top of its own `/Rotate`, and a region of a page, as the loupe draws one. For `text-simple`, `text-rotated-90`, `cropbox-offset` and `userunit-2` it draws the whole first page turned a further 90 and 270 degrees, and a region over two lines of text at the page's own turn and turned a further 90, with both readers, and each pair must be the same. It does not read `parity.json`. Each page is drawn at 2 pixels per unit, so `userunit-2` is drawn at zoom 1. One case is marked as failing: a region whose top edge falls between two pixels, which the engine draws half a pixel away from PDF.js because it places a page at whole pixels.
+
 ## How two drawings are compared
 
 `src/compare.ts` runs three checks, and two drawings are the same only when all three pass:
