@@ -230,7 +230,11 @@ export interface RedactionReopen {
    * the annotations are uncontrolled.
    */
   initial: Annotation[] | undefined
-  /** What to tell the reader once the reopened document is ready (`redactionDoneMessage`). */
+  /**
+   * What to tell the reader once the reopened document is ready (`redactionDoneMessage`), in
+   * the words of when the flow ended. To follow a language change during the reopen, build it
+   * from `result` with `redactionDoneMessage` when it is shown, as the viewer and the bindings do.
+   */
   message: string
 }
 

@@ -433,6 +433,18 @@ describe('InkApplyRedactions', () => {
     await expect.poll(activeIsScroll).toBe(true)
   })
 
+  it('the message once the redacted file shows is in the words of that moment', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader, relabel: true })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    held.finish()
+    await expect.poll(alertText).toBe('1 fertig.')
+  })
+
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
     await render(RedactionHarness, { src, assets, engine: held.loader })

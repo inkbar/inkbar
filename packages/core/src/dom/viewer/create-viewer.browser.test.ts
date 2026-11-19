@@ -4180,6 +4180,30 @@ describe('applying redactions', () => {
     expect(document.activeElement).toBe(viewer.element.querySelector('[data-ink-scroll]'))
   })
 
+  it('the message once the redacted file shows is in the words of that moment', async () => {
+    let first: InkDocument | undefined
+    const held: { viewer?: Viewer } = {}
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onReady: (d) => {
+        first ??= d
+        // The language changes while the redacted file opens.
+        if (d !== first)
+          held.viewer!.setMessages({
+            viewer: { redactDone: ({ marks }) => `${marks} fertig.` },
+          })
+      },
+    })
+    held.viewer = viewer
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 fertig.')
+  })
+
   it('a reopen that fails shows only the open failure', async () => {
     const errors: InkError[] = []
     /** The real engine, whose redacted bytes are spoiled once the check has passed them. */

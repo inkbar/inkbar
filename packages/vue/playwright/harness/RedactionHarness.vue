@@ -12,7 +12,8 @@
  * the host hears in `proposals` (one list per `|`). `disabled` is the host's own `disabled` on
  * the control, and `prevent` a `click` listener on it that calls `preventDefault()`. The
  * toolbar holds Download and Print too, and the root a thread popover, with
- * `window.__inkActivate` to open it. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
+ * `window.__inkActivate` to open it. `swap` is a source the `redacted` listener passes as the new `src`. `relabel`
+ * passes new words for the done message as the redacted file opens (on its `ready`). A `retry` button submits the password prompt, which opens the document's source
  * again. The codes of the errors the root emits show in `errors`, the `redacted` events in
  * `redacted`, and `useRedaction` in `probe`.
  */
@@ -38,6 +39,7 @@ import type {
   Annotation,
   DocumentSource,
   InkError,
+  InkMessagesInput,
   PdfAssets,
   RedactionPreview,
 } from '@inkbar/core'
@@ -55,6 +57,7 @@ const props = withDefaults(
     disabled?: boolean
     prevent?: boolean
     swap?: DocumentSource | undefined
+    relabel?: boolean
   }>(),
   {
     engine: undefined,
@@ -97,6 +100,14 @@ const model = computed(() =>
       }
     : {}
 )
+const messages = shallowRef<InkMessagesInput | undefined>(undefined)
+/** The documents that have been ready, so `relabel` waits for the redacted one. */
+let readies = 0
+function onReady(): void {
+  readies++
+  if (props.relabel && readies === 2)
+    messages.value = { viewer: { redactDone: ({ marks }) => `${marks} fertig.` } }
+}
 /** Set by `onRedacted` from `swap`: the host's new source. */
 const swapped = shallowRef<DocumentSource | null>(null)
 function onRedacted(): void {
@@ -118,6 +129,8 @@ function onRedacted(): void {
       :tools="tools"
       :engine="loader"
       :redaction-confirm="confirm ? ask : false"
+      :messages="messages"
+      @ready="onReady"
       @error="onError"
       @redacted="onRedacted"
     >

@@ -28,6 +28,7 @@ import {
   MIN_DOCUMENT_WIDTH,
   pageSelectionText,
   redactionBusy,
+  redactionDoneMessage,
   savePictures,
   SIGNATURE_FONTS,
   trackToolStyle,
@@ -589,10 +590,16 @@ export function InkRoot({
     return stale && current === stale.list ? stale.proposed : current
   }, [latest])
   const [reopens, setReopens] = useState(0)
-  /** What to tell the reader once the reopened document shows; read by the open that follows. */
-  const toTell = useRef<string | null>(null)
-  /** The message for a document that has opened, shown once InkViewport has built for it. */
-  const pendingTell = useRef<{ doc: InkDocument; message: string } | null>(null)
+  /**
+   * What the apply did, to tell the reader once the reopened document shows; read by the open
+   * that follows.
+   */
+  const toTell = useRef<RedactionResult | null>(null)
+  /**
+   * What to tell the reader of a document that has opened, said once InkViewport has built for
+   * it, in the words of that moment.
+   */
+  const pendingTell = useRef<{ doc: InkDocument; result: RedactionResult } | null>(null)
   /** The password the open document was opened with: a redacted copy opens with it too. */
   const openedWith = useRef<string | undefined>(undefined)
   /** The view each document opened on redacted bytes starts from, until InkViewport reads it. */
@@ -628,7 +635,7 @@ export function InkRoot({
       reopened.current = { ...re, initial: undefined, view: undefined }
     // A new source: the host's list is its own again.
     if (!re) staleHost.current = null
-    const message = re ? toTell.current : null
+    const done = re ? toTell.current : null
     toTell.current = null
     // A controlled reopen after applying redactions keeps the history as `proposed` left it:
     // emptied, and starting again from the host's answer, which may still be on its way.
@@ -742,8 +749,8 @@ export function InkRoot({
         const s = doc.status.get()
         // Said once the redacted file shows, after InkViewport has built for it (a build empties
         // its message box); a reopen that fails shows its own failure instead.
-        if (message !== null && s.state === 'ready')
-          pendingTell.current = { doc, message }
+        if (done !== null && s.state === 'ready')
+          pendingTell.current = { doc, result: done }
         documentRef.current = doc
         openedWith.current = opening
         // Controlled edits run the plugins' reactions inside their own snapshot step.
@@ -977,8 +984,8 @@ export function InkRoot({
     const tell = pendingTell.current
     if (!tell || tell.doc !== document || status.state !== 'ready') return
     pendingTell.current = null
-    showMessage(tell.message)
-  }, [document, status.state, showMessage])
+    showMessage(redactionDoneMessage(tell.result, messageState.get().messages))
+  }, [document, status.state, showMessage, messageState])
 
   const askInDialog = useCallback(
     (preview: RedactionPreview) => {
@@ -1044,7 +1051,7 @@ export function InkRoot({
     })
     if (!out?.reopen) return out?.result ?? null
     reopened.current = out.reopen
-    toTell.current = out.reopen.message
+    toTell.current = out.result
     // The open effect runs again and opens the redacted file; the old document goes with it.
     setReopens((n) => n + 1)
     return out.result

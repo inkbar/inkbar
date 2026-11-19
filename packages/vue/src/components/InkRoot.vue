@@ -18,6 +18,7 @@ import {
   createRedactionDialog,
   applyRedactionsFlow,
   redactionBusy,
+  redactionDoneMessage,
   createSearchController,
   createPasswordPrompt,
   createToolOptions,
@@ -697,13 +698,15 @@ async function applyRedactions(): Promise<RedactionResult | null> {
   // A `src` the host passed from its `redacted` listener has opened already (Vue's flush runs
   // before this continuation): that source stays, and the redacted file is not opened.
   if (unmounted || document.value !== doc) return out.result
-  const reopen = out.reopen
+  const { reopen, result } = out
   reopened = reopen
   // Said once the redacted file shows, after InkViewport has built for it (a build empties its
-  // message box); a reopen that fails shows its own failure instead.
+  // message box), in the words of that moment; a reopen that fails shows its own failure
+  // instead.
   onShown = (next) =>
     void nextTick(() => {
-      if (document.value === next) showMessage(reopen.message)
+      if (document.value === next)
+        showMessage(redactionDoneMessage(result, messageState.get().messages))
     })
   // The new document has a history of its own: the old one goes with it.
   void open()

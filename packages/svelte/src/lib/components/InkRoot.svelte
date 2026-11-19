@@ -209,6 +209,7 @@
     MIN_DOCUMENT_WIDTH,
     pageSelectionText,
     redactionBusy,
+    redactionDoneMessage,
     savePictures,
     SIGNATURE_FONTS,
     trackToolStyle,
@@ -398,8 +399,11 @@
    */
   let reopened: RedactionReopen | null = null
   let reopens = $state(0)
-  /** What to tell the reader once the reopened document shows; read by the open that follows. */
-  let toTell: string | null = null
+  /**
+   * What the apply did, to tell the reader once the reopened document shows; read by the open
+   * that follows.
+   */
+  let toTell: RedactionResult | null = null
   /**
    * The host's list as it stood before it was proposed the list without the marks, and that
    * proposal. Until the host passes another list, the old one (marks included) is never pushed
@@ -480,7 +484,7 @@
       reopened = { ...re, initial: undefined, view: undefined }
     // A new source: the host's list is its own again.
     if (!re) staleHost = null
-    const message = re ? toTell : null
+    const done = re ? toTell : null
     toTell = null
     if (newSource || tried === startedAttempt) {
       retryPassword = null
@@ -616,10 +620,12 @@
           if (!cancelled) for (const e of early) onError?.(e)
         }
         // Said once the redacted file shows, after InkViewport has built for it (a build empties
-        // its message box); a reopen that fails shows its own failure instead.
-        if (message !== null && s.state === 'ready')
+        // its message box), in the words of that moment; a reopen that fails shows its own
+        // failure instead.
+        if (done !== null && s.state === 'ready')
           void tick().then(() => {
-            if (!cancelled && documentNow === doc) showMessage(message)
+            if (!cancelled && documentNow === doc)
+              showMessage(redactionDoneMessage(done, messageState.get().messages))
           })
       } catch (cause) {
         if (cancelled) return
@@ -789,7 +795,7 @@
     // before this continuation): that source stays, and the redacted file is not opened.
     if (!alive || documentNow !== doc) return out.result
     reopened = out.reopen
-    toTell = out.reopen.message
+    toTell = out.result
     // The open effect runs again and opens the redacted file; the old document goes with it.
     reopens += 1
     return out.result

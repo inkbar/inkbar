@@ -37,6 +37,7 @@ import { createFocusReturn } from '../popover-focus'
 import {
   applyRedactionsFlow,
   redactionBusy,
+  redactionDoneMessage,
   type RedactionView,
 } from '../redaction-actions'
 import { savePictures } from '../save-pictures'
@@ -885,15 +886,17 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       password: openedWith,
     })
     if (!out?.reopen) return out?.result ?? null
-    const { source, fileName, password: pw, view, initial, message } = out.reopen
+    const { source, fileName, password: pw, view, initial } = out.reopen
+    const { result } = out
     // The new document has a history of its own: the old one goes with it. The message is said
-    // once the redacted file shows; a reopen that fails shows its own failure instead.
+    // once the redacted file shows, in the words of that moment; a reopen that fails shows its
+    // own failure instead.
     open(source, {
       ...(pw === undefined ? {} : { password: pw }),
       ...(view && { view }),
       ...(initial && { initial }),
       fileName,
-      shown: () => formAlert.show(message),
+      shown: () => formAlert.show(redactionDoneMessage(result, words())),
     })
     return out.result
   }

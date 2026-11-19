@@ -313,6 +313,21 @@ test('focus goes to the document when a failed apply’s message closes and the 
   await expect.poll(() => activeIsScroll(page)).toBe(true)
 })
 
+test('the message once the redacted file shows is in the words of that moment', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" relabel />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(alert(page)).toHaveText('1 fertig.')
+})
+
 test('keeps the tool across the reopen', async ({ mount, page }) => {
   const cmp = await mount(
     <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" />
