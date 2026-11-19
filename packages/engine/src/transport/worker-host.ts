@@ -38,10 +38,15 @@ export function toWire(error: unknown): WireError {
   }
 }
 
-/** Buffers whose ownership moves to the page along with the result. */
-function transferables(value: unknown): Transferable[] {
-  if (value instanceof Uint8Array || value instanceof Uint8ClampedArray)
-    return [value.buffer as ArrayBuffer]
+/**
+ * Buffers whose ownership moves to the page along with the result. Only an array that spans its
+ * whole buffer moves; a view on part of a larger buffer, such as engine memory, is copied.
+ */
+export function transferables(value: unknown): Transferable[] {
+  if (value instanceof Uint8Array || value instanceof Uint8ClampedArray) {
+    const whole = value.byteOffset === 0 && value.byteLength === value.buffer.byteLength
+    return whole ? [value.buffer as ArrayBuffer] : []
+  }
   if (typeof value === 'object' && value !== null && 'data' in value)
     return transferables(value.data)
   return []

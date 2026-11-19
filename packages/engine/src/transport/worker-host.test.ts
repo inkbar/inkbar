@@ -8,7 +8,7 @@ import { EngineCore } from '../native/core.ts'
 import { loadNative } from '../native/module.ts'
 import { withFunctions } from '../native/testing.ts'
 
-import { serve, type WorkerScope } from './worker-host.ts'
+import { serve, transferables, type WorkerScope } from './worker-host.ts'
 
 import type { FromWorker, ToWorker } from '../protocol.ts'
 
@@ -156,4 +156,16 @@ test('a rendered page hands over its own buffer, not engine memory', async () =>
   expect(fake.transfers[2]).toEqual([buffer])
   // Exactly the pixels: a view on the module's memory would have a far larger buffer.
   expect(buffer.byteLength).toBe(612 * 792 * 4)
+})
+
+test('only an array that spans its whole buffer is handed over', () => {
+  const whole = new Uint8ClampedArray(16)
+  expect(transferables({ width: 2, height: 2, data: whole })).toEqual([whole.buffer])
+  expect(transferables(new Uint8Array(8))).toHaveLength(1)
+  const memory = new ArrayBuffer(64)
+  // A view on part of a larger buffer is copied when posted, so the buffer stays where it is.
+  expect(transferables({ data: new Uint8ClampedArray(memory, 16, 16) })).toEqual([])
+  expect(transferables(new Uint8Array(memory, 0, 8))).toEqual([])
+  expect(transferables(new Uint8Array(memory, 8))).toEqual([])
+  expect(transferables(undefined)).toEqual([])
 })

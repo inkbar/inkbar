@@ -6,6 +6,8 @@ import wasm from '../vendor/inkbar-pdfium.wasm?url'
 
 import { engineOver } from './engine.ts'
 import { createEngine, type Engine, type EngineDocument } from './index.ts'
+import { EngineCore } from './native/core.ts'
+import { loadNative } from './native/module.ts'
 import { serve, type WorkerScope } from './transport/worker-host.ts'
 import { createWorkerTransport } from './transport/worker.ts'
 
@@ -323,7 +325,11 @@ test('the worker host gives up its copy of the pixels when it posts them', async
       port2.addEventListener(type, listener as EventListener)
     },
   }
-  serve(scope)
+  let core: EngineCore | undefined
+  serve(
+    scope,
+    async (source) => (core = new EngineCore(await loadNative({ wasm: source })))
+  )
   port2.start()
   const replies: FromWorker[] = []
   const next = () =>
@@ -355,6 +361,14 @@ test('the worker host gives up its copy of the pixels when it posts them', async
   // The host's own array is detached: its buffer moved rather than being copied.
   const own = (sent[2] as { value: { data: Uint8ClampedArray } }).value.data
   expect(own.buffer.byteLength).toBe(0)
+  // Frees the document and the host's engine.
+  reply = next()
+  port1.postMessage({
+    id: 3,
+    request: { op: 'close', doc: opened.value.id },
+  } satisfies ToWorker)
+  expect(await reply).toMatchObject({ id: 3, ok: true })
+  core?.destroy()
   port1.close()
 })
 

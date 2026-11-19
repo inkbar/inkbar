@@ -24,7 +24,13 @@ export default defineConfig({
         define,
         plugins: [serveFixtures()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
-        optimizeDeps: { include: ['pdfjs-dist', 'pdfjs-dist/build/pdf.sandbox.mjs'] },
+        optimizeDeps: {
+          include: [
+            'pdfjs-dist',
+            'pdfjs-dist/build/pdf.sandbox.mjs',
+            '@inkbar/fixtures > pdf-lib',
+          ],
+        },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
