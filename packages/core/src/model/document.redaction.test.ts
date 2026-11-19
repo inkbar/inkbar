@@ -486,6 +486,46 @@ describe('applyRedactions', () => {
     })
   })
 
+  it('names every mark over content the engine cannot remove', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    const first = markOver(doc)
+    const second = markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
+    fake.state.failRedact = new EngineError('redaction-failed', 'refused', {
+      page: 0,
+      reason: 'unremovable-content',
+      marks: [first.id, second.id],
+      kinds: ['pattern', 'shading'],
+    })
+    const before = doc.annotations.list.get()
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: {
+        stage: 'apply',
+        reason: 'unremovable-content',
+        annotations: [first.id, second.id],
+        annotation: first.id,
+        kinds: ['pattern', 'shading'],
+        page: 0,
+      },
+    })
+    expect(doc.annotations.list.get()).toBe(before)
+  })
+
+  it('says when the engine could not look under the marks', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    markOver(doc)
+    fake.state.failRedact = new EngineError('redaction-failed', 'blind', {
+      page: 0,
+      reason: 'could-not-inspect',
+    })
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'apply', reason: 'could-not-inspect', page: 0 },
+    })
+  })
+
   it('rejects NothingToRedact with no marks', async () => {
     const fake = fakeEngine()
     const doc = await open('redact-text', { engine: fake.loader })
@@ -670,6 +710,25 @@ describe('applyRedactions with the engine', () => {
     expect(text).not.toContain('SECRET')
     expect(text).not.toContain('ALPHA')
     expect(text).toContain('KEEP-BETA')
+  })
+
+  it('refuses a mark over a hatch and changes nothing', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-drawing-hatch', { engine: loader })
+    // The fixture's region, over the hatched band.
+    const mark = markOver(doc, { x: 110, y: 110, width: 80, height: 80 })
+    const before = doc.annotations.list.get()
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: {
+        stage: 'apply',
+        reason: 'unremovable-content',
+        annotations: [mark.id],
+        kinds: ['pattern'],
+        page: 0,
+      },
+    })
+    expect(doc.annotations.list.get()).toBe(before)
   })
 
   it('a loupe saved before the apply is clean after it', async () => {

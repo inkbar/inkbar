@@ -51,6 +51,14 @@ describe('@inkbar/core/dom entry', () => {
         'createPasswordPrompt',
         'lockedStatus',
         'createMessageState',
+        'runRedaction',
+        'canRedact',
+        'redactionBusy',
+        'redactionFailure',
+        'applyRedactionsFlow',
+        'redactionDoneMessage',
+        'createRedactionDialog',
+        'createApplyRedactionsButton',
       ])
     )
 

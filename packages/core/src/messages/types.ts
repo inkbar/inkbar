@@ -22,6 +22,40 @@ export interface InkMessages {
     saveUnavailable: string
     /** Shown in the tab a print opens on iOS while its copy is written. */
     preparingFile: string
+    /** The control that applies the redaction marks, removing the content under them. */
+    applyRedactions: string
+    /** The confirmation's title. */
+    redactTitle: string
+    /** The confirmation's first line: the marks and the pages they are on. */
+    redactSummary: MessageFn<{ marks: number; pages: number }>
+    /** Locked marks in an encrypted file, which Inkbar may have saved there earlier. */
+    redactLocked: MessageFn<{ count: number }>
+    redactPermanent: string
+    /** Other annotations a mark overlaps, which go with the content under it. */
+    redactOverlapped: MessageFn<{ count: number }>
+    /** The file holds a digital signature. */
+    redactSigned: string
+    /** The confirmation's button that applies. */
+    redactConfirm: string
+    /** The confirmation's button that closes it, applying nothing. */
+    redactCancel: string
+    /** The control's text while the marks are applied. */
+    redacting: string
+    redactFailed: string
+    /**
+     * Marks lie over content the apply cannot remove (a pattern, a mesh or function-based
+     * gradient, soft-masked artwork): `count` of them.
+     */
+    redactUnremovable: MessageFn<{ count: number }>
+    /** The check of the redacted file found content left under a mark. */
+    redactUnverified: string
+    /** What applies the marks could not be loaded or started (offline, say). */
+    redactUnavailable: string
+    redactDone: MessageFn<{ marks: number }>
+    /** Shown with `redactDone` when the file has hidden layers, which are not cleaned. */
+    redactHiddenLayers: string
+    /** Shown with `redactDone`: Redact annotations from other programs, left unapplied. */
+    redactForeign: MessageFn<{ count: number }>
   }
   toolbar: {
     label: string

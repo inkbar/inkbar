@@ -43,3 +43,42 @@ export function plural<P extends Params>(
     { param, forms }
   )
 }
+
+/**
+ * A message with several counts, each with its own plural forms: `{name}` in `text` becomes the
+ * form `forms[name]` picks for that param by the plural rule of `lang`, then every placeholder
+ * is filled. The source text spells the forms out (`{marks, plural, one {…} other {…}}`), so a
+ * change to any form shows.
+ */
+export function plurals<P extends Params>(
+  lang: string,
+  text: string,
+  forms: Partial<
+    Record<
+      keyof P & string,
+      Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
+    >
+  >
+): MessageFn<P> {
+  const rules = new Intl.PluralRules(lang)
+  const numbers = new Intl.NumberFormat(lang)
+  const formsOf = (name: string) =>
+    Object.hasOwn(forms, name) ? forms[name as keyof P & string] : undefined
+  const source = text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const f = formsOf(name)
+    if (!f) return whole
+    const spelled = Object.entries(f).map(([rule, form]) => `${rule} {${form}}`)
+    return `{${name}, plural, ${spelled.join(' ')}}`
+  })
+  return withSource(
+    (params: P) => {
+      const picked = text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+        const f = formsOf(name)
+        if (!f) return whole
+        return f[rules.select(Number(params[name]))] ?? f.other
+      })
+      return fill(numbers, picked, params)
+    },
+    { text: source }
+  )
+}

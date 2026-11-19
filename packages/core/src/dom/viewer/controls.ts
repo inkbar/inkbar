@@ -31,6 +31,7 @@ import { fileBusy } from '../file-actions'
 import { keepHistoryFocus } from '../history-keys'
 import { ENGLISH, type MessageState } from '../messages-state'
 import { commandLabel, unknownCommand } from '../plugins/commands'
+import { canRedact, redactionBusy } from '../redaction-actions'
 import { unknownTool } from '../tools/unknown'
 import { toolName, ZOOM_LEVELS } from '../ui'
 
@@ -274,6 +275,71 @@ function fileButton(
       })
     },
     () => showBusy(false)
+  )
+  return b
+}
+
+/**
+ * Applies the redaction marks (`viewer.applyRedactions()`): asks first, removes the content
+ * under them and reopens the viewer on the redacted file. It shows its name as text. Disabled
+ * while no document is ready, without the `engine` option and while there is no mark
+ * (`canRedact`). While the marks are applied (`redactionBusy`) it says `viewer.redacting` and is
+ * `aria-busy` and `aria-disabled`, keeping focus, and a press does nothing.
+ */
+export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {
+  const b = h('button', {
+    type: 'button',
+    class: 'ink-apply-redactions',
+    'data-ink-apply-redactions': '',
+  })
+  let busy = false
+  const label = (m: InkMessages): string =>
+    busy ? m.viewer.redacting : m.viewer.applyRedactions
+  const relabel = (m: InkMessages): void => {
+    const text = label(m)
+    if (b.textContent !== text) b.textContent = text
+  }
+  relabel(messagesOf(viewer).get().messages)
+  onMessages(viewer, relabel)
+  // The viewer reports a failure itself.
+  b.addEventListener('click', () => void viewer.applyRedactions().catch(() => undefined))
+  const showBusy = (on: boolean): void => {
+    busy = on
+    relabel(messagesOf(viewer).get().messages)
+    b.setAttribute('aria-busy', String(on))
+    // Disabled while it applies, but not `disabled`, so the button keeps focus.
+    if (on) b.setAttribute('aria-disabled', 'true')
+    else b.removeAttribute('aria-disabled')
+  }
+  showBusy(false)
+  onViewerDestroy(
+    viewer,
+    follow<InkDocument>(
+      viewer.document,
+      b,
+      (doc, watch) => {
+        let ready = false
+        let can = false
+        let applying = false
+        const sync = (): void => {
+          b.disabled = !(ready && can) && !applying
+          showBusy(applying)
+        }
+        watch(doc.status, (s) => {
+          ready = s.state === 'ready'
+          sync()
+        })
+        watch(canRedact(doc), (on) => {
+          can = on
+          sync()
+        })
+        watch(redactionBusy(doc), (on) => {
+          applying = on
+          sync()
+        })
+      },
+      () => showBusy(false)
+    )
   )
   return b
 }

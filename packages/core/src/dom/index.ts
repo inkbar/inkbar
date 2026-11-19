@@ -34,6 +34,20 @@ export {
   printDocument,
 } from './file-actions'
 export type { DownloadOptions, FileKeysOptions, PrintOptions } from './file-actions'
+export {
+  applyRedactionsFlow,
+  canRedact,
+  redactionBusy,
+  redactionDoneMessage,
+  redactionFailure,
+  runRedaction,
+} from './redaction-actions'
+export type {
+  RedactionFlowOptions,
+  RedactionReopen,
+  RedactionView,
+  RunRedactionOptions,
+} from './redaction-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'
 export { createPageRenderer } from './page-renderer'
@@ -293,6 +307,7 @@ export type { OutlineOptions } from './outline/outline'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {
+  createApplyRedactionsButton,
   createBack,
   createCommandButton,
   createForward,
@@ -350,3 +365,5 @@ export { createSignatureDialog } from './viewer/signature-dialog'
 export type { SignatureDialog, SignatureDialogOptions } from './viewer/signature-dialog'
 export { createPasswordDialog } from './viewer/password-dialog'
 export type { PasswordDialog, PasswordDialogOptions } from './viewer/password-dialog'
+export { createRedactionDialog } from './viewer/redaction-dialog'
+export type { RedactionDialog, RedactionDialogOptions } from './viewer/redaction-dialog'

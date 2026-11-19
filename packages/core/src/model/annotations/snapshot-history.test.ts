@@ -35,6 +35,68 @@ function setup(enabled = () => true, limit?: number) {
 }
 
 describe('createSnapshotHistory', () => {
+  describe('a list replaced after applying redactions', () => {
+    const mark = note('m', 'mark')
+    const kept = note('a', 'kept')
+
+    it('the matching answer starts the history again with no step', () => {
+      const { history } = setup()
+      history.observe([kept])
+      history.observe([kept, mark])
+      expect(history.canUndo.get()).toBe(true)
+      history.replaced()
+      expect(history.canUndo.get()).toBe(false)
+      history.observe([kept])
+      expect(history.canUndo.get()).toBe(false)
+      expect(history.canRedo.get()).toBe(false)
+      // Later changes are steps from it.
+      history.observe([])
+      expect(history.canUndo.get()).toBe(true)
+    })
+
+    it('a different answer is the new start too', () => {
+      const { apply, history } = setup()
+      history.observe([kept, mark])
+      history.replaced()
+      const other = note('b', 'other')
+      history.observe([other])
+      expect(history.canUndo.get()).toBe(false)
+      history.observe([other, kept])
+      history.undo()
+      expect(apply).toHaveBeenLastCalledWith([other])
+    })
+
+    it('stops waiting once cleared', () => {
+      const { history } = setup()
+      history.observe([kept, mark])
+      history.replaced()
+      history.clear()
+      history.observe([kept])
+      expect(history.canUndo.get()).toBe(true)
+    })
+
+    it('a later list that holds the proposed ids does not empty the history', () => {
+      const { history } = setup()
+      history.observe([kept, mark])
+      history.replaced()
+      history.observe([kept, mark, note('c', 'first answer')])
+      history.observe([kept, mark])
+      history.observe([kept])
+      expect(history.canUndo.get()).toBe(true)
+    })
+
+    it('keeps waiting for a lift proposed before the answer came', () => {
+      const lifted = note('l', 'saved')
+      const { history } = setup()
+      history.observe([kept, mark])
+      history.replaced()
+      history.lifted([lifted])
+      history.observe([kept])
+      history.observe([kept, lifted])
+      expect(history.canUndo.get()).toBe(false)
+    })
+  })
+
   describe('annotations lifted from the file', () => {
     const lifted = [note('l1', 'saved'), note('l2', 'saved too')]
 

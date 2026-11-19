@@ -34,6 +34,7 @@ import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
+import { applyRedactionsFlow, type RedactionView } from '../redaction-actions'
 import { savePictures } from '../save-pictures'
 import {
   createSearchController,
@@ -48,15 +49,18 @@ import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../view
 import { h } from './dom'
 import { createFormAlert } from './form-alert'
 import { createPasswordDialog } from './password-dialog'
+import { createRedactionDialog } from './redaction-dialog'
 import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
 import type { InkMessages, InkMessagesInput } from '../../messages'
 import type { PluginHistory } from '../../model/annotations/history'
+import type { Annotation } from '../../model/annotations/types'
 import type { LinkTarget } from '../../model/destination'
 import type { FormController } from '../../model/form/controller'
 import type { FieldsMode } from '../../model/form/types'
 import type { RecordBase } from '../../model/records'
+import type { RedactionPreview, RedactionResult } from '../../model/redaction/types'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
 import type { Navigation } from '../navigation'
@@ -132,9 +136,24 @@ export interface CreateViewerOptions extends Omit<
   threads?: boolean
   onReady?(this: void, doc: InkDocument): void
   /**
-   * The document failed to open, a form script failed, signing a field was refused, or a
-   * download or print could not write its copy (`SaveFailed`; the viewer also tells the reader
-   * in its message box).
+   * The redaction marks were applied (`applyRedactions`): `bytes` is the redacted file, which a
+   * host that stores files stores, and `result` says what was done. Called before the viewer
+   * reopens on the bytes, which keep the file's name and key.
+   */
+  onRedacted?(this: void, event: { bytes: Uint8Array; result: RedactionResult }): void
+  /**
+   * How `applyRedactions` asks before it applies. Default: the built-in dialog
+   * (`createRedactionDialog`). A function asks your own way: resolve true to apply. False
+   * applies without asking.
+   */
+  redactionConfirm?: false | ((preview: RedactionPreview) => Promise<boolean>)
+  /**
+   * The document failed to open, a form script failed, signing a field was refused, a
+   * download or print could not write its copy (`SaveFailed`), or applying redactions failed
+   * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`). For the last two the viewer
+   * also tells the reader in its message box. An `onRedacted` that throws is reported here as
+   * a `RedactionFailed` with `details.callback: 'onRedacted'` and the thrown value as its
+   * `cause`; the redacted file still opens.
    */
   onError?(this: void, error: InkError): void
 }
@@ -239,7 +258,33 @@ export interface Viewer {
    * Does nothing while no document is open, or while a copy is being written.
    */
   print(): Promise<void>
+  /**
+   * Applies the open document's redaction marks: asks first (`redactionConfirm`), then removes
+   * the content under them (`doc.applyRedactions()`), calls `onRedacted` with the redacted
+   * bytes, and reopens the viewer on them with the same key, page, zoom, layout mode, rotation
+   * and tool. The marks are gone, undo history starts over, and Download and Print give the
+   * redacted file. In controlled mode the host is proposed its list without the marks and the
+   * annotations removed with them (reason `'redaction'`), and the reopened document starts from
+   * that list. Resolves with what was done, or null when the reader cancelled or nothing was
+   * applied. A failure leaves the document as it was, shows the reader why in the viewer's
+   * message box and reaches `onError`; it does not reject. A failure is not reported once
+   * another document is showing or the viewer is destroyed.
+   */
+  applyRedactions(): Promise<RedactionResult | null>
   destroy(): void
+}
+
+/** What a load is given beyond the source. */
+interface LoadOptions {
+  password?: string | undefined
+  /** The view to open at, in place of the options'. */
+  view?: RedactionView
+  /** The list a controlled document starts from, in place of the option's `initial`. */
+  initial?: Annotation[]
+  /** The name to save under, in place of the one the source gives. */
+  fileName?: string
+  /** Runs once the document is ready and `onReady` has run; not when the load fails. */
+  shown?: () => void
 }
 
 const noop = () => undefined
@@ -264,6 +309,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     threads: withThreads = true,
     onReady,
     onError,
+    onRedacted,
+    redactionConfirm,
     onActivate,
     onBuild,
     onPageMount,
@@ -410,6 +457,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   /** New words or locale: the shell's own labels change in place. */
   const stopMessages = messages.subscribe(({ messages: m, locale }) => {
     applyLocale(locale)
+    redactionDialog.setMessages(m)
     scroll.setAttribute('aria-label', m.viewer.document)
     relabelStatus()
     for (const [notice, page] of pageErrors) {
@@ -480,8 +528,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     status.set(s)
   }
 
-  /** Mounts the engine and the thread popover for a ready document; returns their teardown. */
-  function start(doc: InkDocument): () => void {
+  /**
+   * Mounts the engine and the thread popover for a ready document; returns their teardown.
+   * `kept` is the view of the document it replaces, after applying redactions.
+   */
+  function start(doc: InkDocument, kept?: RedactionView): () => void {
     const store = doc.annotations
     const threads = withThreads
       ? createThreadPopover({
@@ -521,6 +572,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     }
     const mounted = mountViewer({
       ...view,
+      ...kept,
       plugins: host,
       search,
       container: scroll,
@@ -610,7 +662,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
   /**
    * One prompt and dialog for the viewer's life. A submitted password goes straight to a retry
-   * of the last source and is not kept: the dialog clears its field and the load drops it.
+   * of the last source: the dialog clears its field, and the viewer keeps it only while that
+   * document is open, to reopen the redacted file, which keeps its password.
    */
   let lastSource: DocumentSource = initial
   const prompt = createPasswordPrompt((pw) => load(lastSource, { password: pw }))
@@ -638,6 +691,33 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     passwordDialog.setPending(pending)
   })
 
+  /**
+   * The confirmation `applyRedactions` shows by default, for the viewer's life. `answer` settles
+   * the question it is showing.
+   */
+  let answer: (apply: boolean) => void = () => undefined
+  const redactionDialog = createRedactionDialog({
+    messages: words(),
+    onConfirm: () => answer(true),
+    onCancel: () => answer(false),
+  })
+  const askInDialog = (preview: RedactionPreview): Promise<boolean> =>
+    new Promise<boolean>((resolve) => {
+      answer = (apply) => {
+        answer = () => undefined
+        resolve(apply)
+      }
+      redactionDialog.open(preview)
+    })
+  /** The password the open document was opened with: a redacted copy opens with it too. */
+  let openedWith: string | undefined
+  // The dialog speaks of one document: when that one closes or another opens, it closes,
+  // answering no, so Apply never reaches a document that has gone.
+  const stopDialogFollow = current.subscribe(() => {
+    redactionDialog.close()
+    answer(false)
+  })
+
   let loads = 0
   let destroyed = false
   const destroyers: (() => void)[] = []
@@ -652,6 +732,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     const doc = current.get()
     form.set(null)
     current.set(null)
+    openedWith = undefined
     doc?.destroy()
   }
 
@@ -670,7 +751,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   }
 
   /** A new source: the prompt starts over. */
-  function open(source: DocumentSource, openOpts?: { password?: string }): void {
+  function open(source: DocumentSource, openOpts?: LoadOptions): void {
     if (destroyed) return
     prompt.reset()
     lastSource = source
@@ -678,21 +759,26 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   }
 
   /** Loads `source`; a retry from the prompt comes here directly, keeping the dialog open. */
-  function load(source: DocumentSource, openOpts?: { password?: string }): void {
+  function load(source: DocumentSource, openOpts?: LoadOptions): void {
     if (destroyed) return
     const load = ++loads
     close()
     setStatus({ state: 'loading' })
+    const pw = openOpts?.password ?? password
     // The theme's colour variables are read from the root, which is in the page by now.
     openDocument(source, {
       assets,
-      password: openOpts?.password ?? password,
+      password: pw,
       defaults: defaults ?? cssVariableDefaults(root),
       pictures: savePictures(root.ownerDocument),
       engine: engineLoader,
       history,
       fields,
-      annotations,
+      annotations:
+        openOpts?.initial && annotations?.mode === 'controlled'
+          ? { ...annotations, initial: openOpts.initial }
+          : annotations,
+      _fileName: openOpts?.fileName,
     }).then(
       (doc) => {
         // A later `open` or `destroy` superseded this load.
@@ -701,6 +787,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
           return
         }
         current.set(doc)
+        openedWith = pw
         const s = doc.status.get()
         if (s.state === 'error') {
           fail(s.error, load)
@@ -717,13 +804,15 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
           (!document.activeElement || document.activeElement === document.body)
         )
           scroll.focus({ preventScroll: true })
-        stop = start(doc)
+        stop = start(doc, openOpts?.view)
         form.set(doc.form)
         status.set({ state: 'ready' })
         // A status subscriber may have opened another document already.
         if (load !== loads) return
         onReady?.(doc)
-        if (load === loads) releaseFormErrors()
+        if (load !== loads) return
+        releaseFormErrors()
+        if (load === loads) openOpts?.shown?.()
       },
       (cause: unknown) => {
         // Only a programmer error (missing assets) rejects; it gets the error state too.
@@ -739,6 +828,49 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         fail(error, load)
       }
     )
+  }
+
+  async function applyRedactions(): Promise<RedactionResult | null> {
+    const doc = current.get()
+    if (destroyed || !doc || status.get().state !== 'ready') return null
+    const out = await applyRedactionsFlow(doc, {
+      confirm:
+        redactionConfirm === false
+          ? () => Promise.resolve(true)
+          : (redactionConfirm ?? askInDialog),
+      isCurrent: () => !destroyed && current.get() === doc,
+      notify: (event) => onRedacted?.(event),
+      callbackName: 'onRedacted',
+      onError: (error) => onError?.(error),
+      showFailure: (message) => formAlert.show(message),
+      messages: words,
+      view: () => {
+        const vp = viewport.get()
+        const tc = tools.get()
+        return vp && tc
+          ? {
+              zoom: vp.zoom.get(),
+              page: vp.currentPage.get(),
+              mode: vp.mode.get(),
+              rotation: vp.rotation.get(),
+              tool: tc.active.get(),
+            }
+          : undefined
+      },
+      password: openedWith,
+    })
+    if (!out?.reopen) return out?.result ?? null
+    const { source, fileName, password: pw, view, initial, message } = out.reopen
+    // The new document has a history of its own: the old one goes with it. The message is said
+    // once the redacted file shows; a reopen that fails shows its own failure instead.
+    open(source, {
+      ...(pw === undefined ? {} : { password: pw }),
+      ...(view && { view }),
+      ...(initial && { initial }),
+      fileName,
+      shown: () => formAlert.show(message),
+    })
+    return out.result
   }
 
   open(initial)
@@ -783,7 +915,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     commands: { get: (id) => host.command(id) },
     search: viewerSearch,
     records: (key) => host.records(key),
-    open,
+    open: (source, openOpts) =>
+      open(
+        source,
+        openOpts?.password === undefined ? {} : { password: openOpts.password }
+      ),
+    applyRedactions,
     destroy() {
       if (destroyed) return
       destroyed = true
@@ -796,6 +933,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       stopMessages()
       stopPrompt()
       passwordDialog.destroy()
+      stopDialogFollow()
+      redactionDialog.destroy()
+      answer(false)
       host.destroy()
       stopHistoryKeys()
       stopFileKeys()
