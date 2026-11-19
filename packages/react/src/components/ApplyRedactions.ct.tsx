@@ -570,6 +570,34 @@ test('a disabled control of your own that is not a button does not apply', async
   await expect(cmp.getByTestId('redacted')).toHaveText('0')
 })
 
+test('an empty new note open when an apply starts from code is not written into the file', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const thread = page.locator('[data-ink-thread-popover]')
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    const note = root.__inkDocument!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+    })
+    window.__inkActivate!(note.id)
+  })
+  await expect(thread).toBeVisible()
+  await mark(page)
+  await page.evaluate(() => void window.__inkApply!())
+  await expect.poll(() => writing(page)).toBe(true)
+  expect(await page.evaluate(() => window.__heldEngine!.written())).toEqual([])
+  await expect(thread).toBeHidden()
+  await finish(page)
+  await expect(alert(page)).toHaveText('1 redaction applied.')
+})
+
 const sessionCount = (page: Page) =>
   page.evaluate(
     () =>

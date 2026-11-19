@@ -368,6 +368,29 @@ describe('InkApplyRedactions', () => {
     expect(seen).not.toContain(true)
   })
 
+  it('an empty new note open when an apply starts from code is not written into the file', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const threadOpen = () => document.querySelector('[data-ink-thread-popover]') !== null
+    const note = currentDoc()!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+    }).id
+    ;(window as { __inkActivate?: (id: string | null) => void }).__inkActivate!(note)
+    await expect.poll(threadOpen).toBe(true)
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    // useRedaction().apply, from code.
+    document.querySelector<HTMLButtonElement>('[data-testid="hook-apply"]')!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    expect(held.written()).toEqual([])
+    await expect.poll(threadOpen).toBe(false)
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+  })
+
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
     await render(RedactionHarness, { src, assets, engine: held.loader })

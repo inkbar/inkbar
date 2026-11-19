@@ -10,6 +10,8 @@ export interface HeldEngine {
   loader: EngineLoader
   readonly loads: number
   writing(): boolean
+  /** The types of the annotations the last apply wrote after its marks. */
+  written(): string[]
   finish(): void
   fail(): void
 }
@@ -17,6 +19,7 @@ export interface HeldEngine {
 export function heldEngine(): HeldEngine {
   let settle: { finish: () => void; fail: () => void } | undefined
   let loads = 0
+  let written: string[] = []
   const hold = (): Promise<void> =>
     new Promise<void>((resolve, reject) => {
       settle = {
@@ -40,8 +43,12 @@ export function heldEngine(): HeldEngine {
     // A PDF header is enough for a download to carry; after an apply, the file opened.
     save: () =>
       Promise.resolve(redacted ? opened : new TextEncoder().encode('%PDF-1.7 written')),
-    redact: (input: { marks: readonly object[] }) =>
-      hold().then(() => {
+    redact: (input: {
+      marks: readonly object[]
+      annotations?: readonly { annotation: { type: string } }[]
+    }) => {
+      written = (input.annotations ?? []).map((a) => a.annotation.type)
+      return hold().then(() => {
         redacted = true
         return {
           pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
@@ -59,7 +66,8 @@ export function heldEngine(): HeldEngine {
           hiddenLayers: false,
           signed: false,
         }
-      }),
+      })
+    },
     close: () => Promise.resolve(),
   }
   const engine = {
@@ -104,6 +112,7 @@ export function heldEngine(): HeldEngine {
       return loads
     },
     writing: () => settle !== undefined,
+    written: () => written,
     finish: () => settle?.finish(),
     fail: () => settle?.fail(),
   }

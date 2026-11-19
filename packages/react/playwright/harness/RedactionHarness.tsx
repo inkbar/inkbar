@@ -55,10 +55,14 @@ function RedactionProbe() {
   )
 }
 
-/** Hands the page `window.__inkActivate`, which activates an annotation as the viewer does. */
+/**
+ * Hands the page `window.__inkActivate`, which activates an annotation as the viewer does, and
+ * `window.__inkApply`, which applies the marks from code.
+ */
 function ActivateHook() {
-  const { setActivated } = useInkContext('ActivateHook')
+  const { setActivated, applyRedactions } = useInkContext('ActivateHook')
   window.__inkActivate = setActivated
+  window.__inkApply = applyRedactions
   return null
 }
 
@@ -82,6 +86,8 @@ declare global {
     __releaseAnswer?: () => void
     /** Activates an annotation, opening its thread. */
     __inkActivate?: (id: string | null) => void
+    /** Applies the marks from code, as `useRedaction().apply` does. */
+    __inkApply?: () => Promise<unknown>
   }
 }
 
