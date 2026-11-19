@@ -25,20 +25,34 @@ const TYPES: Record<string, string> = {
 
 type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void
 
+/** A URL path decoded, or undefined when it holds a malformed `%` sequence. */
+function decoded(path: string): string | undefined {
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return undefined
+  }
+}
+
+/** The manifest, read once, on the first corpus request: this file takes no JSON import. */
+let manifestCache: Record<string, { file: string } | undefined> | undefined
+const corpusManifest = () =>
+  (manifestCache ??= JSON.parse(
+    readFileSync(join(here, 'manifest.json'), 'utf8')
+  ) as Record<string, { file: string } | undefined>)
+
 /**
  * The file `/fixtures/<name>.pdf` stands for: a corpus fixture's file lives in `corpus/` under the
  * name it has upstream, which the manifest gives, and every other fixture's in `pdf/`. Undefined
- * for a URL outside `/fixtures/`. Reads the manifest on each call, so it needs no JSON import.
+ * for a URL outside `/fixtures/` or one that does not decode.
  */
 export function fixtureFileForUrl(url: string): string | undefined {
   const prefix = '/fixtures/'
   if (!url.startsWith(prefix)) return undefined
-  const rel = decodeURIComponent(url.slice(prefix.length).split('?')[0] ?? '')
+  const rel = decoded(url.slice(prefix.length).split('?')[0] ?? '')
+  if (rel === undefined) return undefined
   if (rel.startsWith('corpus-') && rel.endsWith('.pdf')) {
-    const manifest = JSON.parse(
-      readFileSync(join(here, 'manifest.json'), 'utf8')
-    ) as Record<string, { file: string } | undefined>
-    const entry = manifest[rel.slice(0, -'.pdf'.length)]
+    const entry = corpusManifest()[rel.slice(0, -'.pdf'.length)]
     return entry && join(here, 'corpus', entry.file)
   }
   return join(here, 'pdf', rel)
@@ -72,7 +86,8 @@ function serveDir(prefix: string, dir: string): Middleware {
   return serve(
     (url) => {
       if (!url.startsWith(prefix)) return undefined
-      return join(dir, decodeURIComponent(url.slice(prefix.length).split('?')[0] ?? ''))
+      const rel = decoded(url.slice(prefix.length).split('?')[0] ?? '')
+      return rel === undefined ? undefined : join(dir, rel)
     },
     [dir]
   )

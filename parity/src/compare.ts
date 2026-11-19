@@ -19,18 +19,45 @@ export interface Comparison {
   same: boolean
 }
 
-/** Box blur, pixels. */
+// Each limit sits between the highest value measured on a page judged the same and the lowest
+// real difference, over every fixture at 2 px per point; README.md has the table and the cases
+// the checks cannot see.
+
+/**
+ * Box blur, pixels. At 2, text antialiasing reached a worst block of 0.34, as high as a missing
+ * glyph; at 4 it falls to 0.03.
+ */
 export const BLUR_RADIUS = 4
-/** Of 255, any channel. */
+/**
+ * Of 255, any channel. Below 40 the noise rises fast; above 48 a missing 1 pt rule (about 57
+ * levels after the blur) slips through.
+ */
 export const CHANNEL_TOLERANCE = 48
+/** Same pages reach 0.0037%; real differences start at 0.04%. */
 export const MAX_SHARE = 0.001
+/**
+ * Same pages reach 0.109 (`form-fieldmdp`); the smallest real difference is 0.328. Catches about
+ * 92% of missing glyph parts of 40 px or more; dots and smaller parts mostly not.
+ */
 export const MAX_BLOCK = 0.2
-/** Of 255, any channel: how far a pixel may lie outside its neighbourhood in the other image. */
+/**
+ * Of 255, any channel: how far a pixel may lie outside its neighbourhood in the other image. A
+ * hairline paler than about #D0 on white stays inside it and is not seen.
+ */
 export const SHIFT_TOLERANCE = 48
-/** Pixels: the longest straight run of unmatched pixels allowed, 30 pt at 2 px per point. */
+/**
+ * Pixels: the longest straight run of unmatched pixels allowed, 30 pt at 2 px per point. Same
+ * pages reach 30 px; different pages reach 456. Runs are counted across and down only, so a
+ * diagonal, dashed or dotted rule, a rule shorter than 30 pt, or a line within 1 px of other dark
+ * content is not seen.
+ */
 export const MAX_UNMATCHED_RUN = 60
-/** Of 255, any channel, where both images are flat over the blur window. */
+/**
+ * Of 255, any channel, where both images are flat over the blur window. Same pages measure 0 at
+ * every tolerance from 6 to 16. A pale shape narrower than 9 px is never flat, so not seen.
+ */
 export const FLAT_TOLERANCE = 8
+/** 0.01%, about 200 px on an A4 page. Real differences reach 21% (`corpus-matte`). */
 export const MAX_FLAT_SHARE = 0.0001
 export const MAX_FLAT_BLOCK = 0.1
 

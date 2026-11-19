@@ -585,12 +585,12 @@
   },
   "corpus-bug-1302355": {
     "state": "different",
-    "reason": "PDF.js draws the SoftLight-blended form (a black rectangle); the engine draws a blank page",
+    "reason": "PDF.js draws the SoftLight-blended form (a black rectangle); the engine draws a blank page; cause not yet investigated",
     "accepted": false
   },
   "corpus-smask-blend": {
     "state": "different",
-    "reason": "PDF.js draws the form under the alpha soft mask and Screen blend (a grey and a black square); the engine draws a blank page",
+    "reason": "PDF.js draws the form under the alpha soft mask and Screen blend (a grey and a black square); the engine draws a blank page; cause not yet investigated",
     "accepted": false
   }
 }

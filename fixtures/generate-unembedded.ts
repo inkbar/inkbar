@@ -117,11 +117,6 @@ const CJK: Cjk[] = [
   },
 ]
 
-/** The text each fixture draws. */
-const TEXTS = {
-  ...Object.fromEntries(CJK.map((c) => [c.name, c.lines])),
-} as Record<string, string[]>
-
 function writeCjk(c: Cjk) {
   const font = `<< /Type /Font /Subtype /Type0 /BaseFont /${c.base} /Encoding /${c.cmap} /DescendantFonts [8 0 R] >>`
   const contents =
@@ -281,10 +276,6 @@ const ALPHABETS: Alphabet[] = [
   },
 ]
 
-Object.assign(TEXTS, Object.fromEntries(ALPHABETS.map((a) => [a.name, a.lines])), {
-  'unembedded-arial': ['Arial is named, not embedded'],
-})
-
 /**
  * `text` as the codes of a font with `glyphs` from `first`; a space is code 32 and anything else
  * outside the alphabet is a mistake.
@@ -317,7 +308,7 @@ function writeAlphabet(a: Alphabet) {
   write(a.name, withDescriptor(contents, font, a.base, 32), {
     pages: 1,
     opens: true,
-    describes: `A4 page: two lines of ${a.script} in a simple TrueType font ${a.base} with no font file and a /Differences array of Adobe Glyph List names (${a.glyphs[0]} to ${a.glyphs[a.glyphs.length - 1]}), and one Latin line in Helvetica as a control`,
+    describes: `A4 page: two lines of ${a.script} in a simple TrueType font ${a.base} with no font file and a /Differences array of Adobe Glyph List names (${a.glyphs[0]} to ${a.glyphs[a.glyphs.length - 1]}), each glyph 560 units wide in /Widths so the letters sit evenly spaced, and one Latin line in Helvetica as a control`,
     unembedded: ['default'],
   })
 }
@@ -346,8 +337,7 @@ function writeArial() {
     '<< /Type /Font /Subtype /TrueType /BaseFont /Arial /FirstChar 32 /LastChar 126 ' +
     `/Widths [${widths(32, 126)}] /FontDescriptor 8 0 R /Encoding /WinAnsiEncoding >>`
   const contents =
-    line('F2', 760, `(${(TEXTS['unembedded-arial'] as string[])[0]})`) +
-    line('F1', 700, `(${CONTROL})`)
+    line('F2', 760, '(Arial is named, not embedded)') + line('F1', 700, `(${CONTROL})`)
   write('unembedded-arial', withDescriptor(contents, font, 'Arial', 32), {
     pages: 1,
     opens: true,

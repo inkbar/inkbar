@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
 import { describe, expect, it } from 'vitest'
@@ -357,6 +357,23 @@ describe('corpus fixtures', () => {
     expect(existsSync(fixturePath(name)), name).toBe(true)
   })
 
+  it('lists every corpus file, and nothing else, in SOURCES.md with its source', () => {
+    const table = readFileSync(new URL('corpus/SOURCES.md', import.meta.url), 'utf8')
+    const rows = new Map(
+      [...table.matchAll(/^\| `([^`]+\.pdf)` +\| `([^`]+)` +\|/gm)].map((m) => [
+        m[1],
+        m[2],
+      ])
+    )
+    const expected = new Map(
+      corpus.map((name) => [
+        manifest[name].file,
+        manifest[name].source?.replace(/^pdfium testing\/resources\//, ''),
+      ])
+    )
+    expect(rows).toEqual(expected)
+  })
+
   it('covers every drawing feature', () => {
     const covered = new Set(corpus.flatMap((name) => manifest[name].features ?? []))
     for (const feature of CORPUS_FEATURES)
@@ -384,5 +401,6 @@ describe('fixture URLs', () => {
   it('leave other URLs, and unknown corpus names, to the next handler', () => {
     expect(fixtureFileForUrl('/pdfjs/build/pdf.mjs')).toBeUndefined()
     expect(fixtureFileForUrl('/fixtures/corpus-nothing-here.pdf')).toBeUndefined()
+    expect(fixtureFileForUrl('/fixtures/text-%E0%A4%A.pdf')).toBeUndefined()
   })
 })
