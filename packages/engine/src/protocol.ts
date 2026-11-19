@@ -1,4 +1,4 @@
-import type { EngineErrorCode } from './errors.ts'
+import type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
 import type {
   OpenOptions,
   RedactInput,
@@ -39,6 +39,9 @@ export type WireError =
       pdfiumError?: number
       annotation?: string
       page?: number
+      reason?: RefusalReason
+      marks?: string[]
+      kinds?: UnremovableKind[]
     }
   | { range: true; message: string }
 

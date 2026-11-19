@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { fromPdfiumError } from './errors.ts'
+import { EngineError, fromPdfiumError } from './errors.ts'
 
 test.each([
   [2, false, 'invalid-pdf'],
@@ -16,4 +16,23 @@ test.each([
 
 test('engine-failure carries the PDFium number', () => {
   expect(fromPdfiumError(6, false).pdfiumError).toBe(6)
+})
+
+test('a refusal keeps its reason, marks and kinds across the worker boundary', async () => {
+  const { toWire } = await import('./transport/worker-host.ts')
+  const { fromWire } = await import('./transport/worker.ts')
+  const refused = new EngineError('redaction-failed', 'refused', {
+    page: 2,
+    reason: 'unremovable-content',
+    marks: ['a', 'b'],
+    kinds: ['pattern', 'glyph'],
+  })
+  expect(fromWire(structuredClone(toWire(refused)))).toMatchObject({
+    name: 'EngineError',
+    code: 'redaction-failed',
+    page: 2,
+    reason: 'unremovable-content',
+    marks: ['a', 'b'],
+    kinds: ['pattern', 'glyph'],
+  })
 })

@@ -1,9 +1,9 @@
-import { EngineError } from '../errors.ts'
+import { EngineError, type UnremovableKind } from '../errors.ts'
 
 import { writeAnnotation } from './annotations.ts'
 import { buildAppearance } from './appearance.ts'
 import { formFieldNames, writeFields } from './fields.ts'
-import { inspectFile } from './inspect.ts'
+import { inspectFile, isCount, isRecord, readReport } from './inspect.ts'
 import { withFloats, withInts, type Heap } from './strings.ts'
 
 import type {
@@ -133,6 +133,112 @@ function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Q
   })
 }
 
+/** The fork's counts, by the kind of content each one is. */
+const UNREMOVABLE: readonly [string, UnremovableKind][] = [
+  ['patterns', 'pattern'],
+  ['shadings', 'shading'],
+  ['maskGroups', 'mask-group'],
+  ['glyphs', 'glyph'],
+]
+
+/**
+ * Asks the fork what lies under each quad on page `index` that the apply cannot remove, on the
+ * page as it is. Returns the kinds found under each quad, in order. A page it could not look at,
+ * or a report that does not match what was asked, is `redaction-failed` with `reason:
+ * 'could-not-inspect'`.
+ */
+function unremovableUnder(
+  heap: Heap,
+  doc: number,
+  index: number,
+  quads: readonly Corners[]
+): Set<UnremovableKind>[] {
+  const fail = (cause?: unknown) =>
+    new EngineError(
+      'redaction-failed',
+      `What lies under the marks on page ${index} could not be inspected.`,
+      { page: index, reason: 'could-not-inspect', cause }
+    )
+  const report = withFloats(heap, quads.flat(), (pointer) =>
+    heap.fn.INK_Redact_Unremovable(doc, index, pointer, quads.length)
+  )
+  const parsed = readReport(heap, report, fail)
+  const { regions } = parsed
+  if (!Array.isArray(regions) || regions.length !== quads.length) throw fail()
+  return regions.map((entry: unknown, i) => {
+    if (!isRecord(entry) || entry.index !== i) throw fail()
+    const kinds = new Set<UnremovableKind>()
+    for (const [key, kind] of UNREMOVABLE) {
+      const count = entry[key]
+      if (!isCount(count)) throw fail()
+      if (count > 0) kinds.add(kind)
+    }
+    return kinds
+  })
+}
+
+/**
+ * Refuses, before anything changes, marks over content the apply cannot remove: on every page
+ * with marks it applies, the marks' regions, and on every page of an encrypted file, Inkbar's
+ * earlier locked marks. Every offending mark on every page is named in one `redaction-failed`
+ * with `reason: 'unremovable-content'`.
+ */
+function refuseUnremovable(
+  heap: Heap,
+  doc: number,
+  marksByPage: ReadonlyMap<number, readonly WriteAnnotation[]>,
+  context: RedactContext,
+  withPage: <T>(index: number, use: (page: number) => T) => T
+): void {
+  const marks: string[] = []
+  const kinds = new Set<UnremovableKind>()
+  let first: number | undefined
+  for (let index = 0; index < context.pageCount; index++) {
+    const given = marksByPage.get(index) ?? []
+    if (given.length === 0 && !context.encrypted) continue
+    const asked = withPage(index, (page) => {
+      const box = context.pageBox(page)
+      const owners: (string | undefined)[] = []
+      const quads: Corners[] = []
+      for (const item of given) {
+        if (skipped(item, box)) continue
+        for (const corners of regionsOf(item).corners) {
+          owners.push(item.annotation.id)
+          quads.push(corners)
+        }
+      }
+      if (context.encrypted)
+        for (const q of ownLockedQuads(heap, doc, page, index)) {
+          owners.push(undefined)
+          quads.push([q.p1.x, q.p1.y, q.p2.x, q.p2.y, q.p3.x, q.p3.y, q.p4.x, q.p4.y])
+        }
+      return { owners, quads }
+    })
+    if (asked.quads.length === 0) continue
+    const found = unremovableUnder(heap, doc, index, asked.quads)
+    found.forEach((under, i) => {
+      if (under.size === 0) return
+      first ??= index
+      for (const kind of under) kinds.add(kind)
+      const id = asked.owners[i]
+      if (id !== undefined && !marks.includes(id)) marks.push(id)
+    })
+  }
+  if (first === undefined) return
+  throw new EngineError(
+    'redaction-failed',
+    marks.length > 0
+      ? `The marks ${marks.join(', ')} lie over content the redaction cannot remove.`
+      : `Earlier marks on page ${first} lie over content the redaction cannot remove.`,
+    {
+      page: first,
+      reason: 'unremovable-content',
+      marks,
+      kinds: UNREMOVABLE.map(([, kind]) => kind).filter((kind) => kinds.has(kind)),
+    }
+  )
+}
+
 /** Runs `use` with two zeroed 32-bit outputs, and returns its result with their values. */
 function withOutputs<T>(heap: Heap, use: (first: number, second: number) => T) {
   return withInts(heap, [0, 0], (out) => {
@@ -234,6 +340,13 @@ export function applyRedactions(
     }
   }
 
+  const marksByPage = new Map<number, WriteAnnotation[]>()
+  for (const item of input.marks)
+    marksByPage.set(item.page, [...(marksByPage.get(item.page) ?? []), item])
+
+  // Before anything is removed or written: a mark the apply cannot honour changes nothing.
+  refuseUnremovable(heap, doc, marksByPage, context, withPage)
+
   const removals = new Map<number, AnnotationRef[]>()
   for (const ref of input.remove ?? [])
     removals.set(ref.page, [...(removals.get(ref.page) ?? []), ref])
@@ -247,10 +360,6 @@ export function applyRedactions(
             { page: index }
           )
     })
-
-  const marksByPage = new Map<number, WriteAnnotation[]>()
-  for (const item of input.marks)
-    marksByPage.set(item.page, [...(marksByPage.get(item.page) ?? []), item])
 
   /** INK_Redact_ApplyPage: its result, the annotations it removed, the Redacts it left. */
   const applyPage = (page: number, marks: readonly number[], ownLocked: boolean) =>

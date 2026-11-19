@@ -27,17 +27,21 @@ const COUNTS = [
 ] as const
 const FILE_FLAGS = ['info', 'xmp', 'scripts', 'hiddenLayers', 'signed'] as const
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-const isCount = (value: unknown): value is number =>
+export const isCount = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0
 
 /**
  * Reads a report the fork returned and frees it. A NULL report, or one that is not the JSON
  * object expected, throws `fail()`.
  */
-function readReport(heap: Heap, report: number, fail: (cause?: unknown) => EngineError) {
+export function readReport(
+  heap: Heap,
+  report: number,
+  fail: (cause?: unknown) => EngineError
+) {
   if (report === 0) throw fail()
   try {
     const bytes = heap.native.HEAPU8
