@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { inflateSync } from 'node:zlib'
+import { deflateSync, inflateSync } from 'node:zlib'
 
 // eslint-disable-next-line import-x/no-named-as-default
 import AxeBuilder from '@axe-core/playwright'
@@ -433,19 +433,60 @@ for (const framework of FRAMEWORK_ORDER) {
 const SECRET = '07700 900123'
 const SECRET_DIGITS = '900123'
 
+/** A PDF string operand, `(literal)` or `<hex>`, decoded to latin1. */
+function pdfString(token: string): string {
+  if (token.startsWith('<')) {
+    const hex = token.slice(1, -1).replace(/\s/g, '')
+    // An odd last digit is followed by 0.
+    return Buffer.from(hex.length % 2 ? `${hex}0` : hex, 'hex').toString('latin1')
+  }
+  const escapes: Record<string, string> = {
+    n: '\n',
+    r: '\r',
+    t: '\t',
+    b: '\b',
+    f: '\f',
+  }
+  return token
+    .slice(1, -1)
+    .replace(/\\(?:([0-7]{1,3})|(\r\n|\r|\n)|(.))/gs, (_, octal, _eol, other) =>
+      octal
+        ? String.fromCharCode(parseInt(octal as string, 8) & 0xff)
+        : other === undefined
+          ? ''
+          : (escapes[other as string] ?? (other as string))
+    )
+}
+
+/** A literal string (with balanced or escaped parentheses one level deep) or a hex string. */
+const STRING = String.raw`\((?:[^()\\]|\\[\s\S]|\((?:[^()\\]|\\[\s\S])*\))*\)|<[0-9A-Fa-f\s]*>`
+
 /**
- * The file's text as latin1, with every flate stream inflated and each hex string a page draws
- * decoded, so a search can find page text.
+ * The text a content stream shows, decoded: the strings of every `Tj`, `'` and `"`, and of every
+ * `TJ` array joined without its spacing numbers, literal and hex alike.
+ */
+function shownText(content: string): string[] {
+  const out: string[] = []
+  for (const m of content.matchAll(new RegExp(`(${STRING})\\s*(?:Tj|'|")`, 'g')))
+    out.push(pdfString(m[1]!))
+  for (const m of content.matchAll(/\[((?:[^\]()]|\((?:[^()\\]|\\[\s\S])*\))*)\]\s*TJ/g))
+    out.push(
+      [...m[1]!.matchAll(new RegExp(STRING, 'g'))].map((s) => pdfString(s[0])).join('')
+    )
+  return out
+}
+
+/**
+ * The file's text as latin1, with every flate stream inflated and every string a page shows
+ * decoded, so a search can find page text however it is written.
  */
 function readableText(bytes: Uint8Array): string {
   const raw = Buffer.from(bytes).toString('latin1')
-  const parts = [raw]
+  const parts = [raw, ...shownText(raw)]
   for (const match of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     try {
       const content = inflateSync(Buffer.from(match[1]!, 'latin1')).toString('latin1')
-      parts.push(content)
-      for (const hex of content.matchAll(/<((?:[0-9A-Fa-f]{2})+)>\s*Tj/g))
-        parts.push(Buffer.from(hex[1]!, 'hex').toString('latin1'))
+      parts.push(content, ...shownText(content))
     } catch {
       // Not a flate stream.
     }
@@ -463,6 +504,26 @@ async function downloaded(page: Page): Promise<Uint8Array> {
 
 const textLayer = (page: Page) =>
   viewer(page).locator('.ink-page[data-page="0"] [data-ink-text-layer]')
+
+test('the text check finds page text however a page shows it', () => {
+  const file = (content: string) =>
+    new Uint8Array(
+      Buffer.concat([
+        Buffer.from('1 0 obj\n<< /Filter /FlateDecode >>\nstream\n', 'latin1'),
+        deflateSync(Buffer.from(content, 'latin1')),
+        Buffer.from('\nendstream\nendobj\n', 'latin1'),
+      ])
+    )
+  for (const content of [
+    'BT (07700 900123) Tj ET',
+    'BT (07700 9\\0600123) Tj ET',
+    'BT [(07700 9) -12 (00123)] TJ ET',
+    'BT [<3037373030> 250 <20393030313233>] TJ ET',
+    "BT <3037373030203930303132 33> ' ET",
+  ])
+    expect(readableText(file(content)), content).toContain(SECRET)
+  expect(readableText(file('BT (07700) Tj ET'))).not.toContain(SECRET_DIGITS)
+})
 
 for (const framework of FRAMEWORK_ORDER) {
   test(`${framework} redactions: applies a mark and offers the redacted file`, async ({
