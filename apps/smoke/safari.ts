@@ -4,6 +4,7 @@
  * or a page does not finish in time, 2 when Safari could not be driven at all.
  *
  *   node safari.ts [--url <smoke page>] [--timeout <seconds per page>] [--screenshot <file.png>]
+ *                  [--keep-awake]
  *
  * A failed front end's screenshot goes to the given file with the front end's name added.
  *
@@ -43,6 +44,8 @@ const { values: args } = parseArgs({
     url: { type: 'string', default: 'http://127.0.0.1:3010/smoke/' },
     timeout: { type: 'string', default: '120' },
     screenshot: { type: 'string' },
+    // Adds `?awake`: the page keeps a timer running, as GitHub's macOS runner needs.
+    'keep-awake': { type: 'boolean', default: false },
   },
 })
 
@@ -113,6 +116,7 @@ function print(state: SmokeState): void {
 function pageFor(url: string, front: string): string {
   const u = new URL(url)
   u.searchParams.set('front', front)
+  if (args['keep-awake']) u.searchParams.set('awake', '')
   return u.href
 }
 

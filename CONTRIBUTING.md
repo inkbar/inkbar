@@ -77,6 +77,8 @@ Open that URL, with `?front=` set, in any browser to see the results. For real S
 pnpm --filter @inkbar/smoke safari
 ```
 
+In CI the Safari job passes `--keep-awake`. Safari on GitHub's macOS runner pauses a page that has nothing scheduled for about 15 seconds before it delivers a network response or an animation frame, so checks that wait on either stall. With `--keep-awake` the page keeps a timer running, which prevents the pause. Real Macs do not pause the page, and the link and outline checks keep their short waits on purpose, so that a slow page change still fails.
+
 The BrowserStack run reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from the environment. It serves the sandbox, starts the BrowserStack Local tunnel, runs one session per target, five at a time, loads the four front ends in turn in each session, and stops the tunnel. Each session uses the account's minutes, so run one target first:
 
 ```sh
@@ -84,7 +86,7 @@ pnpm --filter @inkbar/smoke browserstack --project=iPhone
 pnpm --filter @inkbar/smoke browserstack
 ```
 
-The targets are in `apps/smoke/browserstack/targets.ts`. In CI the BrowserStack job runs only when the repository variable `BROWSERSTACK_SMOKE` is `true` and the repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are set. A pull request from a fork gets no secrets, so the job skips its steps and passes.
+The targets are in `apps/smoke/browserstack/targets.ts`. In CI the BrowserStack job runs only when the repository variable `BROWSERSTACK_SMOKE` is `true` and the repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are set. A pull request from a fork gets no secrets, so the job skips its steps and passes. A manual run from the Actions tab can also leave the job out, to save the account's minutes.
 
 ## Translations
 

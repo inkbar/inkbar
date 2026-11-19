@@ -6,6 +6,11 @@ name: smoke
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      browserstack:
+        description: Run the BrowserStack job too
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -72,8 +77,9 @@ jobs:
       # Safari takes automation only once it is allowed, which needs an administrator.
       - run: sudo safaridriver --enable
       # Keeps the display awake: a window on a sleeping display gets no animation frames, and
-      # the viewer's page tracking waits for them.
-      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --screenshot "$RUNNER_TEMP/safari.png"
+      # the viewer's page tracking waits for them. `--keep-awake` keeps a timer running in the
+      # page, without which this runner's Safari pauses an idle page for about 15 seconds.
+      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --keep-awake --screenshot "$RUNNER_TEMP/safari.png"
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -87,7 +93,9 @@ jobs:
   # BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY, as in a pull request from a fork.
   browserstack:
     needs: changes
-    if: needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true'
+    if: >-
+      needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true' &&
+      (github.event_name != 'workflow_dispatch' || inputs.browserstack)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
