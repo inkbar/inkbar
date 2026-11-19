@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /*
  * The apply redactions control in a toolbar over a document. `engine: 'held'` gives the root a
- * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`.
+ * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`,
+ * and `own: 'div'` a `div` in its place.
  * `confirm` passes `redactionConfirm` as a function answering yes or no, recording the marks
  * of each preview in `previews`; without it the root applies without asking. `throwing` makes
  * the `redacted` listener throw, and `shown: false` unmounts the root. `controlled` keeps the
@@ -10,7 +11,8 @@
  * and with `never` it is dropped. Their types show in `list`, and the types of every proposal
  * the host hears in `proposals` (one list per `|`). `disabled` is the host's own `disabled` on
  * the control, and `prevent` a `click` listener on it that calls `preventDefault()`. The
- * toolbar holds Download and Print too. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
+ * toolbar holds Download and Print too, and the root a thread popover, with
+ * `window.__inkActivate` to open it. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
  * again. The codes of the errors the root emits show in `errors`, the `redacted` events in
  * `redacted`, and `useRedaction` in `probe`.
  */
@@ -21,11 +23,13 @@ import InkApplyRedactions from '../../src/components/InkApplyRedactions.vue'
 import InkDownloadButton from '../../src/components/InkDownloadButton.vue'
 import InkPrintButton from '../../src/components/InkPrintButton.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
+import InkThreadPopover from '../../src/components/InkThreadPopover.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkToolButton from '../../src/components/InkToolButton.vue'
 import InkUndo from '../../src/components/InkUndo.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
+import ActivateHook from './ActivateHook.vue'
 import { heldEngine } from './held-engine'
 import RedactionProbe from './RedactionProbe.vue'
 import RetryButton from './RetryButton.vue'
@@ -43,7 +47,7 @@ const props = withDefaults(
     src: DocumentSource
     assets: PdfAssets
     engine?: 'held' | undefined
-    own?: boolean
+    own?: boolean | 'div'
     confirm?: 'yes' | 'no' | undefined
     throwing?: boolean
     shown?: boolean
@@ -54,6 +58,7 @@ const props = withDefaults(
   }>(),
   {
     engine: undefined,
+    own: false,
     confirm: undefined,
     shown: true,
     controlled: undefined,
@@ -121,7 +126,17 @@ function onRedacted(): void {
         <InkToolButton tool="redact-area" />
         <InkUndo />
         <InkApplyRedactions
-          v-if="own"
+          v-if="own === 'div'"
+          v-slot="{ label, disabled: off }"
+          as-child
+          :disabled="props.disabled"
+        >
+          <div role="button" class="host-apply" :data-disabled="String(off)">
+            {{ label }}
+          </div>
+        </InkApplyRedactions>
+        <InkApplyRedactions
+          v-else-if="own"
           v-slot="{ label, busy, disabled: off }"
           as-child
           :disabled="props.disabled"
@@ -144,6 +159,8 @@ function onRedacted(): void {
       <!-- Test-only box: the scroll container needs a bounded height. -->
       <div style="height: 400px; width: 600px"><InkViewport /></div>
       <RedactionProbe />
+      <InkThreadPopover />
+      <ActivateHook />
       <RetryButton />
     </InkRoot>
     <output data-testid="errors">{{ errors.join(' ') }}</output>

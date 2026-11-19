@@ -4,7 +4,8 @@
  * (InkRoot's `redactionConfirm`), removes the content under them and shows the redacted file.
  * Disabled until the document is ready, was opened with InkRoot's `engine` and holds a mark.
  * While the marks are applied the button says so and is `aria-busy` and `aria-disabled`,
- * keeping focus, and a press does nothing. `disabled` turns it off whatever the state. A
+ * keeping focus, and a press does nothing. `disabled` turns it off whatever the state, and
+ * whatever element `asChild` renders. A
  * `click` listener that calls `preventDefault()` stops the apply. The slot receives
  * `{ label, busy, disabled }`, for a host's own content or, with `asChild`, its own element.
  */
@@ -37,7 +38,9 @@ const attrs = computed(() => ({
   'aria-disabled': busy.value ? 'true' : undefined,
   onClick: (e: MouseEvent) => {
     emit('click', e)
-    if (!e.defaultPrevented) void apply()
+    // A host's own element that is not a button takes clicks whatever `disabled` says.
+    if (off.value || e.defaultPrevented) return
+    void apply()
   },
 }))
 </script>

@@ -19,6 +19,8 @@ declare global {
     __heldEngine?: HeldEngine
     /** The redaction harness: hands the host's held answer to the proposal back to the root. */
     __releaseAnswer?: () => void
+    /** The redaction harness: activates an annotation, opening its thread. */
+    __inkActivate?: (id: string | null) => void
   }
 }
 
