@@ -26,7 +26,7 @@ export type AnnotationChange =
       /** Everything that went: `annotation` first, then the replies removed with it. */
       removed: Annotation[]
     }
-  | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
+  | { kind: 'replace'; reason: 'import' | 'sync' | 'history' | 'redaction' }
   | {
       kind: 'replace'
       /** Fields read from the file after `ready` filled in embedded annotations. */
@@ -87,7 +87,10 @@ export interface AnnotationStore {
    * Uncontrolled: embedded annotations survive (the list may edit them like `update` would, but
    * cannot drop or add them). Controlled: proposes the list minus embedded items to `onChange`.
    */
-  replaceAll(list: Annotation[], reason: 'import' | 'sync' | 'history'): void
+  replaceAll(
+    list: Annotation[],
+    reason: 'import' | 'sync' | 'history' | 'redaction'
+  ): void
   /**
    * Controlled mode only: the host pushes its current list. Embedded (`source: 'pdf'`) items
    * belong to the store, so they stay in `list` whatever the host sends; host items that reuse

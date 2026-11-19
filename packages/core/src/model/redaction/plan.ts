@@ -20,11 +20,12 @@ export interface RedactionPlan {
 
 export interface RedactionOptions {
   /**
-   * The widget of each signed signature field, by the id of the annotation that signs it (the
-   * `signature` a signed field's value names): its page and rectangle in user space. A signature
-   * is removed when a mark overlaps its field, whatever size the signature is drawn.
+   * The widgets of each signed signature field, by the id of the annotation that signs it (the
+   * `signature` a signed field's value names): each one's page and rectangle in user space. A
+   * signature is removed when a mark overlaps any widget of its field, whatever size the
+   * signature is drawn.
    */
-  fieldRects?: ReadonlyMap<string, { page: number; rect: Rect }>
+  fieldRects?: ReadonlyMap<string, readonly { page: number; rect: Rect }[]>
 }
 
 const boundsOf = (points: readonly { x: number; y: number }[]): Rect => {
@@ -45,6 +46,26 @@ function geometryOf(a: Annotation): Rect {
 }
 
 /**
+ * Whether a box on a page overlaps one of `regions` on an open interval, so a box that only
+ * touches an edge does not.
+ */
+function hitsRegions(
+  regions: RedactionPlan['regions']
+): (page: number, rect: Rect) => boolean {
+  const boxes = regions.map((r) => ({ page: r.page, rects: r.quads.map(rectFromQuad) }))
+  return (page, rect) =>
+    boxes.some((b) => b.page === page && b.rects.some((r) => rectsIntersect(r, rect)))
+}
+
+/**
+ * Whether a mark of `plan` overlaps `a` by its own geometry, by the rule `planRedaction` removes
+ * session annotations by: for the file's own annotations, which the engine removes itself.
+ */
+export function overlapsMark(plan: RedactionPlan, a: Annotation): boolean {
+  return hitsRegions(plan.regions)(a.page, geometryOf(a))
+}
+
+/**
  * Decides what applying redactions does: which session annotations are the marks and what they
  * cover, which other session annotations go with the content under them, and which are written
  * after. Annotations that came from the file and are locked are in neither list.
@@ -52,7 +73,7 @@ function geometryOf(a: Annotation): Rect {
  * A session annotation is removed when its own geometry overlaps a mark's quad on its page, on
  * an open interval, so one that only touches an edge stays. A loupe is tested by its `rect`, its
  * lens. A mask is never removed. A reply goes with its note and never on its own. A signature
- * goes when a mark overlaps its field's widget.
+ * goes when a mark overlaps a widget of its field.
  */
 export function planRedaction(
   annotations: readonly Annotation[],
@@ -64,15 +85,13 @@ export function planRedaction(
     page: m.page,
     quads: m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect),
   }))
-  const boxes = regions.map((r) => ({ page: r.page, rects: r.quads.map(rectFromQuad) }))
-  const hit = (page: number, rect: Rect): boolean =>
-    boxes.some((b) => b.page === page && b.rects.some((r) => rectsIntersect(r, rect)))
+  const hit = hitsRegions(regions)
 
   const goes = (a: Annotation): boolean => {
     if (a.type === 'redact' || a.type === 'mask') return false
     if (hit(a.page, geometryOf(a))) return true
-    const field = options.fieldRects?.get(a.id)
-    return field !== undefined && hit(field.page, field.rect)
+    const widgets = options.fieldRects?.get(a.id) ?? []
+    return widgets.some((w) => hit(w.page, w.rect))
   }
 
   const byId = new Map(annotations.map((a) => [a.id, a]))

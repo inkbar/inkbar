@@ -45,9 +45,14 @@ export function heldEngine(unavailable = false): EngineLoader {
       }),
     // A PDF header is enough for a download to carry.
     save: () => Promise.resolve(new TextEncoder().encode('%PDF-1.7 written')),
+    redact: () => Promise.reject(new Error('unused')),
     close: () => Promise.resolve(),
   }
-  const engine = { open: () => Promise.resolve(doc), destroy: () => Promise.resolve() }
+  const engine = {
+    open: () => Promise.resolve(doc),
+    checkRedaction: () => Promise.reject(new Error('unused')),
+    destroy: () => Promise.resolve(),
+  }
   return () => {
     held.loads++
     return unavailable

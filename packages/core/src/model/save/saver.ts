@@ -5,11 +5,95 @@ import { InkError, isInkError } from '../errors'
 
 import { AnnotationUnwritable } from './write-input'
 
+import type { Quad, Rect } from '../geometry'
+
 /** What a save writes, as far as the saver looks into it: the engine's `WriteInput` fits. */
 export interface SaveInput {
   remove?: readonly { page: number; objectNumber: number }[]
   annotations?: readonly object[]
   fields?: Readonly<Record<string, { value: string | readonly string[]; text?: string }>>
+}
+
+/** What applying redactions writes, as far as the saver looks into it: the engine's `RedactInput` fits. */
+export interface RedactSaveInput extends SaveInput {
+  /** The marks, each with the overlay left in its place as its appearance. */
+  marks: readonly object[]
+}
+
+/** What sanitising removed from a redacted file. */
+export interface RedactionSanitised {
+  /** The document information dictionary or XMP metadata. */
+  metadata: boolean
+  /** The number of attached files. */
+  attachments: number
+  /** JavaScript: document scripts and script actions. */
+  scripts: boolean
+  /** Page thumbnails. */
+  thumbnails: boolean
+  /** Private application data and links to full-resolution originals. */
+  privateData: boolean
+}
+
+/** What the engine says an apply did: the engine's `RedactResult`, by shape. */
+export interface RedactEngineResult {
+  /** Per page with marks applied: the marks, and the file annotations removed, pop-ups included. */
+  pages: readonly { page: number; marks: number; annotationsRemoved: number }[]
+  /** Inkbar's own earlier marks applied where they came back locked, in an encrypted file. */
+  ownLockedMarks: number
+  /** The regions of those marks, per page, read before the apply removed them. */
+  ownLockedRegions: readonly RedactionRegion[]
+  /** Redact annotations from other programs, left in the file unapplied. */
+  foreignMarks: number
+  /** The form fields not written because a mark removed their widgets. */
+  fieldsSkipped: readonly string[]
+  sanitised: RedactionSanitised
+  /** Whether the file has layers that are hidden. They are not cleaned. */
+  hiddenLayers: boolean
+  /** Whether the file held a digital signature, which stops verifying. */
+  signed: boolean
+}
+
+/** A place the check looks under: one mark's quads on a page, in user space. */
+export interface RedactionRegion {
+  page: number
+  quads: readonly Quad[]
+}
+
+/** A place the check looked under, and what it found there. */
+export interface RedactionCandidate {
+  /** Page index, from 0. */
+  page: number
+  /** For `kind: 'region'`, the index of the region it answers in the list checked. */
+  region?: number
+  /** The place, in user space. */
+  rect: Rect
+  kind: 'region' | 'redact-annotation' | 'filled-box' | 'annotation-box'
+  /** Text that text extraction can read under it. */
+  text: 'none' | 'present'
+  /** Image samples under it that are not one flat value. */
+  image: 'none' | 'present'
+  /** Vector paths or shadings crossing it. */
+  drawing: 'none' | 'present'
+  /** `clean` when nothing was found under it. */
+  verdict: 'clean' | 'content-remains' | 'unapplied'
+}
+
+/**
+ * What the check of a redacted file found: the engine's `RedactionFindings`, by shape. Places,
+ * counts and flags, never text from the file.
+ */
+export interface RedactionFindings {
+  /** Page by page; on a page, regions in the order given. */
+  candidates: readonly RedactionCandidate[]
+  file: {
+    /** Revisions kept before the last one. */
+    earlierVersions: number
+    metadata: boolean
+    attachments: number
+    scripts: boolean
+    hiddenLayers: boolean
+    signed: boolean
+  }
 }
 
 /**
@@ -20,13 +104,25 @@ export interface SaveInput {
 export interface SaveEngineDocument {
   /** Writes annotations and form values into the document as it was opened. */
   write(input: SaveInput): Promise<void>
+  /**
+   * Applies redaction marks to the document as it was opened, writes the rest after them and
+   * sanitises. After it, `save` rewrites and `write` rejects.
+   */
+  redact(input: RedactSaveInput): Promise<RedactEngineResult>
   /** The document's bytes, with what was written. */
   save(): Promise<Uint8Array>
+  /** Frees the document. */
+  close(): Promise<void>
 }
 
 /** What core asks of an engine when it saves: see `SaveEngineDocument`. */
 export interface SaveEngine {
   open(bytes: Uint8Array, options?: { password?: string }): Promise<SaveEngineDocument>
+  /** Checks what is left under each region of a file the engine just redacted. */
+  checkRedaction(
+    bytes: Uint8Array,
+    options?: { password?: string; regions?: readonly RedactionRegion[] }
+  ): Promise<RedactionFindings>
   destroy(): Promise<void>
 }
 
@@ -58,6 +154,25 @@ export interface Saver {
    * annotation could not be painted or written, `details.annotation` is its id.
    */
   write(key: string, input: () => Promise<SaveInput>): Promise<Uint8Array>
+  /**
+   * Applies `input()` to the file as opened, saves it and checks the saved bytes under
+   * `regions` followed by the regions of the earlier marks the engine applied, in the same turn
+   * as writes, so it never overlaps one. Resolves with the regions it checked, in that order. Rejects with
+   * `RedactionFailed` when the engine cannot be started, cannot apply or write the input, or
+   * cannot check the bytes, and with `DocumentDestroyed` once destroyed. `details.stage` says
+   * which: `'engine'`, `'apply'` or `'verify'`; `details.page` and `details.annotation` name
+   * the page and the annotation when the engine named one.
+   */
+  redact(
+    input: () => Promise<RedactSaveInput>,
+    regions: readonly RedactionRegion[]
+  ): Promise<{
+    bytes: Uint8Array
+    result: RedactEngineResult
+    /** The regions checked: `regions`, then `result.ownLockedRegions`. */
+    checked: readonly RedactionRegion[]
+    findings: RedactionFindings
+  }>
   /** Destroys the engine. A write in flight rejects with `DocumentDestroyed`. */
   destroy(): void
 }
@@ -65,6 +180,8 @@ export interface Saver {
 interface Session {
   engine: SaveEngine
   doc: SaveEngineDocument
+  /** A redaction ran on `doc`: it takes no more writes, so the file is opened again. */
+  spent: boolean
 }
 
 const destroyedError = (): InkError =>
@@ -77,17 +194,32 @@ class NotStarted extends Error {
   }
 }
 
+/** The check of a redacted file failed or could not run: `cause` says why. */
+class NotChecked extends Error {
+  constructor(cause: unknown) {
+    super('The redacted file could not be checked', { cause })
+  }
+}
+
 /** An `EngineError`, told by its name: core never imports the engine's classes. */
 const engineCode = (e: unknown): string | undefined =>
   e instanceof Error && e.name === 'EngineError'
     ? (e as Error & { code?: string }).code
     : undefined
 
-/** The id of the annotation an `EngineError` says it could not write, if it names one. */
+/** The id of the annotation an `EngineError` says it could not write or apply, if it names one. */
 const engineAnnotation = (e: unknown): string | undefined => {
-  if (engineCode(e) !== 'write-failed') return undefined
+  const code = engineCode(e)
+  if (code !== 'write-failed' && code !== 'redaction-failed') return undefined
   const id = (e as Error & { annotation?: unknown }).annotation
   return typeof id === 'string' ? id : undefined
+}
+
+/** The page an `EngineError` names, if it names one. */
+const enginePage = (e: unknown): number | undefined => {
+  if (engineCode(e) === undefined) return undefined
+  const page = (e as Error & { page?: unknown }).page
+  return typeof page === 'number' ? page : undefined
 }
 
 /**
@@ -105,6 +237,7 @@ export function createSaver(options: SaverOptions): Saver {
   let last: { key: string; bytes: Promise<Uint8Array> } | undefined
 
   const quietly = (p: Promise<unknown>) => void p.catch(() => undefined)
+  const passwordOption = options.password ? { password: options.password } : {}
 
   /** The engine and the file open in it, made on first use and kept. */
   const open = (): Promise<Session> => {
@@ -123,11 +256,8 @@ export function createSaver(options: SaverOptions): Saver {
       }
       try {
         const bytes = await options.bytes()
-        const doc = await engine.open(
-          bytes,
-          options.password ? { password: options.password } : {}
-        )
-        return { engine, doc }
+        const doc = await engine.open(bytes, passwordOption)
+        return { engine, doc, spent: false }
       } catch (error) {
         quietly(engine.destroy())
         throw error
@@ -178,6 +308,59 @@ export function createSaver(options: SaverOptions): Saver {
     )
   }
 
+  /** The session's document, opened again from the file when a redaction has spent it. */
+  const docOf = async (s: Session): Promise<SaveEngineDocument> => {
+    if (!s.spent) return s.doc
+    await s.doc.close()
+    const bytes = await options.bytes()
+    if (destroyed) throw destroyedError()
+    s.doc = await s.engine.open(bytes, passwordOption)
+    s.spent = false
+    return s.doc
+  }
+
+  const redactFailed = (error: unknown): unknown => {
+    if (destroyed) return destroyedError()
+    if (isInkError(error)) return error
+    if (error instanceof NotStarted)
+      return new InkError(
+        'RedactionFailed',
+        'The engine could not be loaded or started',
+        { stage: 'engine' },
+        error.cause
+      )
+    if (error instanceof AnnotationUnwritable)
+      return new InkError(
+        'RedactionFailed',
+        `The annotation ${error.annotation} could not be written into this file`,
+        { stage: 'apply', annotation: error.annotation },
+        error.cause
+      )
+    if (error instanceof NotChecked) {
+      const page = enginePage(error.cause)
+      return new InkError(
+        'RedactionFailed',
+        'The redacted file could not be checked',
+        { stage: 'verify', ...(page !== undefined && { page }) },
+        error.cause
+      )
+    }
+    const page = enginePage(error)
+    const annotation = engineAnnotation(error)
+    return new InkError(
+      'RedactionFailed',
+      annotation === undefined
+        ? 'The redactions could not be applied to this file'
+        : `The annotation ${annotation} could not be applied to this file`,
+      {
+        stage: 'apply',
+        ...(page !== undefined && { page }),
+        ...(annotation !== undefined && { annotation }),
+      },
+      error
+    )
+  }
+
   /**
    * The end of the last write's turn. A write and its save are two engine calls on one
    * document, and each write starts from the file as opened, so a second write between them
@@ -196,9 +379,10 @@ export function createSaver(options: SaverOptions): Saver {
     return exclusive(async () => {
       if (destroyed) throw destroyedError()
       const current = session ?? open()
-      const { doc } = await current
+      const s = await current
       if (destroyed) throw destroyedError()
       try {
+        const doc = await docOf(s)
         await doc.write(written)
         const bytes = await doc.save()
         if (destroyed) throw destroyedError()
@@ -210,7 +394,49 @@ export function createSaver(options: SaverOptions): Saver {
     })
   }
 
+  const redact: Saver['redact'] = async (input, regions) => {
+    try {
+      if (destroyed) throw destroyedError()
+      const written = await input()
+      if (destroyed) throw destroyedError()
+      return await exclusive(async () => {
+        if (destroyed) throw destroyedError()
+        const current = session ?? open()
+        const s = await current
+        if (destroyed) throw destroyedError()
+        try {
+          const doc = await docOf(s)
+          // Spent from here, whether the apply works or not: the next write opens the file again.
+          s.spent = true
+          const result = await doc.redact(written)
+          const bytes = await doc.save()
+          if (destroyed) throw destroyedError()
+          // The earlier marks the engine applied are known only now, and are checked too.
+          const checked = [...regions, ...result.ownLockedRegions]
+          // Whatever the check throws, the file has not passed it.
+          // A throw as the call is made counts, not only a rejection.
+          const findings = await (async () =>
+            s.engine.checkRedaction(bytes, {
+              ...passwordOption,
+              regions: checked,
+            }))().catch((cause: unknown) => {
+            throw new NotChecked(cause)
+          })
+          if (destroyed) throw destroyedError()
+          return { bytes, result, checked, findings }
+        } catch (error) {
+          const cause = error instanceof NotChecked ? error.cause : error
+          if (STOPPED_CODES.has(engineCode(cause))) drop(current)
+          throw error
+        }
+      })
+    } catch (error) {
+      throw redactFailed(error)
+    }
+  }
+
   return {
+    redact,
     write(key, input) {
       if (destroyed) return Promise.reject(destroyedError())
       let entry = last

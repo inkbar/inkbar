@@ -34,6 +34,15 @@ const textOf = (d: Drawing) => {
 }
 
 describe('redactionOverlay', () => {
+  test('fills the rectangle of a mark with an empty list of quads', () => {
+    const rect = { x: 10, y: 20, width: 100, height: 20 }
+    const d = redactionOverlay({ ...redact(rect), quads: [] } as Annotation)
+    expect(d.items).toEqual([
+      { kind: 'rect', rect, paint: { fill: { color: '#000000', opacity: 1 } } },
+    ])
+    expect(d.bounds).toEqual(rect)
+  })
+
   test("fills with the mark's colour, opaque, with no outline", () => {
     const d = redactionOverlay(
       redact({ x: 10, y: 20, width: 100, height: 20 }, { interiorColor: '#336699' })

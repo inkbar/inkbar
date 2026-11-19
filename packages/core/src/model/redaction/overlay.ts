@@ -30,8 +30,10 @@ export function redactionOverlay(mark: Annotation): Drawing {
     throw new TypeError('redactionOverlay needs a redact annotation')
   const fill = mark.interiorColor || staticDefaults.fill()
   const paint = { fill: { color: fill, opacity: 1 } }
-  const items: DrawItem[] = mark.quads
-    ? mark.quads.map((q): DrawItem => ({
+  // A mark with no quads, or an empty list of them, covers its `rect`, as the region does.
+  const quads = mark.quads && mark.quads.length > 0 ? mark.quads : undefined
+  const items: DrawItem[] = quads
+    ? quads.map((q): DrawItem => ({
         kind: 'polygon',
         points: [q.p1, q.p2, q.p4, q.p3],
         paint,
@@ -66,7 +68,7 @@ export function redactionOverlay(mark: Annotation): Drawing {
       outsideStandardFonts: outside,
     })
   }
-  const covered = mark.quads ? mark.quads.map(rectFromQuad) : [mark.rect]
+  const covered = quads ? quads.map(rectFromQuad) : [mark.rect]
   const x = Math.min(...covered.map((r) => r.x))
   const y = Math.min(...covered.map((r) => r.y))
   return {

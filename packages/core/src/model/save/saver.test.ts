@@ -24,6 +24,8 @@ function fakeEngine() {
   const engines: Engine[] = []
   let created: Promise<void> = Promise.resolve()
   let releaseCreate: (() => void) | undefined
+  let checkFails: Error | undefined
+  let checkThrows: Error | undefined
   const createEngine = vi.fn(async () => {
     await created
     const n = engines.length + 1
@@ -92,6 +94,16 @@ function fakeEngine() {
       },
       checkRedaction(_bytes, options) {
         calls.push(`check ${n} ${options?.regions?.length ?? 0}`)
+        if (checkThrows) {
+          const e = checkThrows
+          checkThrows = undefined
+          throw e
+        }
+        if (checkFails) {
+          const e = checkFails
+          checkFails = undefined
+          return Promise.reject(e)
+        }
         return Promise.resolve({
           candidates: [],
           file: {
@@ -127,6 +139,10 @@ function fakeEngine() {
     },
     releaseCreate: () => releaseCreate?.(),
     hold: () => (hold = true),
+    /** Makes the next check reject with `e`. */
+    failCheck: (e: Error) => (checkFails = e),
+    /** Makes the next check throw `e` as it is called, before any promise. */
+    throwCheck: (e: Error) => (checkThrows = e),
     release: () => release?.(),
   }
 }
@@ -346,6 +362,102 @@ describe('createSaver', () => {
     expect(fake.calls).toContain('destroy 1')
     await expect(s.write('k', input(1))).rejects.toMatchObject({
       code: 'DocumentDestroyed',
+    })
+  })
+
+  it('applies, saves and checks in one turn, then opens the file again for a write', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake, 'secret')
+    await s.write('one', input(1))
+    const region = {
+      page: 0,
+      quads: [
+        {
+          p1: { x: 0, y: 10 },
+          p2: { x: 10, y: 10 },
+          p3: { x: 0, y: 0 },
+          p4: { x: 10, y: 0 },
+        },
+      ],
+    }
+    const done = await s.redact(
+      () => Promise.resolve({ marks: [{}, {}] }),
+      [region, region]
+    )
+    expect(done.result.pages).toEqual([{ page: 0, marks: 2, annotationsRemoved: 0 }])
+    await s.write('two', input(2))
+    expect(fake.calls).toEqual([
+      'open 1 secret',
+      'write 1 1',
+      'save 1',
+      'redact 1 2',
+      'save 1',
+      'check 1 2',
+      // The redacted copy takes no write: the file is opened again on the same engine.
+      'close 1',
+      'open 1 secret',
+      'write 1 2',
+      'save 1',
+    ])
+  })
+
+  it('wraps a failed apply as RedactionFailed', async () => {
+    const network = new TypeError('Failed to fetch dynamically imported module')
+    const notLoaded = createSaver({
+      loader: () => Promise.reject(network),
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+    })
+    await expect(
+      notLoaded.redact(() => Promise.resolve({ marks: [] }), [])
+    ).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'engine' },
+      cause: network,
+    })
+    const fake = fakeEngine()
+    const s = saver(fake)
+    const unpaintable = new UnpaintableError('text')
+    await expect(
+      s.redact(() => Promise.reject(new AnnotationUnwritable('mark-1', unpaintable)), [])
+    ).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'apply', annotation: 'mark-1' },
+      cause: unpaintable,
+    })
+  })
+
+  it('fails a redaction at verify whatever the check throws, and drops a stopped engine', async () => {
+    for (const [cause, stops] of [
+      [new RangeError('bad region'), false],
+      [new Error('worker crashed'), false],
+      [new EngineError('engine-failure', 'gone'), true],
+    ] as const) {
+      const fake = fakeEngine()
+      const s = saver(fake)
+      fake.failCheck(cause)
+      await expect(
+        s.redact(() => Promise.resolve({ marks: [] }), [])
+      ).rejects.toMatchObject({
+        code: 'RedactionFailed',
+        details: { stage: 'verify' },
+        cause,
+      })
+      expect(fake.calls.includes('destroy 1')).toBe(stops)
+    }
+  })
+
+  it('fails a redaction at verify when the check throws as it is called', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    const cause = new RangeError('bad region')
+    fake.throwCheck(cause)
+    await expect(
+      s.redact(() => Promise.resolve({ marks: [] }), [])
+    ).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'verify' },
+      cause,
     })
   })
 
