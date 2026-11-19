@@ -15,3 +15,6 @@ fixtures/pdf/generated-large.pdf
 # Written by Turbo
 /AGENTS.md
 .svelte-kit
+
+# Local environment file: direnv loads credentials from it, and it is never committed
+.env
