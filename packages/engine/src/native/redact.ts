@@ -3,16 +3,10 @@ import { EngineError, type UnremovableKind } from '../errors.ts'
 import { writeAnnotation } from './annotations.ts'
 import { buildAppearance } from './appearance.ts'
 import { formFieldNames, writeFields } from './fields.ts'
-import { inspectFile, isCount, isRecord, readReport } from './inspect.ts'
+import { groupByPage, inspectFile, isCount, isRecord, readReport } from './inspect.ts'
 import { withFloats, withInts, type Heap } from './strings.ts'
 
-import type {
-  AnnotationRef,
-  Rect,
-  RedactInput,
-  RedactResult,
-  WriteAnnotation,
-} from '../types.ts'
+import type { Rect, RedactInput, RedactResult, WriteAnnotation } from '../types.ts'
 import type { Quad } from 'gloss-format'
 
 /** What sanitising found, as the fork's flags. */
@@ -347,17 +341,12 @@ export function applyRedactions(
     }
   }
 
-  const marksByPage = new Map<number, WriteAnnotation[]>()
-  for (const item of input.marks)
-    marksByPage.set(item.page, [...(marksByPage.get(item.page) ?? []), item])
+  const marksByPage = groupByPage(input.marks)
 
   // Before anything is removed or written: a mark the apply cannot honour changes nothing.
   refuseUnremovable(heap, doc, marksByPage, context, withPage)
 
-  const removals = new Map<number, AnnotationRef[]>()
-  for (const ref of input.remove ?? [])
-    removals.set(ref.page, [...(removals.get(ref.page) ?? []), ref])
-  for (const [index, refs] of removals)
+  for (const [index, refs] of groupByPage(input.remove ?? []))
     withPage(index, (page) => {
       for (const ref of refs)
         if (!fn.EPDFPage_RemoveAnnotByObjectNumber(page, ref.objectNumber))
