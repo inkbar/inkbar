@@ -436,6 +436,7 @@ export class EngineCore {
       if (item.appearance) checkAppearance(item.appearance, `annotation ${id}`)
     }
     for (const [name, field] of Object.entries(input.fields ?? {})) {
+      if (!isRecord(field)) throw new ArgumentError(`field "${name}" must be an object`)
       const { value, text } = field
       const strings =
         typeof value === 'string' ||

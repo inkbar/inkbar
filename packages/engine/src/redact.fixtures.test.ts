@@ -650,6 +650,8 @@ test('missing or malformed input is a RangeError and keeps the engine', async ()
     { marks: [], remove: 3 },
     { marks: [], annotations: {} },
     { marks: [], fields: 'x' },
+    { marks: [], fields: { x: null } },
+    { marks: [], fields: { x: 'value' } },
     { marks: [null] },
   ])
     expect(() => core.redact(id, input as never), JSON.stringify(input)).toThrow(
