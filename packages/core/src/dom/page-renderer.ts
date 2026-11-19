@@ -3,13 +3,13 @@
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
 import { readonly, writable, type Readable } from '../model/readable'
-import { hiddenAppearances, omitAppearances } from '../pdfjs/widget-appearance'
+import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
+import { hiddenFromPdfjsIds } from './draw-request'
 
 import type { PageTransform } from './transform'
 import type { InkDocument } from '../model/document'
-import type { PdfjsRenderTask } from '../pdfjs/types'
 
 export interface PageRendererOptions {
   document: InkDocument
@@ -53,9 +53,6 @@ export interface PageRenderer {
   destroy(): void
 }
 
-const isCancellation = (error: unknown): boolean =>
-  (error as { name?: unknown } | null)?.name === 'RenderingCancelledException'
-
 export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
   const { document: doc, page, host } = opts
   const view = host.ownerDocument.defaultView
@@ -70,7 +67,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
 
   let current: HTMLCanvasElement | undefined
   let latest = opts.transform
-  let task: PdfjsRenderTask | undefined
+  /** Aborts the render in flight. */
+  let controller: AbortController | undefined
   let destroyed = false
   let generation = 0
 
@@ -119,30 +117,23 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     latest = transform
     const dpr = currentDpr()
     dprWatch?.watch(dpr)
-    task?.cancel()
-    task = undefined
+    controller?.abort()
+    controller = undefined
     if (!resolvePending) {
       rendered = new Promise<void>((resolve) => (resolvePending = resolve))
     }
     trackFileCopies()
     // The previous bitmap stays visible, stretched to the new size, until the new one lands.
     if (current) sizeCanvas(current, transform)
+    const ownController = new AbortController()
+    controller = ownController
     let canvas: HTMLCanvasElement | undefined
     try {
-      const pdfPage = await doc._pdfjs.getPage(page)
-      if (destroyed || gen !== generation) return
-      const { AnnotationMode } = doc._pdfjs.module
       const fields = doc.form.fields.get()
       const drawWidgets = opts.drawWidgets ?? fields.length === 0
-      const viewport = pdfPage.getViewport({
-        scale: transform.zoom,
-        rotation: transform.totalRotation,
-      })
       canvas = host.ownerDocument.createElement('canvas')
       canvas.dataset.inkCanvas = ''
       canvas.setAttribute('aria-hidden', 'true')
-      canvas.width = Math.round(transform.cssWidth * dpr)
-      canvas.height = Math.round(transform.cssHeight * dpr)
       canvas.style.cssText = 'position:absolute;left:0;top:0;'
       sizeCanvas(canvas, transform)
       // Widgets the form layer draws, and file annotations lifted into the session, which the
@@ -155,20 +146,20 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
               f.widgets.flatMap((w) => (w.page === page ? [w.id] : []))
             )
       )
-      const ownTask = pdfPage.render({
+      await doc._reader.draw(
+        {
+          page,
+          rotation: transform.totalRotation,
+          zoom: transform.zoom,
+          pixelRatio: dpr,
+          width: Math.round(transform.cssWidth * dpr),
+          height: Math.round(transform.cssHeight * dpr),
+          hide: hiddenFromPdfjsIds(hidden),
+        },
         canvas,
-        viewport,
-        // Pages are paper: an opaque white canvas, whatever the theme puts behind it.
-        background: '#ffffff',
-        // The same operator list the form layer draws widget appearances from, and the loupe
-        // draws regions from.
-        annotationMode: AnnotationMode.ENABLE,
-        ...(hidden.size === 0 ? {} : { operationsFilter: omitAppearances(doc, hidden) }),
-        ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
-      })
-      task = ownTask
-      await ownTask.promise
-      if (task === ownTask) task = undefined
+        ownController.signal
+      )
+      if (controller === ownController) controller = undefined
       if (destroyed || gen !== generation) {
         release(canvas)
         return
@@ -180,8 +171,11 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       opts.onRendered?.()
     } catch (error) {
       if (canvas && canvas !== current) release(canvas)
+      if (controller === ownController) controller = undefined
       const superseded = destroyed || gen !== generation
-      if (!(superseded && isCancellation(error)) && !destroyed) opts.onError?.(error)
+      const cancelled =
+        ownController.signal.aborted && error === ownController.signal.reason
+      if (!(superseded && cancelled) && !destroyed) opts.onError?.(error)
     } finally {
       if (gen === generation) settle()
     }
@@ -215,8 +209,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       destroyed = true
       stopLifted()
       dprWatch?.destroy()
-      task?.cancel()
-      task = undefined
+      controller?.abort()
+      controller = undefined
       if (current) release(current)
       current = undefined
       drawnHidden = undefined

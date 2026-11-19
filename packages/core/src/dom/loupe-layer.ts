@@ -10,15 +10,17 @@
 // top:0; width:100%; height:100%`), is clipped to the lens circle (`clip-path`, set from the
 // drawing at each attach) and leaves the pointer to the rim (`pointer-events:none`).
 import { loupeRegion } from '../model/annotations/drawing/loupe'
-import { renderRegion } from '../pdfjs/render-region'
+import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio, type DprWatch } from './dpr-watch'
+import { hiddenFromPdfjsIds, regionCanvasSize } from './draw-request'
 import { drawingFor } from './drawing-context'
 
 import type { PageTransform } from './transform'
 import type { LoupeAnnotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
+import type { PageRotation } from '../model/pages'
 
 /** Pause after a move, resize or zoom before a loupe re-renders, in ms. */
 export const LOUPE_RENDER_DELAY = 100
@@ -87,26 +89,38 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     lens.controller = undefined
   }
 
+  /**
+   * Draws `region` of `page` at `zoom` CSS px per point (the view's zoom times the
+   * magnification) and `pixelRatio`, turned by `rotation`, into a canvas sized to it. Form widgets
+   * are drawn as the file draws them, so field values filled in the session are not magnified,
+   * and file annotations lifted into the session are left out.
+   */
   async function render(
     lens: Lens,
     page: number,
     region: Rect,
-    scale: number,
-    rotation: number
+    zoom: number,
+    pixelRatio: number,
+    rotation: PageRotation
   ): Promise<void> {
     const controller = new AbortController()
     lens.controller = controller
     const doc = lens.canvas.ownerDocument
     const next = doc.createElement('canvas')
     try {
-      await renderRegion(
-        opts.document,
-        page,
-        region,
-        scale,
+      const info = opts.document.pages[page]!
+      await opts.document._reader.draw(
+        {
+          page,
+          rotation,
+          zoom,
+          pixelRatio,
+          ...regionCanvasSize(info, region, zoom * pixelRatio, rotation),
+          region,
+          hide: hiddenFromPdfjsIds(hiddenAppearances(opts.document)),
+        },
         next,
-        controller.signal,
-        rotation
+        controller.signal
       )
       if (controller.signal.aborted || destroyed) return
       lens.canvas.width = next.width
@@ -178,7 +192,8 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
       )
       dprWatch.watch(dpr)
     }
-    const scale = t.zoom * dpr * a.magnification
+    const zoom = t.zoom * a.magnification
+    const scale = zoom * dpr
     const rotation = t.totalRotation
     const key = JSON.stringify([a.page, region, scale, rotation])
     if (key === lens.key) return
@@ -186,12 +201,12 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     lens.key = key
     stop(lens)
     if (first) {
-      void render(lens, a.page, region, scale, rotation)
+      void render(lens, a.page, region, zoom, dpr, rotation)
       return
     }
     lens.timer = setTimeout(() => {
       lens.timer = undefined
-      void render(lens, a.page, region, scale, rotation)
+      void render(lens, a.page, region, zoom, dpr, rotation)
     }, LOUPE_RENDER_DELAY)
   }
 

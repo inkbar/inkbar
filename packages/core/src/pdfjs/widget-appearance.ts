@@ -84,10 +84,10 @@ function runIndex(OPS: Ops, list: OperatorList): RunIndex {
  * @internal
  */
 export function omitAppearances(
-  doc: InkDocument,
+  pdfjs: Pick<InkDocument['_pdfjs'], 'module'>,
   ids: ReadonlySet<string>
 ): OperationsFilter {
-  const { OPS } = doc._pdfjs.module
+  const { OPS } = pdfjs.module
   return (i, list) => {
     const index = runIndex(OPS, list)
     const id = index.ids[i]
