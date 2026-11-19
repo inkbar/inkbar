@@ -627,16 +627,22 @@ export function InkRoot({
       last === null || last.identity !== srcIdentity || last.password !== password
     lastSource.current = { identity: srcIdentity, password }
     // The redacted file stood in for the old source only.
-    if (newSource) reopened.current = null
+    if (newSource) {
+      reopened.current = null
+      toTell.current = null
+    }
     const re = reopened.current
-    // The list and the view are for the first open of the redacted file only: a later open of
-    // it (a password attempt) starts as any open does.
-    if (re && (re.initial || re.view))
-      reopened.current = { ...re, initial: undefined, view: undefined }
     // A new source: the host's list is its own again.
     if (!re) staleHost.current = null
+    // The list, the view and the message are for the first open of the redacted file only: a
+    // later open of it (a password attempt) starts as any open does. They are spent once that
+    // open has a document, so an open that runs again before then still has them.
     const done = re ? toTell.current : null
-    toTell.current = null
+    const spend = (): void => {
+      if (re && reopened.current === re && (re.initial || re.view))
+        reopened.current = { ...re, initial: undefined, view: undefined }
+      if (done !== null && toTell.current === done) toTell.current = null
+    }
     // A controlled reopen after applying redactions keeps the history as `proposed` left it:
     // emptied, and starting again from the host's answer, which may still be on its way.
     if (!re?.initial) snapshotHistory.clear()
@@ -730,6 +736,7 @@ export function InkRoot({
           return
         }
         opened = doc
+        spend()
         if (re?.view) keptViews.set(doc, re.view)
         // The prop may have changed while the file loaded, when there was no store to apply it to.
         const current = hostList()
