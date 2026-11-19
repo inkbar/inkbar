@@ -330,14 +330,18 @@ export async function applyRedactionsFlow(
     // an edit made then would not reach that file.
     out = await run(doc, { confirm: opts.confirm }, true)
   } catch (error) {
-    const failure = redactionFailure(error, opts.messages())
-    if (failure && opts.isCurrent()) {
-      // The marks over content that cannot be removed are selected, so the reader sees them.
-      const refused = refusedMarks(failure.error)
-      if (refused.length > 0) doc.annotations.select(refused)
-      opts.showFailure(failure.message)
-      report(failure.error)
-    }
+    // The document is released already. A throw while the failure is reported surfaces as an
+    // uncaught error, as a listener's does, and the flow still resolves.
+    guarded(() => {
+      const failure = redactionFailure(error, opts.messages())
+      if (failure && opts.isCurrent()) {
+        // The marks over content that cannot be removed are selected, so the reader sees them.
+        const refused = refusedMarks(failure.error)
+        if (refused.length > 0) doc.annotations.select(refused)
+        opts.showFailure(failure.message)
+        report(failure.error)
+      }
+    })
     return null
   }
   if (!out) return null

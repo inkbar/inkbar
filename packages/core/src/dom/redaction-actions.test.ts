@@ -228,6 +228,39 @@ describe('applyRedactionsFlow', () => {
       await vi.waitFor(() => expect(thrown).toEqual([failed]))
     })
 
+    it.each([
+      [
+        'messages',
+        {
+          messages: (): never => {
+            throw new Error('messages failed')
+          },
+        },
+      ],
+      [
+        'showFailure',
+        {
+          showFailure: (): never => {
+            throw new Error('showFailure failed')
+          },
+        },
+      ],
+    ] as const)(
+      'from %s while a failure is reported: resolves with null, and is rethrown',
+      async (name, over) => {
+        const thrown = rethrown()
+        const { doc } = fakeDoc({
+          apply: () =>
+            Promise.reject(new InkError('RedactionFailed', 'failed', { stage: 'apply' })),
+        })
+        await expect(applyRedactionsFlow(doc, options(over).opts)).resolves.toBeNull()
+        expect(redactionBusy(doc).get()).toBe(false)
+        await vi.waitFor(() =>
+          expect(thrown.map((e) => (e as Error).message)).toEqual([`${name} failed`])
+        )
+      }
+    )
+
     it('anywhere else: resolves with no reopen, is not busy, and is rethrown', async () => {
       const thrown = rethrown()
       const failed = new Error('isCurrent failed')
