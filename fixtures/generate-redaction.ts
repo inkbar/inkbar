@@ -7,7 +7,9 @@
  *   pnpm --filter @inkbar/fixtures exec tsx generate-redaction.ts
  *
  * Each entry records `secrets` (words under a region that must be gone after the apply), `keeps`
- * (page text beside the regions that must survive) and `regions` (where to put the marks).
+ * (page text beside the regions that must survive) and `regions` (where to put the marks). The
+ * check-* files hold content under their regions that no apply has touched, and the bad-* files
+ * are redacted badly on purpose and have no regions; in both, `secrets` are words still there.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -294,12 +296,255 @@ function redactHiddenLayer() {
   )
 }
 
+/*
+ * Files with content left under a region and nothing done to it, for the strict check: each must
+ * fail it. Text, a path and text in an annotation appearance are the unredacted redact-text,
+ * redact-path and redact-annotations. redact-image-flate cannot serve for an image: its left half
+ * is one flat red, and the check counts samples of one value as blank.
+ */
+
+/**
+ * A 20 x 10 Flate RGB image over x 100..300, y 100..200, every sample a different colour; the
+ * region covers its left half.
+ */
+function checkImage() {
+  const pixels = Buffer.alloc(20 * 10 * 3)
+  for (let row = 0; row < 10; row++)
+    for (let col = 0; col < 20; col++)
+      pixels.set([col * 12, row * 25, 255 - col * 12], (row * 20 + col) * 3)
+  write(
+    'check-image',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '/XObject << /Im0 6 0 R >> '),
+      stream('', `q 200 0 0 100 100 100 cm /Im0 Do Q\n${line(100, 50, 'KEEP-BETA')}`),
+      HELVETICA,
+      stream(
+        '/Type /XObject /Subtype /Image /Width 20 /Height 10 /ColorSpace /DeviceRGB /BitsPerComponent 8',
+        pixels
+      ),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A Flate RGB image of 20 by 10 samples over x 100..300, y 100..200, its colour changing from sample to sample; the region covers its left half; nothing redacted',
+      secrets: [],
+      keeps: ['KEEP-BETA'],
+      regions: [region(0, [95, 95, 200, 205])],
+    }
+  )
+}
+
+/** SECRET-ALPHA drawn by a Form XObject under the region, KEEP-BETA in the page content. */
+function checkFormText() {
+  write(
+    'check-form-text',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '/XObject << /Fm0 6 0 R >> '),
+      stream('', `q /Fm0 Do Q\n${line(300, 200, 'KEEP-BETA')}`),
+      HELVETICA,
+      stream(
+        `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /Resources << /Font << /F1 5 0 R >> >>`,
+        line(50, 200, 'SECRET-ALPHA')
+      ),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'SECRET-ALPHA drawn by a Form XObject under the region, KEEP-BETA beside it in the page content; nothing redacted',
+      secrets: ['SECRET', 'ALPHA'],
+      keeps: ['KEEP-BETA'],
+      regions: [region(0, OVER_WORD)],
+    }
+  )
+}
+
+/**
+ * A 4 x 4 grey inline image in a checkerboard of two values over x 100..200, y 100..200; the
+ * region covers its left half.
+ */
+function checkInlineImage() {
+  const samples = Buffer.alloc(16)
+  for (let i = 0; i < 16; i++) samples[i] = (Math.floor(i / 4) + i) % 2 ? 0x20 : 0xc0
+  write(
+    'check-inline-image',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5),
+      stream(
+        '',
+        Buffer.concat([
+          Buffer.from('q 100 0 0 100 100 100 cm\nBI /W 4 /H 4 /CS /G /BPC 8 ID '),
+          samples,
+          Buffer.from(`\nEI Q\n${line(100, 50, 'KEEP-BETA')}`),
+        ])
+      ),
+      HELVETICA,
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A 4 by 4 grey inline image, a checkerboard of two values, over x 100..200, y 100..200; the region covers its left half; nothing redacted',
+      secrets: [],
+      keeps: ['KEEP-BETA'],
+      regions: [region(0, [95, 95, 150, 205])],
+    }
+  )
+}
+
+/**
+ * The region filled with a tiling pattern whose cell draws SECRET-ALPHA. The redaction does not
+ * enter patterns, so an apply would leave the text.
+ */
+function checkPatternText() {
+  const [l, b, r, t] = OVER_WORD
+  write(
+    'check-pattern-text',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '/Pattern << /P0 6 0 R >> '),
+      stream(
+        '',
+        `q /Pattern cs /P0 scn ${l} ${b} ${r - l} ${t - b} re f Q\n${line(300, 200, 'KEEP-BETA')}`
+      ),
+      HELVETICA,
+      stream(
+        '/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 200 40] /XStep 200 /YStep 40 /Resources << /Font << /F1 5 0 R >> >>',
+        `BT /F1 20 Tf 5 12 Td (SECRET-ALPHA) Tj ET`
+      ),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted',
+      secrets: ['SECRET', 'ALPHA'],
+      keeps: ['KEEP-BETA'],
+      regions: [region(0, OVER_WORD)],
+    }
+  )
+}
+
+/*
+ * Files redacted badly on purpose, for the check without regions.
+ */
+
+/** A black rectangle drawn over SECRET-DELTA in the page content, which still holds the text. */
+function badBlackBox() {
+  const [l, b, r, t] = OVER_WORD
+  write(
+    'bad-black-box',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5),
+      stream(
+        '',
+        `${line(50, 200, 'SECRET-DELTA')}0 g ${l} ${b} ${r - l} ${t - b} re f\n${line(300, 200, 'KEEP-BETA')}`
+      ),
+      HELVETICA,
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'SECRET-DELTA with a black rectangle drawn over it (x 45..215, y 190..225) in the page content, KEEP-BETA beside it',
+      secrets: ['SECRET', 'DELTA'],
+      keeps: ['KEEP-BETA'],
+    }
+  )
+}
+
+/** SECRET-GAMMA under a Redact annotation nobody applied. */
+function badUnapplied() {
+  const [l, b, r, t] = OVER_WORD
+  write(
+    'bad-unapplied',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '', '/Annots [6 0 R] '),
+      stream('', line(50, 200, 'SECRET-GAMMA') + line(300, 200, 'KEEP-BETA')),
+      HELVETICA,
+      `<< /Type /Annot /Subtype /Redact /Rect [${l} ${b} ${r} ${t}] /QuadPoints [${l} ${t} ${r} ${t} ${l} ${b} ${r} ${b}] /IC [0 0 0] /F 4 /NM (unapplied) >>`,
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'SECRET-GAMMA under a Redact annotation (x 45..215, y 190..225) that was never applied, KEEP-BETA beside it',
+      annotations: { Redact: 1 },
+      secrets: ['SECRET', 'GAMMA'],
+      keeps: ['KEEP-BETA'],
+    }
+  )
+}
+
+/**
+ * A first revision with SECRET-ZETA and KEEP-BETA, and an appended second revision whose page
+ * draws KEEP-BETA alone. The first revision's content stream stays in the bytes.
+ */
+function badAppended() {
+  const original = buildPdf([
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    page(4, 5),
+    stream('', line(50, 200, 'SECRET-ZETA') + line(300, 200, 'KEEP-BETA')),
+    HELVETICA,
+  ])
+  const previous = /startxref\n(\d+)\n%%EOF\n$/.exec(original.toString('latin1'))?.[1]
+  if (previous === undefined) throw new Error('no startxref in the first revision')
+  const pageObject = Buffer.from(`3 0 obj\n${page(6, 5)}\nendobj\n`, 'latin1')
+  const contentObject = Buffer.concat([
+    Buffer.from('6 0 obj\n'),
+    stream('', line(300, 200, 'KEEP-BETA')),
+    Buffer.from('\nendobj\n'),
+  ])
+  const pageAt = original.length
+  const contentAt = pageAt + pageObject.length
+  const xrefAt = contentAt + contentObject.length
+  const offset = (n: number) => `${String(n).padStart(10, '0')} 00000 n \n`
+  const update = [
+    'xref\n0 1\n0000000000 65535 f \n',
+    `3 1\n${offset(pageAt)}`,
+    `6 1\n${offset(contentAt)}`,
+    `trailer\n<< /Size 7 /Root 1 0 R /Prev ${previous} >>\nstartxref\n${xrefAt}\n%%EOF\n`,
+  ].join('')
+  write(
+    'bad-appended',
+    Buffer.concat([original, pageObject, contentObject, Buffer.from(update, 'latin1')]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Two revisions: the first draws SECRET-ZETA and KEEP-BETA, the appended second draws KEEP-BETA alone; the first content stream stays in the bytes',
+      secrets: ['SECRET', 'ZETA'],
+      keeps: ['KEEP-BETA'],
+    }
+  )
+}
+
 redactText()
 redactImageFlate()
 redactPath()
 redactAnnotations()
 redactForeignMark()
 redactHiddenLayer()
+checkImage()
+checkFormText()
+checkInlineImage()
+checkPatternText()
+badBlackBox()
+badUnapplied()
+badAppended()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,

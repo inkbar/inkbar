@@ -15,6 +15,9 @@
  * - `redaction-failed`: `redact` could not apply the marks or sanitise the file. `page` names the
  *   page, and `annotation` the mark when one mark was the cause. The document is left as it was
  *   opened, and the engine keeps working.
+ * - `check-failed`: `checkRedaction` could not inspect the file or a page, as when a limit of the
+ *   inspection was reached. `page` names the page when one was the cause. Nothing was found or
+ *   not found, so the file has not passed the check. The engine keeps working.
  * - `aborted`: the call's signal fired while it was queued, or `destroy()` ran while it was queued.
  * - `engine-failure`: anything else. The engine or its worker could not load, a document was
  *   used after `close()`, the engine was used after `destroy()`, or PDFium failed. After an
@@ -29,13 +32,14 @@ export type EngineErrorCode =
   | 'out-of-memory'
   | 'write-failed'
   | 'redaction-failed'
+  | 'check-failed'
   | 'aborted'
   | 'engine-failure'
 
 /**
  * The error every engine call rejects with, apart from a `RangeError` for a bad page index or
- * scale, a render larger than the pixel limit, or a bad name or a box with no area in an
- * appearance.
+ * scale, a render larger than the pixel limit, a bad name or a box with no area in an
+ * appearance, or a region with no quads or a number that is not finite as a 32-bit float.
  */
 export class EngineError extends Error {
   /** What went wrong. */
@@ -47,7 +51,10 @@ export class EngineError extends Error {
    * about one.
    */
   readonly annotation?: string
-  /** The page index, from 0, a `redaction-failed` error is about, when it is about one. */
+  /**
+   * The page index, from 0, a `redaction-failed` or `check-failed` error is about, when it is
+   * about one.
+   */
   readonly page?: number
 
   constructor(

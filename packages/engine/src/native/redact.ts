@@ -3,6 +3,7 @@ import { EngineError } from '../errors.ts'
 import { writeAnnotation } from './annotations.ts'
 import { buildAppearance } from './appearance.ts'
 import { formFieldNames, writeFields } from './fields.ts'
+import { inspectFile } from './inspect.ts'
 import { withFloats, withInts, type Heap } from './strings.ts'
 
 import type {
@@ -145,32 +146,6 @@ function withOutputs<T>(heap: Heap, use: (first: number, second: number) => T) {
   })
 }
 
-/** The fork's report on the file's bytes, read as JSON and freed. */
-function inspectFile(heap: Heap, doc: number, context: RedactContext) {
-  const { fn } = heap
-  const report = fn.INK_Inspect_File(doc, context.data, context.size)
-  if (report === 0)
-    throw new EngineError('redaction-failed', 'The file could not be inspected.')
-  try {
-    const bytes = heap.native.HEAPU8
-    const end = bytes.indexOf(0, report)
-    const text = new TextDecoder().decode(bytes.subarray(report, end))
-    let parsed: { hiddenLayers?: unknown; signed?: unknown }
-    try {
-      parsed = JSON.parse(text) as typeof parsed
-    } catch (cause) {
-      throw new EngineError('redaction-failed', 'The file could not be inspected.', {
-        cause,
-      })
-    }
-    if (typeof parsed !== 'object' || parsed === null)
-      throw new EngineError('redaction-failed', 'The file could not be inspected.')
-    return { hiddenLayers: parsed.hiddenLayers === true, signed: parsed.signed === true }
-  } finally {
-    if (!heap.stopped) fn.INK_Inspect_Free(report)
-  }
-}
-
 /**
  * Writes one mark on `page` and returns its handle, which the caller closes: the annotation as
  * `write` writes it, its regions as /QuadPoints, and its appearance as the overlay the apply
@@ -230,7 +205,14 @@ export function applyRedactions(
   context: RedactContext
 ): RedactResult {
   const { fn } = heap
-  const file = inspectFile(heap, doc, context)
+  const file = inspectFile(
+    heap,
+    doc,
+    context.data,
+    context.size,
+    (cause) =>
+      new EngineError('redaction-failed', 'The file could not be inspected.', { cause })
+  )
   const fields = Object.entries(input.fields ?? {})
   const fieldsBefore = fields.length > 0 ? formFieldNames(heap, doc) : new Set<string>()
 

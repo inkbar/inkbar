@@ -196,7 +196,10 @@ describe('fixtures corpus', () => {
   )
 })
 
-const redaction = FIXTURE_NAMES.filter((name) => name.startsWith('redact-'))
+const redaction = FIXTURE_NAMES.filter(
+  (name) => name.startsWith('redact-') || name.startsWith('check-')
+)
+const badlyRedacted = FIXTURE_NAMES.filter((name) => name.startsWith('bad-'))
 
 describe('redaction fixtures', () => {
   /** The text PDF.js reads from every page of a fixture, page by page. */
@@ -240,5 +243,30 @@ describe('redaction fixtures', () => {
       expect(ys.every((y) => y >= (bottom as number) && y <= (top as number))).toBe(true)
     }
     await task.destroy()
+  })
+
+  it.each(badlyRedacted)(
+    '%s still holds its secrets and has no regions',
+    async (name) => {
+      const { secrets = [], keeps = [], regions } = manifest[name]
+      expect(regions).toBeUndefined()
+      expect(secrets.length).toBeGreaterThan(0)
+      const text = (await pageTexts(name)).join('\n')
+      const bytes = await fixtureBytes(name)
+      for (const word of keeps) expect(text, word).toContain(word)
+      for (const word of secrets) expect(holdsText(bytes, word), word).toBe(true)
+      // The appended revision draws the page without the secret; the others still show it.
+      for (const word of secrets)
+        expect(text.includes(word), word).toBe(name !== 'bad-appended')
+      const plain = Buffer.from(bytes).toString('latin1')
+      for (const word of [...secrets, ...keeps])
+        expect(plain.includes(word), word).toBe(false)
+    }
+  )
+
+  it('bad-appended has two revisions', async () => {
+    const plain = Buffer.from(await fixtureBytes('bad-appended')).toString('latin1')
+    expect(plain.match(/%%EOF/g)).toHaveLength(2)
+    expect(plain).toMatch(/\/Prev \d+/)
   })
 })

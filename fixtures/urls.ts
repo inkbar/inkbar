@@ -61,6 +61,13 @@ export const FIXTURE_NAMES = [
   'redact-annotations',
   'redact-foreign-mark',
   'redact-hidden-layer',
+  'check-image',
+  'check-form-text',
+  'check-inline-image',
+  'check-pattern-text',
+  'bad-black-box',
+  'bad-unapplied',
+  'bad-appended',
 ] as const
 
 export type FixtureName = (typeof FIXTURE_NAMES)[number]

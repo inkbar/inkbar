@@ -63,7 +63,7 @@ class WorkerTransport implements Transport {
         this.#pending.set(id, { resolve: resolve as Pending['resolve'], reject })
         let sent = request
         const transfer: Transferable[] = []
-        if (request.op === 'open') {
+        if (request.op === 'open' || request.op === 'checkRedaction') {
           // The engine hands over a private copy; a view on a larger buffer is copied first.
           const { bytes } = request
           const own =

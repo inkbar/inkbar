@@ -1,5 +1,11 @@
 import type { EngineErrorCode } from './errors.ts'
-import type { OpenOptions, RedactInput, SaveMode, WriteInput } from './types.ts'
+import type {
+  OpenOptions,
+  RedactInput,
+  RedactionRegion,
+  SaveMode,
+  WriteInput,
+} from './types.ts'
 
 export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
@@ -9,6 +15,11 @@ export type Request =
   | { op: 'redact'; doc: number; input: RedactInput }
   | { op: 'save'; doc: number; mode?: SaveMode | undefined }
   | { op: 'close'; doc: number }
+  | {
+      op: 'checkRedaction'
+      bytes: Uint8Array
+      options: { password?: string; regions?: readonly RedactionRegion[] }
+    }
 
 export interface Transport {
   call<T>(request: Request, signal?: AbortSignal): Promise<T>

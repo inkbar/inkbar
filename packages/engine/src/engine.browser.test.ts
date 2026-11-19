@@ -1,5 +1,5 @@
 import { fixtureUrl } from '@inkbar/fixtures/urls'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'vitest'
 
 import wasm from '../vendor/inkbar-pdfium.wasm?url'
 
@@ -179,6 +179,37 @@ test('redacts through the worker', async () => {
   expect(result.sanitised.metadata).toBe(true)
   await expect(doc.save({ mode: 'incremental' })).rejects.toBeInstanceOf(RangeError)
   expect((await doc.save()).length).toBeGreaterThan(0)
+})
+
+describe('checkRedaction', () => {
+  test('runs in a worker', async () => {
+    const inWorker = await start()
+    const inThread = await start({ wasm, worker: false })
+    const bytes = await fixture('bad-black-box')
+    const length = bytes.byteLength
+    const region = {
+      page: 0,
+      quads: [
+        {
+          p1: { x: 45, y: 225 },
+          p2: { x: 215, y: 225 },
+          p3: { x: 45, y: 190 },
+          p4: { x: 215, y: 190 },
+        },
+      ],
+    }
+    for (const options of [{}, { regions: [region] }]) {
+      const found = await inWorker.checkRedaction(bytes, options)
+      expect(bytes.byteLength).toBe(length) // copied, not transferred
+      expect(found.candidates).toEqual([
+        expect.objectContaining({ text: 'present', verdict: 'content-remains' }),
+      ])
+      expect(found).toEqual(await inThread.checkRedaction(bytes, options))
+    }
+    await expect(
+      inWorker.checkRedaction(bytes, { regions: [{ ...region, page: 3 }] })
+    ).rejects.toBeInstanceOf(RangeError)
+  })
 })
 
 test('aborting a queued call rejects it and lets the running one finish', async () => {
