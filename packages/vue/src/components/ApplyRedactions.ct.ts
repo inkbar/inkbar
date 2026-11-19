@@ -323,6 +323,35 @@ test('the message once the redacted file shows is in the words of that moment', 
   await expect(alertBox(page)).toHaveText('1 fertig.')
 })
 
+test('a second open while the redacted file loads keeps the view, the list and the message', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', controlled: 'now' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const tooled = cmp.locator('[data-ink-tool]')
+  await cmp.locator('[data-tool="redact-area"]').click()
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'redact-area')
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  // Once the old document has closed, and before the redacted one is ready, the open runs again.
+  await page.evaluate(async () => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    const before = root.__inkDocument
+    window.__heldEngine!.finish()
+    while (root.__inkDocument === before) await new Promise((r) => setTimeout(r, 0))
+    document.querySelector<HTMLButtonElement>('[data-testid="retry"]')!.click()
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await expect(alertBox(page)).toHaveText('1 redaction applied.')
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'redact-area')
+  await expect(cmp.getByTestId('list')).toHaveText('')
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
+})
+
 test('keeps the tool across the reopen', async ({ mount, page }) => {
   const cmp = await mount(Harness, {
     props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },

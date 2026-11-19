@@ -360,6 +360,7 @@ function release(): void {
 /** A new source or password from the host: the prompt starts over. */
 function start(): void {
   reopened = null
+  onShown = undefined
   prompt.reset()
   void open()
 }
@@ -368,15 +369,18 @@ function start(): void {
 async function open(retryPassword?: string): Promise<void> {
   const gen = ++generation
   const re = reopened
-  // The list and the view are for the first open of the redacted file only: a later open of it
-  // (a password attempt) starts as any open does.
-  if (re && (re.initial || re.view))
-    reopened = { ...re, initial: undefined, view: undefined }
   // A new source: the host's list is its own again.
   if (!re) staleHost = null
   const src = re ? re.source : props.src
   const shown = onShown
-  onShown = undefined
+  // The list, the view and the message are for the first open of the redacted file only: a
+  // later open of it (a password attempt) starts as any open does. They are spent once that
+  // open has a document, so an open that runs again before then still has them.
+  const spend = (): void => {
+    if (re && reopened === re && (re.initial || re.view))
+      reopened = { ...re, initial: undefined, view: undefined }
+    if (shown && onShown === shown) onShown = undefined
+  }
   release()
   // A controlled reopen after applying redactions keeps the history as `proposed` left it:
   // emptied, and starting again from the host's answer, which may still be on its way.
@@ -440,6 +444,7 @@ async function open(retryPassword?: string): Promise<void> {
     doc.destroy()
     return
   }
+  spend()
   if (re?.view) keptViews.set(doc, re.view)
   // The prop may have changed while the file loaded, when there was no store to apply it to.
   const current = hostList()
