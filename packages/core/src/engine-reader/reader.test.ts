@@ -58,49 +58,98 @@ function abortable(options: RenderOptions, gate: Promise<void>): Promise<Rendere
   })
 }
 
-type RenderFn = (call: number, index: number, options: RenderOptions) => Promise<Rendered>
+/** What a fake engine knows of itself, handed to the render function. */
+interface EngineState {
+  /** Which engine this is, counting from 0. */
+  index: number
+  /** Aborted when the engine is destroyed. */
+  ending: AbortSignal
+  /** Set once a call stops the engine; every later call then rejects with `engine-failure`. */
+  stopped: boolean
+}
+
+type RenderFn = (
+  call: number,
+  index: number,
+  options: RenderOptions,
+  engine: EngineState
+) => Promise<Rendered>
+
+/** Whether a rejection carries `code`, as an `EngineError` or a plain object does. */
+const hasCode = (error: unknown, code: string): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: unknown }).code === code
 
 interface FakeEngine extends ReaderEngine {
   open: ReturnType<typeof vi.fn<ReaderEngine['open']>>
   destroy: ReturnType<typeof vi.fn<ReaderEngine['destroy']>>
-  doc: Omit<ReaderEngineDocument, 'close'> & {
+  doc: Omit<ReaderEngineDocument, 'close' | 'pageInfo'> & {
     close: ReturnType<typeof vi.fn<ReaderEngineDocument['close']>>
+    pageInfo: ReturnType<typeof vi.fn<ReaderEngineDocument['pageInfo']>>
   }
 }
 
-/** A fake engine module: every `createEngine` makes a new engine over a one-page document. */
+/**
+ * A fake engine module: every `createEngine` makes a new engine over a one-page document. By
+ * default an `engine-failure` from a render stops that engine, as a trap does: every later call
+ * on it rejects with `engine-failure`. With `traps: false` the engine goes on, as it does for a
+ * page that cannot be loaded or drawn.
+ */
 function setup(
   opts: {
     render?: RenderFn
     rotation?: 0 | 90 | 180 | 270
     pageCount?: number
+    traps?: boolean
   } = {}
 ) {
   const engines: FakeEngine[] = []
-  const renders: { index: number; options: RenderOptions }[] = []
+  const states: EngineState[] = []
+  const renders: { index: number; options: RenderOptions; engine: number }[] = []
   const render: RenderFn =
     opts.render ?? ((_, __, options) => Promise.resolve(bitmap(options)))
   const createEngine = vi.fn((): Promise<FakeEngine> => {
+    const ending = new AbortController()
+    const state: EngineState = {
+      index: states.length,
+      ending: ending.signal,
+      stopped: false,
+    }
+    states.push(state)
+    const live = (): Promise<void> =>
+      state.stopped || ending.signal.aborted
+        ? Promise.reject(engineError('engine-failure'))
+        : Promise.resolve()
     const doc = {
       pageCount: opts.pageCount ?? 1,
-      pageInfo: vi.fn(() =>
-        Promise.resolve({
+      pageInfo: vi.fn<ReaderEngineDocument['pageInfo']>(() =>
+        live().then(() => ({
           width: 612,
           height: 792,
           rotation: opts.rotation ?? 0,
           box: { x: 0, y: 0, width: 612, height: 792 },
           userUnit: 1,
-        })
+        }))
       ),
       renderPage: vi.fn((index: number, options: RenderOptions) => {
-        renders.push({ index, options })
-        return render(renders.length, index, options)
+        if (state.stopped || ending.signal.aborted)
+          return Promise.reject(engineError('engine-failure'))
+        renders.push({ index, options, engine: state.index })
+        return render(renders.length, index, options, state).catch((error: unknown) => {
+          if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
+            state.stopped = true
+          throw error
+        })
       }),
       close: vi.fn(() => Promise.resolve()),
     }
     const engine: FakeEngine = {
       open: vi.fn(() => Promise.resolve(doc)),
-      destroy: vi.fn(() => Promise.resolve()),
+      destroy: vi.fn(() => {
+        ending.abort()
+        return Promise.resolve()
+      }),
       doc,
     }
     engines.push(engine)
@@ -115,7 +164,7 @@ function setup(
       password: undefined,
       warn,
     })
-  return { engines, renders, createEngine, loader, warn, open }
+  return { engines, states, renders, createEngine, loader, warn, open }
 }
 
 /** A canvas with a stubbed 2D context: its bitmap is never allocated. */
@@ -443,6 +492,105 @@ describe('an engine that stops', () => {
     expect(t.renders).toHaveLength(3)
     expect(first.context.putImageData).toHaveBeenCalledTimes(1)
     expect(second.context.putImageData).toHaveBeenCalledTimes(1)
+  })
+
+  it('a page that cannot be drawn on a working engine fails alone, without a restart', async () => {
+    const cannot = engineError('engine-failure')
+    const t = setup({
+      pageCount: 2,
+      traps: false,
+      render: (_, index, options) =>
+        index === 1 ? Promise.reject(cannot) : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const broken = fakeCanvas()
+    const healthy = fakeCanvas()
+    const [bad, good] = await Promise.allSettled([
+      reader.draw(request({ page: 1 }), broken.canvas),
+      reader.draw(request({ page: 0 }), healthy.canvas),
+    ])
+    expect(bad).toEqual({ status: 'rejected', reason: cannot })
+    expect(good).toEqual({ status: 'fulfilled', value: undefined })
+    expect(healthy.context.putImageData).toHaveBeenCalledTimes(1)
+    expect(broken.context.putImageData).not.toHaveBeenCalled()
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+    expect(t.engines[0]!.destroy).not.toHaveBeenCalled()
+    // Asked again, it fails again on the same engine: still no restart.
+    await expect(reader.draw(request({ page: 1 }), fakeCanvas().canvas)).rejects.toBe(
+      cannot
+    )
+    await reader.draw(request({ page: 0 }), fakeCanvas().canvas)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+
+  it('a real stop restarts once, retries a sibling the restart aborted, and retries the failing draw once', async () => {
+    const gate = deferred<void>()
+    const t = setup({
+      pageCount: 2,
+      render: (_, index, options, engine) => {
+        if (index === 1)
+          return engine.index === 0
+            ? gate.promise.then(() => Promise.reject(engineError('engine-failure')))
+            : Promise.reject(engineError('engine-failure'))
+        if (engine.index > 0) return Promise.resolve(bitmap(options))
+        // The sibling on the first engine runs until the engine is destroyed under it.
+        return new Promise<Rendered>((_resolve, reject) => {
+          engine.ending.addEventListener('abort', () => reject(engineError('aborted')), {
+            once: true,
+          })
+        })
+      },
+    })
+    const reader = await t.open()
+    const failing = fakeCanvas()
+    const sibling = fakeCanvas()
+    const failingDraw = reader.draw(request({ page: 1 }), failing.canvas)
+    const siblingDraw = reader.draw(request({ page: 0 }), sibling.canvas)
+    await vi.waitFor(() => expect(t.renders).toHaveLength(2))
+    gate.resolve()
+    const [bad, good] = await Promise.allSettled([failingDraw, siblingDraw])
+    expect(bad).toMatchObject({ status: 'rejected', reason: { code: 'engine-failure' } })
+    expect(good).toEqual({ status: 'fulfilled', value: undefined })
+    expect(sibling.context.putImageData).toHaveBeenCalledTimes(1)
+    expect(failing.context.putImageData).not.toHaveBeenCalled()
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    // Each draw ran once on each engine.
+    expect(t.renders.map((r) => [r.engine, r.index]).sort()).toEqual([
+      [0, 0],
+      [0, 1],
+      [1, 0],
+      [1, 1],
+    ])
+  })
+
+  it('a page-facts call aborted by a restart is retried on the new engine', async () => {
+    const t = setup({
+      pageCount: 2,
+      render: (call, _, options) =>
+        call === 1
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const first = t.engines[0]!
+    const facts = deferred<void>()
+    const original = first.doc.pageInfo.getMockImplementation()!
+    // Page 1's facts are held until the engine is destroyed, then rejected as the engine does.
+    first.doc.pageInfo.mockImplementation((index: number) =>
+      index === 1
+        ? facts.promise.then(() => Promise.reject(engineError('aborted')))
+        : original(index)
+    )
+    first.destroy.mockImplementation(() => {
+      facts.resolve()
+      return Promise.resolve()
+    })
+    const asked = reader.pageInfo(1)
+    await reader.draw(request({ page: 0 }), fakeCanvas().canvas)
+    await expect(asked).resolves.toMatchObject({ index: 1 })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.engines[1]!.doc.pageInfo).toHaveBeenCalledWith(1)
   })
 
   it('an aborted draw is never taken for a stopped engine', async () => {
