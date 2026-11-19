@@ -668,7 +668,13 @@ export class EngineCore {
   /**
    * `write`, after fetching the fallback fonts of the pages it loads: those it removes from,
    * appends to, and that hold an annotation replied to. With form values, every page: redrawing
-   * a field loads the font its /DA names, and the text the appearance holds depends on it.
+   * a field loads the font its /DA names, and the text the appearance holds depends on it. That
+   * loads each page once, which takes time on a long document.
+   *
+   * Not covered: a field font named only in the form's /DR and used by no page. The page needs
+   * call counts page resources, not /DR, so that font is not fetched first, and the appearance
+   * bytes then depend on whether an earlier render registered its key. PDFium writes a wrong
+   * appearance string for such a two-byte font either way.
    */
   async writeAfterFonts(
     id: number,

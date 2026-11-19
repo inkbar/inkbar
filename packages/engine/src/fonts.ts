@@ -65,9 +65,9 @@ async function read(source: string | URL, signal: AbortSignal | undefined) {
 /**
  * Fetches each key's font the first time it is needed and hands its bytes to `register`. A key
  * whose fetch fails (a network error, a status other than 2xx, bytes `register` refuses, or
- * `register` running out of memory) is failed for the loader's life and not fetched again. An aborted fetch fails nothing: the key is
- * fetched again next time. A source is dropped once its key is settled, so its bytes are not
- * kept once registered.
+ * `register` running out of memory) is failed for the loader's life and not fetched again. An
+ * aborted fetch fails nothing: the key is fetched again next time. A source is dropped once its
+ * key is settled, so its bytes are not kept once registered.
  */
 export function createFontLoader(
   sources: FontSources | undefined,
