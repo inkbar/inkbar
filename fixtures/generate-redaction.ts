@@ -426,11 +426,14 @@ function checkPatternText() {
       pages: 1,
       opens: true,
       describes:
-        'A fill 1 pt inside the region (x 46..214, y 191..224) with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly inside the region, so an apply removes it, and the pattern, used nowhere else, leaves the file',
+        'A fill 1 pt inside the region (x 46..214, y 191..224) with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly inside the region',
       secrets: ['SECRET', 'ALPHA'],
       keeps: ['KEEP-BETA'],
       regions: [region(0, OVER_WORD)],
-      gone: ['/PatternType'],
+      refused: {
+        kinds: ['pattern'],
+        why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file',
+      },
     }
   )
 }
@@ -1183,8 +1186,13 @@ function redactDrawing() {
         )} 0 R >>`
     ),
     drawingRow(
-      'A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320. The square lies wholly under the region, so the apply removes it, and the pattern, used nowhere else, leaves the file',
-      { gone: ['/PatternType'] }
+      'A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320. The square lies wholly under the region',
+      {
+        refused: {
+          kinds: ['pattern'],
+          why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file',
+        },
+      }
     )
   )
   // One cell the size of the page, so what it draws under the region appears nowhere else.
@@ -1271,8 +1279,13 @@ function redactDrawing() {
         )} 0 R >>`
     ),
     drawingRow(
-      'A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with the hatch of redact-drawing-hatch, and a blue square beside it: the apply removes the square, and the pattern leaves the file',
-      { gone: ['/PatternType'] }
+      'A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with the hatch of redact-drawing-hatch, and a blue square beside it',
+      {
+        refused: {
+          kinds: ['pattern'],
+          why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file',
+        },
+      }
     )
   )
   meshAndFunctionShadings()
@@ -1323,8 +1336,13 @@ function shadingsUnderMark() {
       (o) => `/Shading << /Sh0 ${o.add(stream(MESH, smallMeshData()))} 0 R >>`
     ),
     drawingRow(
-      'The triangle mesh of redact-drawing-mesh pulled into x and y 125..175, wholly inside the region (x and y 110..190), painted with sh, and a blue square beside it: the apply removes the shading, and its mesh leaves the file',
-      { gone: ['/ShadingType'] }
+      'The triangle mesh of redact-drawing-mesh pulled into x and y 125..175, wholly inside the region (x and y 110..190), painted with sh, and a blue square beside it',
+      {
+        refused: {
+          kinds: ['shading'],
+          why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mesh in the file',
+        },
+      }
     )
   )
   write(
@@ -1345,8 +1363,13 @@ function shadingsUnderMark() {
       }
     ),
     drawingRow(
-      'The function-based shading of redact-drawing-function-shading over x and y 125..175 only, wholly inside the region (x and y 110..190), and a blue square beside it: the apply removes the shading, and its function leaves the file',
-      { gone: ['/ShadingType', '/FunctionType'] }
+      'The function-based shading of redact-drawing-function-shading over x and y 125..175 only, wholly inside the region (x and y 110..190), and a blue square beside it',
+      {
+        refused: {
+          kinds: ['shading'],
+          why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the function in the file',
+        },
+      }
     )
   )
   write(
@@ -1476,8 +1499,14 @@ function redactMaskGroups() {
     'redact-mask-group-under-mark',
     maskGroupPage('60 145 120 25'),
     textRow(
-      'A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle, so the apply removes it and its mask with it',
-      { regions: [region(0, UNDER_MASK)] }
+      'A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle',
+      {
+        regions: [region(0, UNDER_MASK)],
+        refused: {
+          kinds: ['mask-group'],
+          why: 'the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mask group in the file',
+        },
+      }
     )
   )
 }
@@ -1499,6 +1528,80 @@ function redactTextFade() {
     ),
     textRow(
       'SECRET-ALPHA under the region, faded by a soft mask whose group draws only an axial ramp (gradient transparency), and KEEP-BETA beside it unmasked: the mask holds no picture, so the apply runs and the text goes'
+    )
+  )
+}
+
+/** SECRET-ALPHA under the region, faded by a ramp clipped to a triangle: not a simple fade. */
+function redactTextShapedFade() {
+  write(
+    'redact-text-shaped-fade',
+    onePage(
+      `q /GS0 gs ${line(50, 200, 'SECRET-ALPHA')}Q\n${line(300, 200, 'KEEP-BETA')}`,
+      (o) => {
+        const group = o.add(
+          stream(
+            `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /Group << /S /Transparency /CS /DeviceGray >> /Resources << /Shading << /Sh0 << /ShadingType 2 /ColorSpace /DeviceGray /Coords [40 0 220 0] /Function << /FunctionType 2 /Domain [0 1] /C0 [1] /C1 [0.3] /N 1 >> /Extend [true true] >> >> >>`,
+            '40 185 m 220 185 l 130 235 l h W n /Sh0 sh'
+          )
+        )
+        return `/ExtGState << /GS0 << /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G ${group} 0 R >> >> >>`
+      }
+    ),
+    textRow(
+      'SECRET-ALPHA under the region, faded by a soft mask whose group draws an axial ramp clipped to a triangle (x 40..220, y 185..235), and KEEP-BETA beside it unmasked. The triangle is a shape, so the group is not a simple fade',
+      {
+        refused: {
+          kinds: ['mask-group'],
+          why: 'the mask group draws a ramp clipped to a triangle, more than a simple fade; the text lies wholly inside the mark, so the apply would remove it with its mask, and the engine refuses because it cannot show that nothing else keeps the group in the file',
+        },
+      }
+    )
+  )
+}
+
+/** The page-sized cell of the pattern-gap rows: a magenta quadrilateral at x and y 130..170. */
+const PAGE_CELL = `/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 ${WIDTH} ${HEIGHT}] /XStep ${WIDTH} /YStep ${HEIGHT} /Resources << >>`
+const CELL_DRAWING = '1 0 1 rg 130 130 m 170 135 l 160 170 l 135 165 l h f'
+
+/**
+ * Two files that show why a pattern fill wholly inside a mark is refused. Without the refusal the
+ * fork's smoke check shows what the apply would do: in the first, the later line still names the
+ * pattern, so the cell stays in the saved file; in the second, the apply cuts the triangle's
+ * mitred corner instead of removing it, so the pattern stays with the cut shape.
+ */
+function redactPatternGaps() {
+  write(
+    'redact-drawing-pattern-colour-kept',
+    onePage(
+      `/Pattern cs /P0 scn 120 120 60 60 re f\n0 0 1 RG 2 w 260 240 m 340 240 l S\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) => `/Pattern << /P0 ${o.add(stream(PAGE_CELL, CELL_DRAWING))} 0 R >>`
+    ),
+    drawingRow(
+      "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. With no q/Q around it, a blue stroke-only line at y 240 follows, whose fill colour is still the pattern: the line paints none of the pattern, but its colour still names it, so an apply that removed the square would keep the cell in the saved file (as the fork's smoke check shows)",
+      {
+        refused: {
+          kinds: ['pattern'],
+          why: "the square lies wholly inside the mark, but a later line's colour still names the pattern, so the cell would stay in the file after the apply; the engine refuses",
+        },
+      }
+    )
+  )
+  write(
+    'redact-drawing-pattern-miter',
+    onePage(
+      `/Pattern CS /P0 SCN 10 w 0 j 130 130 m 170 130 l 150 185 l h S\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) => `/Pattern << /P0 ${o.add(stream(PAGE_CELL, CELL_DRAWING))} 0 R >>`
+    ),
+    drawingRow(
+      "A closed triangle (130, 130), (170, 130), (150, 185) stroked 10 pt wide with mitred joins in a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. The region (x 115..185, y 115..195) holds the triangle's box grown by half the stroke width, but the top corner's miter reaches y 199.6, past it: an apply would cut the stroke there instead of removing it, and the pattern would stay with the cut shape (as the fork's smoke check shows)",
+      {
+        regions: [region(0, [115, 115, 185, 195])],
+        refused: {
+          kinds: ['pattern'],
+          why: "the triangle's mitred corner reaches past the mark though its stroke box does not, so the apply would cut the stroke and keep the pattern; the engine refuses",
+        },
+      }
     )
   )
 }
@@ -1995,6 +2098,8 @@ redactImagePlacements()
 redactDrawing()
 redactMaskGroups()
 redactTextFade()
+redactTextShapedFade()
+redactPatternGaps()
 redactTextBesideCarriers()
 redactUnderMark()
 redactPages()

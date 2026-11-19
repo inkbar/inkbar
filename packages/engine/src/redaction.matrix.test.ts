@@ -27,7 +27,7 @@ import {
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
-import { mark, marksOf, quadOf, regionsOf } from './redaction/testing.ts'
+import { boundsOf, mark, marksOf, quadOf, regionsOf } from './redaction/testing.ts'
 
 import type { RedactionFindings } from './types.ts'
 
@@ -776,12 +776,18 @@ test('a redacted encrypted file still needs its password', async () => {
  *   with a shading pattern).
  * - `repeat`: the content under the mark repeats what stays in view (a hatch). Nothing
  *   position-specific lies under the mark, so the refusal is cautious, not needed.
+ * - `covered`: the shape lies wholly inside the mark, so the apply would remove it. The engine
+ *   refuses because it cannot show that nothing else keeps the carrier in the file. No reader
+ *   can show that for these files, so nothing more is asserted for them here; the two files that
+ *   show the reason (a later object naming the pattern, a mitred corner past the mark) have tests
+ *   of their own below.
  * - `beyond`: the kind of paint, from the same object, that PDF.js finds beside the mark.
  */
 const necessity: Partial<
   Record<
     FixtureName,
-    { under: 'cell' | 'hidden-text' | 'shading' | 'repeat'; beyond: Kind }
+    | { under: 'cell' | 'hidden-text' | 'shading' | 'repeat'; beyond: Kind }
+    | { under: 'covered' }
   >
 > = {
   'redact-text-pattern': { under: 'hidden-text', beyond: 'drawing' },
@@ -793,6 +799,15 @@ const necessity: Partial<
   'redact-drawing-sampled-axial': { under: 'shading', beyond: 'shading' },
   'redact-drawing-mesh-pattern': { under: 'shading', beyond: 'drawing' },
   'redact-mask-group-past-mark': { under: 'hidden-text', beyond: 'drawing' },
+  'redact-drawing-pattern': { under: 'covered' },
+  'check-pattern-text': { under: 'covered' },
+  'redact-drawing-hatch-under-mark': { under: 'covered' },
+  'redact-drawing-mesh-under-mark': { under: 'covered' },
+  'redact-drawing-function-under-mark': { under: 'covered' },
+  'redact-mask-group-under-mark': { under: 'covered' },
+  'redact-text-shaped-fade': { under: 'covered' },
+  'redact-drawing-pattern-colour-kept': { under: 'covered' },
+  'redact-drawing-pattern-miter': { under: 'covered' },
 }
 
 /** The bytes a save gives of the fixture as opened, with nothing done to it, without its /ID. */
@@ -841,7 +856,9 @@ describe.runIf(refusedBefore.length)('refused before the apply', () => {
       // cannot reach it, and the object carrying it reaches past the mark.
       const why = necessity[name]
       expect(why, 'necessity says why the refusal is needed').toBeDefined()
-      const { under, beyond } = why as NonNullable<typeof why>
+      const reason = why as NonNullable<typeof why>
+      if (reason.under === 'covered') return
+      const { under, beyond } = reason
       const source = await fixtureBytes(name)
       const pages = await readPages(source, regions, password)
       const marked = new Set(regions.map((r) => r.page))
@@ -900,6 +917,96 @@ describe.runIf(refusedAfter.length)('refused after the apply', () => {
       for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
     }
   )
+})
+
+/** The paths a page's operator list paints, in order: the paint operator and its fill colour. */
+const pagePaints = (bytes: Uint8Array) =>
+  withPdfjs(bytes, undefined, async (pdf, lib) => {
+    const list = await (await pdf.getPage(1)).getOperatorList()
+    const paints: {
+      paint: number
+      fill: unknown
+      lineWidth: number
+      join: number
+      data: number[]
+    }[] = []
+    let fill: unknown = '#000000'
+    let lineWidth = 1
+    let join = 0
+    list.fnArray.forEach((op, i) => {
+      const args = list.argsArray[i] as unknown[]
+      if (op === lib.OPS.setFillColorN) fill = args
+      else if (op === lib.OPS.setFillRGBColor) fill = args[0]
+      else if (op === lib.OPS.setLineWidth) lineWidth = args[0] as number
+      else if (op === lib.OPS.setLineJoin) join = args[0] as number
+      else if (op === lib.OPS.constructPath) {
+        const [paint, [data]] = args as [number, [ArrayLike<number>]]
+        paints.push({ paint, fill, lineWidth, join, data: Array.from(data) })
+      }
+    })
+    return { paints, OPS: lib.OPS }
+  })
+
+const isTiling = (colour: unknown) =>
+  Array.isArray(colour) && colour[0] === 'TilingPattern'
+
+test('a later stroke whose fill colour still names the pattern keeps the cell in the file', async () => {
+  const name = 'redact-drawing-pattern-colour-kept'
+  const source = await fixtureBytes(name)
+  // The cell holds the quadrilateral under the mark.
+  expect(holdsText(source, '130 130 m 170 135 l 160 170 l 135 165 l h f')).toBe(true)
+  const { paints, OPS } = await pagePaints(source)
+  const [square, line] = paints
+  // The square under the mark fills with the pattern.
+  expect(square?.paint).toBe(OPS.fill)
+  expect(isTiling(square?.fill)).toBe(true)
+  // The line elsewhere only strokes, so it paints none of the pattern, yet its fill colour is
+  // still the pattern: the content names it after the square is gone.
+  expect(line?.paint).toBe(OPS.stroke)
+  expect(isTiling(line?.fill)).toBe(true)
+  const [cellUnder] = await readPages(source, manifest[name].regions ?? [])
+  expect(cellUnder?.under.cell).toBeGreaterThan(0)
+})
+
+test('a pattern-stroked triangle inside the mark has a mitred corner past it', async () => {
+  const name = 'redact-drawing-pattern-miter'
+  const source = await fixtureBytes(name)
+  expect(holdsText(source, '130 130 m 170 135 l 160 170 l 135 165 l h f')).toBe(true)
+  const box = boundsOf(manifest[name].regions?.[0]?.quad ?? [])
+  const [l, b, r, t] = [box.x, box.y, box.x + box.width, box.y + box.height]
+  const { paints, OPS } = await pagePaints(source)
+  const triangle = paints.find(
+    (p) => p.paint === OPS.stroke || p.paint === OPS.closeStroke
+  )
+  expect(triangle).toBeDefined()
+  const { data, lineWidth, join } = triangle as NonNullable<typeof triangle>
+  expect(join).toBe(0)
+  // The vertices, from the path's move and line operators.
+  const points: Point[] = []
+  for (let at = 0; at < data.length;) {
+    const code = data[at++] as number
+    if (code === 0 || code === 1) {
+      points.push([data[at] as number, data[at + 1] as number])
+      at += 2
+    } else if (code === 2) at += 6
+    else if (code === 3) at += 4
+  }
+  const xs = points.map(([x]) => x)
+  const ys = points.map(([, y]) => y)
+  const half = lineWidth / 2
+  // The triangle's box grown by half the stroke width lies inside the region...
+  expect(Math.min(...xs) - half).toBeGreaterThan(l)
+  expect(Math.max(...xs) + half).toBeLessThan(r)
+  expect(Math.min(...ys) - half).toBeGreaterThan(b)
+  expect(Math.max(...ys) + half).toBeLessThan(t)
+  // ...but the top corner's miter, half the width over the sine of half its angle, reaches past.
+  const [a, c, apex] = points as [Point, Point, Point]
+  const angle = (u: Point, v: Point) =>
+    Math.atan2(u[1] - apex[1], u[0] - apex[0]) -
+    Math.atan2(v[1] - apex[1], v[0] - apex[0])
+  const corner = Math.abs(angle(a, c))
+  const tip = apex[1] + half / Math.sin(corner / 2)
+  expect(tip).toBeGreaterThan(t)
 })
 
 test('an axial shading under a mark is clipped away from it, and the one beside stays', async () => {
