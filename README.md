@@ -33,7 +33,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one core and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way. The annotation's data sets its shape, colours and text, and their paint is locked against stylesheets. A stylesheet adds or changes only what surrounds the drawing (the theme's outlines, note shadow and comment markers, the editor, handles and selection frame), and can still hide, move or filter elements.
-- **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
+- **Redaction.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data. The Apply redactions button removes the content under the marks, cleans the file, checks the result and shows the redacted file.
 - **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Area redactions, freehand drawing, loupes and masks are the ones that need a pointer.
 - **Touch screens too.** Pinch to zoom the document, not the page. Under a drawing tool one finger draws and two fingers scroll.
 - **Your language.** Every string comes from a `messages` object. English is the default, French and German ship as draft sets, and switching language relabels the viewer without reloading it. Bring your own translations.
@@ -51,7 +51,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 | Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                    |
 | Markup      | Highlights, underlines, strikeouts and squiggly underlines from a text selection                                                              |
 | Notes       | Notes with reply threads                                                                                                                      |
-| Redaction   | Text and area redaction marks                                                                                                                 |
+| Redaction   | Text and area redaction marks; applying them removes the content, cleans the file and checks the result                                       |
 | Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                             |
 | Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                         |
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
@@ -63,7 +63,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 
 ### Not there yet
 
-- **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied, and a saved file keeps it under a Redact annotation.
+- **Redacting every kind of content.** Inkbar refuses a mark over hatching, textures, complex gradients or soft-masked artwork, since it cannot remove that content from the file. It does not clean hidden layers, and it does not look for the removed words elsewhere in the file, such as in bookmark titles. The [`@inkbar/core` README](packages/core/README.md#applying-redactions) lists every limit.
 - **XFA forms.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
@@ -90,13 +90,13 @@ export default defineConfig({
 
 Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` README](packages/core/README.md#serving-pdfjs-assets) lists them.
 
-To write annotations and form values into the PDF on Download and Print, add `@inkbar/engine`:
+To write annotations and form values into the PDF on Download and Print, and to apply redactions, add `@inkbar/engine`:
 
 ```sh
 pnpm add @inkbar/engine
 ```
 
-Then pass `engine: () => import('@inkbar/engine')` to `createViewer`, or the same function as the `engine` prop of `InkRoot`. The engine loads on the first save that has changes, so a visit that changes nothing never fetches it. Without it, Download and Print give the file as it was opened. The [`@inkbar/core` README](packages/core/README.md#saving-into-the-pdf) says what is saved and where the saved file differs from the screen.
+Then pass `engine: () => import('@inkbar/engine')` to `createViewer`, or the same function as the `engine` prop of `InkRoot`. The engine loads on the first save that has changes or the first apply, so a visit that changes nothing never fetches it. Without it, Download and Print give the file as it was opened. A save writes redaction marks as Redact annotations and leaves the content under them; only applying redactions removes it. The [`@inkbar/core` README](packages/core/README.md#saving-into-the-pdf) says what is saved and where the saved file differs from the screen, and [Applying redactions](packages/core/README.md#applying-redactions) says what the apply removes and what it refuses.
 
 ## Quick start
 
@@ -172,7 +172,7 @@ The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Dr
 | [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                                    |
 | [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.          |
 | [`@inkbar/icons`](packages/icons)   | The icons for the toolbar controls and for notes, as data, with their licence notices. |
-| [`@inkbar/engine`](packages/engine) | Optional. Writes annotations and form values into the PDF.                             |
+| [`@inkbar/engine`](packages/engine) | Optional. Writes annotations and form values into the PDF, and applies redactions.     |
 
 The seven packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
 
@@ -229,7 +229,7 @@ pnpm test:browser                                        # component and end-to-
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
 
-PDF.js is imported only under `packages/core/src/pdfjs/`. The one exception is the engine's save round-trip test, where PDF.js is an independent reader of saved files. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
+PDF.js is imported only under `packages/core/src/pdfjs/`. The one exception is the engine's tests, where PDF.js is an independent reader of the files the engine writes. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
 
 ### Contributing
 

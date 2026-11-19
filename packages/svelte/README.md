@@ -368,19 +368,11 @@ After the apply, `onRedacted` gets `{ bytes, result }`: the redacted file, which
 
 With `bind:annotations`, Inkbar proposes your list without the marks and without the annotations removed with them, through the binding and `onChange` with `reason: 'redaction'`, before the redacted file opens. A function binding may take that list, change it or keep its own. With `history={true}`, the list you answer with is no undo step, however late it comes: the history starts from it. Until you answer, the redacted file shows the proposed list, not the one you still hold.
 
-When the apply fails, the document stays as it was, the message box says why, and `onError` hears a `RedactionFailed`, `EngineUnavailable` or `NothingToRedact` error. When a mark lies over content the engine cannot remove, the message says so and that mark is selected.
+When the apply fails, the document stays as it was, the message box says why, and `onError` hears a `RedactionFailed`, `EngineUnavailable` or `NothingToRedact` error. When marks lie over content the engine cannot remove, such as hatching, textures, complex gradients or soft-masked artwork, the message says how many and the viewer selects them. Move or delete those marks and apply again.
 
-`useRedaction()` gives the same action for a control of your own: read `canRedact` and `busy` through the object it returns, and `apply()` resolves with `result`, or with null when the reader cancelled, nothing was applied, the apply failed, or the root unmounted or another document opened while it ran. It never rejects for a failure the viewer has already shown. `InkApplyRedactions` takes `children` as a snippet of `{ label, busy, disabled }`, where `disabled` also follows the `disabled` you pass.
+`useRedaction()` gives the same action for a control of your own: read `canRedact` and `busy` through the object it returns, and `apply()` resolves with `result`, or with null when the reader cancelled, nothing was applied, the apply failed, or the root unmounted or another document opened while it ran. It never rejects for a failure the viewer has already shown. A `disabled` prop turns `InkApplyRedactions` off whatever the state, and it takes `children` as a snippet of `{ label, busy, disabled }`.
 
-Known limits:
-
-- Hidden layers are not cleaned.
-- The removed words may also appear where Inkbar does not look: bookmark titles, comments on other annotations, form values, alternate text for screen readers.
-- A scanned page is one image: a mark removes the pixels under it, and there is no text to remove. OCR text layers are removed like any text.
-- Scripts are removed, so forms stop calculating.
-- A signed file's signature stops verifying.
-
-The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#applying-redactions) has the details: what the engine removes, what `result` holds, and the full list of limits.
+Inkbar does not clean hidden layers or find copies of content hidden elsewhere in the file, and the removed words may still appear in places it does not look, such as bookmark titles. A signed file's signature stops verifying. The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#applying-redactions) has the details: what the engine removes, what it refuses, the errors, what `result` holds, and the full list of limits.
 
 ## Custom rendering
 
