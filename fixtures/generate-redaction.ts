@@ -1875,6 +1875,116 @@ function redactCopies() {
   )
 }
 
+/** A five-pointed star around (cx, cy), `outer` to its points and `inner` to its notches. */
+function starPath(cx: number, cy: number, outer: number, inner: number): string {
+  const points = Array.from({ length: 10 }, (_, i) => {
+    const radius = i % 2 === 0 ? outer : inner
+    const angle = Math.PI / 2 + (i * Math.PI) / 5
+    return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)].map(
+      (n) => Math.round(n * 100) / 100
+    )
+  })
+  return `${points.map(([x, y], i) => `${x} ${y} ${i === 0 ? 'm' : 'l'}`).join(' ')} h`
+}
+
+/**
+ * The page of the loupe drawing rows: a pink star (0.9 0.1 0.6) wholly inside the region (x and
+ * y 110..190), a blue square at x 260..320, y 120..180, and KEEP-BETA at (100, 50).
+ */
+const STAR_PAGE = `0.9 0.1 0.6 rg ${starPath(150, 150, 30, 12)} f\n${BLUE_SQUARE}\n${line(100, 50, 'KEEP-BETA')}`
+
+/**
+ * A page drawing STAR_PAGE, with a locked loupe: a stamp at x 220..310, y 200..290 whose appearance
+ * draws a copy of the page (tagged /INKB_PageCopy, its content written before any apply) through
+ * `lens`, a matrix from the page to the 90 by 90 lens.
+ */
+function lockedLoupePage(lens: string) {
+  const o = new Objects()
+  const font = o.add(HELVETICA)
+  const contents = o.add(stream('', STAR_PAGE))
+  const copy = o.add(
+    stream(
+      `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /INKB_PageCopy true /Resources << /Font << /F1 ${font} 0 R >> >>`,
+      STAR_PAGE
+    )
+  )
+  const appearance = o.add(
+    stream(
+      `/Type /XObject /Subtype /Form /BBox [0 0 90 90] /Resources << /XObject << /Pg ${copy} 0 R >> >>`,
+      `q 0 0 90 90 re W n ${lens} cm /Pg Do Q 0 0 1 RG 2 w 1 1 88 88 re S`
+    )
+  )
+  const pageNumber = o.reserve()
+  const loupe = o.add(
+    `<< /Type /Annot /Subtype /Stamp /Rect [220 200 310 290] /F 4 /NM <${hex('loupe')}> /AP << /N ${appearance} 0 R >> /P ${pageNumber} 0 R >>`
+  )
+  o.set(
+    pageNumber,
+    plainPage(contents, `/Font << /F1 ${font} 0 R >>`, `/Annots [${loupe} 0 R] `)
+  )
+  return o.pdf([pageNumber])
+}
+
+function redactLoupeDrawing() {
+  write(
+    'redact-annotation-loupe-drawing',
+    lockedLoupePage('1.125 0 0 1.125 -123.75 -123.75'),
+    drawingRow(
+      'A pink star wholly inside the region (x and y 110..190), a blue square beside it, and a locked loupe (a stamp at x 220..310, y 200..290) whose lens shows the region at 1.125 times its size from a copy of the page made before any apply',
+      {
+        annotations: { Stamp: 1 },
+        refused: {
+          need: 'shown',
+          why: 'the loupe stays locked, so its copy of the page, made before the apply, still holds the star; the strict check after the apply reads the copy',
+        },
+      }
+    )
+  )
+  write(
+    'redact-annotation-loupe-elsewhere',
+    lockedLoupePage('0.9 0 0 0.9 -81 -36'),
+    drawingRow(
+      'As redact-annotation-loupe-drawing, with the lens over KEEP-BETA (page x 90..190, y 40..140) instead of the region: the copy holds the whole page, the star included, whatever part the lens shows',
+      {
+        annotations: { Stamp: 1 },
+        refused: {
+          need: 'shown',
+          why: 'the loupe stays locked, so its copy of the page, made before the apply, still holds the star though the lens shows another part of the page; the strict check after the apply reads the copy',
+        },
+      }
+    )
+  )
+  write(
+    'redact-annotation-loupe-rewritten',
+    onePage(STAR_PAGE),
+    drawingRow(
+      'The page of redact-annotation-loupe-drawing with no loupe in the file: the loupe test passes a loupe in `annotations`, so its copy of the page is taken after the apply'
+    )
+  )
+}
+
+/** The star with a negative line width, and a black square beside it. */
+function redactStrokeBoxes() {
+  write(
+    'redact-drawing-negative-width',
+    onePage(
+      `0 g -4 w ${starPath(150, 150, 30, 12)} f\n0 g 260 120 60 60 re f\n${line(100, 50, 'KEEP-BETA')}`
+    ),
+    drawingRow(
+      'A black star with a line width of -4, filled, wholly inside the region (x and y 110..190), and a black square at x 260..320, y 120..180 beside it'
+    )
+  )
+  write(
+    'redact-drawing-miter-reach',
+    onePage(
+      `0 G 6 w 0 j 195 150 m 260 140 l 260 160 l h S\n0 g 260 40 40 40 re f\n${line(100, 50, 'KEEP-BETA')}`
+    ),
+    drawingRow(
+      'A black closed triangle (195, 150), (260, 140), (260, 160) stroked 6 pt wide with mitred joins, and a black square at x 260..300, y 40..80. Its points and its stroke box (x 192..263) lie beside the region (x and y 110..190), but the corner at (195, 150), 17.5 degrees wide, has a miter 6.6 times the line width, whose tip reaches x 175.3, under the region'
+    )
+  )
+}
+
 function redactAnnotationLoupe() {
   const o = new Objects()
   const font = o.add(HELVETICA)
@@ -2154,6 +2264,8 @@ redactUnderMark()
 redactPages()
 redactCopies()
 redactAnnotationLoupe()
+redactLoupeDrawing()
+redactStrokeBoxes()
 redactFiles()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<

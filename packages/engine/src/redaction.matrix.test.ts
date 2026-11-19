@@ -27,9 +27,10 @@ import {
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
-import { boundsOf, mark, marksOf, quadOf, regionsOf } from './redaction/testing.ts'
+import { ascii, boundsOf, mark, marksOf, quadOf, regionsOf } from './redaction/testing.ts'
 
-import type { RedactionFindings } from './types.ts'
+import type { RedactionFindings, WriteAnnotation } from './types.ts'
+import type { Annotation as GlossAnnotation } from 'gloss-format'
 
 let engine: Engine
 
@@ -318,11 +319,70 @@ function inside(quads: number[][]): Point[] {
   return points
 }
 
-/**
- * Black is an applied mark's overlay, so these readers do not count black drawing. The fixtures
- * draw no content in black; white content counts like any other colour.
- */
 const BLACK = new Set(['#000000', 'rgb(0, 0, 0)'])
+
+/**
+ * The boxes an applied mark's overlay fills: its appearance bounds, the region's bounding box
+ * grown by 3 pt on every side (see `mark` in redaction/testing.ts), as left, bottom, right, top.
+ */
+const overlayBoxes = (quads: number[][]) =>
+  quads.map((quad) => {
+    const { x, y, width, height } = boundsOf(quad)
+    return [x - 3, y - 3, x + width + 3, y + height + 3]
+  })
+
+/**
+ * Whether a path is an applied mark's overlay: filled black, and its points span exactly one of
+ * `boxes`. Only that is left out; any other black drawing counts.
+ */
+function isOverlay(runs: Point[][], fill: unknown, boxes: number[][]): boolean {
+  if (!BLACK.has(fill as string)) return false
+  const points = runs.flat()
+  if (!points.length) return false
+  const xs = points.map(([x]) => x)
+  const ys = points.map(([, y]) => y)
+  const span = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+  return boxes.some((box) =>
+    box.every((v, i) => Math.abs(v - (span[i] as number)) < 0.05)
+  )
+}
+
+/**
+ * The miter tips of a stroked path's corners: at each corner where two segments meet at an angle
+ * theta, a mitred join reaches 1 / sin(theta / 2) times half the line width from the vertex along
+ * the outward bisector, drawn when that ratio is within the miter limit. Points 1 pt apart from
+ * each vertex out to its tip.
+ */
+function miterPoints(runs: Point[][], halfWidth: number, limit: number): Point[] {
+  const points: Point[] = []
+  const unit = ([x, y]: Point): Point => {
+    const length = Math.hypot(x, y)
+    return length ? [x / length, y / length] : [0, 0]
+  }
+  for (const run of runs) {
+    const closed =
+      run.length > 3 && run[0]?.[0] === run.at(-1)?.[0] && run[0]?.[1] === run.at(-1)?.[1]
+    const ring = closed ? run.slice(0, -1) : run
+    ring.forEach((vertex, i) => {
+      if (!closed && (i === 0 || i === ring.length - 1)) return
+      const prev = ring[(i - 1 + ring.length) % ring.length] as Point
+      const next = ring[(i + 1) % ring.length] as Point
+      const u = unit([prev[0] - vertex[0], prev[1] - vertex[1]])
+      const v = unit([next[0] - vertex[0], next[1] - vertex[1]])
+      const cos = Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1]))
+      const theta = Math.acos(cos)
+      if (theta < 1e-6 || theta > Math.PI - 1e-6) return
+      const ratio = 1 / Math.sin(theta / 2)
+      if (ratio > limit) return
+      const inward = unit([u[0] + v[0], u[1] + v[1]])
+      const reach = halfWidth * ratio
+      for (let d = 0; d <= reach; d += 1)
+        points.push([vertex[0] - inward[0] * d, vertex[1] - inward[1] * d])
+      points.push([vertex[0] - inward[0] * reach, vertex[1] - inward[1] * reach])
+    })
+  }
+  return points
+}
 
 /** An operator list as PDF.js gives one, for a page or inside a tiling pattern. */
 interface OperatorList {
@@ -333,7 +393,7 @@ interface OperatorList {
 /**
  * What one page paints under and beside its regions, by its PDF.js operator list: each image
  * sample (by the centre of its cell) that is not paper (`image`), points along every path filled
- * or stroked in a colour other than black (`drawing`; an applied mark's overlay is black), and
+ * or stroked (`drawing`), the miter tips of a stroke's mitred corners included, and
  * points 2 pt apart inside the clip of every `sh` (`shading`). A path filled with a tiling pattern
  * also paints what the pattern's cell draws (`cell`), read once at the cell's own place and
  * counted only under a region, since a cell's place says nothing about what the pattern paints
@@ -342,6 +402,9 @@ interface OperatorList {
  * it does not paint. The byte reader covers text a group holds, and the image reader
  * (`qpdfImages`, run on every redacted row) covers an image in one; nothing here reads a group's
  * paths.
+ *
+ * An applied mark's overlay, a black fill spanning exactly the mark's appearance bounds, is left
+ * out; any other black drawing counts.
  *
  * A filled path also counts points 2 pt apart inside each region that lie inside it, by its fill
  * rule and its clips, so a fill that covers a region without an edge in it is seen there; after
@@ -379,8 +442,8 @@ async function paintedOn(
   ])
   const evenOddFills = new Set([OPS.eoFill, OPS.eoFillStroke, OPS.closeEOFillStroke])
   const store = (id: string) => (id.startsWith('g_') ? page.commonObjs : page.objs)
-  const coloured = (colour: unknown) =>
-    colour !== 'transparent' && !BLACK.has(colour as string)
+  const coloured = (colour: unknown) => colour !== 'transparent'
+  const overlays = overlayBoxes(quads)
 
   interface State {
     ctm: Matrix
@@ -390,6 +453,9 @@ async function paintedOn(
     fill: unknown
     stroke: unknown
     clips: { runs: Point[][]; evenOdd: boolean }[]
+    lineWidth: number
+    join: number
+    miterLimit: number
     /** Whether a soft mask is set. */
     masked: boolean
   }
@@ -402,6 +468,9 @@ async function paintedOn(
       fill: '#000000',
       stroke: '#000000',
       clips: [],
+      lineWidth: 1,
+      join: 0,
+      miterLimit: 10,
       masked: false,
     }
     const stack: State[] = []
@@ -478,6 +547,9 @@ async function paintedOn(
             fill: '#000000',
             stroke: '#000000',
             clips: [],
+            lineWidth: 1,
+            join: 0,
+            miterLimit: 10,
             masked: false,
           }
           break
@@ -497,6 +569,15 @@ async function paintedOn(
           for (const [key, value] of args[0] as [string, unknown][])
             if (key === 'SMask') state.masked = Boolean(value)
           break
+        case OPS.setLineWidth:
+          state.lineWidth = args[0] as number
+          break
+        case OPS.setLineJoin:
+          state.join = args[0] as number
+          break
+        case OPS.setMiterLimit:
+          state.miterLimit = args[0] as number
+          break
         case OPS.setStrokeTransparent:
           state.stroke = 'transparent'
           break
@@ -511,8 +592,16 @@ async function paintedOn(
             state.clips.push({ runs, evenOdd: pendingClip })
             pendingClip = undefined
           }
+          if (fills.has(paint) && isOverlay(runs, state.fill, overlays)) break
           const filled = fills.has(paint) && coloured(state.fill)
           const stroked = strokes.has(paint) && coloured(state.stroke)
+          if (stroked && state.join === 0) {
+            const [a, b, c, d] = state.ctm
+            const half =
+              (Math.abs(state.lineWidth) * Math.sqrt(Math.abs(a * d - b * c))) / 2
+            for (const p of miterPoints(runs, half, state.miterLimit))
+              tally(quads, p, counts, drawn, depth > 0)
+          }
           const carrier = (colour: unknown) =>
             Array.isArray(colour) &&
             (colour[0] === 'TilingPattern' || colour[0] === 'Shading')
@@ -1070,8 +1159,37 @@ describe.runIf(refusedBefore.length)('refused before the apply', () => {
  * holds the secrets. The loupe's appearance is not page text to PDF.js, so with no secret in the
  * page text after the apply and every secret still in the bytes, the finding is the loupe's copy.
  */
-const refusedAfterBy: Partial<Record<FixtureName, 'text' | 'image' | 'drawing'>> = {
-  'redact-annotation-loupe': 'text',
+const refusedAfterBy: Partial<
+  Record<
+    FixtureName,
+    { field: 'text' | 'image' | 'drawing'; remains: 'secrets' | 'copy' }
+  >
+> = {
+  'redact-annotation-loupe': { field: 'text', remains: 'secrets' },
+  'redact-annotation-loupe-drawing': { field: 'drawing', remains: 'copy' },
+  'redact-annotation-loupe-elsewhere': { field: 'drawing', remains: 'copy' },
+}
+
+/** The star's fill as the loupe rows' content streams write it: its colour and its first point. */
+const STAR = ['0.9 0.1 0.6 rg', '150 180 m']
+
+/**
+ * The page copies in a saved file (forms tagged /INKB_PageCopy), each as the text of its object
+ * in qpdf's QDF form, stream data uncompressed: the byte reader's view of a loupe's copy.
+ */
+async function pageCopies(bytes: Uint8Array): Promise<string[]> {
+  return [...(await qdfObjects(bytes)).values()].filter((object) =>
+    /\/INKB_PageCopy\s+true/.test(object)
+  )
+}
+
+/** Every object of the file in qpdf's QDF form, unreferenced ones kept, by object number. */
+async function qdfObjects(bytes: Uint8Array): Promise<Map<string, string>> {
+  const qdf = await qpdfQdf(bytes, { unreferenced: true })
+  const objects = new Map<string, string>()
+  for (const found of qdf.matchAll(/\n(\d+) 0 obj\n([^]*?)\nendobj\n/g))
+    objects.set(found[1] as string, found[2] as string)
+  return objects
 }
 
 describe.runIf(refusedAfter.length)('refused after the apply', () => {
@@ -1083,13 +1201,11 @@ describe.runIf(refusedAfter.length)('refused after the apply', () => {
       const bytes = await redacted(name)
       const findings = await strictCheck(name, bytes)
       expect(findings).not.toBeInstanceOf(EngineError)
-      const field = refusedAfterBy[name]
-      expect(field, 'refusedAfterBy says what the check reports').toBeDefined()
+      const expected = refusedAfterBy[name]
+      expect(expected, 'refusedAfterBy says what the check reports').toBeDefined()
+      const { field, remains } = expected as NonNullable<typeof expected>
       expect((findings as RedactionFindings).candidates).toContainEqual(
-        expect.objectContaining({
-          [field as string]: 'present',
-          verdict: 'content-remains',
-        })
+        expect.objectContaining({ [field]: 'present', verdict: 'content-remains' })
       )
       const marked = new Set(regions.map((r) => r.page))
       const after = await readPages(bytes, regions, password)
@@ -1099,9 +1215,20 @@ describe.runIf(refusedAfter.length)('refused after the apply', () => {
             expect(page.text, `page ${i}: ${word}`).not.toContain(word)
       })
       // The content is still in the saved file.
-      expect(secrets.length).toBeGreaterThan(0)
-      const plain = await plainBytes(bytes, password)
-      for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
+      if (remains === 'secrets') {
+        expect(secrets.length).toBeGreaterThan(0)
+        const plain = await plainBytes(bytes, password)
+        for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
+      } else {
+        // The byte reader, on qpdf's QDF form: the loupe's copy still draws the star, which the
+        // page itself no longer does.
+        const copies = await pageCopies(bytes)
+        expect(copies).toHaveLength(1)
+        for (const mark of STAR) expect(copies[0], mark).toContain(mark)
+        expect(sum(after, 'under', 'drawing'), 'drawing under the mark on the page').toBe(
+          0
+        )
+      }
     }
   )
 })
@@ -1273,6 +1400,56 @@ test('a pattern-stroked triangle inside the mark has a mitred corner past it', a
     insideQuad(quad, sharpest.tip, 0),
     `miter tip at ${sharpest.tip.join(', ')}`
   ).toBe(false)
+})
+
+test('a loupe the engine writes after the apply copies the redacted page', async () => {
+  const name = 'redact-annotation-loupe-rewritten'
+  const regions = manifest[name].regions ?? []
+  // A stamp marked as a loupe, at x 220..310, y 200..290, showing the region at 1.125 times its
+  // size from a copy of page 0 that the engine takes when it writes the annotation.
+  const bounds = { x: 220, y: 200, width: 90, height: 90 }
+  const loupe: WriteAnnotation = {
+    page: 0,
+    annotation: {
+      id: 'loupe-1',
+      type: 'circle',
+      page: 0,
+      rect: bounds,
+      color: '#0000ff',
+      opacity: 1,
+      width: 2,
+      custom: { inkbar: { type: 'loupe' } },
+    } satisfies GlossAnnotation,
+    appearance: {
+      bounds,
+      content: ascii('q 220 200 90 90 re W n 1.125 0 0 1.125 96.25 76.25 cm /Pg Do Q'),
+      pages: { Pg: 0 },
+    },
+    data: '{"id":"loupe-1"}',
+  }
+  const doc = await engine.open(await fixtureBytes(name))
+  let bytes: Uint8Array
+  try {
+    await doc.redact({ marks: marksOf(name), annotations: [loupe] })
+    bytes = await doc.save()
+  } finally {
+    await doc.close()
+  }
+  // The strict check reads the copy and finds nothing under the mark.
+  const findings = await strictCheck(name, bytes)
+  expect(findings).toMatchObject({ candidates: [{ verdict: 'clean' }] })
+  // The byte reader: there is one copy, and it holds nothing of the star.
+  const copies = await pageCopies(bytes)
+  expect(copies).toHaveLength(1)
+  for (const mark of STAR) expect(copies[0], mark).not.toContain(mark)
+  // It was taken after the apply: among the objects it names is the overlay the apply drew, a
+  // form tagged /INKB_Overlay. Objects are looked up in the same QDF form the copy came from.
+  const objects = await qdfObjects(bytes)
+  const named = [...(copies[0] ?? '').matchAll(/(\d+) 0 R/g)].map((m) => m[1] as string)
+  expect(named.some((n) => /\/INKB_Overlay\s+true/.test(objects.get(n) ?? ''))).toBe(true)
+  // PDF.js paints nothing under the mark on the page.
+  const [page] = await readPages(bytes, regions)
+  for (const kind of KINDS) expect(page?.under[kind], kind).toBe(0)
 })
 
 test('an axial shading under a mark is clipped away from it, and the one beside stays', async () => {

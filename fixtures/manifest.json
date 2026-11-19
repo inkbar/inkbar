@@ -1628,5 +1628,89 @@
       "kinds": ["pattern"],
       "why": "the triangle's stroke box lies wholly inside the mark, so the engine takes it as covered and cannot show that nothing keeps the pattern in the file: here the mitred corner reaches past the mark, so the apply would cut the stroke and keep the pattern"
     }
+  },
+  "redact-annotation-loupe-drawing": {
+    "file": "redact-annotation-loupe-drawing.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A pink star wholly inside the region (x and y 110..190), a blue square beside it, and a locked loupe (a stamp at x 220..310, y 200..290) whose lens shows the region at 1.125 times its size from a copy of the page made before any apply",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "annotations": {
+      "Stamp": 1
+    },
+    "refused": {
+      "need": "shown",
+      "why": "the loupe stays locked, so its copy of the page, made before the apply, still holds the star; the strict check after the apply reads the copy"
+    }
+  },
+  "redact-annotation-loupe-elsewhere": {
+    "file": "redact-annotation-loupe-elsewhere.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "As redact-annotation-loupe-drawing, with the lens over KEEP-BETA (page x 90..190, y 40..140) instead of the region: the copy holds the whole page, the star included, whatever part the lens shows",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "annotations": {
+      "Stamp": 1
+    },
+    "refused": {
+      "need": "shown",
+      "why": "the loupe stays locked, so its copy of the page, made before the apply, still holds the star though the lens shows another part of the page; the strict check after the apply reads the copy"
+    }
+  },
+  "redact-annotation-loupe-rewritten": {
+    "file": "redact-annotation-loupe-rewritten.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The page of redact-annotation-loupe-drawing with no loupe in the file: the loupe test passes a loupe in `annotations`, so its copy of the page is taken after the apply",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-negative-width": {
+    "file": "redact-drawing-negative-width.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A black star with a line width of -4, filled, wholly inside the region (x and y 110..190), and a black square at x 260..320, y 120..180 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-miter-reach": {
+    "file": "redact-drawing-miter-reach.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A black closed triangle (195, 150), (260, 140), (260, 160) stroked 6 pt wide with mitred joins, and a black square at x 260..300, y 40..80. Its points and its stroke box (x 192..263) lie beside the region (x and y 110..190), but the corner at (195, 150), 17.5 degrees wide, has a miter 6.6 times the line width, whose tip reaches x 175.3, under the region",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
   }
 }
