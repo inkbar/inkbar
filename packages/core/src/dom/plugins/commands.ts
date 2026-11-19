@@ -1,6 +1,7 @@
 import { resolveLabel } from '../../messages'
 import { InkError, isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
+import { redactionBusy } from '../redaction-actions'
 
 import type { Command, CommandSpec } from './define'
 import type { InkDocument } from '../../model/document'
@@ -147,6 +148,10 @@ export function createCommandRegistry(opts: {
         status: spec.status ?? EMPTY,
         async run() {
           if (!enabled.get()) return
+          // A command may edit the document, whose redaction marks are being applied: an edit
+          // made now would not reach the redacted file, so nothing runs.
+          const doc = opts.document.get()
+          if (doc && redactionBusy(doc).get()) return
           busy.set(true)
           try {
             await spec.run()

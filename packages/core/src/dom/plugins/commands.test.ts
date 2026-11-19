@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { InkError } from '../../model/errors'
 import { writable } from '../../model/readable'
+import { redactionApplying } from '../../model/redaction/busy'
 
 import { commandLabel, createCommandRegistry } from './commands'
 
@@ -11,7 +12,8 @@ function fakeDocument(state: DocumentStatus['state'] = 'ready') {
   const status = writable<DocumentStatus>(
     state === 'error' ? { state, error: new InkError('InvalidPdf', 'bad') } : { state }
   )
-  return { doc: { key: 'doc', status } as unknown as InkDocument, status }
+  const annotations = {}
+  return { doc: { key: 'doc', status, annotations } as unknown as InkDocument, status }
 }
 
 function deferred() {
@@ -42,6 +44,23 @@ describe('createCommandRegistry', () => {
     expect(() =>
       registry.add('sandbox', { id: 'suggest', label: 'Again', run() {} })
     ).toThrow(expect.objectContaining({ code: 'DuplicateId' }))
+  })
+
+  it('a command does nothing while the document’s redaction marks are applied', async () => {
+    const { doc } = fakeDocument()
+    const registry = createCommandRegistry({
+      document: writable<InkDocument | null>(doc),
+    })
+    const run = vi.fn()
+    const cmd = registry.add('sandbox', { id: 'suggest', label: 'Suggest', run })
+    const applying = redactionApplying(doc.annotations)
+    applying.set(true)
+    await cmd.run()
+    expect(run).not.toHaveBeenCalled()
+    expect(cmd.busy.get()).toBe(false)
+    applying.set(false)
+    await cmd.run()
+    expect(run).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a command without a label, which a button could not be named by', () => {

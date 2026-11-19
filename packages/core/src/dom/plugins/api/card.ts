@@ -6,13 +6,16 @@
  * previous one, else the viewport. Escape or a press outside closes it and focus goes back to
  * the mark. An open card re-renders when the viewer's messages change, so label functions in
  * its spec read the host's language again; when nothing it shows changes, it is left alone.
+ * While the document's redaction marks are applied the card is closed and does not open.
  */
 import { resolveLabel, type Label } from '../../../messages'
 import { createFocusReturn } from '../../popover-focus'
+import { redactionBusy } from '../../redaction-actions'
 import { createPopover, type Popover } from '../../viewer/popover'
 import { hostInternalsOf } from '../host'
 
 import type { Records } from './records'
+import type { InkDocument } from '../../../model/document'
 import type { RecordBase } from '../../../model/records'
 import type { PluginContext } from '../define'
 
@@ -158,6 +161,8 @@ export function createCard<T extends RecordBase>(
   let acting = false
   /** The mark whose card is open: its `aria-expanded` is true. */
   let expanded: HTMLElement | null = null
+  /** The open document, while there is one. */
+  let opened: InkDocument | null = null
 
   const expand = (mark: HTMLElement | null) => {
     expanded?.setAttribute('aria-expanded', 'false')
@@ -228,7 +233,13 @@ export function createCard<T extends RecordBase>(
     }
   }
 
-  ctx.onDocument(() => {
+  ctx.onDocument((doc) => {
+    opened = doc
+    // While the document's redaction marks are applied no card is open: an action run then
+    // would not reach the redacted file.
+    const stopBusy = redactionBusy(doc).subscribe((on) => {
+      if (on && shown !== null) close()
+    })
     const refresh = (ifChanged: boolean) => {
       if (acting || shown === null) return
       const record = current()
@@ -242,6 +253,8 @@ export function createCard<T extends RecordBase>(
     return () => {
       stop()
       stopMessages()
+      stopBusy()
+      opened = null
       shown = null
       expand(null)
       popover?.destroy()
@@ -253,7 +266,7 @@ export function createCard<T extends RecordBase>(
   return {
     open(record, mark) {
       const viewer = mark.closest<HTMLElement>('[data-ink-root]')
-      if (!viewer) return
+      if (!viewer || (opened && redactionBusy(opened).get())) return
       if (viewer !== root) {
         popover?.destroy()
         root = viewer
