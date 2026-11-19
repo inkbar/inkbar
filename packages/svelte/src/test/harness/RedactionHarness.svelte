@@ -7,7 +7,9 @@
    * or no, recording the marks of each preview in `previews`; `confirm: 'dialog'` leaves the
    * built-in dialog; without it the root applies without asking. `throwing` makes `onRedacted`
    * throw, and `shown: false` unmounts the root. `swap` is a source `onRedacted` passes as the
-   * new `src`.
+   * new `src`. `relabel` passes new words for the done message as the redacted file opens (in
+   * its `onReady`); it applies to the uncontrolled root. With `controlled: 'bound'`,
+   * `proposalThrows` makes `onAnnotationsChange` throw on the redaction's proposal.
    *
    * `controlled` keeps the annotations in the host with history on: `bound` through a plain
    * `bind:annotations`, which takes every proposal at once; the others through a function
@@ -38,6 +40,7 @@
     DocumentSource,
     EngineLoader,
     InkError,
+    InkMessagesInput,
     PdfAssets,
     RedactionPreview,
   } from '@inkbar/core'
@@ -53,6 +56,8 @@
     controlled,
     disabled,
     swap,
+    relabel = false,
+    proposalThrows = false,
     control,
   }: {
     src: DocumentSource
@@ -65,6 +70,8 @@
     controlled?: 'bound' | 'late' | 'never' | 'change' | undefined
     disabled?: boolean | undefined
     swap?: DocumentSource | undefined
+    relabel?: boolean
+    proposalThrows?: boolean
     control?: { release?: () => void } | undefined
   } = $props()
 
@@ -108,8 +115,20 @@
   function onAnnotationsChange(next: Annotation[]): void {
     if (controlled === 'bound')
       proposals = [...proposals, next.map((a) => a.type).join(' ')]
+    if (proposalThrows && redactionNext) {
+      redactionNext = false
+      throw new Error('host failed')
+    }
   }
   const source = $derived(swapped ?? src)
+  let messages = $state.raw<InkMessagesInput | undefined>(undefined)
+  /** The documents that have been ready, so `relabel` waits for the redacted one. */
+  let readies = 0
+  function onReady(): void {
+    readies += 1
+    if (relabel && readies === 2)
+      messages = { viewer: { redactDone: ({ marks }) => `${marks} fertig.` } }
+  }
 </script>
 
 {#snippet content()}
@@ -192,6 +211,8 @@
       {tools}
       {engine}
       {redactionConfirm}
+      {messages}
+      {onReady}
       {onError}
       {onRedacted}
     >

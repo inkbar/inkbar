@@ -8,13 +8,17 @@ import type { Quad, Rect } from '../geometry'
 export interface RedactionPlan {
   /** Session redact annotations, in list order. */
   marks: readonly Annotation[]
-  /** Per mark: its page and quads (from `quads`, else its `rect`). */
+  /**
+   * Per mark, in the order of `marks`: its page and the quads it removes under (from `quads`,
+   * else its `rect`), leaving out a quad of no area. A mark with none left is skipped by the
+   * apply, as one off its page is.
+   */
   regions: readonly { page: number; quads: readonly Quad[] }[]
   /** Session annotations removed with the content, replies after their notes. */
   removed: readonly Annotation[]
   /** Session annotations that are written after the apply. */
   kept: readonly Annotation[]
-  /** Pages with at least one mark. */
+  /** Pages with at least one mark that has an area. */
   pages: number
 }
 
@@ -26,6 +30,17 @@ export interface RedactionOptions {
    * signature is drawn.
    */
   fieldRects?: ReadonlyMap<string, readonly { page: number; rect: Rect }[]>
+}
+
+/**
+ * Whether a quad has an area: one whose corners span no width or no height covers nothing and
+ * cannot be looked under. Any other quad counts, whatever order its corners are stored in, and
+ * so does one with a number that is not finite, so writing it reports the fault.
+ */
+function hasArea(q: Quad): boolean {
+  const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
+  const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]
+  return Math.max(...xs) !== Math.min(...xs) && Math.max(...ys) !== Math.min(...ys)
 }
 
 const boundsOf = (points: readonly { x: number; y: number }[]): Rect => {
@@ -83,7 +98,9 @@ export function planRedaction(
   const marks = session.filter((a): a is RedactAnnotation => a.type === 'redact')
   const regions = marks.map((m) => ({
     page: m.page,
-    quads: m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect),
+    quads: (m.quads && m.quads.length > 0 ? m.quads : quadsFromRect(m.rect)).filter(
+      hasArea
+    ),
   }))
   const hit = hitsRegions(regions)
 
@@ -125,6 +142,6 @@ export function planRedaction(
     regions,
     removed,
     kept: session.filter((a) => a.type !== 'redact' && !gone.has(a.id)),
-    pages: new Set(regions.map((r) => r.page)).size,
+    pages: new Set(regions.filter((r) => r.quads.length > 0).map((r) => r.page)).size,
   }
 }

@@ -10,6 +10,8 @@ import type { EngineLoader } from '@inkbar/core'
 export interface HeldEngine {
   loads: number
   writing(): boolean
+  /** The types of the annotations the last apply wrote after its marks. */
+  written(): string[]
   finish(): void
   fail(): void
 }
@@ -21,14 +23,18 @@ declare global {
     __releaseAnswer?: () => void
     /** The redaction harness: activates an annotation, opening its thread. */
     __inkActivate?: (id: string | null) => void
+    /** The redaction harness: applies the marks from code. */
+    __inkApply?: () => Promise<unknown>
   }
 }
 
 export function heldEngine(unavailable = false): EngineLoader {
   let settle: { finish: () => void; fail: () => void } | undefined
+  let written: string[] = []
   const held: HeldEngine = {
     loads: 0,
     writing: () => settle !== undefined,
+    written: () => written,
     finish: () => settle?.finish(),
     fail: () => settle?.fail(),
   }
@@ -56,8 +62,12 @@ export function heldEngine(unavailable = false): EngineLoader {
     // A PDF header is enough for a download to carry; after an apply, the file opened.
     save: () =>
       Promise.resolve(redacted ? opened : new TextEncoder().encode('%PDF-1.7 written')),
-    redact: (input: { marks: readonly object[] }) =>
-      hold().then(() => {
+    redact: (input: {
+      marks: readonly object[]
+      annotations?: readonly { annotation: { type: string } }[]
+    }) => {
+      written = (input.annotations ?? []).map((a) => a.annotation.type)
+      return hold().then(() => {
         redacted = true
         return {
           pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
@@ -75,7 +85,8 @@ export function heldEngine(unavailable = false): EngineLoader {
           hiddenLayers: false,
           signed: false,
         }
-      }),
+      })
+    },
     close: () => Promise.resolve(),
   }
   const engine = {

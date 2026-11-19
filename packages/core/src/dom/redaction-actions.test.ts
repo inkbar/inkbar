@@ -6,6 +6,7 @@ import { writable } from '../model/readable'
 
 import {
   applyRedactionsFlow,
+  redactionBusy,
   redactionDoneMessage,
   runRedaction,
   type RedactionFlowOptions,
@@ -106,6 +107,22 @@ function options(over: Partial<RedactionFlowOptions> = {}) {
   return { opts, ...spies }
 }
 
+/** Runs the microtasks the flow queues to rethrow, and returns what they threw. */
+function rethrown() {
+  const thrown: unknown[] = []
+  const original = globalThis.queueMicrotask.bind(globalThis)
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+    original(() => {
+      try {
+        cb()
+      } catch (error) {
+        thrown.push(error)
+      }
+    })
+  })
+  return thrown
+}
+
 describe('applyRedactionsFlow', () => {
   it('applies, tells the host and returns what to reopen', async () => {
     const { doc, replaceAll } = fakeDoc()
@@ -126,6 +143,151 @@ describe('applyRedactionsFlow', () => {
     expect(replaceAll).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
     expect(showFailure).not.toHaveBeenCalled()
+  })
+
+  it('keeps the document busy when it hands back a reopen, until the caller replaces it', async () => {
+    const { doc } = fakeDoc()
+    const out = await applyRedactionsFlow(doc, options().opts)
+    expect(out?.reopen).not.toBeNull()
+    expect(redactionBusy(doc).get()).toBe(true)
+  })
+
+  it.each([
+    ['cancelled', () => options({ confirm: () => Promise.resolve(false) })],
+    [
+      'not current after the notify',
+      () => {
+        let current = true
+        return options({
+          isCurrent: () => current,
+          notify: () => {
+            current = false
+          },
+        })
+      },
+    ],
+  ])('is not busy once it ends with no reopen: %s', async (_, made) => {
+    const { doc } = fakeDoc()
+    await applyRedactionsFlow(doc, made().opts)
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  it('is not busy once it ends with no reopen: not current after the run', async () => {
+    const { doc } = fakeDoc()
+    let current = true
+    const { opts } = options({ isCurrent: () => current })
+    const running = applyRedactionsFlow(doc, opts)
+    current = false
+    await expect(running).resolves.toBeNull()
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  it('is not busy once it ends with no reopen: not current after the proposal', async () => {
+    const { doc, replaceAll } = fakeDoc({ controlled: true })
+    let current = true
+    replaceAll.mockImplementation(() => {
+      current = false
+    })
+    const out = await applyRedactionsFlow(doc, options({ isCurrent: () => current }).opts)
+    expect(out?.reopen).toBeNull()
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  describe('a throw after the apply', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('from a controlled host hearing the proposal: still reopens, and is rethrown', async () => {
+      const thrown = rethrown()
+      const host = new Error('host onChange failed')
+      const { doc, replaceAll } = fakeDoc({ controlled: true })
+      replaceAll.mockImplementation(() => {
+        throw host
+      })
+      const out = await applyRedactionsFlow(doc, options().opts)
+      expect(out?.reopen?.initial).toEqual([])
+      expect(redactionBusy(doc).get()).toBe(true)
+      await vi.waitFor(() => expect(thrown).toEqual([host]))
+    })
+
+    it('from view: still reopens with the default view, and is rethrown', async () => {
+      const thrown = rethrown()
+      const failed = new Error('view failed')
+      const { doc } = fakeDoc()
+      const out = await applyRedactionsFlow(
+        doc,
+        options({
+          view: () => {
+            throw failed
+          },
+        }).opts
+      )
+      expect(out?.reopen).toMatchObject({ view: undefined })
+      expect(redactionBusy(doc).get()).toBe(true)
+      await vi.waitFor(() => expect(thrown).toEqual([failed]))
+    })
+
+    it.each([
+      [
+        'messages',
+        {
+          messages: (): never => {
+            throw new Error('messages failed')
+          },
+        },
+      ],
+      [
+        'showFailure',
+        {
+          showFailure: (): never => {
+            throw new Error('showFailure failed')
+          },
+        },
+      ],
+    ] as const)(
+      'from %s while a failure is reported: resolves with null, and is rethrown',
+      async (name, over) => {
+        const thrown = rethrown()
+        const { doc } = fakeDoc({
+          apply: () =>
+            Promise.reject(new InkError('RedactionFailed', 'failed', { stage: 'apply' })),
+        })
+        await expect(applyRedactionsFlow(doc, options(over).opts)).resolves.toBeNull()
+        expect(redactionBusy(doc).get()).toBe(false)
+        await vi.waitFor(() =>
+          expect(thrown.map((e) => (e as Error).message)).toEqual([`${name} failed`])
+        )
+      }
+    )
+
+    it('anywhere else: resolves with no reopen, is not busy, and is rethrown', async () => {
+      const thrown = rethrown()
+      const failed = new Error('isCurrent failed')
+      const { doc } = fakeDoc()
+      let calls = 0
+      const out = await applyRedactionsFlow(
+        doc,
+        options({
+          isCurrent: () => {
+            if (++calls > 1) throw failed
+            return true
+          },
+        }).opts
+      )
+      expect(out).toEqual({ result: result(), reopen: null })
+      expect(redactionBusy(doc).get()).toBe(false)
+      await vi.waitFor(() => expect(thrown).toEqual([failed]))
+    })
+  })
+
+  it('is not busy once the apply has failed', async () => {
+    const { doc } = fakeDoc({
+      apply: () =>
+        Promise.reject(new InkError('RedactionFailed', 'failed', { stage: 'apply' })),
+    })
+    await applyRedactionsFlow(doc, options().opts)
+    expect(redactionBusy(doc).get()).toBe(false)
   })
 
   it('a cancelled confirmation applies nothing', async () => {
@@ -335,21 +497,6 @@ describe('applyRedactionsFlow', () => {
   })
 
   describe('an onError that throws', () => {
-    /** Runs the microtasks the flow queues to rethrow, and returns what they threw. */
-    function rethrown() {
-      const thrown: unknown[] = []
-      const original = globalThis.queueMicrotask.bind(globalThis)
-      vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
-        original(() => {
-          try {
-            cb()
-          } catch (error) {
-            thrown.push(error)
-          }
-        })
-      })
-      return thrown
-    }
     afterEach(() => {
       vi.restoreAllMocks()
     })
@@ -402,6 +549,25 @@ describe('applyRedactionsFlow', () => {
     const out = await applyRedactionsFlow(doc, opts)
     expect(order).toEqual(['replaceAll', 'proposed 0', 'answer'])
     expect(proposed).toHaveBeenCalledExactlyOnceWith(out!.reopen!.initial)
+  })
+
+  it('a proposed hook that throws: the flow resolves, reopens, and the throw is rethrown', async () => {
+    const thrown = rethrown()
+    try {
+      const { doc } = fakeDoc({ controlled: true })
+      const hook = new Error('hook failed')
+      const { opts, onError } = options({
+        proposed: () => {
+          throw hook
+        },
+      })
+      const out = await applyRedactionsFlow(doc, opts)
+      expect(out?.reopen?.initial).toEqual([])
+      expect(onError).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(thrown).toEqual([hook]))
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('does not run proposed when the annotations are uncontrolled', async () => {

@@ -356,6 +356,70 @@ test('skips a mark with no area and one outside the page', async () => {
   }
 })
 
+/** The text runs of the first page of `bytes` whose boxes share area with `box`. */
+const textIn = (
+  bytes: Uint8Array,
+  box: { x: number; y: number; width: number; height: number }
+) =>
+  withPdfjs(bytes, async (pdf) => {
+    const content = await (await pdf.getPage(1)).getTextContent()
+    return content.items.flatMap((item) => {
+      const run = item as {
+        str?: string
+        transform?: number[]
+        width?: number
+        height?: number
+      }
+      if (!run.str?.trim() || !run.transform) return []
+      const [, , , , x, y] = run.transform as [
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+      ]
+      const inside =
+        x < box.x + box.width &&
+        x + (run.width ?? 0) > box.x &&
+        y < box.y + box.height &&
+        y + (run.height ?? 0) > box.y
+      return inside ? [run.str] : []
+    })
+  })
+
+test('applies a rectangle whose corners are stored around its edge, and removes it whole', async () => {
+  // The fixture's region, with its bottom corners swapped: right, then left.
+  const [over] = marksOf('redact-text') as [WriteAnnotation]
+  const quad = (over.annotation as { quads: { p3: object; p4: object }[] }).quads[0]!
+  const box = over.annotation.rect
+  const source = await fixtureBytes('redact-text')
+  // The secret reaches into the rectangle's left and right thirds, not only its middle.
+  for (const third of [
+    { ...box, width: box.width / 3 },
+    { ...box, x: box.x + (box.width * 2) / 3, width: box.width / 3 },
+  ])
+    expect((await textIn(source, third)).join('')).not.toBe('')
+  const crossed: WriteAnnotation = {
+    ...over,
+    annotation: {
+      ...over.annotation,
+      quads: [{ ...quad, p3: quad.p4, p4: quad.p3 }],
+    } as GlossAnnotation,
+  }
+  const doc = await engine.open(source)
+  try {
+    const result = await doc.redact({ marks: [crossed] })
+    expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+    const bytes = await doc.save()
+    await expectClean('redact-text', bytes)
+    // Not a character inside the rectangle survives, at its edges or its middle.
+    expect(await textIn(bytes, box)).toEqual([])
+  } finally {
+    await doc.close()
+  }
+})
+
 test('redacts a mark with no quads by its rectangle, not its appearance bounds', async () => {
   const [over] = marksOf('redact-text') as [WriteAnnotation]
   const { quads: _, ...annotation } = over.annotation
@@ -450,6 +514,33 @@ test('earlier marks whose regions cannot be read name the page', async () => {
   }
   expect(error).toBeInstanceOf(EngineError)
   expect(error).toMatchObject({ code: 'redaction-failed', page: 0 })
+  core.destroy()
+})
+
+test('earlier marks with more quads than a page may hold fail the page unread', async () => {
+  const marked = await withEarlierMark()
+  const native = await loadNative({ wasm })
+  // A hostile file claims more quads than any page needs: none is read.
+  const asked: number[] = []
+  const flooded: Native = {
+    ...native.fn,
+    INK_Redact_OwnLockedQuads: (_doc, _page, _out, count) => {
+      asked.push(count)
+      return 10_001
+    },
+  }
+  const core = new EngineCore(withFunctions(native, flooded))
+  const { id } = core.open(marked, { password: 'inkbar' })
+  let error: unknown
+  try {
+    core.redact(id, { marks: [] })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(EngineError)
+  expect(error).toMatchObject({ code: 'redaction-failed', page: 0 })
+  expect(asked).toEqual([0])
+  expect(core.stopped).toBe(false)
   core.destroy()
 })
 

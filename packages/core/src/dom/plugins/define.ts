@@ -54,7 +54,10 @@ export interface Command {
   /** The spec's label, as given: resolve a function with `commandLabel`. */
   readonly label: Label
   readonly icon: IconNode | undefined
-  /** The spec's `enabled` (or a ready document), and not busy. */
+  /**
+   * The spec's `enabled` (or a ready document), not busy, and not while the document's redaction
+   * marks are being applied.
+   */
   readonly enabled: Readable<boolean>
   /** True while the promise `run` returned is pending. */
   readonly busy: Readable<boolean>

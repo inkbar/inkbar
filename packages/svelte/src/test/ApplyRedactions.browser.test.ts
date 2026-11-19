@@ -1,5 +1,5 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
@@ -332,6 +332,119 @@ describe('InkApplyRedactions', () => {
     await expect.poll(count(MARKS)).toBe(0)
   })
 
+  it('the pages take no input until the redacted file has replaced the old one', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect
+      .poll(() => document.querySelector('[data-ink-scroll]')?.hasAttribute('inert'))
+      .toBe(true)
+    // Each time the pages take input again, whether the old document is still the one shown.
+    const root = document.querySelector<Hooked>('[data-ink-root]')!
+    const before = root.__inkDocument
+    const seen: boolean[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        if (
+          r.target instanceof HTMLElement &&
+          r.target.isConnected &&
+          r.target.matches('[data-ink-scroll]') &&
+          !r.target.hasAttribute('inert')
+        )
+          seen.push(root.__inkDocument === before)
+    })
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ['inert'],
+      subtree: true,
+    })
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    observer.disconnect()
+    expect(seen).not.toContain(true)
+  })
+
+  it('an empty new note open when an apply starts from code is not written into the file', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const threadOpen = () => document.querySelector('[data-ink-thread-popover]') !== null
+    const note = currentDoc()!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+    }).id
+    ;(window as { __inkActivate?: (id: string | null) => void }).__inkActivate!(note)
+    await expect.poll(threadOpen).toBe(true)
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    // useRedaction().apply, from code.
+    document.querySelector<HTMLButtonElement>('[data-testid="hook-apply"]')!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    expect(held.written()).toEqual([])
+    await expect.poll(threadOpen).toBe(false)
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+  })
+
+  const activeIsScroll = () =>
+    document.activeElement === document.querySelector('[data-ink-scroll]')
+
+  it('focus goes to the document once the redacted file shows, not to the page body', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => held.writing()).toBe(true)
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(alertText).toBeNull()
+    await expect.poll(activeIsScroll).toBe(true)
+  })
+
+  it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const id = mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => held.writing()).toBe(true)
+    // The host removes the mark meanwhile: the control is disabled once the apply has failed.
+    currentDoc()!.annotations.remove(id)
+    held.fail()
+    await expect
+      .poll(alertText)
+      .toBe('The redactions could not be applied. Nothing was changed.')
+    await expect.poll(disabledOf(APPLY)).toBe(true)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(alertText).toBeNull()
+    await expect.poll(activeIsScroll).toBe(true)
+  })
+
+  it('the message once the redacted file shows is in the words of that moment', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader, relabel: true })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    held.finish()
+    await expect.poll(alertText).toBe('1 fertig.')
+  })
+
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
     await render(RedactionHarness, { src, assets, engine: held.loader })
@@ -518,6 +631,72 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     // The mark, the redaction's proposal, then the edit: no mark comes back with it.
     await expect.poll(text('proposals')).toBe('redact||square')
     await expect.poll(text('list')).toBe('square')
+    expect(count(MARKS)()).toBe(0)
+  })
+
+  it('a host that throws on the proposal still sees the redacted file open', async () => {
+    // What the flow rethrows from a microtask, caught here.
+    const thrown: unknown[] = []
+    const original = globalThis.queueMicrotask.bind(globalThis)
+    const spy = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+      original(() => {
+        try {
+          cb()
+        } catch (error) {
+          thrown.push(error)
+        }
+      })
+    })
+    try {
+      const held = heldEngine()
+      await render(RedactionHarness, {
+        src,
+        assets,
+        engine: held.loader,
+        controlled: 'bound',
+        proposalThrows: true,
+      })
+      await firstPage()
+      mark()
+      await expect.poll(disabledOf(APPLY)).toBe(false)
+      const before = currentDoc()
+      document.querySelector<HTMLButtonElement>(APPLY)!.click()
+      await expect.poll(() => held.writing()).toBe(true)
+      held.finish()
+      await expect.poll(alertText).toBe('1 redaction applied.')
+      expect(currentDoc()).not.toBe(before)
+      expect(count(MARKS)()).toBe(0)
+      expect(document.querySelector(APPLY)?.getAttribute('aria-busy')).toBe('false')
+      expect(thrown.map((e) => (e as Error).message)).toContain('host failed')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('a second open while the redacted file loads keeps the view, the list and the message', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, {
+      src,
+      assets,
+      engine: held.loader,
+      controlled: 'bound',
+    })
+    await firstPage()
+    document.querySelector<HTMLButtonElement>('[data-tool="redact-area"]')!.click()
+    await expect.poll(attr('[data-ink-tool]', 'data-ink-tool')).toBe('redact-area')
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    // Once the old document has closed, and before the redacted one is ready, the open runs
+    // again.
+    const before = currentDoc()
+    held.finish()
+    await vi.waitUntil(() => currentDoc() !== before, { interval: 0 })
+    document.querySelector<HTMLButtonElement>('[data-testid="retry"]')!.click()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    expect(attr('[data-ink-tool]', 'data-ink-tool')()).toBe('redact-area')
+    await expect.poll(text('list')).toBe('')
     expect(count(MARKS)()).toBe(0)
   })
 

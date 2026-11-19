@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { writable } from '../../../model/readable'
+import { redactionApplying } from '../../../model/redaction/busy'
 import { mountContainer, openFixtureInBrowser, until } from '../../test-utils'
 import { mountViewer } from '../../viewer-engine'
 import { definePlugin, type InkPlugin } from '../define'
@@ -135,6 +136,23 @@ describe('plugin.marks card', () => {
     const c = card.getBoundingClientRect()
     expect(c.top >= m.bottom || c.bottom <= m.top).toBe(true)
     expect(Math.abs(c.left - m.left)).toBeLessThan(1)
+  })
+
+  it('closes when redaction marks start being applied, and opens again after', async () => {
+    const { doc, markFor } = await setup([finding('a')])
+    const mark = markFor('a')!
+    await userEvent.click(mark)
+    expect(openCard()).toBeDefined()
+    const applying = redactionApplying(doc.annotations)
+    applying.set(true)
+    expect(openCard()).toBeUndefined()
+    expect(mark.getAttribute('aria-expanded')).toBe('false')
+    // Opened from code meanwhile, it stays closed.
+    mark.click()
+    expect(openCard()).toBeUndefined()
+    applying.set(false)
+    await userEvent.click(mark)
+    expect(openCard()).toBeDefined()
   })
 
   it('renders an excerpt with the match marked', async () => {

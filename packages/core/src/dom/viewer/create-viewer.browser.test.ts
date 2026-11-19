@@ -4042,6 +4042,42 @@ describe('applying redactions', () => {
     expect(reasons.filter((r) => r === 'redaction')).toHaveLength(1)
   })
 
+  it('a controlled host that throws on the proposal still sees the redacted file open', async () => {
+    // What the flow rethrows from a microtask, caught here.
+    const thrown: unknown[] = []
+    const original = globalThis.queueMicrotask.bind(globalThis)
+    vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+      original(() => {
+        try {
+          cb()
+        } catch (error) {
+          thrown.push(error)
+        }
+      })
+    })
+    const host = new Error('host failed')
+    let hostList: Annotation[] = []
+    const onChange = (next: Annotation[], change: AnnotationChange) => {
+      if (change.kind === 'replace' && change.reason === 'redaction') throw host
+      hostList = next
+      viewer.document.get()?.annotations.setControlledValue(next)
+    }
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      annotations: { mode: 'controlled', initial: [], onChange },
+      onReady: (d) => d.annotations.setControlledValue(hostList),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await expect(viewer.applyRedactions()).resolves.toMatchObject({ marks: 1 })
+    const next = await reopened(viewer, doc)
+    expect(redactionBusy(next).get()).toBe(false)
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 redaction applied.')
+    expect(thrown).toContain(host)
+  })
+
   it('a controlled host and the viewer agree in a file with annotations of its own', async () => {
     let hostList: Annotation[] = []
     const proposals: { reason: string; ids: string[] }[] = []
@@ -4137,6 +4173,71 @@ describe('applying redactions', () => {
     await reopened(viewer, doc)
     await until(() => alertText() !== null)
     expect(alertText()).toBe('1 redaction applied.')
+  })
+
+  it('focus goes to the document once the redacted file shows, not to the page body', async () => {
+    const { viewer } = make('redact-text', { engine: realEngine() })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    control.focus()
+    control.click()
+    await until(() => dialog() !== null)
+    dialog()!.querySelector<HTMLButtonElement>('[data-ink-redaction-confirm]')!.click()
+    await reopened(viewer, doc)
+    await until(() => alertText() !== null)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await settle()
+    expect(document.activeElement).toBe(viewer.element.querySelector('[data-ink-scroll]'))
+  })
+
+  it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
+    const { viewer } = make('redact-text', {
+      engine: failingCheck,
+      redactionConfirm: false,
+      onError: () => undefined,
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    const mark = markSecret(doc)
+    control.focus()
+    // The host removes the mark once the apply has started: the control is disabled after.
+    const removing = redactionBusy(doc).subscribe((on) => {
+      if (on) queueMicrotask(() => doc.annotations.remove(mark.id))
+    })
+    control.click()
+    await until(() => alertText() !== null)
+    removing()
+    expect(control.disabled).toBe(true)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await settle()
+    expect(document.activeElement).toBe(viewer.element.querySelector('[data-ink-scroll]'))
+  })
+
+  it('the message once the redacted file shows is in the words of that moment', async () => {
+    let first: InkDocument | undefined
+    const held: { viewer?: Viewer } = {}
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onReady: (d) => {
+        first ??= d
+        // The language changes while the redacted file opens.
+        if (d !== first)
+          held.viewer!.setMessages({
+            viewer: { redactDone: ({ marks }) => `${marks} fertig.` },
+          })
+      },
+    })
+    held.viewer = viewer
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 fertig.')
   })
 
   it('a reopen that fails shows only the open failure', async () => {
@@ -4473,6 +4574,35 @@ describe('applying redactions', () => {
     await until(() => notes().length === 1)
   })
 
+  it('the pages take no input until the redacted file has replaced the old one', async () => {
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    // Each time the pages take input again, whether the old document is still the one shown.
+    const seen: boolean[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        if (
+          r.target instanceof HTMLElement &&
+          r.target.isConnected &&
+          !r.target.hasAttribute('inert')
+        )
+          seen.push(viewer.document.get() === doc)
+    })
+    observer.observe(viewer.element, {
+      attributes: true,
+      attributeFilter: ['inert'],
+      subtree: true,
+    })
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    observer.disconnect()
+    expect(seen).not.toContain(true)
+  })
+
   it('Download and Print are disabled and do nothing while the marks are applied', async () => {
     const clicked = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -4527,6 +4657,29 @@ describe('applying redactions', () => {
     const applying = viewer.applyRedactions()
     return { applying, fail }
   }
+
+  it('a polite live region says the marks are being applied, and is emptied after', async () => {
+    const { viewer } = make('text-simple', { onError: () => undefined })
+    const { doc } = await ready(viewer)
+    const region = () =>
+      viewer.element.querySelector<HTMLElement>('[data-ink-redaction-status]')
+    expect(region()).not.toBeNull()
+    expect(region()!.getAttribute('aria-live')).toBe('polite')
+    expect(region()!.classList.contains('ink-visually-hidden')).toBe(true)
+    expect(region()!.textContent).toBe('')
+
+    const { applying, fail } = holdApply(viewer, doc)
+    await until(() => redactionBusy(doc).get())
+    expect(region()!.textContent).toBe('Applying redactions…')
+    // Outside the pages, which take no input meanwhile: inert content is not read out.
+    expect(region()!.closest('[inert]')).toBeNull()
+    viewer.setMessages({ viewer: { redacting: 'Redacting…' } })
+    expect(region()!.textContent).toBe('Redacting…')
+
+    fail()
+    await expect(applying).resolves.toBeNull()
+    expect(region()!.textContent).toBe('')
+  })
 
   it('comment threads close, and none opens, while the marks are applied', async () => {
     const { viewer } = make('text-simple', { onError: () => undefined })

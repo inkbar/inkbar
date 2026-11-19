@@ -185,14 +185,26 @@ export function inspectDocument(
   )
   const pages: PageReport[] = []
   if (regions) {
-    const byPage = new Map<number, Indexed[]>()
-    regions.forEach(({ page, quads }, region) => {
-      byPage.set(page, [...(byPage.get(page) ?? []), { region, quads }])
-    })
+    const byPage = groupByPage(
+      regions.map(({ page, quads }, region) => ({ page, region, quads }))
+    )
     for (const page of [...byPage.keys()].sort((a, b) => a - b))
       pages.push(inspectPage(heap, doc, page, byPage.get(page)))
   } else
     for (let index = 0; index < file.pageCount; index++)
       pages.push(inspectPage(heap, doc, index, undefined))
   return findingsFrom(pages, fileReport)
+}
+
+/** `items` grouped by their page in one pass, each group in the order given. */
+export function groupByPage<T extends { page: number }>(
+  items: Iterable<T>
+): Map<number, T[]> {
+  const out = new Map<number, T[]>()
+  for (const item of items) {
+    const group = out.get(item.page)
+    if (group) group.push(item)
+    else out.set(item.page, [item])
+  }
+  return out
 }

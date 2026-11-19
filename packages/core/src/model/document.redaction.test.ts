@@ -714,6 +714,14 @@ describe('redactionPreview', () => {
     })
   })
 
+  it('counts only the marks that have an area, in marks and in pages', async () => {
+    const doc = await open('redact-text')
+    markOver(doc, { x: 45, y: 190, width: 0, height: 35 })
+    expect(doc.redactionPreview()).toMatchObject({ marks: 0, pages: 0 })
+    markOver(doc)
+    expect(doc.redactionPreview()).toMatchObject({ marks: 1, pages: 1 })
+  })
+
   it("counts the file's own annotations a mark overlaps", async () => {
     const doc = await open('redact-annotations')
     // The fixture's stamp and note lie under x 40..240, y 150..250.
@@ -809,6 +817,127 @@ describe('applyRedactions with the engine', () => {
     const back = await openBytes(bytes, { engine: loader })
     expect(session(back).map((a) => a.id)).toEqual([beside.id])
     expect(await back.pageText(0)).not.toContain('SECRET')
+  })
+
+  it('applies a mark without its pieces of no area', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [quad(45, 190, 170, 35), quad(300, 195, 0, 22)],
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    expect(result.findings.candidates.map((c) => c.verdict)).toEqual(['clean'])
+    const text = await (await openBytes(bytes)).pageText(0)
+    expect(text).not.toContain('SECRET')
+    expect(text).toContain('KEEP-BETA')
+  })
+
+  it('skips a mark of no area beside one that applies', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    markOver(doc)
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 300, y: 195, width: 0, height: 22 },
+      quads: [quad(300, 195, 0, 22), quad(300, 195, 110, 0)],
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    const text = await (await openBytes(bytes)).pageText(0)
+    expect(text).not.toContain('SECRET')
+    expect(text).toContain('KEEP-BETA')
+  })
+
+  /** A rectangle with its corners stored around it (top left, top right, bottom right, bottom left), not in Gloss order. */
+  const crossed = (x: number, y: number, width: number, height: number): Quad => ({
+    p1: { x, y: y + height },
+    p2: { x: x + width, y: y + height },
+    p3: { x: x + width, y },
+    p4: { x, y },
+  })
+
+  /** What an apply of `doc` came to: the result and the page text after, or the error. */
+  async function outcome(doc: InkDocument) {
+    try {
+      const { bytes, result } = await doc.applyRedactions()
+      return { result, text: await (await openBytes(bytes)).pageText(0) }
+    } catch (error) {
+      return { error }
+    }
+  }
+
+  /** The text runs of `doc`'s first page whose boxes share area with `rect`. */
+  async function textIn(doc: InkDocument, rect: typeof SECRET): Promise<string[]> {
+    const content = await (await doc._pdfjs.getPage(0)).getTextContent()
+    return content.items.flatMap((item) => {
+      if (!('str' in item) || !item.str.trim()) return []
+      const [, , , , x, y] = item.transform as number[]
+      const inside =
+        x! < rect.x + rect.width &&
+        x! + item.width > rect.x &&
+        y! < rect.y + rect.height &&
+        y! + item.height > rect.y
+      return inside ? [item.str] : []
+    })
+  }
+
+  it('a crossed rectangle over text removes the whole rectangle', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    // SECRET-ALPHA reaches into the rectangle's left and right thirds, not only its middle.
+    for (const third of [
+      { ...SECRET, width: SECRET.width / 3 },
+      { ...SECRET, x: SECRET.x + (SECRET.width * 2) / 3, width: SECRET.width / 3 },
+    ])
+      expect((await textIn(doc, third)).join('')).toMatch(/SECRET/)
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [crossed(45, 190, 170, 35)],
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    const back = await openBytes(bytes)
+    // Not a character of the text inside the rectangle survives, at its edges or its middle.
+    expect(await textIn(back, SECRET)).toEqual([])
+    expect(await back.pageText(0)).toContain('KEEP-BETA')
+  })
+
+  it('a crossed rectangle beside a real piece is never skipped', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 45, y: 190, width: 365, height: 35 },
+      quads: [quad(45, 190, 170, 35), crossed(300, 195, 110, 22)],
+    })
+    const out = await outcome(doc)
+    expect(out).toMatchObject({ result: { marks: 1 } })
+    expect(out.text).not.toContain('SECRET')
+    expect(out.text).not.toContain('KEEP-BETA')
+  })
+
+  it('rejects NothingToRedact when every mark has no area', async () => {
+    const { loader } = realEngine()
+    const doc = await open('redact-text', { engine: loader })
+    markOver(doc, { x: 45, y: 190, width: 170, height: 0 })
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: SECRET,
+      quads: [quad(45, 190, 0, 35)],
+    })
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      name: 'InkError',
+      code: 'NothingToRedact',
+    })
   })
 
   it("applies Inkbar's earlier marks in an encrypted file", async () => {

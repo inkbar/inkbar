@@ -18,6 +18,7 @@ import {
   createRedactionDialog,
   applyRedactionsFlow,
   redactionBusy,
+  redactionDoneMessage,
   createSearchController,
   createPasswordPrompt,
   createToolOptions,
@@ -359,6 +360,7 @@ function release(): void {
 /** A new source or password from the host: the prompt starts over. */
 function start(): void {
   reopened = null
+  onShown = undefined
   prompt.reset()
   void open()
 }
@@ -367,15 +369,18 @@ function start(): void {
 async function open(retryPassword?: string): Promise<void> {
   const gen = ++generation
   const re = reopened
-  // The list and the view are for the first open of the redacted file only: a later open of it
-  // (a password attempt) starts as any open does.
-  if (re && (re.initial || re.view))
-    reopened = { ...re, initial: undefined, view: undefined }
   // A new source: the host's list is its own again.
   if (!re) staleHost = null
   const src = re ? re.source : props.src
   const shown = onShown
-  onShown = undefined
+  // The list, the view and the message are for the first open of the redacted file only: a
+  // later open of it (a password attempt) starts as any open does. They are spent once that
+  // open has a document, so an open that runs again before then still has them.
+  const spend = (): void => {
+    if (re && reopened === re && (re.initial || re.view))
+      reopened = { ...re, initial: undefined, view: undefined }
+    if (shown && onShown === shown) onShown = undefined
+  }
   release()
   // A controlled reopen after applying redactions keeps the history as `proposed` left it:
   // emptied, and starting again from the host's answer, which may still be on its way.
@@ -439,6 +444,7 @@ async function open(retryPassword?: string): Promise<void> {
     doc.destroy()
     return
   }
+  spend()
   if (re?.view) keptViews.set(doc, re.view)
   // The prop may have changed while the file loaded, when there was no store to apply it to.
   const current = hostList()
@@ -697,13 +703,15 @@ async function applyRedactions(): Promise<RedactionResult | null> {
   // A `src` the host passed from its `redacted` listener has opened already (Vue's flush runs
   // before this continuation): that source stays, and the redacted file is not opened.
   if (unmounted || document.value !== doc) return out.result
-  const reopen = out.reopen
+  const { reopen, result } = out
   reopened = reopen
   // Said once the redacted file shows, after InkViewport has built for it (a build empties its
-  // message box); a reopen that fails shows its own failure instead.
+  // message box), in the words of that moment; a reopen that fails shows its own failure
+  // instead.
   onShown = (next) =>
     void nextTick(() => {
-      if (document.value === next) showMessage(reopen.message)
+      if (document.value === next)
+        showMessage(redactionDoneMessage(result, messageState.get().messages))
     })
   // The new document has a history of its own: the old one goes with it.
   void open()

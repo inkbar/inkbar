@@ -3,16 +3,10 @@ import { EngineError, type UnremovableKind } from '../errors.ts'
 import { writeAnnotation } from './annotations.ts'
 import { buildAppearance } from './appearance.ts'
 import { formFieldNames, writeFields } from './fields.ts'
-import { inspectFile, isCount, isRecord, readReport } from './inspect.ts'
+import { groupByPage, inspectFile, isCount, isRecord, readReport } from './inspect.ts'
 import { withFloats, withInts, type Heap } from './strings.ts'
 
-import type {
-  AnnotationRef,
-  Rect,
-  RedactInput,
-  RedactResult,
-  WriteAnnotation,
-} from '../types.ts'
+import type { Rect, RedactInput, RedactResult, WriteAnnotation } from '../types.ts'
 import type { Quad } from 'gloss-format'
 
 /** What sanitising found, as the fork's flags. */
@@ -78,14 +72,13 @@ function reaches(corners: Corners, box: Rect): boolean {
     number,
     number,
   ]
-  // The corners in order around the quad: top left, top right, bottom right, bottom left.
-  const area = Math.abs(
-    x1 * y2 - x2 * y1 + (x2 * y4 - x4 * y2) + (x4 * y3 - x3 * y4) + (x3 * y1 - x1 * y3)
-  )
+  // A region has an area unless its corners span no width or no height. The order the corners
+  // are stored in does not matter: a rectangle stored around its edge is still a rectangle.
   const xs = [x1, x2, x3, x4]
   const ys = [y1, y2, y3, y4]
   return (
-    area > 0 &&
+    Math.max(...xs) > Math.min(...xs) &&
+    Math.max(...ys) > Math.min(...ys) &&
     Math.max(...xs) > box.x &&
     Math.min(...xs) < box.x + box.width &&
     Math.max(...ys) > box.y &&
@@ -103,9 +96,16 @@ function skipped(item: WriteAnnotation, box: Rect): boolean {
 }
 
 /**
+ * The most quads of earlier marks read from one page. The count comes from the file, and an
+ * encrypted file is not ours to trust: each quad takes 32 bytes to read, so a count with no cap
+ * could ask for hundreds of megabytes. No page Inkbar marked needs anywhere near this many.
+ */
+const MAX_LOCKED_QUADS_PER_PAGE = 10_000
+
+/**
  * The quads of the Redact annotations on `page` that carry Inkbar's data: its earlier marks in
- * an encrypted file, read before the apply removes them. A failure is `redaction-failed` naming
- * the page.
+ * an encrypted file, read before the apply removes them. A failure, or more quads than
+ * `MAX_LOCKED_QUADS_PER_PAGE`, is `redaction-failed` naming the page.
  */
 function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Quad[] {
   const { fn } = heap
@@ -116,7 +116,7 @@ function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Q
       { page: index }
     )
   const count = fn.INK_Redact_OwnLockedQuads(doc, page, 0, 0)
-  if (count < 0) throw failed()
+  if (count < 0 || count > MAX_LOCKED_QUADS_PER_PAGE) throw failed()
   if (count === 0) return []
   return withFloats(heap, new Array<number>(count * 8).fill(0), (out) => {
     if (fn.INK_Redact_OwnLockedQuads(doc, page, out, count) !== count) throw failed()
@@ -340,17 +340,12 @@ export function applyRedactions(
     }
   }
 
-  const marksByPage = new Map<number, WriteAnnotation[]>()
-  for (const item of input.marks)
-    marksByPage.set(item.page, [...(marksByPage.get(item.page) ?? []), item])
+  const marksByPage = groupByPage(input.marks)
 
   // Before anything is removed or written: a mark the apply cannot honour changes nothing.
   refuseUnremovable(heap, doc, marksByPage, context, withPage)
 
-  const removals = new Map<number, AnnotationRef[]>()
-  for (const ref of input.remove ?? [])
-    removals.set(ref.page, [...(removals.get(ref.page) ?? []), ref])
-  for (const [index, refs] of removals)
+  for (const [index, refs] of groupByPage(input.remove ?? []))
     withPage(index, (page) => {
       for (const ref of refs)
         if (!fn.EPDFPage_RemoveAnnotByObjectNumber(page, ref.objectNumber))

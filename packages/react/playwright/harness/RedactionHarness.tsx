@@ -11,7 +11,8 @@
  * `window.__releaseAnswer()`, and with `never` it is dropped. Their types show in `list`, and
  * the types of every proposal the host hears in `proposals` (one list per `|`). `disabled` is
  * the host's own `disabled` on the control. A `retry` button submits the password prompt, which
- * opens the document's source again. `swap` is a source `onRedacted` passes as the new `src`. `strict` renders it all in StrictMode. The errors the root reports show in
+ * opens the document's source again. `swap` is a source `onRedacted` passes as the new `src`. `relabel` passes new
+ * words for the done message as the redacted file opens (in its `onReady`). `strict` renders it all in StrictMode. The errors the root reports show in
  * `errors` (code, and the callback when there is one), the `onRedacted` calls in `redacted`,
  * and `useRedaction` in `probe`.
  */
@@ -37,6 +38,7 @@ import type {
   DocumentSource,
   EngineLoader,
   InkError,
+  InkMessagesInput,
   PdfAssets,
   RedactionPreview,
 } from '@inkbar/core'
@@ -55,10 +57,14 @@ function RedactionProbe() {
   )
 }
 
-/** Hands the page `window.__inkActivate`, which activates an annotation as the viewer does. */
+/**
+ * Hands the page `window.__inkActivate`, which activates an annotation as the viewer does, and
+ * `window.__inkApply`, which applies the marks from code.
+ */
 function ActivateHook() {
-  const { setActivated } = useInkContext('ActivateHook')
+  const { setActivated, applyRedactions } = useInkContext('ActivateHook')
   window.__inkActivate = setActivated
+  window.__inkApply = applyRedactions
   return null
 }
 
@@ -82,6 +88,8 @@ declare global {
     __releaseAnswer?: () => void
     /** Activates an annotation, opening its thread. */
     __inkActivate?: (id: string | null) => void
+    /** Applies the marks from code, as `useRedaction().apply` does. */
+    __inkApply?: () => Promise<unknown>
   }
 }
 
@@ -96,6 +104,7 @@ export interface RedactionHarnessProps {
   controlled?: 'now' | 'late' | 'never' | undefined
   disabled?: boolean
   swap?: DocumentSource | undefined
+  relabel?: boolean
   strict?: boolean
 }
 
@@ -109,6 +118,7 @@ function Harness({
   shown = true,
   controlled,
   swap,
+  relabel = false,
   disabled: hostDisabled,
 }: Omit<RedactionHarnessProps, 'engine' | 'strict'> & {
   loader: EngineLoader | undefined
@@ -119,6 +129,9 @@ function Harness({
   const [list, setList] = useState<Annotation[]>([])
   const [proposals, setProposals] = useState<string[]>([])
   const [swapped, setSwapped] = useState<DocumentSource | null>(null)
+  const [messages, setMessages] = useState<InkMessagesInput | undefined>(undefined)
+  /** The documents that have been ready, so `relabel` waits for the redacted one. */
+  const readies = useRef(0)
   /** Set by `onRedacted`: the next proposal is the redaction's. */
   const redactionNext = useRef(false)
   const confirmRef = useRef(confirm)
@@ -155,6 +168,12 @@ function Harness({
           tools={tools}
           engine={loader}
           redactionConfirm={confirm === 'dialog' ? undefined : confirm ? ask : false}
+          messages={messages}
+          onReady={() => {
+            readies.current += 1
+            if (relabel && readies.current === 2)
+              setMessages({ viewer: { redactDone: ({ marks }) => `${marks} fertig.` } })
+          }}
           onError={onError}
           onRedacted={() => {
             setRedacted((n) => n + 1)

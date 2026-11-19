@@ -245,8 +245,11 @@ function tally(
     counts.beside[kind] += 1
 }
 
-/** The points of a PDF.js path, curves taken by their control points, as closed rings or lines. */
-function flatten(data: ArrayLike<number>, ctm: Matrix): Point[][] {
+/**
+ * The points of a PDF.js path, curves taken by their control points, as closed rings or lines.
+ * With `onCurve`, a curve gives its end only: the points the path passes through.
+ */
+function flatten(data: ArrayLike<number>, ctm: Matrix, onCurve = false): Point[][] {
   const runs: Point[][] = []
   let run: Point[] = []
   const sizes = [2, 2, 6, 4, 0]
@@ -257,7 +260,9 @@ function flatten(data: ArrayLike<number>, ctm: Matrix): Point[][] {
       if (run.length) runs.push(run)
       run = []
     }
-    for (let k = 0; k < size; k += 2)
+    // A curve's control points come first, its end last.
+    const from = onCurve && (code === 2 || code === 3) ? size - 2 : 0
+    for (let k = from; k < size; k += 2)
       run.push(apply(ctm, data[at + k] as number, data[at + k + 1] as number))
     if (code === 4 && run.length) run.push(run[0] as Point)
     at += size
@@ -349,10 +354,30 @@ function isOverlay(runs: Point[][], fill: unknown, boxes: number[][]): boolean {
 }
 
 /**
+ * How much `ctm` scales a length in every direction. A stroke's width under any other transform
+ * differs by direction, which `miterPoints` does not model: it throws, so a fixture stroked that
+ * way cannot pass by a reach these readers got wrong.
+ */
+function uniformScale([a, b, c, d]: Matrix): number {
+  const x = Math.hypot(a, b)
+  const y = Math.hypot(c, d)
+  const tolerance = 1e-6 * Math.max(x, y, 1)
+  if (
+    Math.abs(x - y) > tolerance ||
+    Math.abs(a * c + b * d) > tolerance * Math.max(x, y, 1)
+  )
+    throw new Error(
+      `a mitred stroke under [${[a, b, c, d].join(' ')}], not a uniform scale: these readers do not bound it`
+    )
+  return x
+}
+
+/**
  * The miter tips of a stroked path's corners: at each corner where two segments meet at an angle
  * theta, a mitred join reaches 1 / sin(theta / 2) times half the line width from the vertex along
  * the outward bisector, drawn when that ratio is within the miter limit. Points 1 pt apart from
- * each vertex out to its tip.
+ * each vertex out to its tip. `runs` holds the points the path passes through, a curve's control
+ * points left out (`flatten` with `onCurve`).
  */
 function miterPoints(runs: Point[][], halfWidth: number, limit: number): Point[] {
   const points: Point[] = []
@@ -597,10 +622,9 @@ async function paintedOn(
           const filled = fills.has(paint) && coloured(state.fill)
           const stroked = strokes.has(paint) && coloured(state.stroke)
           if (stroked && state.join === 0) {
-            const [a, b, c, d] = state.ctm
-            const half =
-              (Math.abs(state.lineWidth) * Math.sqrt(Math.abs(a * d - b * c))) / 2
-            for (const p of miterPoints(runs, half, state.miterLimit))
+            const half = (Math.abs(state.lineWidth) * uniformScale(state.ctm)) / 2
+            const corners = data ? flatten(data, state.ctm, true) : []
+            for (const p of miterPoints(corners, half, state.miterLimit))
               tally(quads, p, counts, drawn, depth > 0)
           }
           const carrier = (colour: unknown) =>
@@ -861,14 +885,17 @@ describe('the fixtures', () => {
   )
 })
 
-test('the bytes reader sees an object nothing refers to in an encrypted file', async () => {
-  // redact-file-encrypted holds a content stream drawing ORPHAN-OMEGA that no page uses.
-  const source = await fixtureBytes('redact-file-encrypted')
-  expect(holdsText(await plainBytes(source, 'inkbar'), 'ORPHAN-OMEGA')).toBe(true)
-  // Without asking for them, qpdf leaves such objects out, and the word with them.
-  const dropped = await qpdfQdf(source, { password: 'inkbar' })
-  expect(holdsText(Buffer.from(dropped, 'latin1'), 'ORPHAN-OMEGA')).toBe(false)
-})
+test.runIf(qpdfAvailable)(
+  'the bytes reader sees an object nothing refers to in an encrypted file',
+  async () => {
+    // redact-file-encrypted holds a content stream drawing ORPHAN-OMEGA that no page uses.
+    const source = await fixtureBytes('redact-file-encrypted')
+    expect(holdsText(await plainBytes(source, 'inkbar'), 'ORPHAN-OMEGA')).toBe(true)
+    // Without asking for them, qpdf leaves such objects out, and the word with them.
+    const dropped = await qpdfQdf(source, { password: 'inkbar' })
+    expect(holdsText(Buffer.from(dropped, 'latin1'), 'ORPHAN-OMEGA')).toBe(false)
+  }
+)
 
 describe.runIf(redactable.length)('redacted', () => {
   test.each(redactable)(
@@ -1470,6 +1497,48 @@ test('the drawing reader leaves out the overlay and nothing else', () => {
   expect(isOverlay(square(106, 194), '#000000', boxes)).toBe(false)
   expect(isOverlay(square(107, 193), '#ff00ff', boxes)).toBe(false)
   expect(isOverlay(square(107, 193), '#000000', [])).toBe(false)
+})
+
+describe("the drawing reader's mitred corners", () => {
+  /** What `paintedOn` counts for one path stroked under `ctm`, against `quad`. */
+  async function stroked(data: number[], ctm: Matrix, quad: number[]) {
+    const lib = (await import('pdfjs-dist/legacy/build/pdf.mjs')) as unknown as PdfjsLib
+    const { OPS } = lib
+    const store: ObjectStore = { get: () => undefined }
+    const page: PdfjsPage = {
+      getTextContent: () => Promise.resolve({ items: [] }),
+      getOperatorList: () =>
+        Promise.resolve({
+          fnArray: [OPS.setLineWidth, OPS.transform, OPS.constructPath] as number[],
+          argsArray: [[20], ctm, [OPS.stroke, [new Float32Array(data)]]],
+        }),
+      objs: store,
+      commonObjs: store,
+    }
+    return paintedOn(page, lib, [quad])
+  }
+
+  test("takes a curve's ends as its corners, not its control points", async () => {
+    // A curve from (0, 0) to (100, 0) whose first control point, (50, 90), would be a sharp
+    // corner with its miter tip at about (48, 123), inside the region; the curve stays below it.
+    const curve = [0, 0, 0, 2, 50, 90, 60, 0, 100, 0]
+    const counts = await stroked(
+      curve,
+      [1, 0, 0, 1, 0, 0],
+      [30, 150, 80, 150, 30, 100, 80, 100]
+    )
+    expect(counts.under.drawing).toBe(0)
+  })
+
+  test('throws under a transform that is not a uniform scale', async () => {
+    const corner = [0, 0, 0, 1, 50, 50, 1, 100, 0]
+    const far = [500, 600, 600, 600, 500, 500, 600, 500]
+    // A turn and a uniform scale keep a stroke's width the same in every direction.
+    await expect(stroked(corner, [0, 2, -2, 0, 0, 0], far)).resolves.toBeDefined()
+    await expect(stroked(corner, [2, 0, 0, 1, 0, 0], far)).rejects.toThrow(
+      /uniform scale/
+    )
+  })
 })
 
 test("the lens-elsewhere loupe's window shows neither the region nor the star", async () => {

@@ -88,7 +88,8 @@ export function redactionPreview(state: RedactionState): RedactionPreview {
     (a) => a.source === 'pdf' && a.type !== 'redact' && overlapsMark(p, a)
   ).length
   return {
-    marks: p.marks.length,
+    // A mark with no area is skipped by the apply, so it is not counted, as `pages` leaves it out.
+    marks: p.regions.filter((r) => r.quads.length > 0).length,
     pages: p.pages,
     overlapped: p.removed.length + fileOverlapped,
     signed: state.formFields.some((f) => f.signed === 'certificate'),
@@ -140,7 +141,17 @@ export async function applyRedactions(
         fileParents: context.fileParents,
       })
       const marks: Awaited<ReturnType<typeof writeAnnotation>>[] = []
-      for (const mark of p.marks) {
+      for (const [i, given] of p.marks.entries()) {
+        // A mark goes to the engine with only its quads that have an area. One with none left
+        // goes as it is, and the engine skips it.
+        const quads = p.regions[i]!.quads
+        const mark =
+          given.type === 'redact' &&
+          given.quads &&
+          given.quads.length > 0 &&
+          quads.length > 0
+            ? { ...given, quads: [...quads] }
+            : given
         const page = context.pages[mark.page]
         marks.push(
           await (
@@ -160,8 +171,9 @@ export async function applyRedactions(
       }
       return { ...rest, marks: plainData(marks) }
     },
-    // The saver adds the regions of Inkbar's earlier locked marks the engine applied.
-    p.regions
+    // The saver adds the regions of Inkbar's earlier locked marks the engine applied. A mark
+    // with no area is skipped, so there is nothing under it to check.
+    p.regions.filter((r) => r.quads.length > 0)
   )
 
   const marks = result.pages.reduce((sum, page) => sum + page.marks, 0)
