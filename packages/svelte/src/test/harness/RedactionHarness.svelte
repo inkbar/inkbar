@@ -8,7 +8,8 @@
    * built-in dialog; without it the root applies without asking. `throwing` makes `onRedacted`
    * throw, and `shown: false` unmounts the root. `swap` is a source `onRedacted` passes as the
    * new `src`. `relabel` passes new words for the done message as the redacted file opens (in
-   * its `onReady`); it applies to the uncontrolled root.
+   * its `onReady`); it applies to the uncontrolled root. With `controlled: 'bound'`,
+   * `proposalThrows` makes `onAnnotationsChange` throw on the redaction's proposal.
    *
    * `controlled` keeps the annotations in the host with history on: `bound` through a plain
    * `bind:annotations`, which takes every proposal at once; the others through a function
@@ -56,6 +57,7 @@
     disabled,
     swap,
     relabel = false,
+    proposalThrows = false,
     control,
   }: {
     src: DocumentSource
@@ -69,6 +71,7 @@
     disabled?: boolean | undefined
     swap?: DocumentSource | undefined
     relabel?: boolean
+    proposalThrows?: boolean
     control?: { release?: () => void } | undefined
   } = $props()
 
@@ -112,6 +115,10 @@
   function onAnnotationsChange(next: Annotation[]): void {
     if (controlled === 'bound')
       proposals = [...proposals, next.map((a) => a.type).join(' ')]
+    if (proposalThrows && redactionNext) {
+      redactionNext = false
+      throw new Error('host failed')
+    }
   }
   const source = $derived(swapped ?? src)
   let messages = $state.raw<InkMessagesInput | undefined>(undefined)

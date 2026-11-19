@@ -4042,6 +4042,42 @@ describe('applying redactions', () => {
     expect(reasons.filter((r) => r === 'redaction')).toHaveLength(1)
   })
 
+  it('a controlled host that throws on the proposal still sees the redacted file open', async () => {
+    // What the flow rethrows from a microtask, caught here.
+    const thrown: unknown[] = []
+    const original = globalThis.queueMicrotask.bind(globalThis)
+    vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+      original(() => {
+        try {
+          cb()
+        } catch (error) {
+          thrown.push(error)
+        }
+      })
+    })
+    const host = new Error('host failed')
+    let hostList: Annotation[] = []
+    const onChange = (next: Annotation[], change: AnnotationChange) => {
+      if (change.kind === 'replace' && change.reason === 'redaction') throw host
+      hostList = next
+      viewer.document.get()?.annotations.setControlledValue(next)
+    }
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      annotations: { mode: 'controlled', initial: [], onChange },
+      onReady: (d) => d.annotations.setControlledValue(hostList),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await expect(viewer.applyRedactions()).resolves.toMatchObject({ marks: 1 })
+    const next = await reopened(viewer, doc)
+    expect(redactionBusy(next).get()).toBe(false)
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 redaction applied.')
+    expect(thrown).toContain(host)
+  })
+
   it('a controlled host and the viewer agree in a file with annotations of its own', async () => {
     let hostList: Annotation[] = []
     const proposals: { reason: string; ids: string[] }[] = []

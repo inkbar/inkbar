@@ -172,6 +172,82 @@ describe('applyRedactionsFlow', () => {
     expect(redactionBusy(doc).get()).toBe(false)
   })
 
+  it('is not busy once it ends with no reopen: not current after the run', async () => {
+    const { doc } = fakeDoc()
+    let current = true
+    const { opts } = options({ isCurrent: () => current })
+    const running = applyRedactionsFlow(doc, opts)
+    current = false
+    await expect(running).resolves.toBeNull()
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  it('is not busy once it ends with no reopen: not current after the proposal', async () => {
+    const { doc, replaceAll } = fakeDoc({ controlled: true })
+    let current = true
+    replaceAll.mockImplementation(() => {
+      current = false
+    })
+    const out = await applyRedactionsFlow(doc, options({ isCurrent: () => current }).opts)
+    expect(out?.reopen).toBeNull()
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  describe('a throw after the apply', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('from a controlled host hearing the proposal: still reopens, and is rethrown', async () => {
+      const thrown = rethrown()
+      const host = new Error('host onChange failed')
+      const { doc, replaceAll } = fakeDoc({ controlled: true })
+      replaceAll.mockImplementation(() => {
+        throw host
+      })
+      const out = await applyRedactionsFlow(doc, options().opts)
+      expect(out?.reopen?.initial).toEqual([])
+      expect(redactionBusy(doc).get()).toBe(true)
+      await vi.waitFor(() => expect(thrown).toEqual([host]))
+    })
+
+    it('from view: still reopens with the default view, and is rethrown', async () => {
+      const thrown = rethrown()
+      const failed = new Error('view failed')
+      const { doc } = fakeDoc()
+      const out = await applyRedactionsFlow(
+        doc,
+        options({
+          view: () => {
+            throw failed
+          },
+        }).opts
+      )
+      expect(out?.reopen).toMatchObject({ view: undefined })
+      expect(redactionBusy(doc).get()).toBe(true)
+      await vi.waitFor(() => expect(thrown).toEqual([failed]))
+    })
+
+    it('anywhere else: resolves with no reopen, is not busy, and is rethrown', async () => {
+      const thrown = rethrown()
+      const failed = new Error('isCurrent failed')
+      const { doc } = fakeDoc()
+      let calls = 0
+      const out = await applyRedactionsFlow(
+        doc,
+        options({
+          isCurrent: () => {
+            if (++calls > 1) throw failed
+            return true
+          },
+        }).opts
+      )
+      expect(out).toEqual({ result: result(), reopen: null })
+      expect(redactionBusy(doc).get()).toBe(false)
+      await vi.waitFor(() => expect(thrown).toEqual([failed]))
+    })
+  })
+
   it('is not busy once the apply has failed', async () => {
     const { doc } = fakeDoc({
       apply: () =>

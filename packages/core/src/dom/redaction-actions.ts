@@ -292,7 +292,11 @@ export function redactionDoneMessage(
  * applies (`runRedaction`), tells the host (`notify`), proposes a controlled host its list
  * without the marks and the annotations removed with them (reason `'redaction'`, then
  * `proposed`), and says what to open. It re-checks `isCurrent` after every step that can change
- * the document shown. It never rejects. What the caller does with each outcome:
+ * the document shown. It never rejects: what a callback throws once the marks are applied is
+ * rethrown from a microtask. A `view` that throws leaves the reopen at the default view, and a
+ * controlled host that throws on the proposal still gets the reopen; any other throw ends the
+ * flow with no reopen and the document taking input again. What the caller does with each
+ * outcome:
  *
  * - `{ result, reopen }` with `reopen` set: open `reopen.source` in place of the document, with
  *   its file name, password, view and (controlled) initial list, and show `reopen.message`
@@ -337,63 +341,88 @@ export async function applyRedactionsFlow(
     return null
   }
   if (!out) return null
-  // Gone, or another document opened, meanwhile: there is nothing to reopen.
-  if (!opts.isCurrent()) {
-    release(doc)
-    return null
-  }
-  const { bytes, result, _marks: applied } = out
-  // The viewer's own copy: the host may change or transfer the array it is given.
-  const data = bytes.slice()
+  const applied = out
+  /** What the flow hands back once the host has heard: what was done, and nothing to reopen. */
+  let heard: { result: RedactionResult; reopen: null } | null = null
   try {
-    opts.notify({ bytes, result })
-  } catch (error) {
-    // The reader confirmed: the reopen goes ahead, and the host hears what it threw.
-    report(
-      isInkError(error)
-        ? error
-        : new InkError(
-            'RedactionFailed',
-            `${opts.callbackName} threw: ${error instanceof Error ? error.message : String(error)}`,
-            { callback: opts.callbackName },
-            error
-          )
-    )
-  }
-  // The host may have opened another document already.
-  if (!opts.isCurrent()) {
+    const handedBack = tail(applied, (r) => (heard = { result: r, reopen: null }))
+    // No reopen: the document stays as it is, and takes input again.
+    if (!handedBack.reopen) release(doc)
+    return handedBack.reopen ? handedBack : heard
+  } catch (thrown) {
+    // A throw no step expects: nothing is reopened, the document takes input again, and the
+    // throw surfaces as an uncaught error, as a listener's does.
     release(doc)
-    return { result, reopen: null }
+    guarded(() => {
+      throw thrown
+    })
+    return heard
   }
-  const view = opts.view()
-  // A controlled host is proposed its list without the marks applied and the annotations
-  // removed with them, once; the reopened document starts from it, so the proposal its lifting
-  // makes agrees. A mark the host added while the apply ran was not applied, and stays.
-  let initial: Annotation[] | undefined
-  if (doc.annotations.mode === 'controlled') {
-    const gone = new Set([...applied, ...result.removed.session])
-    // What the host holds: the file's own annotations never pass through it.
-    const list = doc.annotations.list
-      .get()
-      .filter((a) => a.source !== 'pdf' && !gone.has(a.id))
-    initial = list
-    doc.annotations.replaceAll(list, 'redaction')
-    const { proposed } = opts
-    if (proposed) guarded(() => proposed(list))
-    if (!opts.isCurrent()) {
-      release(doc)
-      return { result, reopen: null }
+
+  /**
+   * Everything after the apply, up to what to reopen. `told` records that the host has heard.
+   * A host that throws on hearing, on the proposal or reading the view does not stop the
+   * reopen: the bytes are good and the reader confirmed.
+   */
+  function tail(
+    { bytes, result, _marks: marks }: NonNullable<typeof out>,
+    told: (result: RedactionResult) => void
+  ): { result: RedactionResult; reopen: RedactionReopen | null } {
+    // Gone, or another document opened, meanwhile: there is nothing to reopen.
+    if (!opts.isCurrent()) return { result, reopen: null }
+    // The viewer's own copy: the host may change or transfer the array it is given.
+    const data = bytes.slice()
+    try {
+      opts.notify({ bytes, result })
+    } catch (error) {
+      // The reader confirmed: the reopen goes ahead, and the host hears what it threw.
+      report(
+        isInkError(error)
+          ? error
+          : new InkError(
+              'RedactionFailed',
+              `${opts.callbackName} threw: ${error instanceof Error ? error.message : String(error)}`,
+              { callback: opts.callbackName },
+              error
+            )
+      )
     }
-  }
-  return {
-    result,
-    reopen: {
-      source: { data, key: doc.key },
-      fileName: doc.fileName,
-      password: opts.password,
-      view,
-      initial,
-      message: redactionDoneMessage(result, opts.messages()),
-    },
+    told(result)
+    // The host may have opened another document already.
+    if (!opts.isCurrent()) return { result, reopen: null }
+    // A view that cannot be read opens at the default one.
+    let view: RedactionView | undefined
+    guarded(() => {
+      view = opts.view()
+    })
+    // A controlled host is proposed its list without the marks applied and the annotations
+    // removed with them, once; the reopened document starts from it, so the proposal its
+    // lifting makes agrees. A mark the host added while the apply ran was not applied, and
+    // stays.
+    let initial: Annotation[] | undefined
+    if (doc.annotations.mode === 'controlled') {
+      const gone = new Set([...marks, ...result.removed.session])
+      // What the host holds: the file's own annotations never pass through it.
+      const list = doc.annotations.list
+        .get()
+        .filter((a) => a.source !== 'pdf' && !gone.has(a.id))
+      initial = list
+      // A host that throws on hearing the proposal still sees the redacted file open from it.
+      guarded(() => doc.annotations.replaceAll(list, 'redaction'))
+      const { proposed } = opts
+      if (proposed) guarded(() => proposed(list))
+      if (!opts.isCurrent()) return { result, reopen: null }
+    }
+    return {
+      result,
+      reopen: {
+        source: { data, key: doc.key },
+        fileName: doc.fileName,
+        password: opts.password,
+        view,
+        initial,
+        message: redactionDoneMessage(result, opts.messages()),
+      },
+    }
   }
 }

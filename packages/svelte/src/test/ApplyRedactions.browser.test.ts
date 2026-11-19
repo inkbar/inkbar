@@ -1,5 +1,5 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
@@ -632,6 +632,45 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     await expect.poll(text('proposals')).toBe('redact||square')
     await expect.poll(text('list')).toBe('square')
     expect(count(MARKS)()).toBe(0)
+  })
+
+  it('a host that throws on the proposal still sees the redacted file open', async () => {
+    // What the flow rethrows from a microtask, caught here.
+    const thrown: unknown[] = []
+    const original = globalThis.queueMicrotask.bind(globalThis)
+    const spy = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+      original(() => {
+        try {
+          cb()
+        } catch (error) {
+          thrown.push(error)
+        }
+      })
+    })
+    try {
+      const held = heldEngine()
+      await render(RedactionHarness, {
+        src,
+        assets,
+        engine: held.loader,
+        controlled: 'bound',
+        proposalThrows: true,
+      })
+      await firstPage()
+      mark()
+      await expect.poll(disabledOf(APPLY)).toBe(false)
+      const before = currentDoc()
+      document.querySelector<HTMLButtonElement>(APPLY)!.click()
+      await expect.poll(() => held.writing()).toBe(true)
+      held.finish()
+      await expect.poll(alertText).toBe('1 redaction applied.')
+      expect(currentDoc()).not.toBe(before)
+      expect(count(MARKS)()).toBe(0)
+      expect(document.querySelector(APPLY)?.getAttribute('aria-busy')).toBe('false')
+      expect(thrown.map((e) => (e as Error).message)).toContain('host failed')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('opening the redacted file again uses the kept view and the proposed list once', async () => {
