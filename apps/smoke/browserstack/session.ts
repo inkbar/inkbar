@@ -68,7 +68,11 @@ export interface Remote {
   close(): Promise<void>
 }
 
-async function connect(target: Target, testName: string): Promise<Remote> {
+async function connect(
+  target: Target,
+  testName: string,
+  baseURL: string | undefined
+): Promise<Remote> {
   const { username, key } = credentials()
   const identifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER
   if (!identifier)
@@ -89,7 +93,11 @@ async function connect(target: Target, testName: string): Promise<Remote> {
     if (target.client === 'android') {
       const device = await _android.connect(endpoint, { timeout: CONNECT_TIMEOUT })
       await device.shell('am force-stop com.android.chrome')
-      const context = await device.launchBrowser({ hasTouch: true })
+      // An Android browser's context takes none of the project's options, `baseURL` included.
+      const context = await device.launchBrowser({
+        hasTouch: true,
+        ...(baseURL ? { baseURL } : {}),
+      })
       const page = context.pages()[0] ?? (await context.newPage())
       return { page, target, close: () => device.close() }
     }
@@ -99,9 +107,10 @@ async function connect(target: Target, testName: string): Promise<Remote> {
       timeout: CONNECT_TIMEOUT,
     })
     // Phones and tablets take taps; Playwright refuses `tap()` in a context without touch.
-    const context = await browser.newContext(
-      target.kind === 'ios' ? { hasTouch: true } : {}
-    )
+    const context = await browser.newContext({
+      ...(target.kind === 'ios' ? { hasTouch: true } : {}),
+      ...(baseURL ? { baseURL } : {}),
+    })
     const page = await context.newPage()
     return { page, target, close: () => browser.close() }
   } catch (error) {
@@ -125,10 +134,12 @@ async function setStatus(page: Page, passed: boolean, reason: string): Promise<v
 }
 
 export const test = base.extend<{ remote: Remote }>({
-  // Playwright reads a fixture's needs from its first parameter: this one needs none.
-  // eslint-disable-next-line no-empty-pattern
-  remote: async ({}, use, testInfo) => {
-    const remote = await connect(targetNamed(testInfo.project.name), testInfo.title)
+  remote: async ({ baseURL }, use, testInfo) => {
+    const remote = await connect(
+      targetNamed(testInfo.project.name),
+      testInfo.title,
+      baseURL
+    )
     try {
       await use(remote)
     } finally {
