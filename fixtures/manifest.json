@@ -531,14 +531,28 @@
     "file": "redact-annotations.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field \"hidden\" holding SECRET-FIELD, and a note saying SECRET-NOTE whose pop-up lies outside it; text field \"kept\" has its widget below the region",
+    "describes": "Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field \"hidden\" holding SECRET-DELTA, and a note saying SECRET-NOTE whose pop-up lies outside it; text field \"kept\" has its widget below the region",
     "annotations": {
       "Stamp": 1,
       "Widget": 2,
       "Text": 1,
       "Popup": 1
     },
-    "secrets": ["SECRET-STAMP", "SECRET-FIELD", "SECRET-NOTE"],
+    "placed": [
+      {
+        "what": "the stamp's appearance, SECRET-STAMP",
+        "box": [50, 160, 125, 200]
+      },
+      {
+        "what": "the widget of field \"hidden\", SECRET-DELTA",
+        "box": [130, 160, 230, 185]
+      },
+      {
+        "what": "the note, whose contents are SECRET-NOTE",
+        "box": [60, 215, 80, 235]
+      }
+    ],
+    "secrets": ["SECRET", "STAMP", "DELTA", "NOTE"],
     "keeps": ["KEEP-BETA"],
     "regions": [
       {
@@ -570,7 +584,7 @@
     "opens": true,
     "describes": "redact-text without /Info, plus a layer the default configuration hides, drawing LAYER-TEXT at y 100",
     "secrets": ["SECRET", "ALPHA"],
-    "keeps": ["KEEP-BETA"],
+    "keeps": ["KEEP-BETA", "LAYER-TEXT"],
     "regions": [
       {
         "page": 0,
@@ -610,7 +624,7 @@
     "file": "check-pattern-text.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted",
+    "describes": "A fill 1 pt inside the region (x 46..214, y 191..224) with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly inside the region",
     "secrets": ["SECRET", "ALPHA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -618,7 +632,18 @@
         "page": 0,
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
-    ]
+    ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the pattern's 200 by 40 cell at (5, 12); the tile at (0, 200) puts it at (5, 212), across the region's top edge",
+        "box": [5, 208, 159, 227]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["pattern"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
+    }
   },
   "bad-black-box": {
     "file": "bad-black-box.pdf",
@@ -658,6 +683,1033 @@
       {
         "page": 0,
         "quad": [95, 205, 200, 205, 95, 95, 200, 95]
+      }
+    ]
+  },
+  "redact-text-composite": {
+    "file": "redact-text-composite.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA at x 50..218 and KEEP-BETA at x 250..376 in an embedded TrueType font (a subset of Ahem) under a Type0 font with Identity-H codes equal to Unicode values; the region is over the first",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-type3": {
+    "file": "redact-text-type3.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA at x 50..194 and KEEP-BETA at x 250..358 in a Type 3 font whose glyphs are filled squares; the region is over the first",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-nested-form": {
+    "file": "redact-text-nested-form.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA drawn by a form inside a form (shifted 10 pt right by the outer one) under the region, KEEP-BETA in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-shared-form": {
+    "file": "redact-text-shared-form.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Two pages that each draw one form holding SECRET-ALPHA, and KEEP-BETA in their own content; the region is on the first page only, so the second must still show SECRET-ALPHA",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA", "SECRET-ALPHA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-clip": {
+    "file": "redact-text-clip.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA in text rendering mode 7, a clipping path that a magenta rectangle (x 40..280, y 185..230) then fills, and KEEP-BETA beside it; the region is over the clipping text",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-rotated": {
+    "file": "redact-text-rotated.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA on a baseline turned 30 degrees about (60, 120), under a region turned with it; KEEP-GAMMA on the turned baseline 40 pt above, partly inside the bounding box of the region and outside the region; KEEP-BETA level at (250, 60)",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA", "KEEP-GAMMA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45.67, 134.82, 186.83, 216.32, 58.67, 112.3, 199.83, 193.8]
+      }
+    ]
+  },
+  "redact-text-vertical": {
+    "file": "redact-text-vertical.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA and KEEP-BETA written top to bottom in the Ahem subset with Identity-V codes, from y 280 at x 100 and x 300; the region is over the first column",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [80, 295, 125, 295, 80, 60, 125, 60]
+      }
+    ]
+  },
+  "redact-text-half-word": {
+    "file": "redact-text-half-word.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "KEEP-SECRET in one string of Helvetica, with the region from x 110, where its S starts, to x 215",
+    "secrets": ["SECRET"],
+    "keeps": ["KEEP-"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 225, 215, 225, 110, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-image-jpeg": {
+    "file": "redact-image-jpeg.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 JPEG (4:2:0, quality 90; a different magenta for every sample under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-jpx": {
+    "file": "redact-image-jpx.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 JPEG 2000 image (a different magenta for every sample under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-ccitt": {
+    "file": "redact-image-ccitt.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 CCITT Group 4 image (black squares under the region, a black block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-1bit": {
+    "file": "redact-image-1bit.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate grey image of 1 bit a sample (black squares under the region, a black block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-jbig2": {
+    "file": "redact-image-jbig2.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 399 by 400 JBIG2 image from PDFium's tests (two dots at the left, strokes to their right) over x 100..300, y 50..250; the region (x 110..160) covers the dots",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 255, 160, 255, 110, 45, 160, 45]
+      }
+    ]
+  },
+  "redact-image-stencil": {
+    "file": "redact-image-stencil.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 stencil mask painted magenta (squares under the region, a block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-smask": {
+    "file": "redact-image-smask.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate RGB image (varied magentas under the region, green beside it) with a /SMask that is a checkerboard of two opacities under the region and opaque elsewhere, over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-mask": {
+    "file": "redact-image-mask.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate RGB image (varied magentas under the region, green beside it) with a stream /Mask that masks every third sample under the region, over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-shared": {
+    "file": "redact-image-shared.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "One 64 by 32 Flate RGB image (varied magentas under the region, green beside it) drawn on two pages over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it; the region is on the first page only, so the second must still show the whole image",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-rotated": {
+    "file": "redact-image-rotated.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared turned 30 degrees about (120, 60), green only from sample 48 across, with KEEP-BETA at (250, 25); the region is the image's left half (up to a third of the way into sample 32), turned with it. The apply blanks the samples in the region's bounding box on the page, which reaches sample 47, so the green starts past it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [66.27, 145.37, 153.6, 195.79, 119.07, 53.92, 206.4, 104.34]
+      }
+    ]
+  },
+  "redact-image-skewed": {
+    "file": "redact-image-skewed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared skewed: its top edge 15 pt right of its bottom edge, over x 100..307, y 100..196; the region (x 90..203) covers the content under it, which ends by x 197.2, and the content beside it starts at x 209.9",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 203, 205, 90, 90, 203, 90]
+      }
+    ]
+  },
+  "redact-drawing-fill": {
+    "file": "redact-drawing-fill.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A magenta quadrilateral wholly under the region (x and y 110..190) and a blue square at x 260..320, y 120..180",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-stroke": {
+    "file": "redact-drawing-stroke.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A magenta line 4 pt wide from (60, 150) through the region (x 110..190, y 110..190) to (330, 150), and a blue line at y 240",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-shading": {
+    "file": "redact-drawing-shading.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An axial magenta shading painted through a clip of x and y 125..175, under the region (x and y 110..190), and a blue one through a clip of x 260..320, y 120..180",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-pattern": {
+    "file": "redact-drawing-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320. The square lies wholly under the region",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["pattern"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
+    }
+  },
+  "redact-page-rotate-90": {
+    "file": "redact-page-rotate-90.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /Rotate 90; the region is in user space",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-rotate-270": {
+    "file": "redact-page-rotate-270.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /Rotate 270; the region is in user space",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-userunit": {
+    "file": "redact-page-userunit.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /UserUnit 2",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-cropbox": {
+    "file": "redact-page-cropbox.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 600 by 500 page cropped to x 100..500, y 100..400, with SECRET-ALPHA at (150, 300) under the region and KEEP-BETA at (350, 300)",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [145, 325, 315, 325, 145, 290, 315, 290]
+      }
+    ]
+  },
+  "redact-page-no-contents": {
+    "file": "redact-page-no-contents.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A page with no /Contents and one stamp, at x 60..210, y 180..220, whose appearance draws SECRET-STAMP; the region (x 40..240, y 150..250) covers the stamp",
+    "annotations": {
+      "Stamp": 1
+    },
+    "placed": [
+      {
+        "what": "the stamp's appearance, SECRET-STAMP",
+        "box": [60, 180, 210, 220]
+      }
+    ],
+    "secrets": ["SECRET", "STAMP"],
+    "keeps": [],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [40, 250, 240, 250, 40, 150, 240, 150]
+      }
+    ]
+  },
+  "redact-copy-thumbnail": {
+    "file": "redact-copy-thumbnail.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white. The file also holds an image XObject that nothing refers to",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/Thumb", "ÿÿÿSECRET-ALPHA"]
+  },
+  "redact-copy-pieceinfo": {
+    "file": "redact-copy-pieceinfo.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text whose page has /PieceInfo, private application data holding SECRET-OMEGA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/PieceInfo"]
+  },
+  "redact-copy-xmp": {
+    "file": "redact-copy-xmp.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with XMP metadata on the catalog and on the page, each holding a JPEG preview in xmp:Thumbnails",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["xmp:Thumbnails", "xmpGImg", "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMC"]
+  },
+  "redact-annotation-loupe": {
+    "file": "redact-annotation-loupe.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with a loupe beside the region: a square annotation at x 220..380, y 40..160 whose appearance draws a copy of the page (tagged /INKB_PageCopy) at twice its size, centred on the start of SECRET-ALPHA",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "Square": 1
+    },
+    "refused": {
+      "need": "shown",
+      "why": "the loupe's appearance holds a copy of the page as it was, which the apply does not change, and the strict check after the apply reads it; Inkbar writes its own loupes again after the apply"
+    }
+  },
+  "redact-file-encrypted": {
+    "file": "redact-file-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text encrypted with AES-128; the user password is \"inkbar\". It also holds a content stream nothing refers to, drawing ORPHAN-OMEGA",
+    "secrets": ["SECRET", "ALPHA", "ORPHAN", "OMEGA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "password": "inkbar"
+  },
+  "redact-file-signed": {
+    "file": "redact-file-signed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with a signature field (widget at x 300..380, y 40..80) holding a signature dictionary whose /Contents is zeros: it looks signed and verifies against nothing",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "Widget": 1
+    }
+  },
+  "redact-file-revisions": {
+    "file": "redact-file-revisions.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two revisions: the first draws SECRET-ZETA and KEEP-BETA, the appended second draws SECRET-ALPHA under the region and KEEP-BETA; the first content stream stays in the bytes",
+    "secrets": ["SECRET", "ALPHA", "ZETA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-file-hidden-layer": {
+    "file": "redact-file-hidden-layer.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text plus HIDDEN-OMEGA at (50, 170) in a layer the default configuration hides; the region (x 45..215, y 160..225) covers both",
+    "secrets": ["SECRET", "ALPHA", "HIDDEN", "OMEGA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 160, 215, 160]
+      }
+    ]
+  },
+  "redact-file-attachment": {
+    "file": "redact-file-attachment.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with an attached file holding SECRET-OMEGA in /EmbeddedFiles and a file attachment annotation (x 340..360, y 40..60) holding SECRET-SIGMA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA", "SIGMA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "FileAttachment": 1
+    },
+    "gone": ["/EmbeddedFiles", "/EmbeddedFile", "/EF"]
+  },
+  "redact-file-script": {
+    "file": "redact-file-script.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with scripts holding SECRET-OMEGA in /Names /JavaScript, SECRET-SIGMA in the /OpenAction and SECRET-KAPPA in the page's /AA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA", "SIGMA", "KAPPA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/JavaScript", "/JS"]
+  },
+  "redact-text-pattern": {
+    "file": "redact-text-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 170..240 filled with a tiling pattern whose one cell, the size of the page, is grey with SECRET-ALPHA at (50, 200), under the region; KEEP-BETA at (300, 100) in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the pattern's one page-sized cell, placed by the identity matrix at (50, 200)",
+        "box": [50, 196, 204, 215]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which holds the text where the mark is; the engine refuses before the apply"
+    }
+  },
+  "redact-drawing-pattern-past-mark": {
+    "file": "redact-drawing-pattern-past-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a tiling pattern whose one cell, the size of the page, draws a magenta quadrilateral under the region (x and y 110..190) and a blue square at x 260..320, y 120..180 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
+    }
+  },
+  "redact-drawing-pattern-side": {
+    "file": "redact-drawing-pattern-side.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x 30..60, y 130..170 and a blue square at x 260..320; the region (x 10..70, y 90..210) covers the band's whole left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [10, 210, 70, 210, 10, 90, 70, 90]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["pattern"],
+      "why": "the mark covers the band's left end only, so the apply would cut the band back and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
+    }
+  },
+  "redact-drawing-hatch": {
+    "file": "redact-drawing-hatch.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a hatch: a tiling pattern whose 20 pt cell draws one magenta diagonal. Whole tiles show beside the region (x and y 110..190), so what lies under it is a repeat of what stays in view",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "cautious",
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, and the engine refuses any mark over a shape painted with a tiling pattern that the apply would only cut, whatever the cell holds; here the cell repeats what stays in view, so the refusal is cautious rather than needed"
+    }
+  },
+  "redact-drawing-mesh": {
+    "file": "redact-drawing-mesh.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A free-form triangle mesh shading (type 4) of two magenta triangles over x 125..275, y 125..175, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["shading"],
+      "why": "the shading reaches past the mark, so the apply would only clip it and leave its mesh in the file, where removing the clip shows it again; the engine refuses before the apply"
+    }
+  },
+  "redact-drawing-function-shading": {
+    "file": "redact-drawing-function-shading.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A function-based shading (type 1) over x 125..275, y 125..175, magenta shading to pink, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["shading"],
+      "why": "the shading reaches past the mark, so the apply would only clip it and leave its function in the file; the engine refuses before the apply"
+    }
+  },
+  "redact-drawing-mesh-pattern": {
+    "file": "redact-drawing-mesh-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A rectangle at x 125..275, y 125..175 filled with a shading pattern whose shading is the triangle mesh of redact-drawing-mesh; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["shading"],
+      "why": "the rectangle reaches past the mark, so the apply would cut it and leave the mesh it is filled with; the engine refuses before the apply"
+    }
+  },
+  "redact-mask-group-past-mark": {
+    "file": "redact-mask-group-past-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A blue band at x 20..380, y 130..190 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the word and not the whole band",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 175, 215, 175, 45, 140, 215, 140]
+      }
+    ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the soft mask's group, placed by the identity matrix at (50, 150)",
+        "box": [50, 146, 204, 165]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["mask-group"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the mask's group, which draws the text where the mark is; the engine refuses before the apply"
+    }
+  },
+  "redact-mask-group-under-mark": {
+    "file": "redact-mask-group-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 175, 215, 175, 45, 140, 215, 140]
+      }
+    ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the soft mask's group, placed by the identity matrix at (50, 150)",
+        "box": [50, 146, 204, 165]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["mask-group"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mask group in the file"
+    }
+  },
+  "redact-image-under-mark": {
+    "file": "redact-image-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared drawn small, over x 120..180, y 135..165, wholly under the region (x and y 110..190): the apply leaves no image in the file",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-text-form-under-mark": {
+    "file": "redact-text-form-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A form at (120, 140) whose only content, SECRET-ALPHA in Helvetica 8, lies wholly under the region (x 110..195, y 110..190); KEEP-BETA in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 195, 190, 110, 110, 195, 110]
+      }
+    ]
+  },
+  "redact-drawing-hatch-under-mark": {
+    "file": "redact-drawing-hatch-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with the hatch of redact-drawing-hatch, and a blue square beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["pattern"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
+    }
+  },
+  "redact-drawing-mesh-under-mark": {
+    "file": "redact-drawing-mesh-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The triangle mesh of redact-drawing-mesh pulled into x and y 125..175, wholly inside the region (x and y 110..190), painted with sh, and a blue square beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["shading"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mesh in the file"
+    }
+  },
+  "redact-drawing-function-under-mark": {
+    "file": "redact-drawing-function-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The function-based shading of redact-drawing-function-shading over x and y 125..175 only, wholly inside the region (x and y 110..190), and a blue square beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["shading"],
+      "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the function in the file"
+    }
+  },
+  "redact-drawing-sampled-axial": {
+    "file": "redact-drawing-sampled-axial.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An axial shading whose function is sampled (type 0, four colours) painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "shown",
+      "kinds": ["shading"],
+      "why": "a sampled function can hold a picture, and the shading reaches past the mark, so the apply would only clip it and leave the function in the file; the engine refuses before the apply"
+    }
+  },
+  "redact-text-fade": {
+    "file": "redact-text-fade.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA under the region, faded by a soft mask whose group draws only an axial ramp (gradient transparency), and KEEP-BETA beside it unmasked: the mask holds no picture, so the apply runs and the text goes",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-beside-carriers": {
+    "file": "redact-text-beside-carriers.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page that also has a hatch swatch (x 330..370, y 40..80), a band of a large-cell texture (x 20..300, y 20..60) and a square under a soft mask whose group holds text (x 250..310, y 100..160), none of them under the region: the apply runs",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-shaped-fade": {
+    "file": "redact-text-shaped-fade.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA under the region, faded by a soft mask whose group draws an axial ramp clipped to a triangle (x 40..220, y 185..235), and KEEP-BETA beside it unmasked. The triangle is a shape, so the group is not a simple fade",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["mask-group"],
+      "why": "the mask group draws a ramp clipped to a triangle, more than a simple fade; the text lies wholly inside the mark, so the apply would remove it with its mask, and the engine refuses because it cannot show that nothing else keeps the group in the file"
+    }
+  },
+  "redact-drawing-pattern-colour-kept": {
+    "file": "redact-drawing-pattern-colour-kept.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. With no q/Q around it, a blue stroke-only line at y 240 follows, whose fill colour is still the pattern; the fill colour is then set to black for KEEP-BETA, so the line is the only later object that carries the pattern colour. The line paints none of the pattern, but its colour still names it, so an apply that removed the square would keep the cell in the saved file (as the fork's smoke check shows)",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["pattern"],
+      "why": "the square lies wholly inside the mark, so the apply would remove it, and the engine refuses because it cannot show that nothing else keeps the pattern in the file: here a later line's fill colour still names it, which would keep the cell in the saved file"
+    }
+  },
+  "redact-drawing-pattern-miter": {
+    "file": "redact-drawing-pattern-miter.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A closed triangle (130, 130), (170, 130), (150, 185) stroked 10 pt wide with mitred joins in a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. The region (x 115..185, y 115..195) holds the triangle's box grown by half the stroke width, but the top corner's miter reaches y 199.6, past it: an apply would cut the stroke there instead of removing it, and the pattern would stay with the cut shape (as the fork's smoke check shows)",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [115, 195, 185, 195, 115, 115, 185, 115]
+      }
+    ],
+    "refused": {
+      "need": "covered",
+      "kinds": ["pattern"],
+      "why": "the triangle's stroke box lies wholly inside the mark, so the engine takes it as covered and cannot show that nothing keeps the pattern in the file: here the mitred corner reaches past the mark, so the apply would cut the stroke and keep the pattern"
+    }
+  },
+  "redact-annotation-loupe-drawing": {
+    "file": "redact-annotation-loupe-drawing.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A pink star wholly inside the region (x and y 110..190), a blue square beside it, and a locked loupe (a stamp at x 220..310, y 200..290) whose lens shows the region at 1.125 times its size from a copy of the page made before any apply",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "annotations": {
+      "Stamp": 1
+    },
+    "refused": {
+      "need": "shown",
+      "why": "the loupe stays locked, so its copy of the page, made before the apply, still holds the star; the strict check after the apply reads the copy"
+    }
+  },
+  "redact-annotation-loupe-elsewhere": {
+    "file": "redact-annotation-loupe-elsewhere.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "As redact-annotation-loupe-drawing, with the lens showing page x 200..290, y 15..105 at its own size: clear of the region (x and y 110..190) and of the star (about x 121..179, y 126..180). The copy holds the whole page, the star included, whatever part the lens shows",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "annotations": {
+      "Stamp": 1
+    },
+    "refused": {
+      "need": "shown",
+      "why": "the loupe stays locked, so its copy of the page, made before the apply, still holds the star, though the lens shows neither the star nor the region; the strict check after the apply reads the whole copy"
+    }
+  },
+  "redact-annotation-loupe-rewritten": {
+    "file": "redact-annotation-loupe-rewritten.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The page of redact-annotation-loupe-drawing with no loupe in the file: the loupe test passes a loupe in `annotations`, so its copy of the page is taken after the apply",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-negative-width": {
+    "file": "redact-drawing-negative-width.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A black star with a line width of -4, filled, wholly inside the region (x and y 110..190), and a black square at x 260..320, y 120..180 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-miter-reach": {
+    "file": "redact-drawing-miter-reach.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A black closed triangle (195, 150), (260, 140), (260, 160) stroked 6 pt wide with mitred joins, and a black square at x 260..300, y 40..80. Its points and its stroke box (x 192..263) lie beside the region (x and y 110..190), but the corner at (195, 150), 17.5 degrees wide, has a miter 6.6 times the line width, whose tip reaches x 175.3, under the region",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ]
   }

@@ -642,3 +642,154 @@ describe.runIf(qpdfAvailable)('qpdf', () => {
       expect(await qpdfCheck(bytes), name).toEqual({ ok: true })
   })
 })
+
+describe('refuses a mark over content the apply cannot remove', () => {
+  /** The bytes a save gives of `fixture` as opened, with nothing done to it. */
+  async function untouched(fixture: FixtureName): Promise<string> {
+    const doc = await engine.open(await fixtureBytes(fixture))
+    try {
+      return withoutId(await doc.save())
+    } finally {
+      await doc.close()
+    }
+  }
+
+  test.each<[FixtureName, string[]]>([
+    ['redact-drawing-pattern-past-mark', ['pattern']],
+    ['redact-drawing-hatch', ['pattern']],
+    ['redact-drawing-pattern-side', ['pattern']],
+    ['redact-drawing-mesh', ['shading']],
+    ['redact-drawing-function-shading', ['shading']],
+    ['redact-drawing-mesh-pattern', ['shading']],
+    ['redact-mask-group-past-mark', ['mask-group']],
+    ['redact-text-pattern', ['pattern']],
+    ['redact-drawing-sampled-axial', ['shading']],
+    // The carrier lies wholly under the mark, so an apply would drop it with its only use; the
+    // engine refuses all the same, since it cannot show nothing else keeps it in the file.
+    ['redact-drawing-pattern', ['pattern']],
+    ['check-pattern-text', ['pattern']],
+    ['redact-mask-group-under-mark', ['mask-group']],
+    ['redact-drawing-mesh-under-mark', ['shading']],
+  ])('%s, and changes nothing', async (fixture, kinds) => {
+    const expected = await untouched(fixture)
+    const doc = await engine.open(await fixtureBytes(fixture))
+    try {
+      const error: unknown = await doc
+        .redact({ marks: marksOf(fixture) })
+        .catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(EngineError)
+      expect(error).toMatchObject({
+        code: 'redaction-failed',
+        reason: 'unremovable-content',
+        page: 0,
+        marks: ['mark-1'],
+        kinds,
+      })
+      expect(withoutId(await doc.save())).toBe(expected)
+    } finally {
+      await doc.close()
+    }
+  })
+
+  test('names only the marks over such content', async () => {
+    const [overPattern] = marksOf('redact-drawing-hatch') as [WriteAnnotation]
+    // Below the hatched band, over nothing the apply cannot remove.
+    const plain = mark('plain', { page: 0, quad: [20, 90, 380, 90, 20, 30, 380, 30] })
+    const error: unknown = await (async () => {
+      const doc = await engine.open(await fixtureBytes('redact-drawing-hatch'))
+      try {
+        return await doc.redact({ marks: [plain, overPattern] })
+      } catch (e) {
+        return e
+      } finally {
+        await doc.close()
+      }
+    })()
+    expect(error).toMatchObject({
+      code: 'redaction-failed',
+      reason: 'unremovable-content',
+      marks: ['mark-1'],
+      kinds: ['pattern'],
+    })
+  })
+
+  test.each<FixtureName>(['redact-text', 'redact-image-flate', 'redact-path'])(
+    'still redacts %s',
+    async (fixture) => {
+      const { result } = await redacted(fixture)
+      expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+    }
+  )
+
+  /** `redact` on a core whose INK_Redact_Unremovable answers `answer`. */
+  async function withAnswer(answer: (fn: Native) => number) {
+    const native = await loadNative({ wasm })
+    const fn: Native = { ...native.fn, INK_Redact_Unremovable: () => answer(native.fn) }
+    const core = new EngineCore(withFunctions(native, fn))
+    const source = await fixtureBytes('redact-text')
+    const { id } = core.open(source)
+    const expected = withoutId(core.save(id, undefined))
+    let error: unknown
+    try {
+      core.redact(id, { marks: marksOf('redact-text') })
+    } catch (caught) {
+      error = caught
+    }
+    const after = withoutId(core.save(id, undefined))
+    core.destroy()
+    return { error, unchanged: after === expected }
+  }
+
+  const report = (native: { fn: Native; HEAPU8: Uint8Array }, text: string) => {
+    const bytes = new TextEncoder().encode(`${text}\0`)
+    const pointer = native.fn.malloc(bytes.length)
+    native.HEAPU8.set(bytes, pointer)
+    return pointer
+  }
+
+  test('a page it could not look at is could-not-inspect', async () => {
+    const { error, unchanged } = await withAnswer(() => 0)
+    expect(error).toMatchObject({
+      code: 'redaction-failed',
+      reason: 'could-not-inspect',
+      page: 0,
+    })
+    expect(unchanged).toBe(true)
+  })
+
+  test.each([
+    ['not JSON', '{nope'],
+    ['no regions', '{}'],
+    ['too few regions', '{"regions":[]}'],
+    [
+      'a count that is not a count',
+      '{"regions":[{"index":0,"patterns":-1,"shadings":0,"maskGroups":0,"glyphs":0}]}',
+    ],
+    [
+      'an index out of order',
+      '{"regions":[{"index":1,"patterns":0,"shadings":0,"maskGroups":0,"glyphs":0}]}',
+    ],
+  ])('a report with %s is could-not-inspect', async (_, text) => {
+    const native = await loadNative({ wasm })
+    const fn: Native = {
+      ...native.fn,
+      INK_Redact_Unremovable: () =>
+        report({ fn: native.fn, HEAPU8: native.HEAPU8 }, text),
+    }
+    const core = new EngineCore(withFunctions(native, fn))
+    const { id } = core.open(await fixtureBytes('redact-text'))
+    let error: unknown
+    try {
+      core.redact(id, { marks: marksOf('redact-text') })
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toMatchObject({
+      code: 'redaction-failed',
+      reason: 'could-not-inspect',
+      page: 0,
+    })
+    expect(core.stopped).toBe(false)
+    core.destroy()
+  })
+})
