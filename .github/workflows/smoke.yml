@@ -77,9 +77,10 @@ jobs:
       # Safari takes automation only once it is allowed, which needs an administrator.
       - run: sudo safaridriver --enable
       # Keeps the display awake: a window on a sleeping display gets no animation frames, and
-      # the viewer's page tracking waits for them. `--keep-awake` keeps a timer running in the
-      # page, without which this runner's Safari pauses an idle page for about 15 seconds.
-      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --keep-awake --screenshot "$RUNNER_TEMP/safari.png"
+      # the viewer's page tracking waits for them. `--slow-runner` gives the page's waits 20 s
+      # more: on this runner Safari's GPU process stops answering for about 15 s when a page
+      # with form fields first shows, which real Macs do not do.
+      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --slow-runner --screenshot "$RUNNER_TEMP/safari.png"
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

@@ -8,7 +8,7 @@
 import { fr } from '@inkbar/core/locales/fr'
 import { assets } from 'virtual:inkbar-assets'
 
-import { SkipCheck, type SmokeCheck } from './run.ts'
+import { SLACK_MS, SkipCheck, type SmokeCheck } from './run.ts'
 
 import type { Front, MountFront } from './front.ts'
 import type { InkDocument, Quad, RedactionResult } from '@inkbar/core'
@@ -40,8 +40,9 @@ const HIGHLIGHT_ID = 'smoke-highlight'
 async function until<T>(
   what: string,
   test: () => T | undefined | null | false | Promise<T | undefined | null | false>,
-  ms: number
+  limit: number
 ): Promise<T> {
+  const ms = limit + SLACK_MS
   const end = performance.now() + ms
   for (;;) {
     const value = await test()

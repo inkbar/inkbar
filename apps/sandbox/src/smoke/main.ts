@@ -31,19 +31,9 @@ async function main(): Promise<void> {
   const front = asked as FrontId
   document.title = `Inkbar smoke check: ${front}`
   const { checks, finish } = smokeChecks(await loadFront(front), host)
-  /*
-   * `?awake` keeps a do-nothing timer running while the checks run. Safari on GitHub's macOS
-   * runner pauses a page that has nothing scheduled for about 15 seconds before it hands over a
-   * network response or an animation frame, so a check waiting on either stalls there. A running
-   * timer stops that. Real Macs do not pause the page, so only the CI Safari run asks for it.
-   */
-  const awake = new URLSearchParams(location.search).has('awake')
-    ? setInterval(() => undefined, 100)
-    : undefined
   try {
     await runChecks(front, checks, out)
   } finally {
-    clearInterval(awake)
     await finish()
   }
 }

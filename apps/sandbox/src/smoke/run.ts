@@ -73,6 +73,17 @@ function describe(error: unknown): string {
   return String(error)
 }
 
+/**
+ * `?slow` (the Safari script's `--slow-runner`) gives every wait and every check 20 s more. Safari
+ * on GitHub's macOS runner stops the page's main thread for about 15 s, once or twice a page,
+ * when a document with form fields is first shown: its GPU process does not answer the request
+ * to create a canvas's buffer, and WebKit waits out a timeout before replacing that process
+ * (the system log says "RemoteImageBufferProxy::ensureBackendCreated … Timeout" and "GPUProcess
+ * … became unresponsive, terminating it"). Real Macs and phones do not, so only that run asks
+ * for the slack, and everywhere else the waits stay short enough that a slow page fails.
+ */
+export const SLACK_MS = new URLSearchParams(location.search).has('slow') ? 20_000 : 0
+
 /** A check slower than this gets a note on the page's state, as a failed one does. */
 const SLOW_MS = 5_000
 
@@ -106,6 +117,23 @@ async function pageState(): Promise<string> {
   on = false
   channel.port1.close()
   return `page ${document.visibilityState}, ${document.hasFocus() ? 'focused' : 'not focused'}: ${frames} frames and ${ticks} timer ticks in ${Math.round(performance.now() - start)} ms`
+}
+
+/** The longest gap between 100 ms ticks while a check runs: how long the page stopped. */
+function watchGaps(): { stop(): number } {
+  let last = performance.now()
+  let longest = 0
+  const timer = setInterval(() => {
+    const now = performance.now()
+    longest = Math.max(longest, now - last)
+    last = now
+  }, 100)
+  return {
+    stop() {
+      clearInterval(timer)
+      return Math.round(Math.max(longest, performance.now() - last))
+    },
+  }
 }
 
 const WORD: Record<SmokeStatus, string> = { pass: 'PASS', fail: 'FAIL', skip: 'SKIP' }
@@ -170,8 +198,9 @@ export async function runChecks(
   show()
   for (const check of checks) {
     const started = performance.now()
-    const limit = deadline(check.timeout)
+    const limit = deadline(check.timeout + SLACK_MS)
     const notes: string[] = []
+    const gap = watchGaps()
     let result: SmokeResult
     try {
       await Promise.race([check.run((text) => notes.push(text)), limit.promise])
@@ -196,6 +225,8 @@ export async function runChecks(
     } finally {
       limit.cancel()
     }
+    const longest = gap.stop()
+    if (longest > 1_000) notes.push(`the page's main thread stopped for ${longest} ms`)
     if (result.status === 'fail' || result.ms > SLOW_MS) notes.push(await pageState())
     if (notes.length > 0) result.notes = notes
     state.results.push(result)

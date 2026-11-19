@@ -77,7 +77,7 @@ Open that URL, with `?front=` set, in any browser to see the results. For real S
 pnpm --filter @inkbar/smoke safari
 ```
 
-In CI the Safari job passes `--keep-awake`. Safari on GitHub's macOS runner pauses a page that has nothing scheduled for about 15 seconds before it delivers a network response or an animation frame, so checks that wait on either stall. With `--keep-awake` the page keeps a timer running, which prevents the pause. Real Macs do not pause the page, and the link and outline checks keep their short waits on purpose, so that a slow page change still fails.
+In CI the Safari job passes `--slow-runner`, which gives every wait on the page 20 seconds more. On GitHub's macOS runner, Safari stops a page for about 15 seconds, once or twice, when a document with form fields is first shown or replaced: its GPU process does not answer the request to create a canvas, and WebKit waits out a timeout before it replaces that process. The system log says so (`RemoteImageBufferProxy::ensureBackendCreated` timed out, then `GPUProcess … became unresponsive, terminating it`). Real Macs do not do this, so local runs and the BrowserStack devices keep the short waits, and a slow page still fails there. Each check's result notes the longest time the page stopped, when it was over a second.
 
 The BrowserStack run reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from the environment. It serves the sandbox, starts the BrowserStack Local tunnel, runs one session per target, five at a time, loads the four front ends in turn in each session, and stops the tunnel. Each session uses the account's minutes, so run one target first:
 
