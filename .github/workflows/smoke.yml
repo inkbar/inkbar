@@ -6,6 +6,11 @@ name: smoke
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      browserstack:
+        description: Run the BrowserStack job too
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -71,12 +76,16 @@ jobs:
           exit 1
       # Safari takes automation only once it is allowed, which needs an administrator.
       - run: sudo safaridriver --enable
-      - run: pnpm --filter @inkbar/smoke safari --screenshot "$RUNNER_TEMP/safari.png"
+      # Keeps the display awake: a window on a sleeping display gets no animation frames, and
+      # the viewer's page tracking waits for them. `--slow-runner` gives the page's waits 20 s
+      # more: on this runner Safari's GPU process stops answering for about 15 s when a page
+      # with form fields first shows, which real Macs do not do.
+      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --slow-runner --screenshot "$RUNNER_TEMP/safari.png"
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-safari
-          path: ${{ runner.temp }}/safari.png
+          path: ${{ runner.temp }}/safari-*.png
           if-no-files-found: ignore
           retention-days: 7
 
@@ -85,9 +94,11 @@ jobs:
   # BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY, as in a pull request from a fork.
   browserstack:
     needs: changes
-    if: needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true'
+    if: >-
+      needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true' &&
+      (github.event_name != 'workflow_dispatch' || inputs.browserstack)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}

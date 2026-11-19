@@ -1,9 +1,12 @@
 /*
- * Runs the sandbox's smoke page in real Safari through safaridriver and prints each check.
- * Exits 1 when a check fails or the page does not finish in time, 2 when Safari could not be
- * driven at all.
+ * Runs the sandbox's smoke page in real Safari through safaridriver, once for each front end
+ * (plain DOM, Vue, React, Svelte), and prints each check. Exits 1 when a check fails, is skipped
+ * or a page does not finish in time, 2 when Safari could not be driven at all.
  *
- *   node safari.ts [--url <smoke page>] [--timeout <seconds>] [--screenshot <file.png>]
+ *   node safari.ts [--url <smoke page>] [--timeout <seconds per page>] [--screenshot <file.png>]
+ *                  [--slow-runner]
+ *
+ * A failed front end's screenshot goes to the given file with the front end's name added.
  *
  * It starts `safaridriver` itself on a free port and stops it at the end. Safari only allows
  * automation once `safaridriver --enable` has run (it asks for an administrator password), or
@@ -20,21 +23,30 @@ import { parseArgs } from 'node:util'
 interface SmokeResult {
   name: string
   ok: boolean
+  status: 'pass' | 'fail' | 'skip'
   error?: string
+  notes?: string[]
   ms: number
 }
 
 interface SmokeState {
+  front: string
   done: boolean
   results: SmokeResult[]
   userAgent: string
 }
+
+/** The front ends, as the smoke page names them in `?front=`. */
+const FRONTS = ['vanilla', 'vue', 'react', 'svelte']
 
 const { values: args } = parseArgs({
   options: {
     url: { type: 'string', default: 'http://127.0.0.1:3010/smoke/' },
     timeout: { type: 'string', default: '120' },
     screenshot: { type: 'string' },
+    // Adds `?slow`: 20 s more for every wait, for GitHub's macOS runner (see the smoke page's
+    // run.ts for why).
+    'slow-runner': { type: 'boolean', default: false },
   },
 })
 
@@ -91,13 +103,27 @@ async function waitForDriver(base: string): Promise<void> {
   throw new Error('safaridriver did not start within 10 seconds')
 }
 
+const WORD = { pass: 'PASS', fail: 'FAIL', skip: 'SKIP' } as const
+
 function print(state: SmokeState): void {
-  console.log(state.userAgent)
   for (const r of state.results) {
-    console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}  ${Math.round(r.ms)} ms`)
-    if (r.error) console.log(`      ${r.error}`)
+    console.log(`${WORD[r.status]}  ${r.name}  ${Math.round(r.ms)} ms`)
+    for (const line of [...(r.error ? [r.error] : []), ...(r.notes ?? [])])
+      console.log(`      ${line}`)
   }
 }
+
+/** `url` with `?front=` set. */
+function pageFor(url: string, front: string): string {
+  const u = new URL(url)
+  u.searchParams.set('front', front)
+  if (args['slow-runner']) u.searchParams.set('slow', '')
+  return u.href
+}
+
+/** The screenshot path for one front end: `shot.png` becomes `shot-vue.png`. */
+const shotFor = (path: string, front: string): string =>
+  path.replace(/(\.png)?$/i, `-${front}.png`)
 
 async function main(): Promise<number> {
   const port = await freePort()
@@ -118,40 +144,53 @@ async function main(): Promise<number> {
       capabilities: { alwaysMatch: { browserName: 'safari' } },
     })
     session = created.sessionId
-    console.log(
-      `Safari ${String(created.capabilities.browserVersion)}, opening ${args.url}`
+    console.log(`Safari ${String(created.capabilities.browserVersion)}`)
+    // A window that is covered or off screen gets no animation frames and slowed timers, and
+    // the viewer's page tracking waits for frames: give the page the whole screen.
+    await command(base, 'POST', `/session/${session}/window/maximize`, {}).catch(
+      (error: unknown) =>
+        console.log(
+          `Could not maximise the window: ${error instanceof Error ? error.message : String(error)}`
+        )
     )
-    await command(base, 'POST', `/session/${session}/url`, { url: args.url })
-
-    const end = Date.now() + Number(args.timeout) * 1000
-    let state: SmokeState | null = null
-    while (Date.now() < end) {
-      state = await command<SmokeState | null>(
-        base,
-        'POST',
-        `/session/${session}/execute/sync`,
-        {
-          script: 'return window.__inkbarSmoke ?? null',
-          args: [],
-        }
-      )
-      if (state?.done) break
-      await sleep(500)
+    let allPassed = true
+    for (const front of FRONTS) {
+      const url = pageFor(args.url, front)
+      console.log(`\n${front}: opening ${url}`)
+      await command(base, 'POST', `/session/${session}/url`, { url })
+      const end = Date.now() + Number(args.timeout) * 1000
+      let state: SmokeState | null = null
+      while (Date.now() < end) {
+        state = await command<SmokeState | null>(
+          base,
+          'POST',
+          `/session/${session}/execute/sync`,
+          // The state of this page, not of the one before it.
+          { script: 'return window.__inkbarSmoke ?? null', args: [] }
+        )
+        if (state?.done && state.front === front) break
+        await sleep(500)
+      }
+      if (state?.front === front) print(state)
+      const passed =
+        !!state?.done && state.front === front && state.results.every((r) => r.ok)
+      if (!state?.done || state.front !== front)
+        console.log(`${front}: the smoke page did not finish within ${args.timeout} s.`)
+      else
+        console.log(
+          passed
+            ? `${front}: every check passed.`
+            : `${front}: some checks failed or were skipped: see the lines marked FAIL or SKIP.`
+        )
+      if (!passed && args.screenshot) {
+        const png = await command<string>(base, 'GET', `/session/${session}/screenshot`)
+        const path = shotFor(args.screenshot, front)
+        writeFileSync(path, Buffer.from(png, 'base64'))
+        console.log(`Screenshot saved to ${path}`)
+      }
+      allPassed &&= passed
     }
-    if (state) print(state)
-    const passed = !!state?.done && state.results.every((r) => r.ok)
-    if (!state?.done)
-      console.log(`The smoke page did not finish within ${args.timeout} s.`)
-    else
-      console.log(
-        passed ? 'Every check passed.' : 'Some checks failed: see the lines marked FAIL.'
-      )
-    if (!passed && args.screenshot) {
-      const png = await command<string>(base, 'GET', `/session/${session}/screenshot`)
-      writeFileSync(args.screenshot, Buffer.from(png, 'base64'))
-      console.log(`Screenshot saved to ${args.screenshot}`)
-    }
-    return passed ? 0 : 1
+    return allPassed ? 0 : 1
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
     return 2

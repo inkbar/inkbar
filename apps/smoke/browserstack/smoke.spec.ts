@@ -1,6 +1,7 @@
 /*
- * One session per target: the smoke page's checks, then, on the phones and tablets, real
- * gestures. A gesture the platform's automation cannot make is recorded as not supported,
+ * One session per target: the smoke page's checks through each front end in turn (plain DOM,
+ * Vue, React, Svelte: four page loads in the one session), then, on the phones and tablets,
+ * real gestures, once, on the plain DOM page. A gesture the platform's automation cannot make is recorded as not supported,
  * never faked with events made up in the page.
  *
  * - Android: Chrome's touch input over CDP (`Input.dispatchTouchEvent`), the same input the
@@ -14,17 +15,36 @@ import { expect, test, type Remote } from './session.ts'
 import type { CDPSession, Page } from '@playwright/test'
 
 interface SmokeState {
+  front: string
   done: boolean
-  results: { name: string; ok: boolean; error?: string; stack?: string; ms: number }[]
+  results: {
+    name: string
+    ok: boolean
+    status: 'pass' | 'fail' | 'skip'
+    error?: string
+    stack?: string
+    notes?: string[]
+    ms: number
+  }[]
   userAgent: string
 }
+
+/** The front ends, as the smoke page names them in `?front=`. */
+const FRONTS = ['vanilla', 'vue', 'react', 'svelte'] as const
+
+const WORD = { pass: 'PASS', fail: 'FAIL', skip: 'SKIP' } as const
 
 const firstPage = (page: Page) => page.locator('.ink-page[data-page="0"]')
 const inks = (page: Page) =>
   page.locator('.ink-annotation[data-type="ink"][data-source="session"]')
 
 /** Reads the page's results until it says it is done. One read takes about a second on iOS. */
-async function smokeResults(page: Page, timeout: number): Promise<SmokeState> {
+async function smokeResults(
+  page: Page,
+  front: string,
+  timeout: number
+): Promise<SmokeState> {
+  const name = `${test.info().project.name} ${front}`
   const end = Date.now() + timeout
   let seen = -1
   for (;;) {
@@ -32,13 +52,15 @@ async function smokeResults(page: Page, timeout: number): Promise<SmokeState> {
     const json = await page.evaluate(() =>
       JSON.stringify((window as { __inkbarSmoke?: SmokeState }).__inkbarSmoke ?? null)
     )
-    const state = JSON.parse(json) as SmokeState | null
+    const parsed = JSON.parse(json) as SmokeState | null
+    // The state of this page, not of the one before it.
+    const state = parsed?.front === front ? parsed : null
     if (state?.done) return state
     const count = state ? state.results.length : -1
     if (count !== seen) {
       seen = count
       console.log(
-        `${test.info().project.name}: ${state ? `${count} checks done` : 'the page has not started'}`
+        `${name}: ${state ? `${count} checks done` : 'the page has not started'}`
       )
     }
     if (Date.now() > end) {
@@ -47,9 +69,9 @@ async function smokeResults(page: Page, timeout: number): Promise<SmokeState> {
         .locator('body')
         .innerText()
         .catch((error: unknown) => `could not read the page: ${String(error)}`)
-      console.log(`${test.info().project.name}: ${page.url()}\n${text}`)
+      console.log(`${name}: ${page.url()}\n${text}`)
       await page
-        .screenshot({ path: test.info().outputPath('timeout.png') })
+        .screenshot({ path: test.info().outputPath(`timeout-${front}.png`) })
         .catch(() => undefined)
       throw new Error(`the smoke page did not finish within ${timeout} ms`)
     }
@@ -90,6 +112,8 @@ async function gestures({ page, target }: Remote): Promise<void> {
   }
 
   const cdp = await page.context().newCDPSession(page)
+  // The pages sit under the results: bring them into view, where the fingers land.
+  await page.locator('[data-ink-scroll]').scrollIntoViewIfNeeded()
   const view = (await page.locator('[data-ink-scroll]').boundingBox())!
   const sheet = (await firstPage(page).boundingBox())!
   const left = Math.max(sheet.x, view.x) + 30
@@ -124,17 +148,31 @@ async function gestures({ page, target }: Remote): Promise<void> {
 
 test('smoke page', async ({ remote }) => {
   const { page, target } = remote
-  await page.goto('smoke/')
-  const state = await test.step('every check on the page passes', async () => {
-    const results = await smokeResults(page, 120_000)
-    console.log(`${target.name}: ${results.userAgent}`)
-    for (const r of results.results)
-      console.log(
-        `${target.name}: ${r.ok ? 'PASS' : 'FAIL'}  ${r.name}  ${Math.round(r.ms)} ms${r.error ? `  ${r.error}` : ''}${r.stack ? `\n${r.stack}` : ''}`
-      )
-    expect.soft(results.results.filter((r) => !r.ok)).toEqual([])
-    return results
-  })
-  expect(state.results.length).toBeGreaterThan(0)
-  if (target.kind !== 'desktop') await gestures(remote)
+  for (const front of FRONTS) {
+    await test.step(`${front}: every check on the page passes`, async () => {
+      // A page that never finishes is reported, and the next front end still runs.
+      let results: SmokeState
+      try {
+        await page.goto(`smoke/?front=${front}`)
+        results = await smokeResults(page, front, 150_000)
+      } catch (error) {
+        expect.soft(String(error), `${front} did not finish`).toBe('')
+        return
+      }
+      if (front === FRONTS[0]) console.log(`${target.name}: ${results.userAgent}`)
+      for (const r of results.results)
+        console.log(
+          `${target.name} ${front}: ${WORD[r.status]}  ${r.name}  ${Math.round(r.ms)} ms${r.error ? `  ${r.error}` : ''}${r.notes ? `  (${r.notes.join('; ')})` : ''}${r.stack ? `\n${r.stack}` : ''}`
+        )
+      expect.soft(results.results.length, `${front} ran no checks`).toBeGreaterThan(0)
+      expect
+        .soft(
+          results.results.filter((r) => !r.ok),
+          front
+        )
+        .toEqual([])
+    })
+    // Real gestures once, on the plain DOM page, while it is open.
+    if (front === 'vanilla' && target.kind !== 'desktop') await gestures(remote)
+  }
 })

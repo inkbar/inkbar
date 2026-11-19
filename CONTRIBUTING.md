@@ -47,7 +47,20 @@ pnpm test:browser
 
 Every suite above runs in Playwright's Chromium on Linux. The smoke tests run a short list of checks in real browsers: real Safari on a Mac, and Safari on an iPhone and an iPad, Chrome on an Android phone, and Edge and Firefox on Windows 11 through [BrowserStack](https://www.browserstack.com/).
 
-The checks live in one page of the sandbox, `apps/sandbox/src/smoke/`, served at `/smoke/`. Inside the browser, it loads the engine's WebAssembly in its worker, renders a page, reads the text layer, adds an annotation, saves and reopens the file, applies a redaction and checks it, produces a download and runs a search. It shows the results as text, keeps them on `window.__inkbarSmoke`, and POSTs them to the URL in `?report=` when there is one. On the phones and tablets, the BrowserStack run also taps a tool button, and on Android it draws with a finger and pinches to zoom. BrowserStack's iOS automation has no touch drag or multi-touch, so those two gestures are not tested on iOS.
+The checks live in one page of the sandbox, `apps/sandbox/src/smoke/`, served at `/smoke/`. They are written once and run through each front end in turn: `?front=vanilla` (`createViewer`), `?front=vue`, `?front=react` and `?front=svelte`, one per page load, so a failure in one cannot hide another. Each front end mounts its binding's own components. Inside the browser, the page checks that:
+
+- the engine's WebAssembly loads in its worker and opens a file;
+- a page renders, its text layer holds its text, and the thumbnails render;
+- an annotation added through the model shows, undo removes it and redo restores it, and a save writes it into the file;
+- a text selection, made by script with the browser's Selection API, becomes a highlight over that text;
+- Print prepares the file with the right page count, without opening the print dialog;
+- switching to French relabels the toolbar in place, and search finds a word;
+- applying a redaction through the binding's own apply removes the text, the binding hands over the redacted file and reopens it, no undo step remains, `checkRedaction` finds the place clean, and Download hands over the redacted file;
+- a form field takes text typed by script, a field the form's scripts calculate updates (PDF.js runs those scripts in a second WebAssembly module), and the values survive a save;
+- an internal link and an outline entry each change the page;
+- a locked file asks for its password, refuses a wrong one and opens with the right one.
+
+A check that needs an earlier one's result is skipped, with the reason, when that one fails. The page shows the results as text, keeps them on `window.__inkbarSmoke`, and POSTs them to the URL in `?report=` when there is one. On the phones and tablets, the BrowserStack run also taps a tool button, and on Android it draws with a finger and pinches to zoom, once, on the plain DOM page. BrowserStack's iOS automation has no touch drag or multi-touch, so those two gestures are not tested on iOS.
 
 `.github/workflows/smoke.yml` runs them on release pull requests, on pull requests that change the smoke page, its scripts or the workflow, and by hand from the Actions tab. They are not required checks. The sandbox's own suite also opens the page in Chromium (`apps/sandbox/e2e/smoke.spec.ts`), so ordinary CI covers the page itself.
 
@@ -58,20 +71,22 @@ pnpm exec turbo run build --filter=@inkbar/sandbox
 pnpm --filter @inkbar/smoke serve   # serves it at http://127.0.0.1:3010/smoke/
 ```
 
-Open that URL in any browser to see the results. For real Safari on a Mac, allow automation once with `sudo safaridriver --enable`, then, with the sandbox served, run:
+Open that URL, with `?front=` set, in any browser to see the results. For real Safari on a Mac, allow automation once with `sudo safaridriver --enable`, then, with the sandbox served, run the four front ends:
 
 ```sh
 pnpm --filter @inkbar/smoke safari
 ```
 
-The BrowserStack run reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from the environment. It serves the sandbox, starts the BrowserStack Local tunnel, runs one session per target, five at a time, and stops the tunnel. Each session uses the account's minutes, so run one target first:
+In CI the Safari job passes `--slow-runner`, which gives every wait on the page 20 seconds more. On GitHub's macOS runner, Safari stops a page for about 15 seconds, once or twice, when a document with form fields is first shown or replaced: its GPU process does not answer the request to create a canvas, and WebKit waits out a timeout before it replaces that process. The system log says so (`RemoteImageBufferProxy::ensureBackendCreated` timed out, then `GPUProcess … became unresponsive, terminating it`). Real Macs do not do this, so local runs and the BrowserStack devices keep the short waits, and a slow page still fails there. Each check's result notes the longest time the page stopped, when it was over a second.
+
+The BrowserStack run reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from the environment. It serves the sandbox, starts the BrowserStack Local tunnel, runs one session per target, five at a time, loads the four front ends in turn in each session, and stops the tunnel. Each session uses the account's minutes, so run one target first:
 
 ```sh
 pnpm --filter @inkbar/smoke browserstack --project=iPhone
 pnpm --filter @inkbar/smoke browserstack
 ```
 
-The targets are in `apps/smoke/browserstack/targets.ts`. In CI the BrowserStack job runs only when the repository variable `BROWSERSTACK_SMOKE` is `true` and the repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are set. A pull request from a fork gets no secrets, so the job skips its steps and passes.
+The targets are in `apps/smoke/browserstack/targets.ts`. In CI the BrowserStack job runs only when the repository variable `BROWSERSTACK_SMOKE` is `true` and the repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are set. A pull request from a fork gets no secrets, so the job skips its steps and passes. A manual run from the Actions tab can also leave the job out, to save the account's minutes.
 
 ## Translations
 

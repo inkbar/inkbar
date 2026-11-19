@@ -9,6 +9,8 @@
   "include": [
     "src/scenarios/**/*.svelte",
     "src/frameworks/**/*.svelte.ts",
+    "src/smoke/**/*.svelte",
+    "src/smoke/**/*.svelte.ts",
     "src/shared/**/*.ts",
     "src/shell/**/*.ts",
     "src/env.d.ts"
