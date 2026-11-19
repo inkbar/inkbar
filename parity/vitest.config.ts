@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,9 +19,6 @@ const report =
       ? 'off'
       : 'differences'
 const baseline = process.env.PARITY_BASELINE ?? ''
-
-// Each report run starts from an empty folder, so it never shows a page a past run wrote.
-if (report !== 'off') rmSync(join(root, '.report'), { recursive: true, force: true })
 
 /** `path` resolved inside the package, or an error when it would land outside `dirs`. */
 function inside(path: string, dirs: string[]): string {
@@ -99,6 +96,8 @@ export default defineConfig({
           include: ['src/**/*.browser.test.ts'],
           // A fixture draws up to three pages twice at 2 px per point.
           testTimeout: 120_000,
+          // Empties .report/ when a report run starts.
+          globalSetup: ['src/report-setup.ts'],
           provide: { parityReport: report, parityBaseline: baseline },
           browser: {
             enabled: true,

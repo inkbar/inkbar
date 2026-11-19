@@ -76,7 +76,14 @@ describe('compare', () => {
   it('finds identical images the same', () => {
     const a = textPage()
     const result = compare(a, copy(a))
-    expect(result).toEqual({ share: 0, worstBlock: 0, same: true })
+    expect(result).toEqual({
+      share: 0,
+      worstBlock: 0,
+      unmatchedRun: 0,
+      flatShare: 0,
+      flatBlock: 0,
+      same: true,
+    })
   })
 
   it('finds text whose antialiasing moved by half a pixel the same', () => {
@@ -146,6 +153,51 @@ describe('compare', () => {
       expect(result.share).toBe(1)
       expect(result.same).toBe(false)
     }
+  })
+
+  it('finds a missing 1 px rule, a 0.5 pt hairline at 2 px per point', () => {
+    const a = image(400, 400)
+    fill(a, 20, 200, 360, 1, BLACK)
+    const result = compare(a, image(400, 400))
+    expect(result.unmatchedRun).toBeGreaterThanOrEqual(360)
+    expect(result.same).toBe(false)
+  })
+
+  it('finds a missing hairline drawn across two rows at half strength', () => {
+    // A 1 px line on a half-pixel boundary, as PDF.js antialiases it.
+    const a = image(400, 400)
+    fill(a, 20, 200, 360, 2, [128, 128, 128])
+    expect(compare(a, image(400, 400)).same).toBe(false)
+  })
+
+  it('finds a missing pale grey #E6E6E6 rectangle over a tenth of the page', () => {
+    const a = image(400, 400)
+    fill(a, 40, 100, 320, 50, [0xe6, 0xe6, 0xe6])
+    const result = compare(a, image(400, 400))
+    expect(result.flatShare).toBeGreaterThan(0.05)
+    expect(result.same).toBe(false)
+  })
+
+  it('finds a missing pale tint (255, 255, 210)', () => {
+    const a = image(400, 400)
+    fill(a, 40, 100, 320, 50, [255, 255, 210])
+    expect(compare(a, image(400, 400)).same).toBe(false)
+  })
+
+  it('finds strokes the same when one reader snaps them to whole pixels', () => {
+    // Measured on corpus-embedpdf-tiling-patterns: PDF.js draws a 2 pt stroke on a half-pixel
+    // edge as 112 0 0 0 144, PDFium as 0 0 0 0 255. A one-pixel shift of weight, not a loss.
+    const a = image(400, 400)
+    const b = image(400, 400)
+    for (let x = 13; x < 380; x += 20) {
+      fill(a, x, 0, 1, 400, [112, 112, 112])
+      fill(a, x + 1, 0, 3, 400, BLACK)
+      fill(a, x + 4, 0, 1, 400, [144, 144, 144])
+      fill(b, x, 0, 4, 400, BLACK)
+    }
+    const result = compare(a, b)
+    expect(result.unmatchedRun).toBe(0)
+    expect(result.same).toBe(true)
   })
 
   it('throws on images of different sizes', () => {

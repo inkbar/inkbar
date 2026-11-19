@@ -7,7 +7,13 @@ import { afterAll, describe, expect, inject, it } from 'vitest'
 import parityJson from '../parity.json'
 
 import { compare, differenceImage, type Comparison } from './compare'
-import { drawPage, openWith, PAGES_PER_FIXTURE, type ReaderKind } from './draw'
+import {
+  drawPage,
+  geometryDifference,
+  openWith,
+  PAGES_PER_FIXTURE,
+  type ReaderKind,
+} from './draw'
 import {
   baselinePath,
   readPng,
@@ -17,24 +23,12 @@ import {
   type ReportPage,
 } from './report'
 
+import type { Verdict, ParityFile } from './verdicts'
 import type { InkDocument, PageInfo } from '@inkbar/core'
 import type { FixtureMeta } from '@inkbar/fixtures'
 
-export type Verdict =
-  /**
-   * `blank: true` says the compared pages are meant to be empty: both readers drawing every one
-   * of them pure white is then the expected result, and without it that fails.
-   */
-  | { state: 'same'; blank?: true }
-  | { state: 'different'; reason: string; accepted: boolean }
-  /** Compared with parity/baselines/<fixture>-<page>.png. */
-  | { state: 'baseline'; reason: string }
-  /** Does not open in one reader, or the readers count its pages differently. */
-  | { state: 'skipped'; reason: string }
-export type ParityFile = Partial<Record<FixtureName, Verdict>>
-
 const manifest = manifestJson as unknown as Record<FixtureName, FixtureMeta>
-const verdicts = parityJson as ParityFile
+const verdicts = parityJson as Partial<ParityFile>
 const reportMode = inject('parityReport')
 /** Whether the report lists a page with this measure. */
 const reports = (measured: Comparison) =>
@@ -47,14 +41,13 @@ const opening = FIXTURE_NAMES.filter((name) => manifest[name].opens)
 /** Pages the report lists; images are on disk, only these numbers stay in memory. */
 const reported: ReportPage[] = []
 /** Every page compared, same or not, for `.report/measures.json`. */
-const measures: {
+const measures: (Omit<Comparison, 'same'> & {
   fixture: string
   page: number
-  share: number
-  worstBlock: number
+  same: boolean
   /** Share of inked pixels in each image: PDF.js (or the baseline), then the engine. */
   inked: [number, number]
-}[] = []
+})[] = []
 
 afterAll(async () => {
   if (reportMode === 'off') return
@@ -78,21 +71,6 @@ function blank(img: ImageData): boolean {
       return false
   }
   return true
-}
-
-/** Where `a` and `b` disagree on a page's box, rotation or user unit; empty when they agree. */
-function geometryDifference(a: PageInfo, b: PageInfo): string[] {
-  const out: string[] = []
-  for (const key of ['x', 'y', 'width', 'height'] as const) {
-    if (Math.abs(a.box[key] - b.box[key]) > 0.01) {
-      out.push(`box ${key}: PDF.js ${a.box[key]}, engine ${b.box[key]}`)
-    }
-  }
-  if (a.rotate !== b.rotate) out.push(`rotate: PDF.js ${a.rotate}, engine ${b.rotate}`)
-  if (Math.abs(a.userUnit - b.userUnit) > 1e-6) {
-    out.push(`user unit: PDF.js ${a.userUnit}, engine ${b.userUnit}`)
-  }
-  return out
 }
 
 /** Opens `name` with `kind`, or gives the reason it does not open. */
@@ -137,16 +115,9 @@ async function record(
 }
 
 const describeNumbers = (c: Comparison) =>
-  `${(c.share * 100).toFixed(2)}% of pixels, worst block ${(c.worstBlock * 100).toFixed(0)}%`
-
-describe('parity.json', () => {
-  it('names only fixtures that open', () => {
-    const stray = Object.keys(verdicts).filter(
-      (name) => !(opening as readonly string[]).includes(name)
-    )
-    expect(stray, 'entries for fixtures that are gone or do not open').toEqual([])
-  })
-})
+  `${(c.share * 100).toFixed(2)}% of pixels, worst block ${(c.worstBlock * 100).toFixed(0)}%, ` +
+  `longest unmatched run ${c.unmatchedRun} px, flat ${(c.flatShare * 100).toFixed(3)}% ` +
+  `(worst block ${(c.flatBlock * 100).toFixed(0)}%)`
 
 describe.each(opening)('%s', (name) => {
   const verdict = verdicts[name]
@@ -177,16 +148,19 @@ describe.each(opening)('%s', (name) => {
 
       const pages = Math.min(counts!.pdfjs, PAGES_PER_FIXTURE)
 
-      // Geometry first, whatever the verdict.
+      // Geometry first, whatever the verdict. Both readers then draw at the size and turn PDF.js's
+      // page facts give, which the check has shown the engine's agree with.
+      const infos: PageInfo[] = []
       for (let page = 0; page < pages; page++) {
         const a = await pdfjs._reader.pageInfo(page)
         const b = await engine._reader.pageInfo(page)
         expect(geometryDifference(a, b), `page ${page + 1} geometry`).toEqual([])
+        infos.push(a)
       }
 
       if (verdict?.state === 'baseline') {
         for (let page = 0; page < pages; page++) {
-          const drawn = await drawPage(engine, page)
+          const drawn = await drawPage(engine, page, infos[page]!)
           expect(
             inked(drawn),
             `page ${page + 1}: the engine draws a blank page`
@@ -199,8 +173,7 @@ describe.each(opening)('%s', (name) => {
           measures.push({
             fixture: name,
             page,
-            share: measured.share,
-            worstBlock: measured.worstBlock,
+            ...measured,
             inked: [inked(committed), inked(drawn)],
           })
           if (reports(measured)) {
@@ -218,18 +191,12 @@ describe.each(opening)('%s', (name) => {
       /** Pages both readers draw pure white. */
       const bothBlank: boolean[] = []
       for (let page = 0; page < pages; page++) {
-        const a = await drawPage(pdfjs, page)
-        const b = await drawPage(engine, page)
+        const a = await drawPage(pdfjs, page, infos[page]!)
+        const b = await drawPage(engine, page, infos[page]!)
         const measured = compare(a, b)
         results.push(measured)
         bothBlank.push(blank(a) && blank(b))
-        measures.push({
-          fixture: name,
-          page,
-          share: measured.share,
-          worstBlock: measured.worstBlock,
-          inked: [inked(a), inked(b)],
-        })
+        measures.push({ fixture: name, page, ...measured, inked: [inked(a), inked(b)] })
         if (reports(measured)) await record(name, page, verdict, measured, a, 'PDF.js', b)
       }
       const numbers = results.map((r, page) => `page ${page + 1}: ${describeNumbers(r)}`)
@@ -255,10 +222,18 @@ describe.each(opening)('%s', (name) => {
           }
         })
       } else {
-        expect(
-          results.some((r) => !r.same),
-          `now the same: update parity.json (${numbers.join('; ')})`
-        ).toBe(true)
+        // The pages recorded as differing must still differ, and every other page must match.
+        const differ = verdict.pages ?? results.map((_, page) => page + 1)
+        results.forEach((r, page) => {
+          if (differ.includes(page + 1)) {
+            expect(
+              r.same,
+              `page ${page + 1} is now the same: update parity.json (${numbers.join('; ')})`
+            ).toBe(false)
+          } else {
+            expect(r.same, `page ${page + 1} differs: ${describeNumbers(r)}`).toBe(true)
+          }
+        })
       }
     } finally {
       if (typeof pdfjs !== 'string') pdfjs.destroy()

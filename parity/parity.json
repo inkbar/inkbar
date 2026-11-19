@@ -23,7 +23,8 @@
   "userunit-2": {
     "state": "different",
     "reason": "Text in Helvetica, not embedded, at /UserUnit 2 (4 px per point): the readers substitute different Helvetica outlines, and glyph tops and curves differ by a pixel or two",
-    "accepted": false
+    "accepted": false,
+    "pages": [1, 2, 3]
   },
   "mixed-page-sizes": {
     "state": "same"
@@ -172,7 +173,8 @@
   "saved-replied": {
     "state": "different",
     "reason": "A reply note written as another program would, with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
-    "accepted": false
+    "accepted": false,
+    "pages": [1]
   },
   "redact-text": {
     "state": "same"
@@ -191,7 +193,8 @@
   "redact-foreign-mark": {
     "state": "different",
     "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
-    "accepted": false
+    "accepted": false,
+    "pages": [2]
   },
   "redact-hidden-layer": {
     "state": "same"
@@ -210,7 +213,7 @@
   },
   "redact-text-clip": {
     "state": "different",
-    "reason": "SECRET-ALPHA in render mode 7 (clip) under a magenta fill: the engine shows the magenta text through the clip, PDF.js draws nothing there",
+    "reason": "Text in render mode 7 (clip) under a magenta fill: the engine shows the clipped text in magenta, PDF.js draws nothing there",
     "accepted": false
   },
   "redact-text-pattern": {
@@ -482,7 +485,7 @@
   },
   "corpus-matte": {
     "state": "different",
-    "reason": "Images with a /Matte soft mask: colours differ, most in the top band of the first images (PDF.js pink, the engine brownish); the readers un-premultiply the matte differently",
+    "reason": "Images whose soft mask carries a /Matte: the colours differ, most in the top band of the first images (PDF.js pink, the engine brownish); cause not yet investigated",
     "accepted": false
   },
   "corpus-bug-1845": {
@@ -518,7 +521,7 @@
   },
   "corpus-bug-1746": {
     "state": "different",
-    "reason": "Type 3 glyphs over a CCITT image at half opacity: the engine draws both glyphs much paler than PDF.js (opacity applied differently); cause not yet investigated",
+    "reason": "Type 3 glyphs over a CCITT image at half opacity: the engine draws both glyphs much paler than PDF.js; cause not yet investigated",
     "accepted": false
   },
   "corpus-bug-1087": {
@@ -539,7 +542,8 @@
   "corpus-bug-1883": {
     "state": "different",
     "reason": "A NoRotate (/F 16) annotation on the pages with /Rotate 90 and 180: the engine keeps its arrow upright, PDF.js turns it with the page",
-    "accepted": false
+    "accepted": false,
+    "pages": [2, 3]
   },
   "corpus-rectangles-multi-pages": {
     "state": "same"
@@ -576,7 +580,8 @@
   "corpus-annots": {
     "state": "different",
     "reason": "A combo box widget with no /AP: the engine generates an appearance for it (a drop-down arrow); PDF.js draws nothing",
-    "accepted": false
+    "accepted": false,
+    "pages": [1]
   },
   "corpus-bug-1302355": {
     "state": "different",

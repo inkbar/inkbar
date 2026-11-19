@@ -1745,14 +1745,14 @@
     "file": "unembedded-cyrillic.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A4 page: two lines of Cyrillic in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (afii10017 to afii10097), and one Latin line in Helvetica as a control",
+    "describes": "A4 page: two lines of Cyrillic in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (afii10017 to afii10097), each glyph 560 units wide in /Widths so the letters sit evenly spaced, and one Latin line in Helvetica as a control",
     "unembedded": ["default"]
   },
   "unembedded-greek": {
     "file": "unembedded-greek.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A4 page: two lines of Greek in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (Alpha to omega), and one Latin line in Helvetica as a control",
+    "describes": "A4 page: two lines of Greek in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (Alpha to omega), each glyph 560 units wide in /Widths so the letters sit evenly spaced, and one Latin line in Helvetica as a control",
     "unembedded": ["default"]
   },
   "unembedded-arial": {

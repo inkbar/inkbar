@@ -10,7 +10,7 @@ import manifest from '@inkbar/fixtures/manifest.json'
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { fontUrls } from '@inkbar/fonts'
 
-export const PAGES_PER_FIXTURE = 3
+export { PAGES_PER_FIXTURE } from './pages'
 export const PIXELS_PER_POINT = 2
 
 export type ReaderKind = 'pdfjs' | 'engine'
@@ -59,6 +59,21 @@ export async function openWith(
   return doc
 }
 
+/** Where `a` and `b` disagree on a page's box, rotation or user unit; empty when they agree. */
+export function geometryDifference(a: PageInfo, b: PageInfo): string[] {
+  const out: string[] = []
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    if (Math.abs(a.box[key] - b.box[key]) > 0.01) {
+      out.push(`box ${key}: PDF.js ${a.box[key]}, engine ${b.box[key]}`)
+    }
+  }
+  if (a.rotate !== b.rotate) out.push(`rotate: PDF.js ${a.rotate}, engine ${b.rotate}`)
+  if (Math.abs(a.userUnit - b.userUnit) > 1e-6) {
+    out.push(`user unit: PDF.js ${a.userUnit}, engine ${b.userUnit}`)
+  }
+  return out
+}
+
 /**
  * The canvas size core gives a whole page at `PIXELS_PER_POINT` and pixel ratio 1: the page
  * transform's CSS size, /UserUnit and /Rotate included, rounded as the page canvas rounds it.
@@ -68,9 +83,16 @@ export function canvasSize(info: PageInfo): { width: number; height: number } {
   return { width: Math.round(t.cssWidth), height: Math.round(t.cssHeight) }
 }
 
-/** Page `page` of `doc`, drawn whole on white at `PIXELS_PER_POINT`, its own /Rotate applied. */
-export async function drawPage(doc: InkDocument, page: number): Promise<ImageData> {
-  const info = await doc._reader.pageInfo(page)
+/**
+ * Page `page` of `doc`, drawn whole on white at `PIXELS_PER_POINT` with the /Rotate of `info`.
+ * `info` is one reader's page facts, the same for both readers' draws, so both are asked for the
+ * same canvas size and turn: the caller checks first that the two readers' facts agree.
+ */
+export async function drawPage(
+  doc: InkDocument,
+  page: number,
+  info: PageInfo
+): Promise<ImageData> {
   const { width, height } = canvasSize(info)
   const canvas = document.createElement('canvas')
   await doc._reader.draw(
@@ -99,10 +121,14 @@ export async function drawBoth(
 ): Promise<{ pdfjs: ImageData; engine: ImageData }> {
   const pdfjsDoc = await openWith(name, 'pdfjs')
   try {
-    const pdfjs = await drawPage(pdfjsDoc, page)
+    const info = await pdfjsDoc._reader.pageInfo(page)
+    const pdfjs = await drawPage(pdfjsDoc, page, info)
     const engineDoc = await openWith(name, 'engine')
     try {
-      return { pdfjs, engine: await drawPage(engineDoc, page) }
+      const apart = geometryDifference(info, await engineDoc._reader.pageInfo(page))
+      if (apart.length > 0)
+        throw new Error(`${name} page ${page + 1}: ${apart.join('; ')}`)
+      return { pdfjs, engine: await drawPage(engineDoc, page, info) }
     } finally {
       engineDoc.destroy()
     }

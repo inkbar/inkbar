@@ -114,12 +114,15 @@ const percent = (n: number) => `${(n * 100).toFixed(2)}%`
 export function reportHtml(pages: ReportPage[], generated: string): string {
   const sorted = [...pages].sort(
     (a, b) =>
-      b.measured.share - a.measured.share || b.measured.worstBlock - a.measured.worstBlock
+      b.measured.share - a.measured.share ||
+      b.measured.worstBlock - a.measured.worstBlock ||
+      b.measured.unmatchedRun - a.measured.unmatchedRun ||
+      b.measured.flatShare - a.measured.flatShare
   )
   const rows = sorted.map(
     (p) => `<section>
 <h2>${escape(p.fixture)}, page ${p.page + 1} <small>${escape(p.state)}</small></h2>
-<p>Differing: ${percent(p.measured.share)} of the page, ${percent(p.measured.worstBlock)} of the worst 16 × 16 block.</p>
+<p>Blurred: ${percent(p.measured.share)} of the page, ${percent(p.measured.worstBlock)} of the worst 16 × 16 block (red). Unmatched: longest run ${p.measured.unmatchedRun} px (blue). Flat areas: ${percent(p.measured.flatShare)} of the page, ${percent(p.measured.flatBlock)} of the worst block (orange).</p>
 <p>${p.reason === '' ? '<em>No reason recorded.</em>' : escape(p.reason)}</p>
 <div class="row">
 <figure><img src="${escape(p.left)}" loading="lazy"><figcaption>${escape(p.leftLabel)}</figcaption></figure>
