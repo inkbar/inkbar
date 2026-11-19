@@ -103,9 +103,16 @@ function skipped(item: WriteAnnotation, box: Rect): boolean {
 }
 
 /**
+ * The most quads of earlier marks read from one page. The count comes from the file, and an
+ * encrypted file is not ours to trust: each quad takes 32 bytes to read, so a count with no cap
+ * could ask for hundreds of megabytes. No page Inkbar marked needs anywhere near this many.
+ */
+const MAX_LOCKED_QUADS_PER_PAGE = 10_000
+
+/**
  * The quads of the Redact annotations on `page` that carry Inkbar's data: its earlier marks in
- * an encrypted file, read before the apply removes them. A failure is `redaction-failed` naming
- * the page.
+ * an encrypted file, read before the apply removes them. A failure, or more quads than
+ * `MAX_LOCKED_QUADS_PER_PAGE`, is `redaction-failed` naming the page.
  */
 function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Quad[] {
   const { fn } = heap
@@ -116,7 +123,7 @@ function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Q
       { page: index }
     )
   const count = fn.INK_Redact_OwnLockedQuads(doc, page, 0, 0)
-  if (count < 0) throw failed()
+  if (count < 0 || count > MAX_LOCKED_QUADS_PER_PAGE) throw failed()
   if (count === 0) return []
   return withFloats(heap, new Array<number>(count * 8).fill(0), (out) => {
     if (fn.INK_Redact_OwnLockedQuads(doc, page, out, count) !== count) throw failed()

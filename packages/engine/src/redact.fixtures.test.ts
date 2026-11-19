@@ -453,6 +453,33 @@ test('earlier marks whose regions cannot be read name the page', async () => {
   core.destroy()
 })
 
+test('earlier marks with more quads than a page may hold fail the page unread', async () => {
+  const marked = await withEarlierMark()
+  const native = await loadNative({ wasm })
+  // A hostile file claims more quads than any page needs: none is read.
+  const asked: number[] = []
+  const flooded: Native = {
+    ...native.fn,
+    INK_Redact_OwnLockedQuads: (_doc, _page, _out, count) => {
+      asked.push(count)
+      return 10_001
+    },
+  }
+  const core = new EngineCore(withFunctions(native, flooded))
+  const { id } = core.open(marked, { password: 'inkbar' })
+  let error: unknown
+  try {
+    core.redact(id, { marks: [] })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(EngineError)
+  expect(error).toMatchObject({ code: 'redaction-failed', page: 0 })
+  expect(asked).toEqual([0])
+  expect(core.stopped).toBe(false)
+  core.destroy()
+})
+
 test('earlier marks applied with no regions to check fail the page', async () => {
   const marked = await withEarlierMark()
   const native = await loadNative({ wasm })
