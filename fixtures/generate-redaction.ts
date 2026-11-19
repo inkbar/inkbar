@@ -1942,14 +1942,14 @@ function redactLoupeDrawing() {
   )
   write(
     'redact-annotation-loupe-elsewhere',
-    lockedLoupePage('0.9 0 0 0.9 -81 -36'),
+    lockedLoupePage('1 0 0 1 -200 -15'),
     drawingRow(
-      'As redact-annotation-loupe-drawing, with the lens over KEEP-BETA (page x 90..190, y 40..140) instead of the region: the copy holds the whole page, the star included, whatever part the lens shows',
+      'As redact-annotation-loupe-drawing, with the lens showing page x 200..290, y 15..105 at its own size: clear of the region (x and y 110..190) and of the star (about x 121..179, y 126..180). The copy holds the whole page, the star included, whatever part the lens shows',
       {
         annotations: { Stamp: 1 },
         refused: {
           need: 'shown',
-          why: 'the loupe stays locked, so its copy of the page, made before the apply, still holds the star though the lens shows another part of the page; the strict check after the apply reads the copy',
+          why: 'the loupe stays locked, so its copy of the page, made before the apply, still holds the star, though the lens shows neither the star nor the region; the strict check after the apply reads the whole copy',
         },
       }
     )

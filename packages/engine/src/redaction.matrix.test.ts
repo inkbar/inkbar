@@ -333,7 +333,8 @@ const overlayBoxes = (quads: number[][]) =>
 
 /**
  * Whether a path is an applied mark's overlay: filled black, and its points span exactly one of
- * `boxes`. Only that is left out; any other black drawing counts.
+ * `boxes`. Only that is left out; any other black drawing counts. Genuine black content that
+ * fills exactly a mark's appearance box would be left out too; no fixture has any.
  */
 function isOverlay(runs: Point[][], fill: unknown, boxes: number[][]): boolean {
   if (!BLACK.has(fill as string)) return false
@@ -1122,13 +1123,25 @@ describe.runIf(refusedBefore.length)('refused before the apply', () => {
         const kind = coveredBy[name]
         expect(kind, 'coveredBy says what paints with the carrier').toBeDefined()
         if (kind === 'masked-text') {
-          const runs = pages.flatMap((page, i) =>
-            page.items
-              .filter((item) => secrets.some((word) => item.str.includes(word)))
-              .map((item) => ({ item, quads: regionsOn(regions, i) }))
+          // Every run of text shown under the soft mask, not only the secret's, lies wholly
+          // inside the mark: none paints beside it.
+          const quads = regionsOn(regions, 0)
+          const origins = (await shownText(source))
+            .filter((t) => t.masked)
+            .map((t) => t.origin)
+          const runs = (pages[0]?.items ?? []).filter((item) =>
+            origins.some(
+              ([x, y]) =>
+                Math.abs((item.corners[0]?.[0] ?? NaN) - x) < 0.01 &&
+                Math.abs((item.corners[0]?.[1] ?? NaN) - y) < 0.01
+            )
           )
-          expect(runs.length).toBeGreaterThan(0)
-          for (const { item, quads } of runs)
+          expect(origins.length).toBeGreaterThan(0)
+          expect(runs.length).toBe(origins.length)
+          expect(
+            runs.some((item) => secrets.some((word) => item.str.includes(word)))
+          ).toBe(true)
+          for (const item of runs)
             expect(
               quads.some((quad) => within(item.corners, quad)),
               `${item.str} lies inside the mark`
@@ -1400,6 +1413,104 @@ test('a pattern-stroked triangle inside the mark has a mitred corner past it', a
     insideQuad(quad, sharpest.tip, 0),
     `miter tip at ${sharpest.tip.join(', ')}`
   ).toBe(false)
+})
+
+/**
+ * Each run of text the first page shows, from its operator list: where its line starts (from
+ * `Td` and `Tm` within its text object; these fixtures set no other transform around text) and
+ * whether a soft mask is set.
+ */
+const shownText = (bytes: Uint8Array) =>
+  withPdfjs(bytes, undefined, async (pdf, lib) => {
+    const { OPS } = lib
+    const list = await (await pdf.getPage(1)).getOperatorList()
+    const shows = new Set([
+      OPS.showText,
+      OPS.showSpacedText,
+      OPS.nextLineShowText,
+      OPS.nextLineSetSpacingShowText,
+    ])
+    const runs: { origin: Point; masked: boolean }[] = []
+    let masked = false
+    const stack: boolean[] = []
+    let line: Point = [0, 0]
+    list.fnArray.forEach((op, i) => {
+      const args = list.argsArray[i] as unknown[]
+      if (op === OPS.save) stack.push(masked)
+      else if (op === OPS.restore) masked = stack.pop() ?? masked
+      else if (op === OPS.setGState) {
+        for (const [key, value] of args[0] as [string, unknown][])
+          if (key === 'SMask') masked = Boolean(value)
+      } else if (op === OPS.beginText) line = [0, 0]
+      else if (op === OPS.moveText)
+        line = [line[0] + (args[0] as number), line[1] + (args[1] as number)]
+      else if (op === OPS.setTextMatrix) {
+        const m = args[0] as ArrayLike<number>
+        line = [m[4] as number, m[5] as number]
+      } else if (shows.has(op)) runs.push({ origin: line, masked })
+    })
+    return runs
+  })
+
+test('the drawing reader leaves out the overlay and nothing else', () => {
+  // A region of x and y 110..190: the mark's appearance, and so its overlay, fills 107..193.
+  const quad = [110, 190, 190, 190, 110, 110, 190, 110]
+  const boxes = overlayBoxes([quad])
+  const square = (l: number, h: number): Point[][] => [
+    [
+      [l, l],
+      [h, l],
+      [h, h],
+      [l, h],
+      [l, l],
+    ],
+  ]
+  expect(isOverlay(square(107, 193), '#000000', boxes)).toBe(true)
+  expect(isOverlay(square(108, 192), '#000000', boxes)).toBe(false)
+  expect(isOverlay(square(106, 194), '#000000', boxes)).toBe(false)
+  expect(isOverlay(square(107, 193), '#ff00ff', boxes)).toBe(false)
+  expect(isOverlay(square(107, 193), '#000000', [])).toBe(false)
+})
+
+test("the lens-elsewhere loupe's window shows neither the region nor the star", async () => {
+  const name = 'redact-annotation-loupe-elsewhere'
+  const source = await fixtureBytes(name)
+  // The loupe's appearance: a 90 by 90 box that clips a copy of the page drawn through the lens.
+  const objects = await qdfObjects(source)
+  const appearance = [...objects.values()].find((o) => o.includes('/Pg Do'))
+  const found = /0 0 90 90 re W n ([-\d. ]+) cm \/Pg Do/.exec(appearance ?? '')
+  expect(found).not.toBeNull()
+  const [a, b, c, d, e, f] = (found?.[1] ?? '').trim().split(/\s+/).map(Number) as Matrix
+  expect([b, c]).toEqual([0, 0])
+  // The window: the box's corners taken back through the lens onto the page.
+  const window = [(0 - e) / a, (0 - f) / d, (90 - e) / a, (90 - f) / d]
+  const apart = (p: number[], q: number[]) =>
+    (p[2] as number) <= (q[0] as number) ||
+    (q[2] as number) <= (p[0] as number) ||
+    (p[3] as number) <= (q[1] as number) ||
+    (q[3] as number) <= (p[1] as number)
+  const region = boundsOf(manifest[name].regions?.[0]?.quad ?? [])
+  expect(
+    apart(window, [region.x, region.y, region.x + region.width, region.y + region.height])
+  ).toBe(true)
+  // The star's bounds, from the first path the page fills.
+  const { paints } = await pagePaints(source)
+  const star = paints[0]?.data ?? []
+  const xs: number[] = []
+  const ys: number[] = []
+  for (let at = 0; at < star.length;) {
+    const code = star[at++] as number
+    if (code === 0 || code === 1) {
+      xs.push(star[at] as number)
+      ys.push(star[at + 1] as number)
+      at += 2
+    } else if (code === 2) at += 6
+    else if (code === 3) at += 4
+  }
+  expect(xs).toHaveLength(10)
+  expect(
+    apart(window, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])
+  ).toBe(true)
 })
 
 test('a loupe the engine writes after the apply copies the redacted page', async () => {
