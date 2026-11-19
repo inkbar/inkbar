@@ -51,9 +51,9 @@ export interface RenderOptions {
   scale?: number
   /**
    * Cancels the render while it waits in the queue, and stops it once it has started: it then
-   * rejects with `aborted` within a few milliseconds and delivers no pixels. A render that
-   * finishes before the abort is seen still resolves. Every other call that has started runs to
-   * the end.
+   * rejects with `aborted` and delivers no pixels. How soon depends on the page: usually within
+   * one step of about 8 ms, and tens of milliseconds on a heavy page. A render that finishes
+   * before the abort is seen still resolves. Every other call that has started runs to the end.
    */
   signal?: AbortSignal
   /**
