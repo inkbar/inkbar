@@ -1,9 +1,11 @@
 /*
  * The measure page, for maintainers and linked from nowhere:
- * `<base>measure/?file=<name>&reader=engine|pdfjs` (the slash after `measure` is needed: without
- * it `vite preview` serves the sandbox's own page) opens one file with one reader and prints, as plain text, the bytes fetched from the open on,
- * the time from the open to the first page drawn, and then the first page drawn at each step of
- * Zoom in (×1.25) from zoom 1 to the viewer's largest, 8: per step the canvas size, the draw
+ * `<base>measure/?file=<name>&reader=engine|pdfjs`. The slash after `measure` is needed: without
+ * it `vite preview` serves the sandbox's own page.
+ *
+ * It opens one file with one reader and prints, as plain text, the bytes fetched from the open
+ * on, the time from the open to the first page drawn, and then the first page drawn at each step
+ * of Zoom in (×1.25) from zoom 1 to the viewer's largest, 8: per step the canvas size, the draw
  * time, `ok` or the error, and whether the canvas is over the most pixels the engine draws in
  * one bitmap, so that the engine drew it smaller and stretched it. It asserts nothing.
  *
@@ -23,7 +25,10 @@ import { watchRequests, type SeenRequest } from '../shared/requests.ts'
 const watch = watchRequests()
 
 const BASE = import.meta.env.BASE_URL
-/** The most pixels the engine draws in one bitmap; a larger canvas is drawn smaller and stretched. */
+/**
+ * The most pixels the engine draws in one bitmap; a larger canvas is drawn smaller and
+ * stretched.
+ */
 const ENGINE_MAX_PIXELS = 268_435_456
 /**
  * The viewer's largest zoom. The viewport does not expose it: it is the default of `maxZoom` in
