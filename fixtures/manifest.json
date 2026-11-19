@@ -1712,5 +1712,350 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ]
+  },
+  "unembedded-japanese": {
+    "file": "unembedded-japanese.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Japanese in a Type 0 font KozMinPr6N-Regular (CIDFontType0, Adobe-Japan1-0, UniJIS-UTF16-H) with no font file, and one Latin line in Helvetica as a control",
+    "unembedded": ["japanese"]
+  },
+  "unembedded-simplified-chinese": {
+    "file": "unembedded-simplified-chinese.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Simplified Chinese in a Type 0 font STSong-Light (CIDFontType0, Adobe-GB1-0, UniGB-UTF16-H) with no font file, and one Latin line in Helvetica as a control",
+    "unembedded": ["simplified-chinese"]
+  },
+  "unembedded-traditional-chinese": {
+    "file": "unembedded-traditional-chinese.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Traditional Chinese in a Type 0 font MSung-Light (CIDFontType0, Adobe-CNS1-0, UniCNS-UTF16-H) with no font file, and one Latin line in Helvetica as a control",
+    "unembedded": ["traditional-chinese"]
+  },
+  "unembedded-korean": {
+    "file": "unembedded-korean.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Korean in a Type 0 font HYSMyeongJo-Medium (CIDFontType0, Adobe-Korea1-0, UniKS-UTF16-H) with no font file, and one Latin line in Helvetica as a control",
+    "unembedded": ["korean"]
+  },
+  "unembedded-cyrillic": {
+    "file": "unembedded-cyrillic.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Cyrillic in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (afii10017 to afii10097), and one Latin line in Helvetica as a control",
+    "unembedded": ["default"]
+  },
+  "unembedded-greek": {
+    "file": "unembedded-greek.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: two lines of Greek in a simple TrueType font PTSans with no font file and a /Differences array of Adobe Glyph List names (Alpha to omega), and one Latin line in Helvetica as a control",
+    "unembedded": ["default"]
+  },
+  "unembedded-arial": {
+    "file": "unembedded-arial.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: one line in a simple TrueType font Arial (WinAnsiEncoding) with no font file, and one Latin line in Helvetica as a control",
+    "unembedded": []
+  },
+  "corpus-shade": {
+    "file": "shade.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Every shading type in one page: function-based, axial, radial and the four mesh kinds, each clipped to a square",
+    "source": "pdfium testing/resources/pixel/shade.in (expanded)",
+    "features": ["axial-shading", "radial-shading", "mesh-shading", "clip"]
+  },
+  "corpus-shade-tensor": {
+    "file": "shade-tensor.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Coons and tensor-product patch meshes (shading types 6 and 7), clipped to a square",
+    "source": "pdfium testing/resources/pixel/shade-tensor.in (expanded)",
+    "features": ["mesh-shading", "clip"]
+  },
+  "corpus-radial-shading-point-at-center": {
+    "file": "radial_shading_point_at_center.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A radial shading whose inner circle is a point at the centre of the outer one",
+    "source": "pdfium testing/resources/pixel/radial_shading_point_at_center.in (expanded)",
+    "features": ["radial-shading"]
+  },
+  "corpus-gradient-pattern-stroke-order": {
+    "file": "gradient_pattern_stroke_order.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "An axial shading pattern used to fill, to fill and stroke, and to stroke rectangles",
+    "source": "pdfium testing/resources/gradient_pattern_stroke_order.pdf",
+    "features": ["axial-shading"]
+  },
+  "corpus-bug-1258968": {
+    "file": "bug_1258968.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A mesh shading, a tiling pattern, a soft mask and an ICC colour space on one page",
+    "source": "pdfium testing/resources/pixel/bug_1258968.in (expanded)",
+    "features": ["mesh-shading", "tiling-pattern", "soft-mask", "icc-colour"]
+  },
+  "corpus-pattern-fill": {
+    "file": "pattern_fill.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A coloured tiling pattern as the fill colour",
+    "source": "pdfium testing/resources/pattern_fill.pdf",
+    "features": ["tiling-pattern"]
+  },
+  "corpus-pattern-stroke-uncolored": {
+    "file": "pattern_stroke_uncolored.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An uncoloured tiling pattern as the stroke colour",
+    "source": "pdfium testing/resources/pattern_stroke_uncolored.pdf",
+    "features": ["tiling-pattern"]
+  },
+  "corpus-embedpdf-tiling-patterns": {
+    "file": "embedpdf_tiling_patterns.pdf",
+    "pages": 4,
+    "opens": true,
+    "describes": "Four pages, each with a coloured tiling pattern",
+    "source": "pdfium testing/resources/embedpdf_tiling_patterns.pdf",
+    "features": ["tiling-pattern"]
+  },
+  "corpus-alpha-composite": {
+    "file": "alpha_composite.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Overlapping fills drawn with the Screen and Normal blend modes at partial alpha",
+    "source": "pdfium testing/resources/pixel/alpha_composite.in (expanded)",
+    "features": ["blend-mode"]
+  },
+  "corpus-matte": {
+    "file": "matte.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Images with soft masks that carry a /Matte entry",
+    "source": "pdfium testing/resources/matte.pdf",
+    "features": ["soft-mask"]
+  },
+  "corpus-bug-1845": {
+    "file": "bug_1845.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Images, one with a soft mask, and an even-odd clip",
+    "source": "pdfium testing/resources/pixel/bug_1845.in (expanded)",
+    "features": ["soft-mask", "clip"]
+  },
+  "corpus-type3": {
+    "file": "type3.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Text in a Type 3 font whose glyphs are content streams",
+    "source": "pdfium testing/resources/pixel/type3.in (expanded)",
+    "features": ["type3-font"]
+  },
+  "corpus-embedpdf-chrome-type3-text": {
+    "file": "embedpdf_chrome_type3_text.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Text in Type 3 fonts as Chrome writes them when printing",
+    "source": "pdfium testing/resources/embedpdf_chrome_type3_text.pdf",
+    "features": ["type3-font"]
+  },
+  "corpus-jpxdecode": {
+    "file": "jpxdecode.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "JPEG 2000 images, one with SMaskInData",
+    "source": "pdfium testing/resources/pixel/jpxdecode.in (expanded)",
+    "features": ["jpeg2000"]
+  },
+  "corpus-bug-1469": {
+    "file": "bug_1469.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "JPEG 2000 images with SMaskInData 0 and 1",
+    "source": "pdfium testing/resources/pixel/bug_1469.in (expanded)",
+    "features": ["jpeg2000"]
+  },
+  "corpus-bug-1396264": {
+    "file": "bug_1396264.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A JPEG 2000 image",
+    "source": "pdfium testing/resources/bug_1396264.pdf",
+    "features": ["jpeg2000"]
+  },
+  "corpus-bug-1236": {
+    "file": "bug_1236.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A JBIG2 image that has a soft mask",
+    "source": "pdfium testing/resources/pixel/bug_1236.in (expanded)",
+    "features": ["jbig2", "soft-mask"]
+  },
+  "corpus-bug-631912": {
+    "file": "bug_631912.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A JBIG2 image",
+    "source": "pdfium testing/resources/bug_631912.pdf",
+    "features": ["jbig2"]
+  },
+  "corpus-transfer-function": {
+    "file": "transfer_function.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Two pages: a JBIG2 image and a CCITT image, in a graphics state that sets a transfer function",
+    "source": "pdfium testing/resources/pixel/transfer_function.in (expanded)",
+    "features": ["jbig2", "ccitt"]
+  },
+  "corpus-bug-1746": {
+    "file": "bug_1746.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A Type 3 font, a CCITT image drawn at half opacity, and a clip",
+    "source": "pdfium testing/resources/pixel/bug_1746.in (expanded)",
+    "features": ["type3-font", "ccitt", "clip"]
+  },
+  "corpus-bug-1087": {
+    "file": "bug_1087.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A JBIG2 image and a CCITT image on one page",
+    "source": "pdfium testing/resources/pixel/bug_1087.pdf",
+    "features": ["jbig2", "ccitt"]
+  },
+  "corpus-bug-42270471": {
+    "file": "bug_42270471.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A fill in an ICCBased colour space",
+    "source": "pdfium testing/resources/bug_42270471.pdf",
+    "features": ["icc-colour"]
+  },
+  "corpus-bug-1479436": {
+    "file": "bug_1479436.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A fill in an ICCBased colour space",
+    "source": "pdfium testing/resources/pixel/bug_1479436.in (expanded)",
+    "features": ["icc-colour"]
+  },
+  "corpus-bug-1768": {
+    "file": "bug_1768.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A page-sized rectangular clip over later drawing",
+    "source": "pdfium testing/resources/bug_1768.pdf",
+    "features": ["clip"]
+  },
+  "corpus-bug-1558": {
+    "file": "bug_1558.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Text under a rectangular clip, with W and n on separate lines",
+    "source": "pdfium testing/resources/bug_1558.pdf",
+    "features": ["clip"]
+  },
+  "corpus-bug-1883": {
+    "file": "bug_1883.pdf",
+    "pages": 4,
+    "opens": true,
+    "describes": "Four pages with /Rotate 0, 90, 180 and 270",
+    "source": "pdfium testing/resources/pixel/bug_1883.in (expanded)",
+    "features": ["rotated-page"]
+  },
+  "corpus-rectangles-multi-pages": {
+    "file": "rectangles_multi_pages.pdf",
+    "pages": 5,
+    "opens": true,
+    "describes": "Pages of rectangles, one with /Rotate 90",
+    "source": "pdfium testing/resources/rectangles_multi_pages.pdf",
+    "features": ["rotated-page"]
+  },
+  "corpus-dashed-lines": {
+    "file": "dashed_lines.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Lines stroked with a dash array and phase, and with an empty dash array",
+    "source": "pdfium testing/resources/dashed_lines.pdf",
+    "features": ["dash"]
+  },
+  "corpus-long-dashed-line": {
+    "file": "long_dashed_line.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A long line stroked with a [2 2] dash",
+    "source": "pdfium testing/resources/pixel/long_dashed_line.in (expanded)",
+    "features": ["dash"]
+  },
+  "corpus-bug-1822": {
+    "file": "bug_1822.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A line stroked with a [1.8 1.8] dash and a very large phase",
+    "source": "pdfium testing/resources/pixel/bug_1822.in (expanded)",
+    "features": ["dash"]
+  },
+  "corpus-text-render-mode": {
+    "file": "text_render_mode.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Text drawn with render modes 0 and 1",
+    "source": "pdfium testing/resources/text_render_mode.pdf",
+    "features": ["text-render-mode"]
+  },
+  "corpus-bug-1388": {
+    "file": "bug_1388.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Text drawn with render mode 2, fill and stroke",
+    "source": "pdfium testing/resources/pixel/bug_1388.in (expanded)",
+    "features": ["text-render-mode"]
+  },
+  "corpus-bug-842": {
+    "file": "bug_842.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An axial shading filling a rectangle",
+    "source": "pdfium testing/resources/pixel/bug_842.in (expanded)",
+    "features": ["axial-shading"]
+  },
+  "corpus-bug-557320961": {
+    "file": "bug_557320961.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An image drawn with the Multiply blend mode",
+    "source": "pdfium testing/resources/pixel/bug_557320961.in (expanded)",
+    "features": ["blend-mode"]
+  },
+  "corpus-bug-1976": {
+    "file": "bug_1976.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An image with a soft mask, drawn from a form",
+    "source": "pdfium testing/resources/pixel/bug_1976.in (expanded)",
+    "features": ["soft-mask"]
+  },
+  "corpus-bug-1399": {
+    "file": "bug_1399.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A page with a /CropBox and lines stroked with several dash arrays",
+    "source": "pdfium testing/resources/bug_1399.pdf",
+    "features": ["cropped-page", "dash"]
+  },
+  "corpus-annots": {
+    "file": "annots.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Two pages of annotations (links, highlights, a square, a widget), one with a /CropBox",
+    "source": "pdfium testing/resources/annots.pdf",
+    "features": ["cropped-page"]
   }
 }

@@ -19,12 +19,22 @@ export interface RedactionRegion {
   quad: number[]
 }
 
+/** A fallback font: one per script that needs its own, and `default` for the rest. */
+export type FontKey =
+  'japanese' | 'simplified-chinese' | 'traditional-chinese' | 'korean' | 'default'
+
 export interface FixtureMeta {
   file: string
   pages: number
   opens: boolean
   password?: string
   describes: string
+  /** The fallback fonts the file's pages need, when it names fonts it does not embed. */
+  unembedded?: FontKey[]
+  /** Where a corpus file came from. Absent for generated fixtures. */
+  source?: string
+  /** The drawing features a corpus file is in the suite for. */
+  features?: string[]
   annotations?: Record<string, number>
   /** Where the PDFium engine is known to behave differently, and why. Absent when it does not. */
   engine?: { open?: string; saveRewrite?: string; saveIncremental?: string }
@@ -69,7 +79,8 @@ export const manifest = manifestJson as unknown as Record<FixtureName, FixtureMe
 const root = dirname(fileURLToPath(import.meta.url))
 
 export function fixturePath(name: FixtureName): string {
-  return join(root, 'pdf', manifest[name].file)
+  const { file, source } = manifest[name]
+  return join(root, source === undefined ? 'pdf' : 'corpus', file)
 }
 
 export async function fixtureBytes(name: FixtureName): Promise<Uint8Array> {
