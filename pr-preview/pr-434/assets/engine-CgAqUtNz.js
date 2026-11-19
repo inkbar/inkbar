@@ -1,0 +1,1 @@
+import{n as e}from"./index-mbiSrNKS.js";var t=()=>e(()=>import(`./dist-C5e16SWk.js`),[]);export{t};
