@@ -44,11 +44,28 @@ export interface FixtureMeta {
    * the apply: a mark lies over content the apply cannot remove, of those kinds, and `redact`
    * rejects with `unremovable-content` and changes nothing. Without, the apply runs and the strict
    * check after it finds content left. Absent when the regions redact cleanly.
+   *
+   * `need` says why the refusal is there: `shown`, independent readers find content under the
+   * mark that the apply would leave; `covered`, the shape lies wholly inside the mark, so the
+   * apply would remove it, and the engine refuses because it cannot show that nothing else keeps
+   * what it carries in the file; `cautious`, what lies under the mark repeats what stays in view.
    */
-  refused?: { why: string; kinds?: ('pattern' | 'shading' | 'mask-group' | 'glyph')[] }
+  refused?: {
+    why: string
+    need: 'shown' | 'covered' | 'cautious'
+    kinds?: ('pattern' | 'shading' | 'mask-group' | 'glyph')[]
+  }
+  /**
+   * Content that PDF.js does not read as page text (text in a tiling pattern's cell, in a soft
+   * mask's group or in an annotation's appearance), and where it lies on the page: its box, left,
+   * bottom, right and top in PDF user space, worked out from the fixture's own geometry (the
+   * cell or group's placement and the text's position).
+   */
+  placed?: { what: string; box: [number, number, number, number] }[]
 }
 
-export const manifest = manifestJson as Record<FixtureName, FixtureMeta>
+// JSON reads `need` as a string and `box` as a list of numbers: the generator writes them typed.
+export const manifest = manifestJson as unknown as Record<FixtureName, FixtureMeta>
 const root = dirname(fileURLToPath(import.meta.url))
 
 export function fixturePath(name: FixtureName): string {

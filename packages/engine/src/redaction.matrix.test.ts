@@ -106,14 +106,30 @@ const MARGIN = 1
 /**
  * What a page paints, by kind: image samples, paths in the page's own content and forms, what a
  * tiling pattern's cell draws, and shadings (painted with `sh` or filling a path as a pattern).
+ * Two kinds count the same paths again by what paints them: `patterned`, a path filled or stroked
+ * with a tiling or shading pattern, and `masked`, a path painted under a soft mask.
  */
-type Kind = 'image' | 'drawing' | 'cell' | 'shading'
+type Kind = 'image' | 'drawing' | 'cell' | 'shading' | 'patterned' | 'masked'
 type Counts = Record<Kind, number>
-const zero = (): Counts => ({ image: 0, drawing: 0, cell: 0, shading: 0 })
+const zero = (): Counts => ({
+  image: 0,
+  drawing: 0,
+  cell: 0,
+  shading: 0,
+  patterned: 0,
+  masked: 0,
+})
 
 /** What the readers found on one page: its text, and painted points under and beside the regions. */
+/** A run of page text as PDF.js reads it, with the corners of its box on the page. */
+interface TextItem {
+  str: string
+  corners: Point[]
+}
+
 interface PageReading {
   text: string
+  items: TextItem[]
   under: Counts
   beside: Counts
 }
@@ -323,7 +339,9 @@ interface OperatorList {
  * counted only under a region, since a cell's place says nothing about what the pattern paints
  * beside it. A path filled with a shading pattern counts the points inside it as `shading`. Text
  * is left to the text reader, and the content of a soft mask's group is skipped: a group masks,
- * it does not paint, and the byte reader covers what it holds.
+ * it does not paint. The byte reader covers text a group holds, and the image reader
+ * (`qpdfImages`, run on every redacted row) covers an image in one; nothing here reads a group's
+ * paths.
  *
  * A filled path also counts points 2 pt apart inside each region that lie inside it, by its fill
  * rule and its clips, so a fill that covers a region without an edge in it is seen there; after
@@ -340,7 +358,7 @@ async function paintedOn(
   page: PdfjsPage,
   lib: PdfjsLib,
   quads: number[][]
-): Promise<Omit<PageReading, 'text'>> {
+): Promise<Omit<PageReading, 'text' | 'items'>> {
   const { OPS } = lib
   const counts = { under: zero(), beside: zero() }
   const fills = new Set([
@@ -372,6 +390,8 @@ async function paintedOn(
     fill: unknown
     stroke: unknown
     clips: { runs: Point[][]; evenOdd: boolean }[]
+    /** Whether a soft mask is set. */
+    masked: boolean
   }
 
   const walk = async (list: OperatorList, start: Matrix, depth: number) => {
@@ -382,6 +402,7 @@ async function paintedOn(
       fill: '#000000',
       stroke: '#000000',
       clips: [],
+      masked: false,
     }
     const stack: State[] = []
     const push = () => stack.push({ ...state, clips: [...state.clips] })
@@ -451,7 +472,14 @@ async function paintedOn(
           push()
           const [, , transform, matrix] = args as [unknown, unknown, number[], number[]]
           const ctm = compose(matrix, compose(transform, state.ctm))
-          state = { ctm, base: ctm, fill: '#000000', stroke: '#000000', clips: [] }
+          state = {
+            ctm,
+            base: ctm,
+            fill: '#000000',
+            stroke: '#000000',
+            clips: [],
+            masked: false,
+          }
           break
         }
         case OPS.setFillRGBColor:
@@ -464,6 +492,10 @@ async function paintedOn(
           break
         case OPS.setFillTransparent:
           state.fill = 'transparent'
+          break
+        case OPS.setGState:
+          for (const [key, value] of args[0] as [string, unknown][])
+            if (key === 'SMask') state.masked = Boolean(value)
           break
         case OPS.setStrokeTransparent:
           state.stroke = 'transparent'
@@ -481,8 +513,18 @@ async function paintedOn(
           }
           const filled = fills.has(paint) && coloured(state.fill)
           const stroked = strokes.has(paint) && coloured(state.stroke)
+          const carrier = (colour: unknown) =>
+            Array.isArray(colour) &&
+            (colour[0] === 'TilingPattern' || colour[0] === 'Shading')
+          const patterned =
+            (filled && carrier(state.fill)) || (stroked && carrier(state.stroke))
+          const masked = state.masked && (filled || stroked)
           if (filled || stroked)
-            for (const p of along(runs)) tally(quads, p, counts, drawn, depth > 0)
+            for (const p of along(runs)) {
+              tally(quads, p, counts, drawn, depth > 0)
+              if (patterned) tally(quads, p, counts, 'patterned', depth > 0)
+              if (masked) tally(quads, p, counts, 'masked', depth > 0)
+            }
           if (filled) {
             const evenOdd = evenOddFills.has(paint)
             const shaded = Array.isArray(state.fill) && state.fill[0] === 'Shading'
@@ -490,8 +532,11 @@ async function paintedOn(
               if (
                 insideRings(runs, p, evenOdd) &&
                 state.clips.every((c) => insideRings(c.runs, p, c.evenOdd))
-              )
+              ) {
                 tally(quads, p, counts, shaded ? 'shading' : drawn, true)
+                if (patterned) tally(quads, p, counts, 'patterned', true)
+                if (masked) tally(quads, p, counts, 'masked', true)
+              }
           }
           if (filled) await pattern(state.fill)
           if (stroked) await pattern(state.stroke)
@@ -542,6 +587,62 @@ async function paintedOn(
   return counts
 }
 
+/** A PDF.js text item's run and the corners of its box: its baseline, raised by its height. */
+function textItem(item: {
+  str: string
+  transform: number[]
+  width: number
+  height: number
+}): TextItem {
+  const [a, b, c, d, e, f] = item.transform as Matrix
+  const along = Math.hypot(a, b) || 1
+  const up = Math.hypot(c, d) || 1
+  const ux: Point = [(a / along) * item.width, (b / along) * item.width]
+  const uy: Point = [(c / up) * item.height, (d / up) * item.height]
+  return {
+    str: item.str,
+    corners: [
+      [e, f],
+      [e + ux[0], f + ux[1]],
+      [e + uy[0], f + uy[1]],
+      [e + ux[0] + uy[0], f + ux[1] + uy[1]],
+    ],
+  }
+}
+
+/** The corners of a box given as left, bottom, right and top. */
+const boxCorners = ([l, b, r, t]: readonly number[]): Point[] => [
+  [l as number, b as number],
+  [r as number, b as number],
+  [l as number, t as number],
+  [r as number, t as number],
+]
+
+/** Whether a box (by its corners) and a region's quad share any area. */
+function overlaps(corners: Point[], quad: number[]): boolean {
+  const mid = (p: Point, q: Point): Point => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]
+  const [p0, p1, p2, p3] = corners as [Point, Point, Point, Point]
+  const probes = [
+    ...corners,
+    mid(p0, p1),
+    mid(p0, p2),
+    mid(p1, p3),
+    mid(p2, p3),
+    mid(p0, p3),
+  ]
+  if (probes.some((p) => insideQuad(quad, p, 0))) return true
+  // The region's centre inside the box: the box contains the region.
+  const centre: Point = [
+    (quad[0]! + quad[2]! + quad[4]! + quad[6]!) / 4,
+    (quad[1]! + quad[3]! + quad[5]! + quad[7]!) / 4,
+  ]
+  return insideQuad([p2[0], p2[1], p3[0], p3[1], p0[0], p0[1], p1[0], p1[1]], centre, 0)
+}
+
+/** Whether every corner of a box lies inside the region's quad. */
+const within = (corners: Point[], quad: number[]) =>
+  corners.every((p) => insideQuad(quad, p, 0))
+
 /** What the readers find on every page of `bytes`. */
 const readPages = (bytes: Uint8Array, regions: FixtureRegion[], password?: string) =>
   withPdfjs(bytes, password, async (pdf, lib) => {
@@ -549,8 +650,23 @@ const readPages = (bytes: Uint8Array, regions: FixtureRegion[], password?: strin
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i)
       const content = await page.getTextContent()
+      const items = content.items.flatMap((item) =>
+        'str' in item && 'transform' in item
+          ? [
+              textItem(
+                item as {
+                  str: string
+                  transform: number[]
+                  width: number
+                  height: number
+                }
+              ),
+            ]
+          : []
+      )
       pages.push({
         text: content.items.map((item) => ('str' in item ? item.str : '')).join(''),
+        items,
         ...(await paintedOn(page, lib, regionsOn(regions, i - 1))),
       })
     }
@@ -608,24 +724,48 @@ const refusedAfter = rows.filter(
   (name) =>
     manifest[name].refused !== undefined && manifest[name].refused.kinds === undefined
 )
-const KINDS: Kind[] = ['image', 'drawing', 'cell', 'shading']
+const KINDS: Kind[] = ['image', 'drawing', 'cell', 'shading', 'patterned', 'masked']
 
 describe('the fixtures', () => {
   test.each(rows)(
     '%s has content under its regions for the readers to find',
     async (name) => {
-      const { secrets = [], regions = [], password, gone = [] } = manifest[name]
+      const {
+        secrets = [],
+        regions = [],
+        password,
+        gone = [],
+        placed = [],
+      } = manifest[name]
       const source = await fixtureBytes(name)
       const pages = await readPages(source, regions, password)
       const plain = await plainBytes(source, password)
-      const marked = new Set(regions.map((r) => r.page))
-      const found =
-        secrets.some(
-          (word) =>
-            holdsText(plain, word) ||
-            pages.some((p, i) => marked.has(i) && p.text.includes(word))
-        ) || KINDS.some((kind) => sum(pages, 'under', kind) > 0)
-      expect(found).toBe(true)
+      // Content under a region, located by a reader: a secret in a run of PDF.js page text whose
+      // box meets a region, or paint of any kind under a region. Text PDF.js does not read as page
+      // text (in a pattern's cell, a mask's group, an annotation's appearance) is located from the
+      // fixture's own geometry in `placed`, and the byte reader shows it is in the file.
+      const inText = secrets.some((word) =>
+        pages.some((page, i) =>
+          page.items.some(
+            (item) =>
+              item.str.includes(word) &&
+              regionsOn(regions, i).some((quad) => overlaps(item.corners, quad))
+          )
+        )
+      )
+      const byGeometry = placed.some((p) =>
+        regions.some((r) => overlaps(boxCorners(p.box), r.quad))
+      )
+      if (placed.length)
+        expect(
+          secrets.some((word) => holdsText(plain, word)),
+          'placed content is text PDF.js does not read as page text: the bytes hold it'
+        ).toBe(true)
+      const painted = KINDS.some((kind) => sum(pages, 'under', kind) > 0)
+      expect(
+        inText || byGeometry || painted,
+        'a secret in page text under a region, placed text under one, or paint under one'
+      ).toBe(true)
       for (const word of gone) expect(holdsText(plain, word), word).toBe(true)
     }
   )
@@ -691,17 +831,17 @@ describe.runIf(redactable.length)('redacted', () => {
 
       if (qpdfAvailable) {
         expect(await qpdfCheck(bytes, password)).toEqual({ ok: true })
-        // Every image left in the file, used or not: each must be one a page shows. Where the
-        // images painted nothing beside the regions, every image left must be blank: one value.
-        const painted = sum(before, 'under', 'image') + sum(before, 'beside', 'image')
-        if (painted > 0) {
-          const images = await qpdfImages(bytes, password)
-          expect(images.filter((i) => !i.namedOnPage).map((i) => i.ref)).toEqual([])
-          if (sum(before, 'beside', 'image') === 0) {
+        // Every image left in the file, used or not, on every row (an image inside a mask group
+        // paints nothing the page reader counts): each must be one a page names. Where the page
+        // painted no image beside the regions, every image left must be blank: one value.
+        const images = await qpdfImages(bytes, password)
+        expect(images.filter((i) => !i.namedOnPage).map((i) => i.ref)).toEqual([])
+        if (sum(before, 'beside', 'image') === 0) {
+          if (sum(before, 'under', 'image') > 0) {
             const source = await qpdfImages(await fixtureBytes(name), password)
             expect(source.some((i) => !flat(i.samples))).toBe(true)
-            for (const image of images) expect(flat(image.samples), image.ref).toBe(true)
           }
+          for (const image of images) expect(flat(image.samples), image.ref).toBe(true)
         }
       }
     }
@@ -763,51 +903,54 @@ test('a redacted encrypted file still needs its password', async () => {
 })
 
 /**
- * Why each refusal before the apply is needed, as independent readers see it in the original
- * file, on the page as it was. A refusal is needed when content lies under the mark in something
- * the apply cannot rewrite (`under`), and the object that paints it reaches past the mark
- * (`beyond`), so the apply would cut that object rather than remove it, and leave what it
- * carries in the file.
+ * What independent readers show, in the original file, for each refusal before the apply, by the
+ * `need` its manifest entry gives.
  *
+ * `shown`: content lies under the mark in something the apply cannot rewrite (`under`), and the
+ * object that paints it reaches past the mark (`beyond`), so the apply would cut that object and
+ * leave what it carries in the file.
  * - `cell`: PDF.js reads a tiling pattern's cell drawing under the mark.
- * - `hidden-text`: the byte reader finds every secret, and PDF.js's page text holds none: the
- *   text lies in a pattern's cell or a mask's group, which PDF.js does not read as page text.
+ * - `hidden-text`: text PDF.js does not read as page text, in a pattern's cell or a mask's group.
+ *   The byte reader shows it is in the file, and its place, worked out from the fixture's own
+ *   geometry in `placed`, lies inside the mark.
  * - `shading`: PDF.js's operator list paints a shading under the mark (`sh`, or a path filled
  *   with a shading pattern).
- * - `repeat`: the content under the mark repeats what stays in view (a hatch). Nothing
- *   position-specific lies under the mark, so the refusal is cautious, not needed.
- * - `covered`: the shape lies wholly inside the mark, so the apply would remove it. The engine
- *   refuses because it cannot show that nothing else keeps the carrier in the file. No reader
- *   can show that for these files, so nothing more is asserted for them here; the two files that
- *   show the reason (a later object naming the pattern, a mitred corner past the mark) have tests
- *   of their own below.
- * - `beyond`: the kind of paint, from the same object, that PDF.js finds beside the mark.
+ * - `beyond`: the paint, by what paints it, that PDF.js finds beside the mark: `patterned` for an
+ *   object painted with a pattern, `masked` for one under a soft mask, `shading` for `sh`.
  */
-const necessity: Partial<
-  Record<
-    FixtureName,
-    | { under: 'cell' | 'hidden-text' | 'shading' | 'repeat'; beyond: Kind }
-    | { under: 'covered' }
-  >
+const shownBy: Partial<
+  Record<FixtureName, { under: 'cell' | 'hidden-text' | 'shading'; beyond: Kind }>
 > = {
-  'redact-text-pattern': { under: 'hidden-text', beyond: 'drawing' },
-  'redact-drawing-pattern-past-mark': { under: 'cell', beyond: 'drawing' },
-  'redact-drawing-pattern-side': { under: 'cell', beyond: 'drawing' },
-  'redact-drawing-hatch': { under: 'repeat', beyond: 'drawing' },
+  'redact-text-pattern': { under: 'hidden-text', beyond: 'patterned' },
+  'redact-drawing-pattern-past-mark': { under: 'cell', beyond: 'patterned' },
+  'redact-drawing-pattern-side': { under: 'cell', beyond: 'patterned' },
   'redact-drawing-mesh': { under: 'shading', beyond: 'shading' },
   'redact-drawing-function-shading': { under: 'shading', beyond: 'shading' },
   'redact-drawing-sampled-axial': { under: 'shading', beyond: 'shading' },
-  'redact-drawing-mesh-pattern': { under: 'shading', beyond: 'drawing' },
-  'redact-mask-group-past-mark': { under: 'hidden-text', beyond: 'drawing' },
-  'redact-drawing-pattern': { under: 'covered' },
-  'check-pattern-text': { under: 'covered' },
-  'redact-drawing-hatch-under-mark': { under: 'covered' },
-  'redact-drawing-mesh-under-mark': { under: 'covered' },
-  'redact-drawing-function-under-mark': { under: 'covered' },
-  'redact-mask-group-under-mark': { under: 'covered' },
-  'redact-text-shaped-fade': { under: 'covered' },
-  'redact-drawing-pattern-colour-kept': { under: 'covered' },
-  'redact-drawing-pattern-miter': { under: 'covered' },
+  'redact-drawing-mesh-pattern': { under: 'shading', beyond: 'patterned' },
+  'redact-mask-group-past-mark': { under: 'hidden-text', beyond: 'masked' },
+}
+
+/**
+ * `covered`: the shape lies wholly inside the mark, so the apply would remove it, and the engine
+ * refuses because it cannot show that nothing else keeps what it carries in the file. No reader
+ * can show that for these files. What is asserted is that the shape does lie wholly inside the
+ * mark: what paints with the carrier paints under the mark and nothing beside it. `masked-text`:
+ * the masked object is text, so its runs of page text lie wholly inside the mark. The two files
+ * that show why "wholly inside" is not enough have tests of their own below.
+ */
+const coveredBy: Partial<
+  Record<FixtureName, 'patterned' | 'shading' | 'masked' | 'masked-text'>
+> = {
+  'redact-drawing-pattern': 'patterned',
+  'check-pattern-text': 'patterned',
+  'redact-drawing-hatch-under-mark': 'patterned',
+  'redact-drawing-pattern-colour-kept': 'patterned',
+  'redact-drawing-pattern-miter': 'patterned',
+  'redact-drawing-mesh-under-mark': 'shading',
+  'redact-drawing-function-under-mark': 'shading',
+  'redact-mask-group-under-mark': 'masked',
+  'redact-text-shaped-fade': 'masked-text',
 }
 
 /** The bytes a save gives of the fixture as opened, with nothing done to it, without its /ID. */
@@ -828,10 +971,16 @@ const withoutId = (bytes: Uint8Array) =>
     .replace(/\/ID\s*\[\s*<[0-9A-F]*>\s*<[0-9A-F]*>\s*\]/i, '/ID[]')
 
 describe.runIf(refusedBefore.length)('refused before the apply', () => {
-  test.each(refusedBefore)(
-    '%s: the engine refuses the mark and changes nothing',
-    async (name) => {
-      const { secrets = [], regions = [], password, refused } = manifest[name]
+  test.each(refusedBefore.map((name) => [name, manifest[name].refused?.need] as const))(
+    '%s (%s): the engine refuses the mark and changes nothing',
+    async (name, need) => {
+      const {
+        secrets = [],
+        regions = [],
+        password,
+        refused,
+        placed = [],
+      } = manifest[name]
       const expected = await untouched(name)
       const marks = marksOf(name)
       const doc = await engine.open(
@@ -852,29 +1001,66 @@ describe.runIf(refusedBefore.length)('refused before the apply', () => {
         await doc.close()
       }
 
-      // The refusal is needed: in the original, content lies under the mark where the apply
-      // cannot reach it, and the object carrying it reaches past the mark.
-      const why = necessity[name]
-      expect(why, 'necessity says why the refusal is needed').toBeDefined()
-      const reason = why as NonNullable<typeof why>
-      if (reason.under === 'covered') return
-      const { under, beyond } = reason
       const source = await fixtureBytes(name)
       const pages = await readPages(source, regions, password)
-      const marked = new Set(regions.map((r) => r.page))
-      if (under === 'cell') expect(sum(pages, 'under', 'cell')).toBeGreaterThan(0)
-      if (under === 'shading') expect(sum(pages, 'under', 'shading')).toBeGreaterThan(0)
-      if (under === 'hidden-text') {
-        expect(secrets.length).toBeGreaterThan(0)
-        const plain = await plainBytes(source, password)
-        for (const word of secrets) {
-          expect(holdsText(plain, word), word).toBe(true)
-          pages.forEach((page, i) => {
-            if (marked.has(i)) expect(page.text, word).not.toContain(word)
-          })
+      if (need === 'shown') {
+        const shown = shownBy[name]
+        expect(shown, 'shownBy says what the readers show').toBeDefined()
+        const { under, beyond } = shown as NonNullable<typeof shown>
+        if (under === 'cell')
+          expect(sum(pages, 'under', 'cell'), 'cell').toBeGreaterThan(0)
+        if (under === 'shading')
+          expect(sum(pages, 'under', 'shading'), 'shading').toBeGreaterThan(0)
+        if (under === 'hidden-text') {
+          // PDF.js does not read text in a cell or a group as page text, so its place comes from
+          // the fixture's geometry, and the byte reader shows the text is in the file.
+          expect(placed.length, 'placed says where the text lies').toBeGreaterThan(0)
+          for (const { what, box } of placed)
+            expect(
+              regions.some((r) => within(boxCorners(box), r.quad)),
+              `${what} lies inside the mark`
+            ).toBe(true)
+          const plain = await plainBytes(source, password)
+          for (const word of secrets) {
+            expect(holdsText(plain, word), word).toBe(true)
+            for (const page of pages) expect(page.text, word).not.toContain(word)
+          }
         }
+        expect(sum(pages, 'beside', beyond), `${beyond} beside the mark`).toBeGreaterThan(
+          0
+        )
+      } else if (need === 'covered') {
+        const kind = coveredBy[name]
+        expect(kind, 'coveredBy says what paints with the carrier').toBeDefined()
+        if (kind === 'masked-text') {
+          const runs = pages.flatMap((page, i) =>
+            page.items
+              .filter((item) => secrets.some((word) => item.str.includes(word)))
+              .map((item) => ({ item, quads: regionsOn(regions, i) }))
+          )
+          expect(runs.length).toBeGreaterThan(0)
+          for (const { item, quads } of runs)
+            expect(
+              quads.some((quad) => within(item.corners, quad)),
+              `${item.str} lies inside the mark`
+            ).toBe(true)
+        } else {
+          const painting = kind as Kind
+          expect(
+            sum(pages, 'under', painting),
+            `${painting} under the mark`
+          ).toBeGreaterThan(0)
+          expect(sum(pages, 'beside', painting), `${painting} beside the mark`).toBe(0)
+        }
+      } else {
+        // `cautious`: what lies under the mark repeats what stays in view; the readers show the
+        // patterned shape reaching past the mark, and nothing position-specific under it.
+        expect(need).toBe('cautious')
+        expect(
+          sum(pages, 'beside', 'patterned'),
+          'patterned beside the mark'
+        ).toBeGreaterThan(0)
       }
-      expect(sum(pages, 'beside', beyond), beyond).toBeGreaterThan(0)
     }
   )
 })
@@ -889,9 +1075,10 @@ const refusedAfterBy: Partial<Record<FixtureName, 'text' | 'image' | 'drawing'>>
 }
 
 describe.runIf(refusedAfter.length)('refused after the apply', () => {
-  test.each(refusedAfter)(
-    '%s: the strict check fails, so the action refuses',
-    async (name) => {
+  test.each(refusedAfter.map((name) => [name, manifest[name].refused?.need] as const))(
+    '%s (%s): the strict check fails, so the action refuses',
+    async (name, need) => {
+      expect(need).toBe('shown')
       const { secrets = [], regions = [], password } = manifest[name]
       const bytes = await redacted(name)
       const findings = await strictCheck(name, bytes)
@@ -919,67 +1106,129 @@ describe.runIf(refusedAfter.length)('refused after the apply', () => {
   )
 })
 
-/** The paths a page's operator list paints, in order: the paint operator and its fill colour. */
+/**
+ * What a page's operator list paints, in order: each path with its paint operator, and each run
+ * of shown text, each with the fill colour, line width, join and miter limit in effect.
+ */
 const pagePaints = (bytes: Uint8Array) =>
   withPdfjs(bytes, undefined, async (pdf, lib) => {
+    const { OPS } = lib
     const list = await (await pdf.getPage(1)).getOperatorList()
-    const paints: {
-      paint: number
+    interface Paint {
+      /** The path's paint operator, or `text`. */
+      paint: number | 'text'
+      /** Whether it fills: a fill operator, or text in a fill rendering mode. */
+      fills: boolean
       fill: unknown
       lineWidth: number
       join: number
+      miterLimit: number
       data: number[]
-    }[] = []
+    }
+    const paints: Paint[] = []
+    const fillOps = new Set([
+      OPS.fill,
+      OPS.eoFill,
+      OPS.fillStroke,
+      OPS.eoFillStroke,
+      OPS.closeFillStroke,
+      OPS.closeEOFillStroke,
+    ])
+    const showOps = new Set([
+      OPS.showText,
+      OPS.showSpacedText,
+      OPS.nextLineShowText,
+      OPS.nextLineSetSpacingShowText,
+    ])
     let fill: unknown = '#000000'
     let lineWidth = 1
     let join = 0
+    let miterLimit = 10
+    let mode = 0
+    const stack: [unknown, number, number, number, number][] = []
     list.fnArray.forEach((op, i) => {
       const args = list.argsArray[i] as unknown[]
-      if (op === lib.OPS.setFillColorN) fill = args
-      else if (op === lib.OPS.setFillRGBColor) fill = args[0]
-      else if (op === lib.OPS.setLineWidth) lineWidth = args[0] as number
-      else if (op === lib.OPS.setLineJoin) join = args[0] as number
-      else if (op === lib.OPS.constructPath) {
+      if (op === OPS.save) stack.push([fill, lineWidth, join, miterLimit, mode])
+      else if (op === OPS.restore)
+        [fill, lineWidth, join, miterLimit, mode] = stack.pop() ?? [
+          fill,
+          lineWidth,
+          join,
+          miterLimit,
+          mode,
+        ]
+      else if (op === OPS.setFillColorN) fill = args
+      else if (op === OPS.setFillRGBColor) fill = args[0]
+      else if (op === OPS.setLineWidth) lineWidth = args[0] as number
+      else if (op === OPS.setLineJoin) join = args[0] as number
+      else if (op === OPS.setMiterLimit) miterLimit = args[0] as number
+      else if (op === OPS.setTextRenderingMode) mode = args[0] as number
+      else if (op === OPS.constructPath) {
         const [paint, [data]] = args as [number, [ArrayLike<number>]]
-        paints.push({ paint, fill, lineWidth, join, data: Array.from(data) })
+        const fills = fillOps.has(paint)
+        paints.push({
+          paint,
+          fills,
+          fill,
+          lineWidth,
+          join,
+          miterLimit,
+          data: Array.from(data),
+        })
+      } else if (showOps.has(op)) {
+        // Rendering modes 0, 2, 4 and 6 fill the glyphs.
+        const fills = [0, 2, 4, 6].includes(mode % 8)
+        paints.push({ paint: 'text', fills, fill, lineWidth, join, miterLimit, data: [] })
       }
     })
-    return { paints, OPS: lib.OPS }
+    return { paints, OPS }
   })
 
 const isTiling = (colour: unknown) =>
   Array.isArray(colour) && colour[0] === 'TilingPattern'
 
+/** The cell's drawing, as the pattern-gap fixtures' content stream holds it. */
+const CELL_DRAWING = '130 130 m 170 135 l 160 170 l 135 165 l h f'
+
 test('a later stroke whose fill colour still names the pattern keeps the cell in the file', async () => {
   const name = 'redact-drawing-pattern-colour-kept'
   const source = await fixtureBytes(name)
-  // The cell holds the quadrilateral under the mark.
-  expect(holdsText(source, '130 130 m 170 135 l 160 170 l 135 165 l h f')).toBe(true)
+  // The byte reader: the cell holds the quadrilateral under the mark.
+  expect(holdsText(source, CELL_DRAWING)).toBe(true)
   const { paints, OPS } = await pagePaints(source)
-  const [square, line] = paints
+  const [square, ...later] = paints
   // The square under the mark fills with the pattern.
   expect(square?.paint).toBe(OPS.fill)
   expect(isTiling(square?.fill)).toBe(true)
-  // The line elsewhere only strokes, so it paints none of the pattern, yet its fill colour is
-  // still the pattern: the content names it after the square is gone.
-  expect(line?.paint).toBe(OPS.stroke)
+  // After it, nothing that fills, path or text, fills with the pattern...
+  expect(later.length).toBeGreaterThan(1)
+  for (const paint of later)
+    if (paint.fills)
+      expect(isTiling(paint.fill), `paint ${String(paint.paint)}`).toBe(false)
+  expect(later.some((p) => p.paint === 'text' && p.fills)).toBe(true)
+  // ...but the stroke-only line's fill colour is still the pattern: the content names it after
+  // the square is gone, though nothing paints with it.
+  const line = later.find((p) => p.paint === OPS.stroke)
+  expect(line).toBeDefined()
   expect(isTiling(line?.fill)).toBe(true)
-  const [cellUnder] = await readPages(source, manifest[name].regions ?? [])
-  expect(cellUnder?.under.cell).toBeGreaterThan(0)
+  const [page] = await readPages(source, manifest[name].regions ?? [])
+  expect(page?.under.cell).toBeGreaterThan(0)
 })
 
 test('a pattern-stroked triangle inside the mark has a mitred corner past it', async () => {
   const name = 'redact-drawing-pattern-miter'
   const source = await fixtureBytes(name)
-  expect(holdsText(source, '130 130 m 170 135 l 160 170 l 135 165 l h f')).toBe(true)
-  const box = boundsOf(manifest[name].regions?.[0]?.quad ?? [])
+  expect(holdsText(source, CELL_DRAWING)).toBe(true)
+  const quad = manifest[name].regions?.[0]?.quad ?? []
+  const box = boundsOf(quad)
   const [l, b, r, t] = [box.x, box.y, box.x + box.width, box.y + box.height]
   const { paints, OPS } = await pagePaints(source)
   const triangle = paints.find(
     (p) => p.paint === OPS.stroke || p.paint === OPS.closeStroke
   )
   expect(triangle).toBeDefined()
-  const { data, lineWidth, join } = triangle as NonNullable<typeof triangle>
+  const { data, lineWidth, join, miterLimit } = triangle as NonNullable<typeof triangle>
+  // Mitred joins, under the limit in effect (10 when the content sets none).
   expect(join).toBe(0)
   // The vertices, from the path's move and line operators.
   const points: Point[] = []
@@ -991,6 +1240,7 @@ test('a pattern-stroked triangle inside the mark has a mitred corner past it', a
     } else if (code === 2) at += 6
     else if (code === 3) at += 4
   }
+  expect(points).toHaveLength(3)
   const xs = points.map(([x]) => x)
   const ys = points.map(([, y]) => y)
   const half = lineWidth / 2
@@ -999,14 +1249,30 @@ test('a pattern-stroked triangle inside the mark has a mitred corner past it', a
   expect(Math.max(...xs) + half).toBeLessThan(r)
   expect(Math.min(...ys) - half).toBeGreaterThan(b)
   expect(Math.max(...ys) + half).toBeLessThan(t)
-  // ...but the top corner's miter, half the width over the sine of half its angle, reaches past.
-  const [a, c, apex] = points as [Point, Point, Point]
-  const angle = (u: Point, v: Point) =>
-    Math.atan2(u[1] - apex[1], u[0] - apex[0]) -
-    Math.atan2(v[1] - apex[1], v[0] - apex[0])
-  const corner = Math.abs(angle(a, c))
-  const tip = apex[1] + half / Math.sin(corner / 2)
-  expect(tip).toBeGreaterThan(t)
+  // ...but the sharpest corner's miter reaches past it. At a vertex whose two edges meet at an
+  // angle theta, the miter is 1 / sin(theta / 2) times the line width long, drawn when that ratio
+  // is within the miter limit, its tip on the bisector of the edges, outward.
+  const unit = ([x, y]: Point): Point => [x / Math.hypot(x, y), y / Math.hypot(x, y)]
+  const corners = points.map((vertex, i) => {
+    const prev = points[(i + 2) % 3] as Point
+    const next = points[(i + 1) % 3] as Point
+    const u = unit([prev[0] - vertex[0], prev[1] - vertex[1]])
+    const v = unit([next[0] - vertex[0], next[1] - vertex[1]])
+    const theta = Math.acos(u[0] * v[0] + u[1] * v[1])
+    const ratio = 1 / Math.sin(theta / 2)
+    const inward = unit([u[0] + v[0], u[1] + v[1]])
+    const reach = half * ratio
+    return {
+      ratio,
+      tip: [vertex[0] - inward[0] * reach, vertex[1] - inward[1] * reach] as Point,
+    }
+  })
+  const sharpest = corners.reduce((a, c) => (c.ratio > a.ratio ? c : a))
+  expect(sharpest.ratio).toBeLessThanOrEqual(miterLimit)
+  expect(
+    insideQuad(quad, sharpest.tip, 0),
+    `miter tip at ${sharpest.tip.join(', ')}`
+  ).toBe(false)
 })
 
 test('an axial shading under a mark is clipped away from it, and the one beside stays', async () => {

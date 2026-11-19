@@ -538,6 +538,20 @@
       "Text": 1,
       "Popup": 1
     },
+    "placed": [
+      {
+        "what": "the stamp's appearance, SECRET-STAMP",
+        "box": [50, 160, 125, 200]
+      },
+      {
+        "what": "the widget of field \"hidden\", SECRET-DELTA",
+        "box": [130, 160, 230, 185]
+      },
+      {
+        "what": "the note, whose contents are SECRET-NOTE",
+        "box": [60, 215, 80, 235]
+      }
+    ],
     "secrets": ["SECRET", "STAMP", "DELTA", "NOTE"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -619,7 +633,14 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the pattern's 200 by 40 cell at (5, 12); the tile at (0, 200) puts it at (5, 212), across the region's top edge",
+        "box": [5, 208, 159, 227]
+      }
+    ],
     "refused": {
+      "need": "covered",
       "kinds": ["pattern"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
     }
@@ -987,6 +1008,7 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["pattern"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
     }
@@ -1055,6 +1077,12 @@
     "annotations": {
       "Stamp": 1
     },
+    "placed": [
+      {
+        "what": "the stamp's appearance, SECRET-STAMP",
+        "box": [60, 180, 210, 220]
+      }
+    ],
     "secrets": ["SECRET", "STAMP"],
     "keeps": [],
     "regions": [
@@ -1126,6 +1154,7 @@
       "Square": 1
     },
     "refused": {
+      "need": "shown",
       "why": "the loupe's appearance holds a copy of the page as it was, which the apply does not change, and the strict check after the apply reads it; Inkbar writes its own loupes again after the apply"
     }
   },
@@ -1235,7 +1264,14 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the pattern's one page-sized cell, placed by the identity matrix at (50, 200)",
+        "box": [50, 196, 204, 215]
+      }
+    ],
     "refused": {
+      "need": "shown",
       "kinds": ["pattern"],
       "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which holds the text where the mark is; the engine refuses before the apply"
     }
@@ -1254,6 +1290,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["pattern"],
       "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
     }
@@ -1272,6 +1309,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["pattern"],
       "why": "the mark covers the band's left end only, so the apply would cut the band back and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
     }
@@ -1290,6 +1328,7 @@
       }
     ],
     "refused": {
+      "need": "cautious",
       "kinds": ["pattern"],
       "why": "the band reaches past the mark, and the engine refuses any mark over a shape painted with a tiling pattern that the apply would only cut, whatever the cell holds; here the cell repeats what stays in view, so the refusal is cautious rather than needed"
     }
@@ -1308,6 +1347,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["shading"],
       "why": "the shading reaches past the mark, so the apply would only clip it and leave its mesh in the file, where removing the clip shows it again; the engine refuses before the apply"
     }
@@ -1326,6 +1366,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["shading"],
       "why": "the shading reaches past the mark, so the apply would only clip it and leave its function in the file; the engine refuses before the apply"
     }
@@ -1344,6 +1385,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["shading"],
       "why": "the rectangle reaches past the mark, so the apply would cut it and leave the mesh it is filled with; the engine refuses before the apply"
     }
@@ -1361,7 +1403,14 @@
         "quad": [45, 175, 215, 175, 45, 140, 215, 140]
       }
     ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the soft mask's group, placed by the identity matrix at (50, 150)",
+        "box": [50, 146, 204, 165]
+      }
+    ],
     "refused": {
+      "need": "shown",
       "kinds": ["mask-group"],
       "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the mask's group, which draws the text where the mark is; the engine refuses before the apply"
     }
@@ -1379,7 +1428,14 @@
         "quad": [45, 175, 215, 175, 45, 140, 215, 140]
       }
     ],
+    "placed": [
+      {
+        "what": "SECRET-ALPHA in the soft mask's group, placed by the identity matrix at (50, 150)",
+        "box": [50, 146, 204, 165]
+      }
+    ],
     "refused": {
+      "need": "covered",
       "kinds": ["mask-group"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mask group in the file"
     }
@@ -1426,6 +1482,7 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["pattern"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the pattern in the file"
     }
@@ -1444,6 +1501,7 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["shading"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the mesh in the file"
     }
@@ -1462,6 +1520,7 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["shading"],
       "why": "the shape lies wholly inside the mark, so the apply would remove it; the engine refuses all the same, because it cannot show that nothing else keeps the function in the file"
     }
@@ -1480,6 +1539,7 @@
       }
     ],
     "refused": {
+      "need": "shown",
       "kinds": ["shading"],
       "why": "a sampled function can hold a picture, and the shading reaches past the mark, so the apply would only clip it and leave the function in the file; the engine refuses before the apply"
     }
@@ -1526,6 +1586,7 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["mask-group"],
       "why": "the mask group draws a ramp clipped to a triangle, more than a simple fade; the text lies wholly inside the mark, so the apply would remove it with its mask, and the engine refuses because it cannot show that nothing else keeps the group in the file"
     }
@@ -1534,7 +1595,7 @@
     "file": "redact-drawing-pattern-colour-kept.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. With no q/Q around it, a blue stroke-only line at y 240 follows, whose fill colour is still the pattern: the line paints none of the pattern, but its colour still names it, so an apply that removed the square would keep the cell in the saved file (as the fork's smoke check shows)",
+    "describes": "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x and y 130..170. With no q/Q around it, a blue stroke-only line at y 240 follows, whose fill colour is still the pattern; the fill colour is then set to black for KEEP-BETA, so the line is the only later object that carries the pattern colour. The line paints none of the pattern, but its colour still names it, so an apply that removed the square would keep the cell in the saved file (as the fork's smoke check shows)",
     "secrets": [],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -1544,8 +1605,9 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["pattern"],
-      "why": "the square lies wholly inside the mark, but a later line's colour still names the pattern, so the cell would stay in the file after the apply; the engine refuses"
+      "why": "the square lies wholly inside the mark, so the apply would remove it, and the engine refuses because it cannot show that nothing else keeps the pattern in the file: here a later line's fill colour still names it, which would keep the cell in the saved file"
     }
   },
   "redact-drawing-pattern-miter": {
@@ -1562,8 +1624,9 @@
       }
     ],
     "refused": {
+      "need": "covered",
       "kinds": ["pattern"],
-      "why": "the triangle's mitred corner reaches past the mark though its stroke box does not, so the apply would cut the stroke and keep the pattern; the engine refuses"
+      "why": "the triangle's stroke box lies wholly inside the mark, so the engine takes it as covered and cannot show that nothing keeps the pattern in the file: here the mitred corner reaches past the mark, so the apply would cut the stroke and keep the pattern"
     }
   }
 }
