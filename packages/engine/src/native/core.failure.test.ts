@@ -517,11 +517,24 @@ test('destroy during a sliced render stops it, then frees everything once', asyn
   const core = new EngineCore(native)
   const { id } = core.open(slow)
   let checks = 0
+  let openedMeanwhile: unknown
   const running = core.renderPageSliced(id, 0, { scale: 6 }, () => {
-    if (++checks === 2) core.destroy()
+    if (++checks === 2) {
+      core.destroy()
+      try {
+        core.open(bytes)
+      } catch (error) {
+        openedMeanwhile = error
+      }
+    }
     return false
   })
   expect(await outcome(running)).toBe('EngineError aborted')
+  // Once destroy is asked for, the core says so, not that it is busy.
+  expect(openedMeanwhile).toMatchObject({
+    code: 'engine-failure',
+    message: 'The engine is destroyed.',
+  })
   expect(count('INK_Render_Close')).toBe(1)
   expect(count('FPDFBitmap_Destroy')).toBe(1)
   expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))

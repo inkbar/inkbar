@@ -254,7 +254,8 @@ export class EngineCore {
   }
 
   open(bytes: Uint8Array, options: OpenOptions = {}): { id: number; pageCount: number } {
-    if (this.#destroyed)
+    // Destroyed, or due to be once the running render ends.
+    if (this.#destroyed || this.#destroyAfterRender)
       throw new EngineError('engine-failure', 'The engine is destroyed.')
     this.#checkIdle()
     return this.#guard(() => this.#open(bytes, options))
@@ -816,7 +817,7 @@ export class EngineCore {
     bytes: Uint8Array,
     options: { password?: string; regions?: readonly RedactionRegion[] } = {}
   ): RedactionFindings {
-    if (this.#destroyed)
+    if (this.#destroyed || this.#destroyAfterRender)
       throw new EngineError('engine-failure', 'The engine is destroyed.')
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
     this.#checkIdle()

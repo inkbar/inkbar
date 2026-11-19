@@ -1,4 +1,4 @@
-import { EngineError } from './errors.ts'
+import { ArgumentError, EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
 import { createWorkerTransport } from './transport/worker.ts'
 
@@ -199,9 +199,12 @@ class Document implements EngineDocument {
   }
 
   async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
+    if (typeof options !== 'object' || options === null)
+      throw new ArgumentError('render options must be an object')
     const { signal, ...rest } = options
     // A copy taken now, as in `write`, so a region or list the caller changes while the call
-    // waits is not used. The core checks the options.
+    // waits is not used. The core checks the options. Options that cannot be copied reject
+    // with the DataCloneError the copy throws.
     const copy = structuredClone(rest)
     return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal)
   }

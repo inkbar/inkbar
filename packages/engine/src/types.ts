@@ -57,8 +57,9 @@ export interface RenderOptions {
    */
   signal?: AbortSignal
   /**
-   * Draw the page's annotations, form widgets included. Default true. With false only the page's own content is drawn,
-   * so a caller that paints annotations itself does not draw them twice.
+   * Draw the page's annotations, form widgets included. Default true. With false only the
+   * page's own content is drawn, so a caller that paints annotations itself does not draw them
+   * twice.
    */
   annotations?: boolean
   /**
@@ -75,7 +76,8 @@ export interface RenderOptions {
   rotation?: 0 | 90 | 180 | 270
   /**
    * Object numbers of annotations on this page whose appearance is not drawn. Each is a whole
-   * number from 1. The document is not changed, so a later `save` is as it would have been.
+   * number from 1; at most 1,000,000 of them. The document is not changed, so a later `save` is
+   * as it would have been.
    */
   hide?: readonly number[]
 }

@@ -7,6 +7,8 @@ const MAX_PIXELS = 268_435_456
 /** The bound on any placement number, well inside the 32-bit integers the module takes. */
 const MAX_PLACEMENT = 2 ** 30
 const MAX_OBJECT_NUMBER = 2 ** 32 - 1
+/** The most object numbers `hide` may list: far more annotations than any page holds. */
+export const MAX_HIDDEN = 1_000_000
 
 /** Where a render puts the page in its bitmap. */
 export interface RenderGeometry {
@@ -141,18 +143,28 @@ export function renderGeometry(
   if (width < 1 || height < 1 || width * height > MAX_PIXELS)
     throw new ArgumentError('the rendered page would be too large')
   if ([startX, startY, sizeX, sizeY].some((n) => !(Math.abs(n) <= MAX_PLACEMENT)))
-    throw new ArgumentError('the region is too small for the size asked')
+    throw new ArgumentError(
+      size === undefined
+        ? 'the page lies too far from the region, or is too large at this scale'
+        : 'the region is too small for the size asked'
+    )
   if (sizeX < 1 || sizeY < 1)
-    throw new ArgumentError('the region is too large for the size asked')
+    throw new ArgumentError(
+      size === undefined
+        ? 'the scale is too small to draw the page'
+        : 'the region is too large for the size asked'
+    )
   return { width, height, startX, startY, sizeX, sizeY, rotate }
 }
 
 /**
  * The object numbers to leave out, checked. Throws a `RangeError` for a list that is not one of
- * whole numbers from 1 to 4,294,967,295.
+ * whole numbers from 1 to 4,294,967,295, or that is longer than `MAX_HIDDEN`.
  */
 export function hiddenObjects(hide: unknown): readonly number[] {
   if (hide === undefined) return []
+  if (Array.isArray(hide) && hide.length > MAX_HIDDEN)
+    throw new ArgumentError('hide may list at most 1,000,000 object numbers')
   if (
     !Array.isArray(hide) ||
     !hide.every(

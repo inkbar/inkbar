@@ -76,6 +76,15 @@ test('opens, inspects, renders, saves and closes', async () => {
   await doc.close()
 })
 
+test('render options that are not an object, or cannot be copied, reject', async () => {
+  await expect(doc.renderPage(0, null as never)).rejects.toThrow(RangeError)
+  await expect(
+    doc.renderPage(0, { region: () => undefined } as never)
+  ).rejects.toMatchObject({ name: 'DataCloneError' })
+  // The engine still draws.
+  expect(await doc.renderPage(0)).toMatchObject({ width: 612, height: 792 })
+})
+
 test('a signal aborted before the call rejects with aborted', async () => {
   await expect(doc.renderPage(0, { signal: AbortSignal.abort() })).rejects.toMatchObject({
     code: 'aborted',
