@@ -198,6 +198,16 @@ describe('opening', () => {
     })
   })
 
+  it('passes an empty password, as the PDF.js reader does', async () => {
+    const t = setup()
+    await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: '',
+    })
+    expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1]), { password: '' })
+  })
+
   it('rejects with SaveFailed at the engine stage when the loader fails', async () => {
     const reader = createEngineReader({
       loader: () => Promise.reject(new Error('offline')),
@@ -404,6 +414,35 @@ describe('an engine that stops', () => {
     await Promise.all(draws)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
     expect(t.renders).toHaveLength(6)
+  })
+
+  it('a draw issued while the replacement starts waits for it and starts no other', async () => {
+    const t = setup({
+      render: (call, _, options) =>
+        call === 1
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const starting = deferred<void>()
+    const make = t.createEngine.getMockImplementation()!
+    t.createEngine.mockImplementationOnce(async () => {
+      await starting.promise
+      return make()
+    })
+    const first = fakeCanvas()
+    const firstDraw = reader.draw(request(), first.canvas)
+    await vi.waitFor(() => expect(t.createEngine).toHaveBeenCalledTimes(2))
+    const second = fakeCanvas()
+    const secondDraw = reader.draw(request({ page: 0, zoom: 2 }), second.canvas)
+    starting.resolve()
+    await Promise.all([firstDraw, secondDraw])
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.engines[1]!.open).toHaveBeenCalledTimes(1)
+    // One failed render on the first engine, then both draws on the replacement.
+    expect(t.renders).toHaveLength(3)
+    expect(first.context.putImageData).toHaveBeenCalledTimes(1)
+    expect(second.context.putImageData).toHaveBeenCalledTimes(1)
   })
 
   it('an aborted draw is never taken for a stopped engine', async () => {

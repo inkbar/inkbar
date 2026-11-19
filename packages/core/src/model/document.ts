@@ -1083,7 +1083,8 @@ export async function openDocument(
       pageCache?.clear()
       searchable.clear()
       destinationCache.clear()
-      if (reader) teardown(() => reader!.destroy())
+      const openReader = reader
+      if (openReader) teardown(() => openReader.destroy())
       if (destroyTask) {
         teardown(destroyTask)
       }
@@ -1118,8 +1119,8 @@ const EMBEDDED_CONCURRENCY = 8
 function teardown(destroyTask: () => Promise<void>): void {
   destroyTask().catch(() => {
     // Teardown is best effort: the document is already marked destroyed and every later call
-    // rejects with DocumentDestroyed, so a worker that fails to shut down cleanly changes nothing
-    // the host can act on.
+    // rejects with DocumentDestroyed, so a PDF.js worker or reader engine that fails to shut down
+    // cleanly changes nothing the host can act on.
   })
 }
 

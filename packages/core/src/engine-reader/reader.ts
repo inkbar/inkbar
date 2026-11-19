@@ -79,7 +79,8 @@ export async function createEngineReader(
   options: EngineReaderOptions
 ): Promise<DocumentReader> {
   const warn = options.warn ?? ((message: string) => console.warn(message))
-  const passwordOption = options.password ? { password: options.password } : {}
+  const passwordOption =
+    options.password !== undefined ? { password: options.password } : {}
   let destroyed = false
   /** Aborted by `destroy`, with a DocumentDestroyed reason: every running draw listens. */
   const stopped = new AbortController()
