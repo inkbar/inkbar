@@ -79,8 +79,8 @@ export interface EngineDocument {
    * A mark with no area, or wholly outside its page's box, is skipped. In an encrypted file,
    * Inkbar's own earlier marks, which come back locked, are applied too; other programs' marks
    * are left in place and counted. Bad input rejects with a `RangeError` as `write` does, as
-   * does a mark with no appearance, or with neither quads of finite corners nor a finite
-   * `rect`. A mark or page that cannot be applied rejects with `redaction-failed`, naming the
+   * does a mark that is not a `redact` annotation, has no appearance, or has neither quads of
+   * finite corners nor a finite `rect`. A mark or page that cannot be applied rejects with `redaction-failed`, naming the
    * page and, when one mark was the cause, the mark; an annotation or field that cannot be
    * written rejects with `write-failed`. The document is then as it was opened.
    *

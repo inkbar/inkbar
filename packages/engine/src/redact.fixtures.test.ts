@@ -506,25 +506,26 @@ test('refuses an incremental save after a redact', async () => {
 })
 
 test('reopens the document after a failed redact', async () => {
-  const source = await fixtureBytes('redact-text')
+  const source = await fixtureBytes('redact-drawing-hatch')
   const untouched = await engine.open(source)
   const expected = withoutId(await untouched.save())
   await untouched.close()
 
   const doc = await engine.open(source)
   try {
-    await doc.redact({ marks: marksOf('redact-text') })
-    const [good] = marksOf('redact-text') as [WriteAnnotation]
-    const unknown = {
-      ...good,
-      annotation: { ...good.annotation, type: 'nonsense' },
-    } as unknown as WriteAnnotation
-    const error: unknown = await doc.redact({ marks: [unknown] }).catch((e: unknown) => e)
+    // A mark in an empty corner applies; the next, over the hatch, is refused.
+    await doc.redact({
+      marks: [mark('corner', { page: 0, quad: [10, 30, 30, 30, 10, 10, 30, 10] })],
+    })
+    const error: unknown = await doc
+      .redact({ marks: marksOf('redact-drawing-hatch') })
+      .catch((e: unknown) => e)
     expect(error).toBeInstanceOf(EngineError)
     expect(error).toMatchObject({
       code: 'redaction-failed',
       page: 0,
-      annotation: 'mark-1',
+      reason: 'unremovable-content',
+      marks: ['mark-1'],
     })
     expect(withoutId(await doc.save())).toBe(expected)
   } finally {
@@ -684,6 +685,14 @@ test('a mark with no appearance, or with quads or a rect it cannot use, is a Ran
       { ...good, annotation: { ...noQuads, quads: [{ ...quad, p3: { x: '1', y: 2 } }] } },
     ],
     ['no quads and no rect', { ...good, annotation: { ...noQuads, rect: undefined } }],
+    [
+      'an annotation that is not a redaction, with quads and no rect',
+      { ...good, annotation: { ...good.annotation, type: 'highlight', rect: undefined } },
+    ],
+    [
+      'an annotation of no known type',
+      { ...good, annotation: { ...good.annotation, type: 'nonsense' } },
+    ],
     [
       'empty quads and a rect that is not finite',
       {

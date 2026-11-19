@@ -75,12 +75,15 @@ const isPoint = (p: unknown) => isRecord(p) && finite(p.x) && finite(p.y)
 const isQuad = (q: unknown) => isRecord(q) && [q.p1, q.p2, q.p3, q.p4].every(isPoint)
 
 /**
- * Throws an `ArgumentError` for a mark the apply cannot read: one with no appearance, or with
- * neither quads, each with four finite corners, nor a finite rectangle.
+ * Throws an `ArgumentError` for a mark the apply cannot read: one that is not a `redact`
+ * annotation, has no appearance, or has neither quads, each with four finite corners, nor a
+ * finite rectangle.
  */
 function checkMark(item: Record<string, unknown>, i: number): void {
   const annotation = item.annotation as Record<string, unknown>
   const name = typeof annotation.id === 'string' ? annotation.id : `mark ${i}`
+  if (annotation.type !== 'redact')
+    throw new ArgumentError(`${name}: a mark must be a redact annotation`)
   if (!isRecord(item.appearance))
     throw new ArgumentError(`${name}: a mark needs an appearance`)
   const { quads, rect } = annotation
