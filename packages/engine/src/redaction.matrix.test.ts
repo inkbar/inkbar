@@ -861,14 +861,17 @@ describe('the fixtures', () => {
   )
 })
 
-test('the bytes reader sees an object nothing refers to in an encrypted file', async () => {
-  // redact-file-encrypted holds a content stream drawing ORPHAN-OMEGA that no page uses.
-  const source = await fixtureBytes('redact-file-encrypted')
-  expect(holdsText(await plainBytes(source, 'inkbar'), 'ORPHAN-OMEGA')).toBe(true)
-  // Without asking for them, qpdf leaves such objects out, and the word with them.
-  const dropped = await qpdfQdf(source, { password: 'inkbar' })
-  expect(holdsText(Buffer.from(dropped, 'latin1'), 'ORPHAN-OMEGA')).toBe(false)
-})
+test.runIf(qpdfAvailable)(
+  'the bytes reader sees an object nothing refers to in an encrypted file',
+  async () => {
+    // redact-file-encrypted holds a content stream drawing ORPHAN-OMEGA that no page uses.
+    const source = await fixtureBytes('redact-file-encrypted')
+    expect(holdsText(await plainBytes(source, 'inkbar'), 'ORPHAN-OMEGA')).toBe(true)
+    // Without asking for them, qpdf leaves such objects out, and the word with them.
+    const dropped = await qpdfQdf(source, { password: 'inkbar' })
+    expect(holdsText(Buffer.from(dropped, 'latin1'), 'ORPHAN-OMEGA')).toBe(false)
+  }
+)
 
 describe.runIf(redactable.length)('redacted', () => {
   test.each(redactable)(
