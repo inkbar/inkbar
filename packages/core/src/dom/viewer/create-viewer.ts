@@ -34,7 +34,11 @@ import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
-import { applyRedactionsFlow, type RedactionView } from '../redaction-actions'
+import {
+  applyRedactionsFlow,
+  redactionBusy,
+  type RedactionView,
+} from '../redaction-actions'
 import { savePictures } from '../save-pictures'
 import {
   createSearchController,
@@ -182,7 +186,8 @@ export interface Viewer {
   /**
    * Activates annotation `id`, or clears the activation with `null` (closing the thread
    * popover). Unlike a click, it does not select the annotation or call `onActivate`. An id
-   * not in the open document's annotations is ignored.
+   * not in the open document's annotations is ignored, as is any id while the document's
+   * redaction marks are applied: applying closes the thread popover, and none opens meanwhile.
    */
   setActivated(id: string | null): void
   /**
@@ -247,7 +252,8 @@ export interface Viewer {
    * Saves the open document's file through the browser's download, under its `fileName` or
    * `opts.filename`. With the `engine` option and changes, that is a copy with them written in
    * (`document.save()`); otherwise the file as it was opened. Does nothing while no document is
-   * open, or while a download or print is writing its copy (`fileBusy`). When the copy cannot
+   * open, while a download or print is writing its copy (`fileBusy`), or while the document's
+   * redaction marks are applied (`redactionBusy`). When the copy cannot
    * be written it downloads nothing, reports the `SaveFailed` to `onError`, shows the reader
    * why in the viewer's message box, and rejects with it.
    */
@@ -255,7 +261,8 @@ export interface Viewer {
   /**
    * Prints the open document's file with the browser's own PDF viewer; on iOS the PDF opens
    * in a new tab instead. It hands over the same file as `download`, and fails the same way.
-   * Does nothing while no document is open, or while a copy is being written.
+   * Does nothing while no document is open, while a copy is being written, or while redaction
+   * marks are applied.
    */
   print(): Promise<void>
   /**
@@ -263,9 +270,10 @@ export interface Viewer {
    * the content under them (`doc.applyRedactions()`), calls `onRedacted` with the redacted
    * bytes, and reopens the viewer on them with the same key, page, zoom, layout mode, rotation
    * and tool. The marks are gone, undo history starts over, and Download and Print give the
-   * redacted file. In controlled mode the host is proposed its list without the marks and the
-   * annotations removed with them (reason `'redaction'`), and the reopened document starts from
-   * that list. Resolves with what was done, or null when the reader cancelled or nothing was
+   * redacted file. While the marks are applied the pages take no input, and Download and Print
+   * do nothing. In controlled mode the host is proposed its list without the marks applied and
+   * the annotations removed with them (reason `'redaction'`), and the reopened document starts
+   * from that list. Resolves with what was done, or null when the reader cancelled or nothing was
    * applied. A failure leaves the document as it was, shows the reader why in the viewer's
    * message box and reaches `onError`; it does not reject. A failure is not reported once
    * another document is showing or the viewer is destroyed.
@@ -379,8 +387,15 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   )
   root.append(viewportRoot)
   el.append(root)
+  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
+  const applying = (): boolean => {
+    const doc = current.get()
+    return doc !== null && redactionBusy(doc).get()
+  }
   // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
-  const stopHistoryKeys = attachHistoryKeys(root, () => current.get()?.history)
+  const stopHistoryKeys = attachHistoryKeys(root, () =>
+    applying() ? null : current.get()?.history
+  )
   rootEl.set(scroll)
 
   /** One controller for the viewer's life: the host, the engine and the find bar share it. */
@@ -406,7 +421,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     history: () => current.get()?.history ?? passThrough,
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+        activated.set(id)
     },
     root: readonly(rootEl),
     decorate: () => view.decorateAnnotation,
@@ -549,6 +565,13 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       const id = activated.get()
       if (id !== null && !store.get(id)) activated.set(null)
     })
+    // While the marks are applied no thread or signature menu is open: what they wrote then
+    // would be lost.
+    const stopApplying = redactionBusy(doc).subscribe((on) => {
+      if (!on) return
+      activated.set(null)
+      signFieldMenu?.close()
+    })
     // A failed script leaves the form fillable; its error reaches the host. Subscribed first,
     // so the form replays the errors from while the document opened here, and they are held
     // until `onReady` has run.
@@ -592,6 +615,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         signFieldMenu.open(req)
       },
       onActivate: (id) => {
+        if (redactionBusy(doc).get()) return
         activated.set(id)
         onActivate?.(id)
       },
@@ -651,6 +675,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       signFieldMenu?.close()
       formAlert.close()
       stopList()
+      stopApplying()
       threads?.destroy()
       activated.set(null)
       engine.set(null)
@@ -894,7 +919,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     tools: readonly(tools),
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+        activated.set(id)
     },
     setFormHighlight(on) {
       formHighlight = on

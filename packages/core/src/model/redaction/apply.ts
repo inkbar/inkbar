@@ -96,6 +96,14 @@ export function redactionPreview(state: RedactionState): RedactionPreview {
   }
 }
 
+/** What an apply gives: the redacted bytes, what was done, and the ids of the marks applied. */
+export interface AppliedRedactions {
+  bytes: Uint8Array
+  result: RedactionResult
+  /** The session marks the apply took, by id: those to drop from a host's list. */
+  _marks: readonly string[]
+}
+
 const nothingToRedact = (): InkError =>
   new InkError('NothingToRedact', 'There are no redaction marks to apply')
 
@@ -103,12 +111,13 @@ const nothingToRedact = (): InkError =>
  * Applies every redaction mark of the session to the file as opened and checks the result. The
  * session's marks go first, each with its overlay as its appearance; the annotations they leave
  * and the changed form values are written after the apply. Rejects with `NothingToRedact` when
- * there is no mark, and with `RedactionFailed` at `'verify'` when the check finds anything
- * under a mark, with the places in `details.regions`.
+ * there is no mark or the engine applied none, and with `RedactionFailed` at `'verify'` when
+ * the check finds anything under a mark, with the places in `details.regions`, or when earlier
+ * marks were applied with no places to check.
  */
 export async function applyRedactions(
   context: RedactionContext
-): Promise<{ bytes: Uint8Array; result: RedactionResult }> {
+): Promise<AppliedRedactions> {
   const p = plan(context)
   // In an encrypted file Inkbar's earlier marks come back locked, and core cannot tell them from
   // another program's: the engine can, by the data Inkbar stored with them.
@@ -156,7 +165,16 @@ export async function applyRedactions(
   )
 
   const marks = result.pages.reduce((sum, page) => sum + page.marks, 0)
-  if (p.marks.length === 0 && marks === 0) throw nothingToRedact()
+  // Every mark skipped (no area, or off its page): the sanitised copy redacts nothing, and the
+  // saver opens the file again for the next write.
+  if (marks === 0) throw nothingToRedact()
+  // Earlier marks applied with no places to look under cannot be shown clean.
+  if (result.ownLockedMarks > 0 && result.ownLockedRegions.length === 0)
+    throw new InkError(
+      'RedactionFailed',
+      'The earlier redaction marks the engine applied could not be checked',
+      { stage: 'verify' }
+    )
   // Core is the last gate: every region passed needs an answer, and every answer must be clean.
   // A region the check did not answer counts as one with content under it.
   const failing = checked.flatMap((region, i) => {
@@ -167,7 +185,6 @@ export async function applyRedactions(
       ? []
       : [{ page: region.page, rect: rectFromQuads(region.quads) }]
   })
-  // Anything else the check found, though it was asked about regions only, fails too.
   // Any other answer that is not clean fails too, whatever its kind or index: one that answers
   // a region passed is already counted above.
   const answersRegion = (c: RedactionCandidate) =>
@@ -197,10 +214,12 @@ export async function applyRedactions(
       },
       foreignMarks: result.foreignMarks,
       ownLockedMarks: result.ownLockedMarks,
+      fieldsSkipped: [...result.fieldsSkipped],
       sanitised: { ...result.sanitised },
       hiddenLayers: result.hiddenLayers,
       signed: result.signed,
       findings,
     },
+    _marks: p.marks.map((m) => m.id),
   }
 }

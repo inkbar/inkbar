@@ -39,7 +39,12 @@ import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
-import { applyRedactions, redactionPreview, type RedactionState } from './redaction/apply'
+import {
+  applyRedactions,
+  redactionPreview,
+  type AppliedRedactions,
+  type RedactionState,
+} from './redaction/apply'
 import {
   canonical,
   canonicalAnnotation,
@@ -281,8 +286,20 @@ export interface InkDocument {
    * run or did not find every mark's place clean (`'verify'`, with those places in
    * `details.regions`). It never overlaps a save: a save that has started writing finishes
    * first, and one that has not may run after it. A call while one runs gets the same promise.
+   *
+   * It applies the session as it stands when called. In uncontrolled use, changes made to the
+   * session through the API while it runs are not carried into the redacted document.
    */
   applyRedactions(): Promise<{ bytes: Uint8Array; result: RedactionResult }>
+  /**
+   * @internal `applyRedactions()`, the same run, with `_marks`: the ids of the session marks
+   * applied, for the viewer to drop from a controlled host's list.
+   */
+  _applyRedactions(): Promise<{
+    bytes: Uint8Array
+    result: RedactionResult
+    _marks: readonly string[]
+  }>
   /**
    * What `applyRedactions()` would do, without loading the engine: the marks, the pages they are
    * on, the other annotations they overlap, whether the file is signed, and the locked marks an
@@ -783,8 +800,15 @@ export async function openDocument(
     encrypted: info.isEncrypted,
   })
   /** The apply running, which a second call shares. */
-  let applying: Promise<{ bytes: Uint8Array; result: RedactionResult }> | undefined
-  const apply = async (): Promise<{ bytes: Uint8Array; result: RedactionResult }> => {
+  let applying: Promise<AppliedRedactions> | undefined
+  /** What `applyRedactions()` gives for the apply `of`, without its `_marks`. */
+  let applyingPlain:
+    | {
+        of: Promise<AppliedRedactions>
+        plain: Promise<{ bytes: Uint8Array; result: RedactionResult }>
+      }
+    | undefined
+  const apply = async (): Promise<AppliedRedactions> => {
     if (destroyed) throw destroyedError()
     await ready
     await baselineTaken
@@ -805,6 +829,19 @@ export async function openDocument(
       measure,
       saver,
     })
+  }
+  /** The apply running, started if none is. */
+  const applyShared = (): Promise<AppliedRedactions> => {
+    if (applying) return applying
+    const running = apply()
+    applying = running
+    const settle = () => {
+      if (applying === running) applying = undefined
+      // Its bytes are not held once it has settled.
+      if (applyingPlain?.of === running) applyingPlain = undefined
+    }
+    running.then(settle, settle)
+    return running
   }
 
   /**
@@ -996,15 +1033,15 @@ export async function openDocument(
     },
     changed: readonly(changed),
     applyRedactions() {
-      if (applying) return applying
-      const running = apply()
-      applying = running
-      const settle = () => {
-        if (applying === running) applying = undefined
-      }
-      running.then(settle, settle)
-      return running
+      const running = applyShared()
+      if (applyingPlain?.of !== running)
+        applyingPlain = {
+          of: running,
+          plain: running.then(({ bytes, result }) => ({ bytes, result })),
+        }
+      return applyingPlain.plain
     },
+    _applyRedactions: applyShared,
     redactionPreview: () => redactionPreview(redactionState()),
     destroy() {
       if (destroyed) return

@@ -6,6 +6,7 @@ import { userEvent } from 'vitest/browser'
 
 import { writable } from '../../model/readable'
 import { definePlugin } from '../plugins/define'
+import { redactionBusy, runRedaction } from '../redaction-actions'
 import { createFindBar } from '../search/find-bar'
 import { mountContainer, until } from '../test-utils'
 import { createViewer, pluginHostOf } from '../viewer/create-viewer'
@@ -204,6 +205,31 @@ describe('createRecordList', () => {
     expect(row('f1')).toBeNull()
     expect(document.activeElement).toBe(row('f2'))
     expect(viewer.records<Finding>('sandbox.findings').find('f1')!.open).toBe(false)
+  })
+
+  it('an action does nothing while redaction marks are applied, and works again after', async () => {
+    const { viewer, row } = await makeList()
+    const doc = viewer.document.get()!
+    let fail!: () => void
+    const held = new Promise<never>((_, reject) => {
+      fail = () => reject(new Error('held'))
+    })
+    vi.spyOn(doc, '_applyRedactions').mockReturnValue(held)
+    const applying = runRedaction(doc, { confirm: () => Promise.resolve(true) })
+    await until(() => redactionBusy(doc).get())
+    const accept = () =>
+      row('f0')!.querySelector<HTMLButtonElement>('.ink-card-actions button')!
+    accept().click()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(row('f0')).not.toBeNull()
+    expect(
+      pluginHostOf(viewer).records<Finding>('sandbox.findings').find('f0')?.open
+    ).toBe(true)
+
+    fail()
+    await expect(applying).rejects.toThrow('held')
+    accept().click()
+    await until(() => row('f0') === null)
   })
 
   it('announces the count when an action changes it', async () => {

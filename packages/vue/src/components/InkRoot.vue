@@ -17,6 +17,7 @@ import {
   createPluginHost,
   createRedactionDialog,
   applyRedactionsFlow,
+  redactionBusy,
   createSearchController,
   createPasswordPrompt,
   createToolOptions,
@@ -262,6 +263,14 @@ function syncRootEl(): void {
 }
 
 const document = shallowRef<InkDocument | null>(null)
+/** Whether the open document's redaction marks are being applied: nothing may edit it. */
+const redacting = useReadable(
+  () => (document.value ? redactionBusy(document.value) : null),
+  false
+)
+watch(redacting, (on) => {
+  if (on) activated.value = null
+})
 /** Overrides the document's status while opening, and when opening itself failed. */
 const override = shallowRef<InkStatus | null>(null)
 const idle: InkStatus = { state: 'idle' }
@@ -285,6 +294,8 @@ const controlled = computed(() => props.annotations !== undefined)
 const fieldsControlled = computed(() => props.fields !== undefined)
 
 function setActivated(id: string | null): void {
+  // While the marks are applied no thread opens: a reply written then would be lost.
+  if (id !== null && redacting.value) return
   activated.value = id
   if (id) emit('activate', id)
 }
@@ -481,15 +492,28 @@ const refHistory = createRefHistory({
 })
 const coreCanUndo = useReadable(() => document.value?.history.canUndo ?? null, false)
 const coreCanRedo = useReadable(() => document.value?.history.canRedo ?? null, false)
+// While the marks are applied the history stays still, as Undo and Redo show.
 const inkHistory: InkHistory = {
-  canUndo: computed(() =>
-    controlled.value ? refHistory.canUndo.value : coreCanUndo.value
+  canUndo: computed(
+    () =>
+      !redacting.value &&
+      (controlled.value ? refHistory.canUndo.value : coreCanUndo.value)
   ),
-  canRedo: computed(() =>
-    controlled.value ? refHistory.canRedo.value : coreCanRedo.value
+  canRedo: computed(
+    () =>
+      !redacting.value &&
+      (controlled.value ? refHistory.canRedo.value : coreCanRedo.value)
   ),
-  undo: () => (controlled.value ? refHistory.undo() : document.value?.history.undo()),
-  redo: () => (controlled.value ? refHistory.redo() : document.value?.history.redo()),
+  undo: () => {
+    if (redacting.value) return
+    if (controlled.value) refHistory.undo()
+    else document.value?.history.undo()
+  },
+  redo: () => {
+    if (redacting.value) return
+    if (controlled.value) refHistory.redo()
+    else document.value?.history.redo()
+  },
   clear: () => (controlled.value ? refHistory.clear() : document.value?.history.clear()),
   batch: (fn) => {
     if (controlled.value) refHistory.batch(fn)

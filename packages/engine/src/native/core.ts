@@ -69,6 +69,40 @@ interface OpenDocument {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+/** The fork takes 32-bit floats, so a number must stay finite as one. */
+const finite = (n: unknown) => typeof n === 'number' && Number.isFinite(Math.fround(n))
+const isPoint = (p: unknown) => isRecord(p) && finite(p.x) && finite(p.y)
+const isQuad = (q: unknown) => isRecord(q) && [q.p1, q.p2, q.p3, q.p4].every(isPoint)
+
+/**
+ * Throws an `ArgumentError` for a mark the apply cannot read: one that is not a `redact`
+ * annotation, has no appearance, or has neither quads, each with four finite corners, nor a
+ * finite rectangle.
+ */
+function checkMark(item: Record<string, unknown>, i: number): void {
+  const annotation = item.annotation as Record<string, unknown>
+  const name = typeof annotation.id === 'string' ? annotation.id : `mark ${i}`
+  if (annotation.type !== 'redact')
+    throw new ArgumentError(`${name}: a mark must be a redact annotation`)
+  if (!isRecord(item.appearance))
+    throw new ArgumentError(`${name}: a mark needs an appearance`)
+  const { quads, rect } = annotation
+  if (quads !== undefined && !Array.isArray(quads))
+    throw new ArgumentError(`${name}: quads must be a list`)
+  if (Array.isArray(quads) && quads.length > 0) {
+    if (!quads.every(isQuad))
+      throw new ArgumentError(
+        `${name}: every quad needs p1 to p4, each with an x and y finite as 32-bit floats`
+      )
+    return
+  }
+  const box = isRecord(rect) && [rect.x, rect.y, rect.width, rect.height].every(finite)
+  if (!box)
+    throw new ArgumentError(
+      `${name}: a mark without quads needs a rect with a finite x, y, width and height`
+    )
+}
+
 /** Throws an `ArgumentError` for redact input whose shape `#checkWrite` cannot read. */
 function checkRedactInput(input: unknown): void {
   if (!isRecord(input)) throw new ArgumentError('the input must be an object')
@@ -88,6 +122,8 @@ function checkRedactInput(input: unknown): void {
     for (const item of (input[key] as Record<string, unknown>[] | undefined) ?? [])
       if (!isRecord(item.annotation))
         throw new ArgumentError(`every item of ${key} must hold an annotation`)
+  const marks = input.marks as Record<string, unknown>[]
+  marks.forEach(checkMark)
 }
 
 /**
@@ -105,11 +141,7 @@ function checkRegions(regions: unknown): void {
     if (!Array.isArray(quads) || quads.length === 0)
       throw new ArgumentError(`region ${i} must have at least one quad`)
     for (const quad of quads as unknown[]) {
-      // The fork takes 32-bit floats, so a number must stay finite as one.
-      const finite = (n: unknown) =>
-        typeof n === 'number' && Number.isFinite(Math.fround(n))
-      const point = (p: unknown) => isRecord(p) && finite(p.x) && finite(p.y)
-      if (!isRecord(quad) || ![quad.p1, quad.p2, quad.p3, quad.p4].every(point))
+      if (!isQuad(quad))
         throw new ArgumentError(
           `region ${i}: every quad needs p1 to p4, each with an x and y finite as 32-bit floats`
         )
@@ -404,6 +436,7 @@ export class EngineCore {
       if (item.appearance) checkAppearance(item.appearance, `annotation ${id}`)
     }
     for (const [name, field] of Object.entries(input.fields ?? {})) {
+      if (!isRecord(field)) throw new ArgumentError(`field "${name}" must be an object`)
       const { value, text } = field
       const strings =
         typeof value === 'string' ||

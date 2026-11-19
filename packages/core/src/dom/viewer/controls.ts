@@ -216,9 +216,10 @@ export function createToolbarSeparator(): HTMLDivElement {
 }
 
 /**
- * Saves the document's file (`viewer.download()`); disabled until a document is ready. While a
- * download or print writes its copy (`fileBusy`) it is `aria-busy` and `aria-disabled`, keeping
- * focus, and a press does nothing.
+ * Saves the document's file (`viewer.download()`); disabled until a document is ready, and
+ * while its redaction marks are applied (`redactionBusy`). While a download or print writes its
+ * copy (`fileBusy`) it is `aria-busy` and `aria-disabled`, keeping focus, and a press does
+ * nothing.
  */
 export function createDownloadButton(
   viewer: Viewer,
@@ -228,8 +229,9 @@ export function createDownloadButton(
 }
 
 /**
- * Prints the document's file (`viewer.print()`); disabled until a document is ready, and busy
- * as `createDownloadButton` is while a copy is written.
+ * Prints the document's file (`viewer.print()`); disabled until a document is ready and while
+ * its redaction marks are applied, and busy as `createDownloadButton` is while a copy is
+ * written.
  */
 export function createPrintButton(viewer: Viewer): HTMLButtonElement {
   return fileButton(viewer, 'print', () => viewer.print())
@@ -261,8 +263,9 @@ function fileButton(
     (doc, watch) => {
       let ready = false
       let busy = false
+      let redacting = false
       const sync = (): void => {
-        b.disabled = !ready && !busy
+        b.disabled = redacting || (!ready && !busy)
         showBusy(busy)
       }
       watch(doc.status, (s) => {
@@ -271,6 +274,10 @@ function fileButton(
       })
       watch(fileBusy(doc), (on) => {
         busy = on
+        sync()
+      })
+      watch(redactionBusy(doc), (on) => {
+        redacting = on
         sync()
       })
     },
@@ -344,12 +351,15 @@ export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {
   return b
 }
 
-/** Undoes the last change to the document's annotations; disabled when there is none. */
+/**
+ * Undoes the last change to the document's annotations; disabled when there is none, and while
+ * its redaction marks are applied.
+ */
 export function createUndo(viewer: Viewer): HTMLButtonElement {
   return historyButton(viewer, 'undo')
 }
 
-/** Redoes the last undone change; disabled when there is none. */
+/** Redoes the last undone change; disabled as `createUndo` is. */
 export function createRedo(viewer: Viewer): HTMLButtonElement {
   return historyButton(viewer, 'redo')
 }
@@ -361,16 +371,30 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     action === 'undo' ? Undo2 : Redo2
   )
-  b.addEventListener('click', () => viewer.document.get()?.history[action]())
+  b.addEventListener('click', () => {
+    const doc = viewer.document.get()
+    if (doc && !redactionBusy(doc).get()) doc.history[action]()
+  })
   // Undoing the last step disables the focused button: focus goes back to the document.
   keepHistoryFocus(b, () =>
     viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')
   )
-  follow<InkDocument>(viewer.document, b, (doc, watch) =>
-    watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (can) => {
-      b.disabled = !can
+  follow<InkDocument>(viewer.document, b, (doc, watch) => {
+    let can = false
+    let applying = false
+    // While the marks are applied the history stays still: the redacted file replaces it.
+    const sync = (): void => {
+      b.disabled = !can || applying
+    }
+    watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (on) => {
+      can = on
+      sync()
     })
-  )
+    watch(redactionBusy(doc), (on) => {
+      applying = on
+      sync()
+    })
+  })
   return b
 }
 

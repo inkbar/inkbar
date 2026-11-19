@@ -185,6 +185,18 @@ test('open copies the bytes when called, not when it runs', async () => {
   expect((await pending).pageCount).toBe(3)
 })
 
+test('redact rejects, as write does, for input that cannot be copied', async () => {
+  const input = { marks: [], extra: () => undefined } as never
+  let redacting: Promise<unknown> | undefined
+  let writing: Promise<unknown> | undefined
+  expect(() => {
+    redacting = doc.redact(input)
+    writing = doc.write(input)
+  }).not.toThrow()
+  await expect(redacting).rejects.toThrow()
+  await expect(writing).rejects.toThrow()
+})
+
 test('a second destroy waits for the first', async () => {
   let finish!: () => void
   const slow = new Promise<void>((resolve) => (finish = resolve))

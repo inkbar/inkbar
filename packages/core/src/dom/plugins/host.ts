@@ -100,6 +100,8 @@ export type HostRecords<T extends RecordBase> = Omit<Records<T>, 'annotates' | '
 }
 
 export interface PluginHost extends LayerSource {
+  /** The open document the host follows, as it was given. */
+  readonly document: Readable<InkDocument | null>
   /**
    * The records a plugin keeps under `key` (`<plugin>.<name>`), following the open document.
    * The same handle on each call. An unknown key gives an empty handle that ignores writes, and
@@ -519,6 +521,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   })
 
   return {
+    document: opts.document,
     records: ((key: string) => recordsFor(key)) as PluginHost['records'],
     marks,
     selection: selectionFor,

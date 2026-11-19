@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { redactionApplying } from '../redaction/busy'
+
 import { withCalloutBounds } from './callout'
 import { staticDefaults } from './defaults'
 import { createHistory } from './history'
@@ -55,6 +57,19 @@ const quads = [
 ]
 
 describe('createToolStyle', () => {
+  it('leaves the selection alone while redaction marks are applied, and edits it after', () => {
+    const { store, style } = setup('shape')
+    const a = store.add({ type: 'square', page: 0, rect })
+    store.select([a.id])
+    const before = store.get(a.id)
+    redactionApplying(store).set(true)
+    style.set({ border: '#FF0000' })
+    expect(store.get(a.id)).toBe(before)
+    redactionApplying(store).set(false)
+    style.set({ border: '#00FF00' })
+    expect(store.get(a.id)?.color).toBe('#00FF00')
+  })
+
   it('set without selection updates only the group', () => {
     const { store, style } = setup('shape')
     const a = store.add({ type: 'square', page: 0, rect })

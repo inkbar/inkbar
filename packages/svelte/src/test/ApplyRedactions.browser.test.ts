@@ -137,6 +137,90 @@ describe('InkApplyRedactions', () => {
     await expect.poll(text('errors')).toBe('RedactionFailed')
   })
 
+  it('a disabled control of your own that is not a button does not apply', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, {
+      src,
+      assets,
+      engine: held.loader,
+      own: 'div',
+      disabled: true,
+    })
+    const own = await q<HTMLElement>('div.host-apply')
+    await firstPage()
+    mark()
+    await expect.poll(attr('[data-testid="probe"]', 'data-can-redact')).toBe('true')
+    own.click()
+    await settle(200)
+    expect(held.writing()).toBe(false)
+    expect(text('redacted')()).toBe('0')
+  })
+
+  it('Download and Print are disabled while the marks are applied', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    expect(disabledOf('[data-ink-download]')()).toBe(false)
+    expect(disabledOf('[data-ink-print]')()).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect.poll(disabledOf('[data-ink-download]')).toBe(true)
+    await expect.poll(disabledOf('[data-ink-print]')).toBe(true)
+    held.fail()
+    await expect.poll(text('errors')).toBe('RedactionFailed')
+    await expect.poll(disabledOf('[data-ink-download]')).toBe(false)
+    await expect.poll(disabledOf('[data-ink-print]')).toBe(false)
+  })
+
+  it('while the marks are applied, Undo and comment threads change nothing', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const note = currentDoc()!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+      // With text: an empty new note goes when its thread closes.
+      contents: 'Kept',
+    }).id
+    mark()
+    const sessionCount = () =>
+      (
+        currentDoc() as unknown as { annotations: { list: { get(): unknown[] } } }
+      ).annotations.list.get().length
+    const activate = () =>
+      (window as { __inkActivate?: (id: string | null) => void }).__inkActivate!(note)
+    const threadOpen = () => document.querySelector('[data-ink-thread-popover]') !== null
+    const UNDO = '[data-ink-undo]'
+    await expect.poll(disabledOf(UNDO)).toBe(false)
+    activate()
+    await expect.poll(threadOpen).toBe(true)
+
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect.poll(threadOpen).toBe(false)
+    await expect.poll(disabledOf(UNDO)).toBe(true)
+    const before = sessionCount()
+    apply.focus()
+    await userEvent.keyboard('{Control>}z{/Control}')
+    activate()
+    await settle(100)
+    expect(threadOpen()).toBe(false)
+    expect(sessionCount()).toBe(before)
+
+    held.fail()
+    await expect.poll(text('errors')).toBe('RedactionFailed')
+    await expect.poll(disabledOf(UNDO)).toBe(false)
+    activate()
+    await expect.poll(threadOpen).toBe(true)
+    await userEvent.keyboard('{Escape}')
+    document.querySelector<HTMLButtonElement>(UNDO)!.click()
+    await expect.poll(sessionCount).toBe(before - 1)
+  })
+
   it("the snippet gets the label, busy and disabled, and disabled follows the host's own", async () => {
     const held = heldEngine()
     const screen = await render(RedactionHarness, {

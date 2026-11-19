@@ -486,3 +486,110 @@ test("the render prop's disabled follows the host's own disabled", async ({
   await expect(own).toBeDisabled()
   await expect(own).toHaveAttribute('data-disabled', 'true')
 })
+
+test('Download and Print are disabled while the marks are applied', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const download = cmp.locator('[data-ink-download]')
+  const print = cmp.locator('[data-ink-print]')
+  await mark(page)
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await expect(download).toBeDisabled()
+  await expect(print).toBeDisabled()
+  await page.evaluate(() => window.__heldEngine!.fail())
+  await expect(cmp.getByTestId('errors')).toHaveText('RedactionFailed')
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+})
+
+test('a disabled control of your own that is not a button does not apply', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness
+      src={fixtureUrl('redact-text')}
+      assets={assets}
+      engine="held"
+      own="div"
+      disabled
+    />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await expect(cmp.getByTestId('probe')).toHaveAttribute('data-can-redact', 'true')
+  const own = cmp.locator('div.host-apply')
+  await expect(own).toHaveAttribute('data-disabled', 'true')
+  await own.click()
+  await page.waitForTimeout(200)
+  expect(await writing(page)).toBe(false)
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+})
+
+const sessionCount = (page: Page) =>
+  page.evaluate(
+    () =>
+      (
+        document.querySelector('[data-ink-root]') as HTMLElement & {
+          __inkDocument?: { annotations: { list: { get(): unknown[] } } }
+        }
+      ).__inkDocument!.annotations.list.get().length
+  )
+
+test('while the marks are applied, Undo and comment threads change nothing', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const note = await page.evaluate(() => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    return root.__inkDocument!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+      // With text: an empty new note goes when its thread closes.
+      contents: 'Kept',
+    }).id
+  })
+  await mark(page)
+  const undo = page.getByRole('button', { name: 'Undo' })
+  const thread = page.locator('[data-ink-thread-popover]')
+  const activate = () => page.evaluate((id) => window.__inkActivate!(id), note)
+  await expect(undo).toBeEnabled()
+  await activate()
+  await expect(thread).toBeVisible()
+
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await expect(thread).toBeHidden()
+  await expect(undo).toBeDisabled()
+  const before = await sessionCount(page)
+  await apply.focus()
+  await page.keyboard.press('Control+z')
+  await activate()
+  await page.waitForTimeout(100)
+  await expect(thread).toBeHidden()
+  expect(await sessionCount(page)).toBe(before)
+
+  await page.evaluate(() => window.__heldEngine!.fail())
+  await expect(cmp.getByTestId('errors')).toHaveText('RedactionFailed')
+  await page.locator('[data-ink-form-alert-ok]').click()
+  await expect(undo).toBeEnabled()
+  await activate()
+  await expect(thread).toBeVisible()
+  await page.keyboard.press('Escape')
+  await undo.click()
+  await expect.poll(() => sessionCount(page)).toBe(before - 1)
+})

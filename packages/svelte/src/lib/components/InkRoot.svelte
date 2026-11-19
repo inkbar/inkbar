@@ -208,6 +208,7 @@
     lockedStatus,
     MIN_DOCUMENT_WIDTH,
     pageSelectionText,
+    redactionBusy,
     savePictures,
     SIGNATURE_FONTS,
     trackToolStyle,
@@ -681,6 +682,8 @@
     onToolChange?.(id)
   }
   function setActivated(id: string | null): void {
+    // While the marks are applied no thread opens: a reply written then would be lost.
+    if (id !== null && documentNow && redactionBusy(documentNow).get()) return
     activated = id
     activatedNow = id
     hostActivated.set(id)
@@ -797,19 +800,35 @@
     return view
   }
 
+  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
+  const redacting = useReadable(() => (document ? redactionBusy(document) : null), false)
+  $effect(() => {
+    if (redacting.current) setActivated(null)
+  })
   const snapCanUndo = useReadable(() => snapshotHistory.canUndo, false)
   const snapCanRedo = useReadable(() => snapshotHistory.canRedo, false)
   const coreCanUndo = useReadable(() => document?.history.canUndo, false)
   const coreCanRedo = useReadable(() => document?.history.canRedo, false)
   const inkHistory: InkHistory = {
+    // While the marks are applied the history stays still, as Undo and Redo show.
     get canUndo() {
+      if (redacting.current) return false
       return controlled ? historyEnabled && snapCanUndo.current : coreCanUndo.current
     },
     get canRedo() {
+      if (redacting.current) return false
       return controlled ? historyEnabled && snapCanRedo.current : coreCanRedo.current
     },
-    undo: () => (controlled ? snapshotHistory.undo() : document?.history.undo()),
-    redo: () => (controlled ? snapshotHistory.redo() : document?.history.redo()),
+    undo: () => {
+      if (document && redactionBusy(document).get()) return
+      if (controlled) snapshotHistory.undo()
+      else document?.history.undo()
+    },
+    redo: () => {
+      if (document && redactionBusy(document).get()) return
+      if (controlled) snapshotHistory.redo()
+      else document?.history.redo()
+    },
     clear: () => (controlled ? snapshotHistory.clear() : document?.history.clear()),
     batch: (fn) => {
       if (controlled) snapshotHistory.batch(fn)

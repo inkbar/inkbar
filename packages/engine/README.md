@@ -268,6 +268,7 @@ The check follows the apply's own edge rules, so content the apply rightly kept 
 - Without regions, the check reports only candidates it recognises. A redaction it does not recognise as one is not reported.
 - Without regions, an image area of one flat colour is blank to the check, so a solid-colour area left under a box does not fail it.
 - In the JPEG blocks a region's edge crosses, the check does not see content within 48 levels of the fill.
+- The check does not look at an alpha channel stored inside a JPEG 2000 image, or at colour-key masks.
 - Without regions, the check does not see the content of a pattern, soft mask or gradient that another tool cut away from under a box. The cut fill no longer paints under the box, and the file cannot say that it once did.
 - The check answers what lies under each place. It does not find copies hidden elsewhere in the file: a second use of the same graphic that is cropped, covered or on another page, or a pattern or gradient that another page also uses.
 - A scanned page is one image. The check sees whether the samples under a region are blank; it does not read words in a picture.

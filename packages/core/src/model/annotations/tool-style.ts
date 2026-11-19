@@ -6,6 +6,7 @@
 // `set` writes through the store, so in controlled mode every change is proposed to the host's
 // `onChange` and nothing is applied before the host applies it.
 import { writable, type Readable, type Writable } from '../readable'
+import { redactionApplying } from '../redaction/busy'
 
 import { freeTextBox } from './callout'
 import { hasCallout, withBox } from './edit'
@@ -84,6 +85,7 @@ export interface ToolStyle {
    * text `text`'s). With `apply` it also updates every selected, unlocked annotation that has
    * the props, in one history step; a pinned one keeps its style. `apply` defaults to true under a select tool, and to
    * whether the selection is wholly in the group otherwise. `group` names the group explicitly.
+   * While the document's redaction marks are applied no annotation changes; the group does.
    */
   set(patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }): void
   /** Fills an AnnotationInput's unset style fields from the group (input wins). */
@@ -325,6 +327,9 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
       if (changed) groupStore(g).set(next)
     }
     if (!(opts.apply ?? (active === undefined || selectedIn(active) !== null))) return
+    // While the document's redaction marks are applied the session takes no edits: the tool's
+    // own style above still changes.
+    if (redactionApplying(store).get()) return
     const edits = items
       .filter((a) => !a.locked && !store._isPinned(a.id))
       .map((a) => ({ id: a.id, fields: refit(a, toFields(a.type, patch)) }))

@@ -214,6 +214,21 @@ describe('planRedaction', () => {
       expect(plan.kept).toEqual([])
     })
 
+    test("removes the replies to a reply with it, however deep, and a removed note's whole thread", () => {
+      const plan = planRedaction([
+        mark('m'),
+        fileNote({ x: 120, y: 100, width: 20, height: 20 }),
+        note('r', { x: 400, y: 400, width: 20, height: 20 }, 'fn'),
+        note('rr', { x: 400, y: 400, width: 20, height: 20 }, 'r'),
+        note('rrr', { x: 400, y: 400, width: 20, height: 20 }, 'rr'),
+        note('n', { x: 150, y: 100, width: 20, height: 20 }),
+        note('nr', { x: 400, y: 400, width: 20, height: 20 }, 'n'),
+        note('nrr', { x: 400, y: 400, width: 20, height: 20 }, 'nr'),
+      ])
+      expect(ids(plan.removed).sort()).toEqual(['n', 'nr', 'nrr', 'r', 'rr', 'rrr'])
+      expect(plan.kept).toEqual([])
+    })
+
     test('keeps a reply to a file note elsewhere, even with its own rect under a mark', () => {
       const plan = planRedaction([
         mark('m'),

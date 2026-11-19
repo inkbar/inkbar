@@ -27,6 +27,7 @@ import {
   lockedStatus,
   MIN_DOCUMENT_WIDTH,
   pageSelectionText,
+  redactionBusy,
   savePictures,
   SIGNATURE_FONTS,
   trackToolStyle,
@@ -429,6 +430,9 @@ export function InkRoot({
   }))
   const setActivated = useCallback(
     (id: string | null) => {
+      // While the marks are applied no thread opens: a reply written then would be lost.
+      const doc = documentRef.current
+      if (id !== null && doc && redactionBusy(doc).get()) return
       setActivatedState(id)
       plugins.activated.set(id)
       if (id) latest.current.onActivate?.(id)
@@ -1054,18 +1058,32 @@ export function InkRoot({
     [keptViews]
   )
 
+  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
+  const redacting = useReadable(document ? redactionBusy(document) : undefined, false)
+  useEffect(() => {
+    if (redacting) setActivated(null)
+  }, [redacting, setActivated])
   const snapCanUndo = useReadable(snapshotHistory.canUndo, false)
   const snapCanRedo = useReadable(snapshotHistory.canRedo, false)
   const coreCanUndo = useReadable(document?.history.canUndo, false)
   const coreCanRedo = useReadable(document?.history.canRedo, false)
   const inkHistory = useMemo<InkHistory>(
     () => ({
-      canUndo: controlled ? historyEnabled && snapCanUndo : coreCanUndo,
-      canRedo: controlled ? historyEnabled && snapCanRedo : coreCanRedo,
-      undo: () =>
-        controlled ? snapshotHistory.undo() : documentRef.current?.history.undo(),
-      redo: () =>
-        controlled ? snapshotHistory.redo() : documentRef.current?.history.redo(),
+      // While the marks are applied the history stays still, as Undo and Redo show.
+      canUndo: !redacting && (controlled ? historyEnabled && snapCanUndo : coreCanUndo),
+      canRedo: !redacting && (controlled ? historyEnabled && snapCanRedo : coreCanRedo),
+      undo: () => {
+        const doc = documentRef.current
+        if (doc && redactionBusy(doc).get()) return
+        if (controlled) snapshotHistory.undo()
+        else doc?.history.undo()
+      },
+      redo: () => {
+        const doc = documentRef.current
+        if (doc && redactionBusy(doc).get()) return
+        if (controlled) snapshotHistory.redo()
+        else doc?.history.redo()
+      },
       clear: () =>
         controlled ? snapshotHistory.clear() : documentRef.current?.history.clear(),
       batch: (fn) => {
@@ -1078,6 +1096,7 @@ export function InkRoot({
     }),
     [
       controlled,
+      redacting,
       historyEnabled,
       snapCanUndo,
       snapCanRedo,
@@ -1098,7 +1117,7 @@ export function InkRoot({
     // React renders again, and a stale `canUndo` would prevent a key that undoes nothing.
     const stopKeys = attachHistoryKeys(rootEl, () => {
       const doc = documentRef.current
-      if (!doc) return null
+      if (!doc || redactionBusy(doc).get()) return null
       const snap = doc.annotations.mode === 'controlled'
       const on = latest.current.historyEnabled
       return {

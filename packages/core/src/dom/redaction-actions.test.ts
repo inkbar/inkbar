@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { en } from '../messages'
 import { InkError } from '../model/errors'
@@ -7,13 +7,14 @@ import { writable } from '../model/readable'
 import {
   applyRedactionsFlow,
   redactionDoneMessage,
+  runRedaction,
   type RedactionFlowOptions,
   type RedactionView,
 } from './redaction-actions'
 
 import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
-import type { RedactionResult } from '../model/redaction/types'
+import type { RedactionPreview, RedactionResult } from '../model/redaction/types'
 
 const result = (over: Partial<RedactionResult> = {}): RedactionResult =>
   ({
@@ -37,14 +38,18 @@ function fakeDoc(
   opts: {
     list?: Annotation[]
     controlled?: boolean
-    apply?: () => Promise<{ bytes: Uint8Array; result: RedactionResult }>
+    apply?: () => Promise<{
+      bytes: Uint8Array
+      result: RedactionResult
+      _marks: readonly string[]
+    }>
   } = {}
 ) {
   const list = writable<readonly Annotation[]>(opts.list ?? [note('m', 'redact')])
   const replaceAll = vi.fn()
   const select = vi.fn()
   const applyRedactions = vi.fn(
-    opts.apply ?? (() => Promise.resolve({ bytes, result: result() }))
+    opts.apply ?? (() => Promise.resolve({ bytes, result: result(), _marks: ['m'] }))
   )
   const doc = {
     key: 'doc-key',
@@ -52,13 +57,13 @@ function fakeDoc(
     _saves: true,
     info: { isEncrypted: false },
     redactionPreview: () => ({
-      marks: 1,
+      marks: list.get().filter((a) => a.type === 'redact').length,
       pages: 1,
       overlapped: 0,
       signed: false,
       lockedMarks: 0,
     }),
-    applyRedactions,
+    _applyRedactions: applyRedactions,
     annotations: {
       mode: opts.controlled ? 'controlled' : 'uncontrolled',
       list,
@@ -66,8 +71,12 @@ function fakeDoc(
       select,
     },
   } as unknown as InkDocument
-  return { doc, replaceAll, select, applyRedactions }
+  return { doc, list, replaceAll, select, applyRedactions }
 }
+
+/** The bytes a reopen opens. */
+const reopenData = (out: Awaited<ReturnType<typeof applyRedactionsFlow>>) =>
+  (out?.reopen?.source as { data: Uint8Array } | undefined)?.data
 
 const view: RedactionView = {
   zoom: 1.5,
@@ -125,6 +134,70 @@ describe('applyRedactionsFlow', () => {
     await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
     expect(applyRedactions).not.toHaveBeenCalled()
     expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('marks added while the reader is asked: asks again with them, then applies', async () => {
+    const { doc, list, applyRedactions } = fakeDoc()
+    const asked: number[] = []
+    const confirm = (preview: RedactionPreview) => {
+      asked.push(preview.marks)
+      if (asked.length === 1) list.set([note('m', 'redact'), note('m2', 'redact')])
+      return Promise.resolve(true)
+    }
+    const out = await applyRedactionsFlow(doc, options({ confirm }).opts)
+    expect(asked).toEqual([1, 2])
+    expect(applyRedactions).toHaveBeenCalledTimes(1)
+    expect(out?.reopen).not.toBeNull()
+  })
+
+  it('a mark moved while the reader is asked: asks again though the counts agree', async () => {
+    const { doc, list, applyRedactions } = fakeDoc()
+    const confirm = vi.fn(() => {
+      if (confirm.mock.calls.length === 1)
+        list.set([{ ...note('m', 'redact'), rect: { x: 1, y: 1, width: 9, height: 9 } }])
+      return Promise.resolve(true)
+    })
+    await applyRedactionsFlow(doc, options({ confirm }).opts)
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(applyRedactions).toHaveBeenCalledTimes(1)
+  })
+
+  it('a cancel on the second ask applies nothing', async () => {
+    const { doc, list, applyRedactions } = fakeDoc()
+    const confirm = vi.fn(() => {
+      if (confirm.mock.calls.length === 1) {
+        list.set([note('m2', 'redact')])
+        return Promise.resolve(true)
+      }
+      return Promise.resolve(false)
+    })
+    await expect(applyRedactionsFlow(doc, options({ confirm }).opts)).resolves.toBeNull()
+    expect(applyRedactions).not.toHaveBeenCalled()
+  })
+
+  it('every mark removed while the reader is asked: nothing is applied or said', async () => {
+    const { doc, list, applyRedactions } = fakeDoc()
+    const confirm = vi.fn(() => {
+      list.set([note('kept')])
+      return Promise.resolve(true)
+    })
+    const { opts, showFailure, onError } = options({ confirm })
+    await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(applyRedactions).not.toHaveBeenCalled()
+    expect(showFailure).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('a confirmation that rejects is reported, and the flow resolves', async () => {
+    const { doc, applyRedactions } = fakeDoc()
+    const { opts, onError, showFailure } = options({
+      confirm: () => Promise.reject(new Error('host dialog failed')),
+    })
+    await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
+    expect(applyRedactions).not.toHaveBeenCalled()
+    expect(showFailure).toHaveBeenCalledExactlyOnceWith(en.viewer.redactFailed)
+    expect(onError.mock.calls[0]![0]).toMatchObject({ code: 'RedactionFailed' })
   })
 
   it('not current after the run: nothing is told and nothing reopens', async () => {
@@ -199,12 +272,119 @@ describe('applyRedactionsFlow', () => {
         Promise.resolve({
           bytes,
           result: result({ removed: { session: ['under'], file: 1 } }),
+          _marks: ['mark'],
         }),
     })
     const { opts } = options()
     const out = await applyRedactionsFlow(doc, opts)
     expect(replaceAll).toHaveBeenCalledExactlyOnceWith([list[0]], 'redaction')
     expect(out?.reopen?.initial).toEqual([list[0]])
+  })
+
+  it('controlled: a mark added while the apply ran stays in the proposed list', async () => {
+    const list = [note('kept'), note('mark', 'redact')]
+    const late = note('late', 'redact')
+    let added: () => void = () => undefined
+    const {
+      doc,
+      list: held,
+      replaceAll,
+      applyRedactions,
+    } = fakeDoc({
+      list,
+      controlled: true,
+      apply: () =>
+        new Promise((resolve) => {
+          added = () => resolve({ bytes, result: result(), _marks: ['mark'] })
+        }),
+    })
+    const running = applyRedactionsFlow(doc, options().opts)
+    await vi.waitFor(() => expect(applyRedactions).toHaveBeenCalled())
+    // The host takes a new mark while the engine works.
+    held.set([...list, late])
+    added()
+    const out = await running
+    expect(replaceAll).toHaveBeenCalledExactlyOnceWith([list[0], late], 'redaction')
+    expect(out?.reopen?.initial).toEqual([list[0], late])
+  })
+
+  it('reopens on a copy of the bytes, so a host that changes its own leaves the reopen intact', async () => {
+    const own = new Uint8Array([37, 80, 68, 70, 45])
+    const { doc } = fakeDoc({
+      apply: () => Promise.resolve({ bytes: own, result: result(), _marks: ['m'] }),
+    })
+    const { opts } = options({ notify: ({ bytes: given }) => given.fill(0) })
+    const out = await applyRedactionsFlow(doc, opts)
+    expect(own).toEqual(new Uint8Array(5))
+    expect(reopenData(out)).not.toBe(own)
+    expect(reopenData(out)).toEqual(new Uint8Array([37, 80, 68, 70, 45]))
+  })
+
+  it('a host that transfers the bytes it is given leaves the reopen intact', async () => {
+    const own = new Uint8Array([37, 80, 68, 70, 45])
+    const { doc } = fakeDoc({
+      apply: () => Promise.resolve({ bytes: own, result: result(), _marks: ['m'] }),
+    })
+    const { opts } = options({
+      notify: ({ bytes: given }) =>
+        void structuredClone(given, { transfer: [given.buffer] }),
+    })
+    const out = await applyRedactionsFlow(doc, opts)
+    expect(own.byteLength).toBe(0)
+    expect(reopenData(out)).toEqual(new Uint8Array([37, 80, 68, 70, 45]))
+  })
+
+  describe('an onError that throws', () => {
+    /** Runs the microtasks the flow queues to rethrow, and returns what they threw. */
+    function rethrown() {
+      const thrown: unknown[] = []
+      const original = globalThis.queueMicrotask.bind(globalThis)
+      vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+        original(() => {
+          try {
+            cb()
+          } catch (error) {
+            thrown.push(error)
+          }
+        })
+      })
+      return thrown
+    }
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('after a failed apply: the flow resolves, says why, and the throw is rethrown', async () => {
+      const thrown = rethrown()
+      const failure = new InkError('RedactionFailed', 'failed', { stage: 'apply' })
+      const listener = new Error('listener failed')
+      const { doc } = fakeDoc({ apply: () => Promise.reject(failure) })
+      const { opts, showFailure } = options({
+        onError: () => {
+          throw listener
+        },
+      })
+      await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
+      expect(showFailure).toHaveBeenCalledExactlyOnceWith(en.viewer.redactFailed)
+      await vi.waitFor(() => expect(thrown).toEqual([listener]))
+    })
+
+    it('after a throwing notify: the reopen goes ahead, and the throw is rethrown', async () => {
+      const thrown = rethrown()
+      const listener = new Error('listener failed')
+      const { doc } = fakeDoc()
+      const { opts } = options({
+        notify: () => {
+          throw new Error('host failed')
+        },
+        onError: () => {
+          throw listener
+        },
+      })
+      const out = await applyRedactionsFlow(doc, opts)
+      expect(out?.reopen).not.toBeNull()
+      await vi.waitFor(() => expect(thrown).toEqual([listener]))
+    })
   })
 
   it('runs proposed straight after the proposal, before the host can answer', async () => {
@@ -354,6 +534,14 @@ describe('applyRedactionsFlow', () => {
     await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
     expect(onError).not.toHaveBeenCalled()
     expect(showFailure).not.toHaveBeenCalled()
+  })
+})
+
+describe('runRedaction', () => {
+  it('resolves with the bytes and the result only', async () => {
+    const { doc } = fakeDoc()
+    const out = await runRedaction(doc, { confirm: () => Promise.resolve(true) })
+    expect(out).toEqual({ bytes, result: result() })
   })
 })
 

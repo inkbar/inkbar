@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /*
  * Saves the open document's file through the browser's download, under its `fileName` or
- * `filename`. Disabled until the document is ready. With InkRoot's `engine` and changes, that
- * is a copy with them written in; otherwise the file as it was opened. While a download or
- * print writes its copy the button is `aria-busy` and `aria-disabled`, keeping focus, and a
- * press does nothing. A copy that cannot be written reaches InkRoot's `error`, and the reader
- * is told in InkViewport's message box.
+ * `filename`. Disabled until the document is ready, and while its redaction marks are applied.
+ * With InkRoot's `engine` and changes, that is a copy with them written in; otherwise the file
+ * as it was opened. While a download or print writes its copy the button is `aria-busy` and
+ * `aria-disabled`, keeping focus, and a press does nothing. A copy that cannot be written
+ * reaches InkRoot's `error`, and the reader is told in InkViewport's message box.
  */
-import { downloadDocument, fileBusy } from '@inkbar/core/dom'
+import { downloadDocument, fileBusy, redactionBusy } from '@inkbar/core/dom'
 import { Download } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -31,6 +31,11 @@ const ready = computed(
 )
 const busy = useReadable(
   () => (ctx.document.value ? fileBusy(ctx.document.value) : null),
+  false
+)
+/** The document's redaction marks are being applied: its file is about to be replaced. */
+const redacting = useReadable(
+  () => (ctx.document.value ? redactionBusy(ctx.document.value) : null),
   false
 )
 
@@ -57,7 +62,7 @@ const attrs = computed(() => ({
 <template>
   <ToolbarButton
     :as-child="asChild"
-    :disabled="!ready && !busy"
+    :disabled="redacting || (!ready && !busy)"
     class="ink-download"
     data-ink-download
     v-bind="attrs"

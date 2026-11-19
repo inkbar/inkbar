@@ -34,8 +34,8 @@ export const isCount = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0
 
 /**
- * Reads a report the fork returned and frees it. A NULL report, or one that is not the JSON
- * object expected, throws `fail()`.
+ * Reads a report the fork returned and frees it. A NULL report, one with no NUL, or one that is
+ * not the JSON object expected, throws `fail()`.
  */
 export function readReport(
   heap: Heap,
@@ -45,9 +45,10 @@ export function readReport(
   if (report === 0) throw fail()
   try {
     const bytes = heap.native.HEAPU8
-    const text = new TextDecoder().decode(
-      bytes.subarray(report, bytes.indexOf(0, report))
-    )
+    const end = bytes.indexOf(0, report)
+    // A report with no NUL has no known end, so none of it can be trusted.
+    if (end < 0) throw fail()
+    const text = new TextDecoder().decode(bytes.subarray(report, end))
     let parsed: unknown
     try {
       parsed = JSON.parse(text)

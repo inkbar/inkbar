@@ -48,6 +48,8 @@ function fakeDocument(key: string): InkDocument {
   return {
     key,
     status: writable<DocumentStatus>({ state: 'ready' }),
+    // Keeps the document's redaction busy flag, which a record action reads.
+    annotations: {},
   } as unknown as InkDocument
 }
 

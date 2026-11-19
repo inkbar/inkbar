@@ -1,4 +1,4 @@
-import { downloadDocument, fileBusy } from '@inkbar/core/dom'
+import { downloadDocument, fileBusy, redactionBusy } from '@inkbar/core/dom'
 import { Download } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
@@ -19,11 +19,11 @@ export interface InkDownloadButtonProps extends ComponentPropsWithoutRef<'button
 
 /**
  * Saves the open document's file through the browser's download, under its `fileName` or
- * `filename`. Disabled until the document is ready. With InkRoot's `engine` and changes, that
- * is a copy with them written in; otherwise the file as it was opened. While a download or
- * print writes its copy the button is `aria-busy` and `aria-disabled`, keeping focus, and a
- * press does nothing. A copy that cannot be written reaches InkRoot's `onError`, and the reader
- * is told in InkViewport's message box.
+ * `filename`. Disabled until the document is ready, and while its redaction marks are applied.
+ * With InkRoot's `engine` and changes, that is a copy with them written in; otherwise the file
+ * as it was opened. While a download or print writes its copy the button is `aria-busy` and
+ * `aria-disabled`, keeping focus, and a press does nothing. A copy that cannot be written
+ * reaches InkRoot's `onError`, and the reader is told in InkViewport's message box.
  */
 export function InkDownloadButton({
   asChild = false,
@@ -37,6 +37,8 @@ export function InkDownloadButton({
   const m = useMessages()
   const { document: doc, status, reportFileError } = useInkContext('InkDownloadButton')
   const busy = useReadable(doc ? fileBusy(doc) : undefined, false)
+  // The document's redaction marks are being applied: its file is about to be replaced.
+  const redacting = useReadable(doc ? redactionBusy(doc) : undefined, false)
   return (
     <Toolbar.Button
       asChild={asChild}
@@ -49,7 +51,9 @@ export function InkDownloadButton({
       aria-disabled={busy || undefined}
       {...rest}
       disabled={
-        disabled === true || (!busy && (doc === null || status.state !== 'ready'))
+        disabled === true ||
+        redacting ||
+        (!busy && (doc === null || status.state !== 'ready'))
       }
       onClick={(e) => {
         onClick?.(e)
