@@ -174,6 +174,53 @@ describe('InkApplyRedactions', () => {
     await expect.poll(disabledOf('[data-ink-print]')).toBe(false)
   })
 
+  it('while the marks are applied, Undo and comment threads change nothing', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const note = currentDoc()!.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+      // With text: an empty new note goes when its thread closes.
+      contents: 'Kept',
+    }).id
+    mark()
+    const sessionCount = () =>
+      (
+        currentDoc() as unknown as { annotations: { list: { get(): unknown[] } } }
+      ).annotations.list.get().length
+    const activate = () =>
+      (window as { __inkActivate?: (id: string | null) => void }).__inkActivate!(note)
+    const threadOpen = () => document.querySelector('[data-ink-thread-popover]') !== null
+    const UNDO = '[data-ink-undo]'
+    await expect.poll(disabledOf(UNDO)).toBe(false)
+    activate()
+    await expect.poll(threadOpen).toBe(true)
+
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect.poll(threadOpen).toBe(false)
+    await expect.poll(disabledOf(UNDO)).toBe(true)
+    const before = sessionCount()
+    apply.focus()
+    await userEvent.keyboard('{Control>}z{/Control}')
+    activate()
+    await settle(100)
+    expect(threadOpen()).toBe(false)
+    expect(sessionCount()).toBe(before)
+
+    held.fail()
+    await expect.poll(text('errors')).toBe('RedactionFailed')
+    await expect.poll(disabledOf(UNDO)).toBe(false)
+    activate()
+    await expect.poll(threadOpen).toBe(true)
+    await userEvent.keyboard('{Escape}')
+    document.querySelector<HTMLButtonElement>(UNDO)!.click()
+    await expect.poll(sessionCount).toBe(before - 1)
+  })
+
   it("the snippet gets the label, busy and disabled, and disabled follows the host's own", async () => {
     const held = heldEngine()
     const screen = await render(RedactionHarness, {

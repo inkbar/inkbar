@@ -1,6 +1,7 @@
 <script lang="ts">
   /*
-   * The apply redactions control in a toolbar over a document, with Download and Print.
+   * The apply redactions control in a toolbar over a document, with Download and Print, and a
+   * thread popover that `window.__inkActivate` opens.
    * `own: 'child'` renders the host's own button through `child`, `own: 'div'` a `div` in its
    * place, and `own: 'children'` the control's snippet of `{ label, busy, disabled }`. `confirm` passes `redactionConfirm` as a function answering yes
    * or no, recording the marks of each preview in `previews`; `confirm: 'dialog'` leaves the
@@ -23,11 +24,13 @@
   import InkDownloadButton from '../../lib/components/InkDownloadButton.svelte'
   import InkPrintButton from '../../lib/components/InkPrintButton.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
+  import InkThreadPopover from '../../lib/components/InkThreadPopover.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
   import InkToolButton from '../../lib/components/InkToolButton.svelte'
   import InkUndo from '../../lib/components/InkUndo.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
 
+  import ActivateHook from './ActivateHook.svelte'
   import RedactionProbe from './RedactionProbe.svelte'
 
   import type {
@@ -143,6 +146,8 @@
   <!-- Test-only box: the scroll container needs a bounded height. -->
   <div style="height: 400px; width: 600px"><InkViewport /></div>
   <RedactionProbe />
+  <InkThreadPopover />
+  <ActivateHook />
 {/snippet}
 
 <div>
