@@ -38,7 +38,7 @@ The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/
 pnpm add @inkbar/engine
 ```
 
-The package holds a 6.7 MB WebAssembly binary (2.9 MB gzipped) and a worker script. Core loads them on the first save that has changes. A host that does not pass the loader bundles none of it.
+The package holds a 6.9 MB WebAssembly binary (2.9 MB gzipped) and a worker script. Core loads them on the first save that has changes, or on the first apply of redactions. A host that does not pass the loader bundles none of it.
 
 ## Serving the files
 
@@ -68,6 +68,7 @@ In Node (22.3 or later) the engine runs in the calling thread and reads the wasm
 - It does not embed fonts. An appearance can name the twelve standard PDF fonts, and each viewer draws those with its own equivalent.
 - It does not support XFA forms, and it runs no form scripts.
 - It does not clean hidden layers when it redacts.
+- It cannot remove some content painted through a reference, such as a tiling pattern, so it refuses a mark over that content (see [Redacting](#redacting)).
 
 ## API and lifetimes
 
@@ -126,7 +127,7 @@ Errors:
 
 - Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `redaction-failed`, `check-failed`, `aborted` or `engine-failure`.
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
-- `redaction-failed` means `redact` could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
+- `redaction-failed` means `redact` refused a mark before changing anything (its `reason` says why; see [Redacting](#redacting)), or could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
 - `check-failed` means `checkRedaction` could not inspect a page or the file. The error's `page` holds the page index when a page was the cause. Treat it as a failed check. The engine keeps working.
 - A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
@@ -135,7 +136,7 @@ Errors:
 
 ## Redacting
 
-`redact()` removes content from the file for good:
+`redact()` removes the content under the marks from the file it saves, within the limits listed below:
 
 ```ts
 const result = await doc.redact({ remove, marks, annotations, fields })
@@ -145,13 +146,11 @@ const redacted = await doc.save()
 Each of `marks` is a Gloss `redact` annotation with an `appearance`, written as `write` writes annotations. Under each mark the engine removes:
 
 - text: every character whose box overlaps the mark,
-- images: the samples under the mark, which become blank,
+- images: the samples under the mark's bounding box, which become blank (for a turned mark the box is wider than the mark),
 - drawing: paths and shadings, cut to the mark's shape,
 - annotations the mark overlaps, with their pop-ups, and the form fields of widgets it removes.
 
-A mark covers its Gloss `quads`, or its `rect` when it has none. Its appearance bounds play no part: they may be padded for an outline. The appearance becomes part of the page in the mark's place, and no annotation remains. The engine skips a mark with no area, or one that lies wholly outside the page's crop box.
-
-The engine does not enter tiling patterns, so content inside one stays.
+A mark covers its Gloss `quads`, or its `rect` when it has none. Its appearance bounds play no part: they may be padded for an outline. The appearance becomes part of the page in the mark's place, tagged `/INKB_Overlay` so a check can tell it from content, and no annotation remains. The engine skips a mark with no area, or one that lies wholly outside the page's crop box.
 
 `redact` works in this order, starting from the document as opened, as `write` does:
 
@@ -174,7 +173,9 @@ The result holds counts, flags and places, and no text from the file:
 - `hiddenLayers`: the file has layers that are hidden. Redacting does not clean them.
 - `signed`: the file holds a digital signature. The rewritten file's signature no longer verifies.
 
-Before it changes anything, `redact` asks what lies under each mark, and under Inkbar's earlier marks in an encrypted file, that the apply cannot remove. The apply removes text, blanks image samples and cuts paths, but it cannot rewrite content defined once and painted through a reference. So it refuses a mark over a shape painted with a tiling pattern, over a mesh or function-based gradient, over artwork with a soft mask holding content there, or over a Type 3 glyph that paints outside its box. It then rejects with `redaction-failed` and leaves the document as it was opened. The error's `reason` is `'unremovable-content'`, `marks` holds the ids of every mark over such content on every page, `kinds` lists what was found (`'pattern'`, `'shading'`, `'mask-group'`, `'glyph'`) and `page` is the first page with one. Inkbar's earlier marks have no id there; `page` names their page. Moving or removing those marks lets the rest apply. When the engine cannot look under the marks, the `reason` is `'could-not-inspect'`.
+Before it changes anything, `redact` looks under each mark, and under Inkbar's earlier marks in an encrypted file, for content the apply cannot remove. The apply removes text, blanks image samples and cuts paths. It cannot rewrite content that the file defines once and paints through a reference, so cutting the shape that paints it would leave that content in the file. The engine refuses a mark that touches a shape painted with a tiling pattern, a picture gradient (a mesh or function-based gradient, or a linear or radial gradient whose colour function is not a simple ramp), artwork under a soft mask that holds more than a simple fade, or a Type 3 glyph that paints outside the box it declares. A simple ramp blends from colour to colour in at most eight stretches. A simple fade is a soft mask made of at most four plain rectangles or simple-ramp gradients, which is how gradient transparency is drawn. Hatching and textures are tiling patterns, and drop shadows and feathered edges are usually drawn with soft masks that hold more than a fade. Covering the whole shape does not help. Content under a simple fade, and linear and radial gradients with a simple ramp, are redacted.
+
+A refusal rejects with `redaction-failed` and leaves the document as it was opened. The error's `reason` is `'unremovable-content'`, `marks` holds the ids of every mark over such content on every page, `kinds` lists what was found (`'pattern'`, `'shading'`, `'mask-group'`, `'glyph'`) and `page` is the first page with one. Inkbar's earlier marks have no id there; `page` names their page. Move or delete those marks, then redact again. When the engine cannot look under the marks, as when a page needs more work than the inspection allows, the `reason` is `'could-not-inspect'`.
 
 `redact` rejects with `redaction-failed` when it cannot remove an annotation in `remove`, load a page, write a mark, apply the marks of a page, read the file's report on layers and signatures, or sanitise the file. The annotations and fields it writes after the apply reject with `write-failed`, as in `write`, and so does a field name that the opened file never had. Either way the engine leaves the document as it was opened.
 
@@ -182,7 +183,7 @@ A second `redact` starts again from the document as opened. A `write` after a `r
 
 ## Checking a redaction
 
-`checkRedaction()` reports what is left under redactions in any PDF. It takes the file's bytes and needs no open document:
+`checkRedaction()` reports what it finds under redactions in any PDF. It takes the file's bytes and needs no open document:
 
 ```ts
 const findings = await engine.checkRedaction(bytes, { password, regions })
@@ -192,10 +193,10 @@ It reads the objects on the page. An opaque box hides what lies under it from a 
 
 It has two uses:
 
-- With `regions`, it checks the places you name. Each region is a page index and one or more Gloss quads (`p1` top left, `p2` top right, `p3` bottom left, `p4` bottom right), in PDF user space. Pass a redaction's own mark quads to check the file it produced.
+- With `regions`, it checks the places you name. Each region is a page index and one or more Gloss quads (`p1` top left, `p2` top right, `p3` bottom left, `p4` bottom right), in PDF user space. Pass a redaction's own mark quads to check the file it produced. This use trusts the `/INKB_Overlay` tag the apply puts on its overlays, so it proves nothing about a file the engine did not just produce.
 - Without `regions`, it looks for candidates itself: Redact annotations, filled boxes in the page content, and Square, Highlight and Stamp annotations drawn as one opaque filled box. This is the use for a file from elsewhere.
 
-The engine copies `bytes`, loads them on their own and closes them before the call resolves, so documents it has open stay as they were. The call waits in the same queue as every other call. Check files from elsewhere on an engine of their own, in their own worker: an inspection runs to the end on the shared queue, so a hostile file can hold up or stop the engine for every document it has open.
+The engine copies `bytes`, loads them on their own and closes them before the call resolves, so documents it has open stay as they were. The call waits in the same queue as every other call. An inspection runs to the end, and a crafted file can make it take a long time. Check files from elsewhere on an engine of their own, in their own worker, with a timeout, and call `destroy()` on that engine when the timeout fires. On a shared engine such a file holds up every document it has open.
 
 ### Findings
 
@@ -230,7 +231,7 @@ Each candidate:
 - `page` and `rect`: where it is, in PDF user space. A region's `rect` is the bounds of its quads.
 - `region`: for a region you gave, its index in your `regions` list. Other kinds have none.
 - `kind`: `region` for a region you gave, `redact-annotation`, `filled-box`, or `annotation-box`.
-- `text`: `present` when a character lies under it: in the page content, in a Form XObject at any depth, in the appearance of an annotation that meets it, or inside a tiling pattern painted into it. An image inside such a pattern counts here too.
+- `text`: `present` when a character lies under it: in the page content, in a Form XObject at any depth, in the appearance of an annotation that meets it, or inside a tiling pattern painted into it. An image inside such a pattern counts here too, and drawing inside one counts under `drawing`.
 - `image`: `present` when an image under it, inline images and the images in annotation appearances included, has samples there that are not one value.
 - `drawing`: `present` when a path or shading crosses it. A filled box and an annotation box are drawing themselves, so for them `drawing` is always `none`.
 - `verdict`: `unapplied` for a Redact annotation with anything under it, `content-remains` for any other candidate with anything under it, and `clean` when the check found nothing under it.
@@ -239,7 +240,7 @@ Each candidate:
 
 `file` describes what the file carries besides its pages:
 
-- `earlierVersions`: revisions kept before the last. An appended save keeps the earlier bytes, and they may hold what a later revision removed.
+- `earlierVersions`: revisions kept before the last. An appended save keeps the earlier bytes, and they may hold what a later revision removed. A linearized file is one revision, and 0 here until something is appended to it.
 - `metadata`: the file has a document information dictionary or XMP metadata.
 - `attachments`: the number of attached files.
 - `scripts`: the file holds JavaScript or script actions.
@@ -253,8 +254,10 @@ A candidate that is not `clean` is a finding, and the call still resolves. Say w
 The check follows the apply's own edge rules, so content the apply rightly kept beside a mark does not fail it.
 
 - A character counts when its glyph box, from the font's glyph bounds, overlaps a region on an open interval. A glyph that only touches the edge does not count. A second test reads the boxes text extraction gives, which are wider, against the region shrunk by 1 pt on every side (by a quarter of its smaller side, when that is less).
-- An image counts when its samples over the region's bounding box on the image's sample grid are not one value. A lossless image allows no difference. After JPEG or JPEG 2000 compression a sample may differ by 12 levels per 8-bit channel, and by 24 within 8 samples of the edge of the blanked area, where re-encoding blurs the kept content into it. An image that cannot be decoded counts.
+- An image counts when its samples over the region's bounding box on the image's sample grid are not blank. With regions, blank means the value the apply fills a hole with, so a solid area of any other colour counts. Without regions, any one flat value is blank. A lossless image allows no difference. After JPEG or JPEG 2000 compression a sample may differ by 12 levels per 8-bit channel. In a JPEG block that the region's edge crosses (8 by 8 samples, or 16 by 16 when the colour is subsampled), a sample may lie 48 levels from the fill, because the apply re-encodes those blocks and the kept content beside the hole blurs into them. An image that cannot be decoded counts.
 - A path or shading counts when it crosses the region shrunk by 0.01 pt. A second test samples each path at most 1 pt apart against the region shrunk by 1 pt.
+- What an object paints with counts when the object paints under the region: the cell of a tiling pattern, a picture gradient (see [Redacting](#redacting)), and the group of a soft mask. Their text, images and drawing count in the same fields as the page's own.
+- Text and images inside an annotation's appearance count. Drawing inside one does not, unless the appearance is a loupe's copy of its page: the apply removes every annotation whose rectangle meets a mark, and an appearance cannot paint outside its rectangle. Everything inside a loupe's page copy counts, read in the page's own coordinates.
 - With regions, the overlay an apply leaves in place of a mark is tagged `/INKB_Overlay`, and nothing inside it counts. Without regions the tag does not count for anything, and content in tagged overlays is checked like any other.
 - A filled box is a candidate when it is at least 4 pt in each direction, opaque, with normal blending, and its fill luminance is below 0.2 or above 0.98. Only content painted before a candidate counts as under it: page content in content order, then annotations in `/Annots` order. So text drawn over a white background is not under the background.
 
@@ -263,12 +266,13 @@ The check follows the apply's own edge rules, so content the apply rightly kept 
 - A check with `regions` trusts the `/INKB_Overlay` tag and counts nothing inside a tagged form. Any file can carry the tag, so a check with regions proves nothing about a file the engine did not just produce. Check a file from elsewhere without regions.
 - A filled box with nothing under it is `clean`. It may be a real redaction or a graphic, and the check cannot tell which.
 - Without regions, the check reports only candidates it recognises. A redaction it does not recognise as one is not reported.
-- An image area of one flat colour is blank to the check. A solid-colour area left under a region does not fail it.
+- Without regions, an image area of one flat colour is blank to the check, so a solid-colour area left under a box does not fail it.
+- In the JPEG blocks a region's edge crosses, the check does not see content within 48 levels of the fill.
+- Without regions, the check does not see the content of a pattern, soft mask or gradient that another tool cut away from under a box. The cut fill no longer paints under the box, and the file cannot say that it once did.
+- The check answers what lies under each place. It does not find copies hidden elsewhere in the file: a second use of the same graphic that is cropped, covered or on another page, or a pattern or gradient that another page also uses.
 - A scanned page is one image. The check sees whether the samples under a region are blank; it does not read words in a picture.
 - The removed words may also appear where the check does not look: bookmark titles, comments on other annotations, form values, and alternate text for screen readers.
 - The check reports hidden layers, and the apply does not clean them.
-- Vector drawing inside a tiling pattern does not count. Text and images inside one do.
-- A linearized file counts as two revisions, so `earlierVersions` is 1 for a linearized file saved once.
 
 It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or `unsupported-security` as `open` does. It rejects with `check-failed` when it could not inspect a page or the file, for example when forms are nested too deep to read; `page` names the page. That is never a finding of nothing: treat it as a failed check. A region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float rejects with a `RangeError`.
 

@@ -172,7 +172,7 @@ const viewer = createViewer(el, {
 })
 ```
 
-Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P then hand over the file with this session's annotations and changed form values written into it, and `doc.save()` resolves with the same bytes. Core loads the engine on the first save that has changes. With no changes, a save gives the bytes the file was opened from and the engine never loads. A bundler picks up the engine's wasm and worker from the package, so there is no setup; the [`@inkbar/engine` README](https://github.com/inkbar/inkbar/tree/main/packages/engine#serving-the-files) covers serving those files yourself. The engine's binary is 2.6 MB gzipped.
+Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P then hand over the file with this session's annotations and changed form values written into it, and `doc.save()` resolves with the same bytes. Core loads the engine on the first save that has changes or the first apply of redactions. With no changes, a save gives the bytes the file was opened from and the engine never loads. A bundler picks up the engine's wasm and worker from the package, so there is no setup; the [`@inkbar/engine` README](https://github.com/inkbar/inkbar/tree/main/packages/engine#serving-the-files) covers serving those files yourself. The engine's binary is 2.9 MB gzipped.
 
 Without the loader nothing changes. Download and Print give the file as it was opened, the engine is not bundled, and `doc.save()` rejects with `EngineUnavailable` once there are changes. With or without it, `doc.getData()` gives the bytes the file was opened from.
 
@@ -203,7 +203,7 @@ A file with a digital signature is saved by appending the changes after the sign
 
 Appending keeps the earlier versions of a signed file inside it. If you delete or edit an annotation that an earlier Inkbar save wrote into a signed file, a reader can still recover the old one from the earlier version. A rewrite, which every unsigned file gets, drops it.
 
-A saved loupe holds a copy of its whole page's content, fonts and images included, and shows the part under the lens. If you redact that page later in another tool, the original content stays in the file inside the loupe. On a page with large images the copy also adds to the file's size.
+A saved loupe holds a copy of its whole page's content, fonts and images included, and shows the part under the lens. If you redact that page later in another tool, the original content stays in the file inside the loupe. When Inkbar [applies redactions](#applying-redactions), every loupe it writes gets a copy of the redacted page. A loupe that stays locked keeps its old copy, and the apply then fails (see the limits there). On a page with large images the copy also adds to the file's size.
 
 ### Opening a saved file
 
@@ -231,15 +231,71 @@ When the engine cannot be loaded or cannot write the file, `doc.save()` rejects 
 
 ### Applying redactions
 
-`doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`, the redacted file and what was done. It needs the `engine` option. The engine applies the marks to the file as it was opened:
+`doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`: the redacted file and what was done. It needs the `engine` option. The engine works on the file as it was opened:
 
-1. It removes the text, image samples and drawing under each mark and leaves an opaque box in the mark's fill colour in its place, with the mark's overlay text if it has one.
-2. It removes every annotation a mark overlaps, Inkbar's and the file's own, and writes the other annotations and the changed form values after.
+1. It removes the text, image samples and drawing under each mark, and leaves an opaque box in the mark's fill colour in its place, with the mark's overlay text if it has one.
+2. It removes every annotation a mark overlaps, Inkbar's and the file's own, except masks and other programs' redaction marks, which stay. Then it writes the other annotations and the changed form values.
 3. It removes the file's metadata, attached files, scripts, page thumbnails and private application data.
 4. It rewrites the whole file, so no earlier version stays inside it.
-5. It checks the bytes it wrote under each mark. The check reads the file's objects, so content hidden under an opaque box counts.
+5. It checks the saved bytes under each mark. The check reads the file's objects, so content hidden under an opaque box counts. When it finds anything, the apply fails and hands nothing over.
 
-The open document does not change: its annotations, `doc.changed`, `doc.save()` and `doc.getData()` stay as they were. To show the redacted file, open the bytes. Marks Inkbar saved earlier count as marks, and in an encrypted file, where they come back locked, the engine applies them too. Redact annotations from other programs are left in place and counted.
+The apply covers every mark of the session. Marks Inkbar saved earlier count as marks, and in an encrypted file, where they come back locked, the engine applies them too. Redact annotations from other programs stay in the file, unapplied, and are counted. Download, Print and `doc.save()` never apply a mark.
+
+The open document does not change: its annotations, `doc.changed`, `doc.save()` and `doc.getData()` stay as they were. To show the redacted file, open the bytes. From the model, with a confirmation of your own:
+
+```ts
+const preview = doc.redactionPreview()
+if (await ask(preview)) {
+  const { bytes, result } = await doc.applyRedactions()
+  await upload(bytes)
+}
+```
+
+`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: `marks`, `pages`, `overlapped` (the other annotations the marks overlap) and `signed`. In an encrypted file, `lockedMarks` counts the locked Redact annotations. Some may be marks Inkbar saved earlier, which the apply removes the content under. Others may come from other programs, which core cannot tell apart; `result.ownLockedMarks` says how many were applied.
+
+An apply never overlaps a save. A save that has started writing finishes first; one that has not may run after the apply. A second call while an apply runs gets the same promise.
+
+In a viewer, `createApplyRedactionsButton(viewer)` is the control, and `viewer.applyRedactions()` runs the same action from code:
+
+```ts
+import {
+  createViewer,
+  createToolbar,
+  createToolButton,
+  createApplyRedactionsButton,
+  redactAreaTool,
+} from '@inkbar/core/dom'
+
+const viewer = createViewer(el, {
+  source,
+  assets,
+  tools: [redactAreaTool()],
+  engine: () => import('@inkbar/engine'),
+  onRedacted: ({ bytes }) => store(bytes),
+})
+
+const bar = createToolbar()
+bar.append(createToolButton(viewer, 'redact-area'), createApplyRedactionsButton(viewer))
+viewer.element.prepend(bar)
+```
+
+The button shows "Apply redactions" as text. It is disabled while no document is ready, without the `engine` option and while there is no mark. While the marks are applied it says "Applying redactions…", keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing.
+
+A press, or `viewer.applyRedactions()`, asks first with the built-in "Apply redactions?" dialog. It says how many marks on how many pages will have the content under them removed, and that this cannot be undone. It adds a line when the marks overlap other annotations, which go too, when the file is signed, since its signature will stop verifying, and when an encrypted file holds marks saved earlier, which are applied too. When the only marks are those saved earlier in an encrypted file, the dialog leaves out the count of marks and pages, and the line about earlier marks comes first. Focus starts on Cancel. When the document closes or another opens, the dialog closes and nothing is applied. To ask your own way, pass `redactionConfirm: (preview) => Promise<boolean>` to `createViewer`: it gets `doc.redactionPreview()`, and resolving true applies. `redactionConfirm: false` applies without asking.
+
+The engine refuses a mark over content it cannot remove from the file, before anything changes. The apply removes text, blanks image samples and cuts paths. A file can also define content once and paint it through a reference, and cutting the shape that paints it would leave that content in the file. The engine refuses a mark that touches a shape painted with a tiling pattern, a picture gradient (a mesh or function-based gradient, or a linear or radial gradient whose colour function is not a simple ramp), artwork under a soft mask that holds more than a simple fade, or a Type 3 glyph that paints outside the box it declares. A simple ramp blends from colour to colour in at most eight stretches. A simple fade is a soft mask made of at most four plain rectangles or simple-ramp gradients, which is how gradient transparency is drawn. Hatching and textures are tiling patterns, and drop shadows and feathered edges are usually drawn with soft masks that hold more than a fade. Covering the whole shape does not help. Content under a simple fade, and linear and radial gradients with a simple ramp, are redacted. Move or delete the refused marks and apply again.
+
+When the apply fails, nothing is handed over and the open document stays as it was. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is:
+
+- `'engine'` when the engine could not be loaded or started.
+- `'apply'` when the engine refused the marks, or could not apply them or write the rest. `details.page` and `details.annotation` name the page and the annotation when one was the cause.
+- `'verify'` when the check could not run or did not find every mark's place clean. `details.regions` lists the page and rectangle of each place it did not find clean, and `details.page` names a page the check could not read.
+
+A refusal has `details.reason: 'unremovable-content'`. `details.annotations` lists the ids of every refused mark, `details.annotation` holds the first, `details.kinds` says what was found (`'pattern'`, `'shading'`, `'mask-group'`, `'glyph'`) and `details.page` names the first page. When the engine could not look under the marks, `details.reason` is `'could-not-inspect'`.
+
+In a viewer, a failure shows in the message box, `onError` hears the error, and `viewer.applyRedactions()` resolves with null. For a refusal the message says how many marks cover content that cannot be removed, and the viewer selects them. When only marks saved earlier in an encrypted file caused the refusal, the error names no mark, the viewer selects nothing, and the message says one mark. A failure is not reported once another document is showing or the viewer is destroyed.
+
+After a successful apply, `onRedacted({ bytes, result })` hears the redacted file, which a host that stores files stores. The viewer then reopens on those bytes with the same key, file name, page, zoom, layout mode, rotation and tool, and with the password the file was opened with. The marks are gone, undo history starts over, and Download and Print give the redacted file. Once the redacted file shows, the message box says how many redactions were applied, and adds a line when the file has hidden layers or other programs' marks were left. In controlled mode Inkbar proposes the host's list without the marks and the annotations removed with them, with reason `'redaction'`, and the reopened document starts from that list. If `onRedacted` throws, the reopen still happens and `onError` hears a `RedactionFailed` with `details.callback: 'onRedacted'` and what it threw as its `cause`; an `InkError` it throws reaches `onError` as it is. `viewer.applyRedactions()` resolves with `result`, or with null when the reader cancelled or nothing was applied.
 
 `result` holds:
 
@@ -249,26 +305,23 @@ The open document does not change: its annotations, `doc.changed`, `doc.save()` 
 - `sanitised`: what was removed from the file. `hiddenLayers` and `signed`: whether the file has hidden layers, and whether it held a digital signature.
 - `findings`: what the check found under each mark: places and verdicts, never the file's text.
 
-`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: the marks, their pages, the other annotations they overlap, and whether the file is signed. In an encrypted file, `lockedMarks` counts the locked Redact annotations. Some may be marks Inkbar saved earlier, which the apply removes the content under. Others may come from other programs, which core cannot tell apart; `result.ownLockedMarks` says how many were applied.
+For a host of your own, `runRedaction(doc, { confirm })` asks and applies without reopening anything, and resolves with `{ bytes, result }`, or with null when cancelled or when a run of that document is already going. `canRedact(doc)` and `redactionBusy(doc)` are readables for a control's disabled and busy states, `redactionFailure(error, messages)` gives the words for a failed run, and `createRedactionDialog({ onConfirm, onCancel, messages })` builds the same dialog. To build your own viewer or framework binding, `applyRedactionsFlow(doc, opts)` runs what `viewer.applyRedactions()` does up to the reopen and tells you what to open, with the view to keep and the message to show; `redactionDoneMessage(result, messages)` gives that message on its own. A controlled host with a snapshot history calls `history.replaced()` (from `createSnapshotHistory`) in the flow's `proposed` hook, so the host's answer to the `'redaction'` proposal starts the history again instead of being an undo step.
 
-When it fails, nothing is handed over. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is `'engine'` when the engine could not be loaded or started, `'apply'` when it could not apply the marks or write the rest, and `'verify'` when the check could not run or did not find every mark's place clean. `details.page` and `details.annotation` name the page and the annotation when one was the cause, and at `'verify'` `details.regions` lists the page and rectangle of each mark the check did not find clean.
-
-Some content cannot be removed by the apply: a shape painted with a tiling pattern, a mesh or function-based gradient, artwork with a soft mask that holds content under a mark, and a Type 3 glyph that paints outside its box. The engine asks what lies under every mark before it changes anything, and refuses the whole apply when a mark covers such content. `RedactionFailed` then has `details.stage: 'apply'` and `details.reason: 'unremovable-content'`. `details.annotations` lists the ids of every such mark, `details.annotation` holds the first, `details.kinds` says what was found (`'pattern'`, `'shading'`, `'mask-group'`, `'glyph'`) and `details.page` names the first page. Move or delete those marks and apply again. When the engine cannot look under the marks, `details.reason` is `'could-not-inspect'`. The viewer says how many marks cover such content and selects them.
-
-In `createViewer`, `viewer.applyRedactions()` runs the whole action: it asks first, applies the marks, then reopens the viewer on the redacted file. The confirmation is the built-in "Apply redactions?" dialog. It names the marks and their pages, says the change cannot be undone, and adds a line when the marks overlap other annotations, when the file is signed and when an encrypted file holds earlier marks. Focus starts on Cancel. When the document closes or another opens, the dialog closes and nothing is applied. After the apply, `onRedacted({ bytes, result })` hears the redacted file, which a host that stores files stores. The viewer then reopens on those bytes with the same key, file name, page, zoom, layout mode, rotation and tool, and with the password the file was opened with. If `onRedacted` throws, the reopen still happens and `onError` hears a `RedactionFailed` whose `cause` is what it threw. The marks are gone, undo history starts over, and Download and Print give the redacted file. Once the redacted file shows, the message box says how many redactions were applied, and adds a line when the file has hidden layers or other programs' marks were left. In controlled mode the host is proposed its list without the marks and the annotations removed with them, with reason `'redaction'`, and the reopened document starts from that list. `viewer.applyRedactions()` resolves with `result`, or with null when the reader cancelled or nothing was applied. A failure leaves the document as it was: the message box says why, `onError` hears the error, and the promise resolves with null. A failure is not reported once another document is showing or the viewer is destroyed.
-
-`createApplyRedactionsButton(viewer)` is the control. It shows "Apply redactions" as text, and it is disabled while no document is ready, without the `engine` option and while there is no mark. While the marks are applied it says "Applying redactions…", keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing. To ask your own way, pass `redactionConfirm: (preview) => Promise<boolean>` to `createViewer`, which gets `doc.redactionPreview()`; resolve true to apply. `redactionConfirm: false` applies without asking. For a host of your own, `runRedaction(doc, { confirm })` asks and applies without reopening anything, and resolves with `{ bytes, result }` or with null when cancelled or when a run of that document is already going. `canRedact(doc)` and `redactionBusy(doc)` are readables for a control's disabled and busy states, `redactionFailure(error, messages)` gives the words for a failed run, and `createRedactionDialog({ onConfirm, onCancel, messages })` builds the same dialog. To build your own viewer or framework binding, `applyRedactionsFlow(doc, opts)` runs what `viewer.applyRedactions()` does up to the reopen and tells you what to open, with the view to keep and the message to show; `redactionDoneMessage(result, messages)` gives that message on its own. A controlled host with a snapshot history calls `history.replaced()` (from `createSnapshotHistory`) in the flow's `proposed` hook, so the host's answer to the `'redaction'` proposal starts the history again instead of being an undo step.
-
-An apply never overlaps a save. A save that has started writing finishes first; one that has not may run after the apply. A second call while an apply runs gets the same promise.
+The words are in the `viewer` group of `messages` (see [Translations](#translations)): `applyRedactions` and `redacting` for the button; `redactTitle`, `redactSummary`, `redactLocked`, `redactPermanent`, `redactOverlapped`, `redactSigned`, `redactConfirm` and `redactCancel` for the dialog; `redactFailed`, `redactUnremovable`, `redactUnverified` and `redactUnavailable` for a failure; and `redactDone`, `redactHiddenLayers` and `redactForeign` for the message once the redacted file shows.
 
 Known limits:
 
-- Hidden layers are not cleaned.
+- Inkbar does not clean hidden layers. `result.hiddenLayers` says when the file has them, and the viewer's message says so too.
 - The removed words may also appear where Inkbar does not look: bookmark titles, comments on other annotations, form values, alternate text for screen readers.
+- Inkbar removes what lies under a mark. It does not find copies of that content hidden elsewhere in the file: a second use of the same graphic that is cropped, covered or on another page, or a pattern or gradient that another page also uses.
 - A scanned page is one image: a mark removes the pixels under it, and there is no text to remove. OCR text layers are removed like any text.
 - Scripts are removed, so forms stop calculating.
 - A signed file's signature stops verifying.
-- Inkbar removes what lies under a mark. It refuses marks over patterns, mesh and function-based gradients and soft-masked artwork. It does not look for copies of the content hidden elsewhere in the file.
+- The engine refuses a mark over patterned fills, picture gradients, soft-masked artwork that holds more than a simple fade, and out-of-box Type 3 glyphs, as described above, even when the mark covers the whole shape.
+- An Inkbar loupe that comes back locked, in an encrypted file or after another program edited it, keeps a copy of its page made before the apply. When that page has a mark and no mark overlaps the loupe, the check reads the copy, finds what lay under the mark, and the apply fails with `RedactionFailed` at `stage: 'verify'`. The apply removes every annotation a mark overlaps, locked ones included, so drawing a mark over the loupe as well lets the apply go through. For a loupe another program edited, you can also delete it in that program. For an encrypted file, you can also save a copy without the password in another program and redact that: Inkbar's loupes come back editable there, unless that program changed them, and the apply rewrites them.
+- Text set at an angle close to a mark's edge can make the check fail, though the apply removed everything under the mark (20-point text beside a turned mark, for example). Move the mark a little further from that text.
+- The check also fails, and the reader sees "Some content could not be removed", for an image that has both a soft mask and a separate stencil mask, and it can fail for a very low-quality JPEG.
+- A crafted file can make the apply and its check take a long time. To check files from elsewhere, run `checkRedaction` from [`@inkbar/engine`](https://github.com/inkbar/inkbar/tree/main/packages/engine#checking-a-redaction) on an engine of its own, in its own worker, with a timeout.
 
 ## Annotation changes
 
