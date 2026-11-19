@@ -149,8 +149,12 @@ export default defineConfig(
   },
   {
     name: 'inkbar/pdfjs-quarantine',
-    // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
-    files: ['packages/**/*.{ts,mts,tsx,vue,svelte}', 'apps/**/*.{ts,mts,tsx,vue,svelte}'],
+    // Shipped code, apps and the parity suite reach PDF.js only through @inkbar/core's loader.
+    files: [
+      'packages/**/*.{ts,mts,tsx,vue,svelte}',
+      'apps/**/*.{ts,mts,tsx,vue,svelte}',
+      'parity/**/*.ts',
+    ],
     // The engine's save round-trip test uses PDF.js as an independent reader of saved files.
     ignores: ['packages/core/src/pdfjs/**', 'packages/engine/src/save.fixtures.test.ts'],
     rules: {

@@ -1,0 +1,23 @@
+{
+  "name": "@inkbar/parity",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run --project node",
+    "test:browser": "vitest run --project browser"
+  },
+  "devDependencies": {
+    "@inkbar/core": "workspace:*",
+    "@inkbar/engine": "workspace:*",
+    "@inkbar/fixtures": "workspace:*",
+    "@inkbar/fonts": "^1.0.0",
+    "@vitest/browser-playwright": "^5.0.4",
+    "playwright": "1.62.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

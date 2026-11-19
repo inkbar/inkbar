@@ -11,7 +11,8 @@
     "./generate-large": "./generate-large.ts",
     "./other-program": "./other-program.ts",
     "./qpdf": "./qpdf.ts",
-    "./pdf-bytes": "./pdf-bytes.ts"
+    "./pdf-bytes": "./pdf-bytes.ts",
+    "./manifest.json": "./manifest.json"
   },
   "scripts": {
     "generate": "tsx generate.ts",

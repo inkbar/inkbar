@@ -73,7 +73,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [core, engine, vue, react, svelte, e2e-vue, e2e-react, e2e-svelte]
+        package:
+          [core, engine, parity, vue, react, svelte, e2e-vue, e2e-react, e2e-svelte]
         include:
           - package: sandbox
             shard: 1
@@ -121,6 +122,7 @@ jobs:
             packages/*/test-results
             apps/*/test-results
             packages/*/src/**/__screenshots__
+            parity/.vitest/attachments
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
