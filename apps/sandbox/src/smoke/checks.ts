@@ -12,7 +12,7 @@ import { SkipCheck, type SmokeCheck } from './run.ts'
 
 import type { Front, MountFront } from './front.ts'
 import type { InkDocument, Quad, RedactionResult } from '@inkbar/core'
-import type { Engine } from '@inkbar/engine'
+import type { Engine, WriteInput } from '@inkbar/engine'
 
 const BASE = import.meta.env.BASE_URL
 /** One page of three made-up customer records. */
@@ -116,6 +116,123 @@ const pressEnter = (el: Element): boolean =>
   el.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
   )
+
+/** Milliseconds since `from`, rounded. */
+const since = (from: number): number => Math.round(performance.now() - from)
+
+/** The fields the form check changes and the ones its scripts calculate from them. */
+const FORM_FIELDS = ['name', 'price', 'qty', 'total', 'due']
+
+/**
+ * The engine's open, write, save and destroy on `bytes`, each timed, on an engine of its own:
+ * the path a save takes, without the rest of the library around it.
+ */
+async function engineStages(
+  label: string,
+  bytes: Uint8Array,
+  input: WriteInput
+): Promise<string> {
+  const parts: string[] = []
+  let at = performance.now()
+  try {
+    const { createEngine } = await import('@inkbar/engine')
+    const engine = await createEngine()
+    parts.push(`start ${since(at)} ms`)
+    try {
+      at = performance.now()
+      const doc = await engine.open(bytes.slice())
+      parts.push(`open ${since(at)} ms`)
+      at = performance.now()
+      await doc.write(input)
+      parts.push(`write ${since(at)} ms`)
+      at = performance.now()
+      await doc.save()
+      parts.push(`save ${since(at)} ms`)
+      await doc.close()
+    } finally {
+      at = performance.now()
+      await engine.destroy()
+      parts.push(`destroy ${since(at)} ms`)
+    }
+  } catch (error) {
+    parts.push(`failed after ${since(at)} ms: ${String(error)}`)
+  }
+  return `${label}: ${parts.join(', ')}`
+}
+
+/**
+ * Before the timed save: how long PDF.js takes to hand over the file's bytes (the queue the save
+ * waits in), then the engine path on those bytes with the form values the save writes.
+ */
+async function stagesBeforeSave(
+  doc: InkDocument,
+  note: (text: string) => void
+): Promise<void> {
+  try {
+    const at = performance.now()
+    const bytes = await doc.getData()
+    note(`getData ${since(at)} ms`)
+    const formatted = doc.form.formatted.get()
+    const fields: Record<string, { value: string; text?: string }> = {}
+    for (const name of FORM_FIELDS) {
+      const value = doc.form.get(name)
+      if (typeof value !== 'string' && typeof value !== 'number') continue
+      const text = formatted[name]
+      fields[name] = { value: String(value), ...(text ? { text } : {}) }
+    }
+    note(
+      await engineStages(
+        `own engine, form, ${Object.keys(fields).length} fields`,
+        bytes,
+        { fields }
+      )
+    )
+  } catch (error) {
+    note(`the stages before the save failed: ${String(error)}`)
+  }
+}
+
+/**
+ * After the timed save: a second save with nothing changed (the library keeps the written copy
+ * until the next change), and the engine path on the records file with one annotation, for
+ * contrast with the form.
+ */
+async function stagesAfterSave(
+  doc: InkDocument,
+  note: (text: string) => void
+): Promise<void> {
+  try {
+    const at = performance.now()
+    await doc.save()
+    note(`second save, nothing changed: ${since(at)} ms`)
+    const response = await fetch(RECORDS)
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    const rect = { x: 72, y: 72, width: 40, height: 20 }
+    const square: WriteInput = {
+      annotations: [
+        {
+          page: 0,
+          annotation: {
+            id: 'smoke-square',
+            type: 'square',
+            page: 0,
+            rect,
+            opacity: 1,
+            width: 1,
+          },
+          appearance: {
+            bounds: rect,
+            content: new TextEncoder().encode('0 G 1 w 72.5 72.5 39 19 re S'),
+          },
+          data: '{}',
+        },
+      ],
+    }
+    note(await engineStages('own engine, records file, 1 annotation', bytes, square))
+  } catch (error) {
+    note(`the stages after the save failed: ${String(error)}`)
+  }
+}
 
 /** Opens `bytes` with core on their own, for reading back: no viewer, no engine. */
 async function reopen(bytes: Uint8Array): Promise<InkDocument> {
@@ -617,13 +734,21 @@ export function smokeChecks(
       timeout: 45_000,
       async run(note) {
         if (!formOpen) throw new SkipCheck('skipped: the form did not open')
+        const viewed = currentDoc()
+        // Notes only: where a slow save spends its time, stage by stage. They never fail the
+        // check.
+        note(
+          `${navigator.hardwareConcurrency} logical processors, ${crossOriginIsolated ? '' : 'not '}cross-origin isolated`
+        )
+        await stagesBeforeSave(viewed, note)
         const t0 = performance.now()
-        const formSaved = await currentDoc().save()
+        const formSaved = await viewed.save()
         const t1 = performance.now()
         // The reopened form starts its own script sandbox before it is ready.
         const doc = await reopen(formSaved)
         const t2 = performance.now()
         note(`save ${Math.round(t1 - t0)} ms, reopen ${Math.round(t2 - t1)} ms`)
+        await stagesAfterSave(viewed, note)
         try {
           assert(
             doc.form.get('name') === 'Robin Hale',
