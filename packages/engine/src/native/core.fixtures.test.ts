@@ -65,7 +65,11 @@ describe.each(Object.entries(manifest))('%s', (name, meta) => {
       expect(page.width).toBe(Math.ceil(turned ? info.height : info.width))
       expect(page.height).toBe(Math.ceil(turned ? info.width : info.height))
       expect(page.data.length).toBe(page.width * page.height * 4)
-      expect(page.data.some((v, i) => i % 4 !== 3 && v !== 255)).toBe(true)
+      // A recorded difference is a blank page where PDF.js draws content: when the engine draws
+      // it, the test fails and the note in the manifest goes.
+      expect(page.data.some((v, i) => i % 4 !== 3 && v !== 255)).toBe(
+        meta.engine?.render === undefined
+      )
       expect(page.data.every((v, i) => i % 4 !== 3 || v === 255)).toBe(true)
     } finally {
       core.close(id)

@@ -37,7 +37,13 @@ export interface FixtureMeta {
   features?: string[]
   annotations?: Record<string, number>
   /** Where the PDFium engine is known to behave differently, and why. Absent when it does not. */
-  engine?: { open?: string; saveRewrite?: string; saveIncremental?: string }
+  engine?: {
+    open?: string
+    saveRewrite?: string
+    saveIncremental?: string
+    /** Set when the engine draws a blank first page where PDF.js draws content: what each draws. */
+    render?: string
+  }
   /** Words under the `regions` that must be gone once the regions are redacted. */
   secrets?: string[]
   /** Page text beside the `regions` that must survive their redaction. */

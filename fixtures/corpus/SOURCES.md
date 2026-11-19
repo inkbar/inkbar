@@ -78,5 +78,10 @@ byte offsets and writes nothing else.
 | `bug_1976.pdf`                       | `pixel/bug_1976.in (expanded)`                       | soft-mask                                           |
 | `bug_1399.pdf`                       | `bug_1399.pdf`                                       | cropped-page, dash                                  |
 | `annots.pdf`                         | `annots.pdf`                                         | cropped-page                                        |
+| `axial_shading_zero_axis.pdf`        | `pixel/axial_shading_zero_axis.in (expanded)`        | axial-shading                                       |
+| `bug_1302355.pdf`                    | `bug_1302355.pdf`                                    | blend-mode                                          |
+| `smask_blend.pdf`                    | `pixel/smask_blend.in (expanded)`                    | blend-mode, soft-mask                               |
 
 What each file draws is in `fixtures/manifest.json`, under the file's `describes` entry.
+
+The `soft-mask` feature covers both kinds of soft mask: an image's own `/SMask` and a graphics state's `/SMask` dictionary. The file's `describes` entry says which kind it has.

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { holdsText } from './pdf-bytes'
 import { qpdfQdf } from './qpdf'
+import { fixtureFileForUrl } from './vite-serve'
 
 import {
   FIXTURE_NAMES,
@@ -364,5 +365,23 @@ describe('corpus fixtures', () => {
   it('claims only the features it lists', () => {
     const covered = new Set(corpus.flatMap((name) => manifest[name].features ?? []))
     for (const feature of covered) expect(CORPUS_FEATURES, feature).toContain(feature)
+  })
+})
+
+describe('fixture URLs', () => {
+  it('map to the file the server streams, for every fixture', () => {
+    for (const name of FIXTURE_NAMES)
+      expect(fixtureFileForUrl(`${fixtureUrl(name)}?v=1`), name).toBe(fixturePath(name))
+  })
+
+  it('send a corpus name to the corpus directory', () => {
+    expect(fixtureFileForUrl(fixtureUrl('corpus-bug-1883'))).toMatch(
+      /[\\/]fixtures[\\/]corpus[\\/]bug_1883\.pdf$/
+    )
+  })
+
+  it('leave other URLs, and unknown corpus names, to the next handler', () => {
+    expect(fixtureFileForUrl('/pdfjs/build/pdf.mjs')).toBeUndefined()
+    expect(fixtureFileForUrl('/fixtures/corpus-nothing-here.pdf')).toBeUndefined()
   })
 })
