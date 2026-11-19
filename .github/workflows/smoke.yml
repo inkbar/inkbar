@@ -2,7 +2,8 @@ name: smoke
 
 # The smoke page (apps/sandbox/src/smoke/) in real browsers: Safari on a Mac, and phones, tablets
 # and Windows browsers on BrowserStack. It runs on release pull requests, on pull requests that
-# change the smoke check itself, and by hand. It is not a required check.
+# change the smoke check itself or the sandbox files it uses, and by hand. It is not a required
+# check.
 on:
   pull_request:
   workflow_dispatch:
@@ -36,7 +37,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           HEAD_REF: ${{ github.head_ref }}
         run: |
-          paths='^(\.github/workflows/smoke\.yml|apps/smoke/|apps/sandbox/smoke/|apps/sandbox/src/smoke/)'
+          paths='^(\.github/workflows/smoke\.yml|apps/smoke/|apps/sandbox/smoke/|apps/sandbox/src/smoke/|apps/sandbox/src/shared/|apps/sandbox/vite/)'
           if [ "$EVENT" != pull_request ]; then
             echo run=true >> "$GITHUB_OUTPUT"
           elif [[ "$HEAD_REF" == release-please--* ]]; then
