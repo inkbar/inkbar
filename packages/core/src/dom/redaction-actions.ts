@@ -5,13 +5,8 @@
  * through `applyRedactionsFlow` and its own load.
  */
 import { InkError, isInkError } from '../model/errors'
-import {
-  derived,
-  readonly,
-  writable,
-  type Readable,
-  type Writable,
-} from '../model/readable'
+import { derived, readonly, type Readable, type Writable } from '../model/readable'
+import { redactionApplying } from '../model/redaction/busy'
 
 import type { InkMessages } from '../messages'
 import type { LayoutMode } from './layout'
@@ -60,7 +55,8 @@ const holdsMarks = (doc: InkDocument): boolean =>
 function stateOf(doc: InkDocument): RedactionState {
   let found = stateByDoc.get(doc)
   if (!found) {
-    const busy = writable(false)
+    // Kept by the annotation store, where the model reads it too.
+    const busy = redactionApplying(doc.annotations)
     found = { busy, busyView: readonly(busy), can: undefined, running: false }
     stateByDoc.set(doc, found)
   }

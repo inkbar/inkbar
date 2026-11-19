@@ -40,6 +40,8 @@ function docOf(
     save,
     _saves: !!saves,
     status: writable({ state } as DocumentStatus),
+    // Keeps the document's redaction busy flag, which download and print read.
+    annotations: {},
   } as unknown as InkDocument
   return Object.assign(doc, { getDataMock: getData, saveMock: save })
 }

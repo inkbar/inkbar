@@ -565,9 +565,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       const id = activated.get()
       if (id !== null && !store.get(id)) activated.set(null)
     })
-    // While the marks are applied no thread is open: a reply written then would be lost.
+    // While the marks are applied no thread or signature menu is open: what they wrote then
+    // would be lost.
     const stopApplying = redactionBusy(doc).subscribe((on) => {
-      if (on) activated.set(null)
+      if (!on) return
+      activated.set(null)
+      signFieldMenu?.close()
     })
     // A failed script leaves the form fillable; its error reaches the host. Subscribed first,
     // so the form replays the errors from while the document opened here, and they are held

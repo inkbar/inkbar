@@ -2969,6 +2969,25 @@ describe('forms', () => {
     expect(button.hasAttribute('data-state')).toBe(false)
   })
 
+  it('an open signature menu closes when redaction marks start being applied', async () => {
+    const { viewer, doc, button } = await signatures({ onError: () => undefined })
+    button.click()
+    expect(fieldMenu('sig')).not.toBeNull()
+    let fail!: () => void
+    vi.spyOn(doc, 'applyRedactions').mockReturnValue(
+      new Promise<never>((_, reject) => {
+        fail = () => reject(new InkError('RedactionFailed', 'held', { stage: 'apply' }))
+      })
+    )
+    const applying = viewer.applyRedactions()
+    await until(() => redactionBusy(doc).get())
+    expect(fieldMenu('sig')).toBeNull()
+    fail()
+    await expect(applying).resolves.toBeNull()
+    button.click()
+    expect(fieldMenu('sig')).not.toBeNull()
+  })
+
   it('picking a template signs the field', async () => {
     const { viewer, doc, button } = await signatures()
     button.click()
