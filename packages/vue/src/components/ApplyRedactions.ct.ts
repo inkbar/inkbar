@@ -257,6 +257,57 @@ test('an empty new note open when an apply starts from code is not written into 
   )
 })
 
+const activeIsScroll = (page: Page) =>
+  page.evaluate(
+    () => document.activeElement === document.querySelector('[data-ink-scroll]')
+  )
+const alertBox = (page: Page) => page.locator('[data-ink-form-alert-message]')
+
+test('focus goes to the document once the redacted file shows, not to the page body', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.focus()
+  await apply.press('Enter')
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(alertBox(page)).toHaveText('1 redaction applied.')
+  await page.locator('[data-ink-form-alert-ok]').click()
+  await expect(alertBox(page)).toHaveCount(0)
+  await expect.poll(() => activeIsScroll(page)).toBe(true)
+})
+
+test('focus goes to the document when a failed apply’s message closes and the control cannot take it', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const id = await mark(page)
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.focus()
+  await apply.press('Enter')
+  await expect.poll(() => writing(page)).toBe(true)
+  // The host removes the mark meanwhile: the control is disabled once the apply has failed.
+  await unmark(page, id)
+  await page.evaluate(() => window.__heldEngine!.fail())
+  await expect(alertBox(page)).toHaveText(
+    'The redactions could not be applied. Nothing was changed.'
+  )
+  await expect(apply).toBeDisabled()
+  await page.locator('[data-ink-form-alert-ok]').click()
+  await expect(alertBox(page)).toHaveCount(0)
+  await expect.poll(() => activeIsScroll(page)).toBe(true)
+})
+
 test('keeps the tool across the reopen', async ({ mount, page }) => {
   const cmp = await mount(Harness, {
     props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },

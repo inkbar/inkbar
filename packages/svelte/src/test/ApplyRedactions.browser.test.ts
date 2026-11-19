@@ -391,6 +391,48 @@ describe('InkApplyRedactions', () => {
     await expect.poll(alertText).toBe('1 redaction applied.')
   })
 
+  const activeIsScroll = () =>
+    document.activeElement === document.querySelector('[data-ink-scroll]')
+
+  it('focus goes to the document once the redacted file shows, not to the page body', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => held.writing()).toBe(true)
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(alertText).toBeNull()
+    await expect.poll(activeIsScroll).toBe(true)
+  })
+
+  it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    const id = mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    const apply = document.querySelector<HTMLButtonElement>(APPLY)!
+    apply.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => held.writing()).toBe(true)
+    // The host removes the mark meanwhile: the control is disabled once the apply has failed.
+    currentDoc()!.annotations.remove(id)
+    held.fail()
+    await expect
+      .poll(alertText)
+      .toBe('The redactions could not be applied. Nothing was changed.')
+    await expect.poll(disabledOf(APPLY)).toBe(true)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(alertText).toBeNull()
+    await expect.poll(activeIsScroll).toBe(true)
+  })
+
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
     await render(RedactionHarness, { src, assets, engine: held.loader })

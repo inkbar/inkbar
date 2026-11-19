@@ -4139,6 +4139,47 @@ describe('applying redactions', () => {
     expect(alertText()).toBe('1 redaction applied.')
   })
 
+  it('focus goes to the document once the redacted file shows, not to the page body', async () => {
+    const { viewer } = make('redact-text', { engine: realEngine() })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    control.focus()
+    control.click()
+    await until(() => dialog() !== null)
+    dialog()!.querySelector<HTMLButtonElement>('[data-ink-redaction-confirm]')!.click()
+    await reopened(viewer, doc)
+    await until(() => alertText() !== null)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await settle()
+    expect(document.activeElement).toBe(viewer.element.querySelector('[data-ink-scroll]'))
+  })
+
+  it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
+    const { viewer } = make('redact-text', {
+      engine: failingCheck,
+      redactionConfirm: false,
+      onError: () => undefined,
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    const mark = markSecret(doc)
+    control.focus()
+    // The host removes the mark once the apply has started: the control is disabled after.
+    const removing = redactionBusy(doc).subscribe((on) => {
+      if (on) queueMicrotask(() => doc.annotations.remove(mark.id))
+    })
+    control.click()
+    await until(() => alertText() !== null)
+    removing()
+    expect(control.disabled).toBe(true)
+    document.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await settle()
+    expect(document.activeElement).toBe(viewer.element.querySelector('[data-ink-scroll]'))
+  })
+
   it('a reopen that fails shows only the open failure', async () => {
     const errors: InkError[] = []
     /** The real engine, whose redacted bytes are spoiled once the check has passed them. */
