@@ -17,10 +17,11 @@ export interface RedactionHandle {
   busy: Readonly<Ref<boolean>>
   /**
    * Asks first (InkRoot's `redactionConfirm`), applies the marks, emits InkRoot's `redacted`
-   * and shows the redacted file. Resolves with what was done, or null when the reader
-   * cancelled, nothing was applied, the apply failed, or the root unmounted or another
-   * document opened while it ran. A failure is shown in InkViewport's
-   * message box and emitted as InkRoot's `error`; it never rejects.
+   * and shows the redacted file. Resolves with what was done once `redacted` has been emitted,
+   * even when the root unmounted or another document opened after that. Resolves with null
+   * when the reader cancelled, an apply was already running, the apply failed, or the root
+   * unmounted or another document opened before `redacted` was emitted. A failure is shown in
+   * InkViewport's message box and emitted as InkRoot's `error`; it never rejects.
    */
   apply: () => Promise<RedactionResult | null>
 }

@@ -9,7 +9,8 @@
  * one that follows a `redacted` event waits for the page to call `window.__releaseAnswer()`,
  * and with `never` it is dropped. Their types show in `list`, and the types of every proposal
  * the host hears in `proposals` (one list per `|`). `disabled` is the host's own `disabled` on
- * the control. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
+ * the control, and `prevent` a `click` listener on it that calls `preventDefault()`. The
+ * toolbar holds Download and Print too. `swap` is a source the `redacted` listener passes as the new `src`. A `retry` button submits the password prompt, which opens the document's source
  * again. The codes of the errors the root emits show in `errors`, the `redacted` events in
  * `redacted`, and `useRedaction` in `probe`.
  */
@@ -17,6 +18,8 @@ import { allTools } from '@inkbar/core/dom'
 import { computed, ref, shallowRef } from 'vue'
 
 import InkApplyRedactions from '../../src/components/InkApplyRedactions.vue'
+import InkDownloadButton from '../../src/components/InkDownloadButton.vue'
+import InkPrintButton from '../../src/components/InkPrintButton.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkToolButton from '../../src/components/InkToolButton.vue'
@@ -46,6 +49,7 @@ const props = withDefaults(
     shown?: boolean
     controlled?: 'now' | 'late' | 'never' | undefined
     disabled?: boolean
+    prevent?: boolean
     swap?: DocumentSource | undefined
   }>(),
   {
@@ -130,7 +134,12 @@ function onRedacted(): void {
             {{ label }}
           </button>
         </InkApplyRedactions>
-        <InkApplyRedactions v-else />
+        <InkApplyRedactions
+          v-else
+          @click="(e: MouseEvent) => prevent && e.preventDefault()"
+        />
+        <InkDownloadButton />
+        <InkPrintButton />
       </InkToolbar>
       <!-- Test-only box: the scroll container needs a bounded height. -->
       <div style="height: 400px; width: 600px"><InkViewport /></div>

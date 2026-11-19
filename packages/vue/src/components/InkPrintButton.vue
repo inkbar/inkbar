@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /*
  * Prints the open document's file with the browser's own PDF viewer (on iOS, in a new
- * tab). Disabled until the document is ready. It prints what InkDownloadButton downloads, is
- * busy while a copy is written as that button is, and reports a failure the same way.
+ * tab). Disabled until the document is ready, and while its redaction marks are applied. It
+ * prints what InkDownloadButton downloads, is busy while a copy is written as that button is,
+ * and reports a failure the same way.
  */
-import { fileBusy, printDocument } from '@inkbar/core/dom'
+import { fileBusy, printDocument, redactionBusy } from '@inkbar/core/dom'
 import { Printer } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -24,6 +25,11 @@ const ready = computed(
 )
 const busy = useReadable(
   () => (ctx.document.value ? fileBusy(ctx.document.value) : null),
+  false
+)
+/** The document's redaction marks are being applied: its file is about to be replaced. */
+const redacting = useReadable(
+  () => (ctx.document.value ? redactionBusy(ctx.document.value) : null),
   false
 )
 
@@ -47,7 +53,7 @@ const attrs = computed(() => ({
 <template>
   <ToolbarButton
     :as-child="asChild"
-    :disabled="!ready && !busy"
+    :disabled="redacting || (!ready && !busy)"
     class="ink-print"
     data-ink-print
     v-bind="attrs"

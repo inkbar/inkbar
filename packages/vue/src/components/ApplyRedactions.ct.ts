@@ -447,3 +447,70 @@ test("the slot's disabled follows the host's own disabled", async ({ mount, page
   await expect(own).toBeDisabled()
   await expect(own).toHaveAttribute('data-disabled', 'true')
 })
+
+test('Download and Print are disabled while the marks are applied', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const download = cmp.locator('[data-ink-download]')
+  const print = cmp.locator('[data-ink-print]')
+  await mark(page)
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await expect(download).toBeDisabled()
+  await expect(print).toBeDisabled()
+  await page.evaluate(() => window.__heldEngine!.fail())
+  await expect(cmp.getByTestId('errors')).toHaveText('RedactionFailed')
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+})
+
+test('a click listener that prevents the default stops the apply', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', prevent: true },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.click()
+  await page.waitForTimeout(200)
+  expect(await writing(page)).toBe(false)
+  await expect(apply).toHaveAttribute('aria-busy', 'false')
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+})
+
+test('controlled: a mark added while the apply runs stays in the proposed list', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', controlled: 'now' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const list = cmp.getByTestId('list')
+  await mark(page)
+  await expect(list).toHaveText('redact')
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  // The pages take no input meanwhile; the host's own code still adds a mark.
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute('inert', '')
+  await mark(page)
+  await expect(list).toHaveText('redact redact')
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await expect(cmp.getByTestId('proposals')).toHaveText('redact|redact redact|redact')
+  await expect(list).toHaveText('redact')
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(1)
+  await expect(cmp.locator('[data-ink-scroll]')).not.toHaveAttribute('inert')
+})
