@@ -476,16 +476,22 @@
       lastSource === null || lastSource.identity !== id || lastSource.password !== pw
     lastSource = { identity: id, password: pw }
     // The redacted file stood in for the old source only.
-    if (newSource) reopened = null
+    if (newSource) {
+      reopened = null
+      toTell = null
+    }
     const re = reopened
-    // The list and the view are for the first open of the redacted file only: a later open of
-    // it (a password attempt) starts as any open does.
-    if (re && (re.initial || re.view))
-      reopened = { ...re, initial: undefined, view: undefined }
     // A new source: the host's list is its own again.
     if (!re) staleHost = null
+    // The list, the view and the message are for the first open of the redacted file only: a
+    // later open of it (a password attempt) starts as any open does. They are spent once that
+    // open has a document, so an open that runs again before then still has them.
     const done = re ? toTell : null
-    toTell = null
+    const spend = (): void => {
+      if (re && reopened === re && (re.initial || re.view))
+        reopened = { ...re, initial: undefined, view: undefined }
+      if (done !== null && toTell === done) toTell = null
+    }
     if (newSource || tried === startedAttempt) {
       retryPassword = null
       untrack(() => prompt.reset())
@@ -581,6 +587,7 @@
           return
         }
         opened = doc
+        spend()
         if (re?.view) keptViews.set(doc, re.view)
         // The prop may have changed while the file loaded, when there was no store to apply it to.
         const current = hostList()

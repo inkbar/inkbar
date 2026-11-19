@@ -673,6 +673,33 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     }
   })
 
+  it('a second open while the redacted file loads keeps the view, the list and the message', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, {
+      src,
+      assets,
+      engine: held.loader,
+      controlled: 'bound',
+    })
+    await firstPage()
+    document.querySelector<HTMLButtonElement>('[data-tool="redact-area"]')!.click()
+    await expect.poll(attr('[data-ink-tool]', 'data-ink-tool')).toBe('redact-area')
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    // Once the old document has closed, and before the redacted one is ready, the open runs
+    // again.
+    const before = currentDoc()
+    held.finish()
+    await vi.waitUntil(() => currentDoc() !== before, { interval: 0 })
+    document.querySelector<HTMLButtonElement>('[data-testid="retry"]')!.click()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    expect(attr('[data-ink-tool]', 'data-ink-tool')()).toBe('redact-area')
+    await expect.poll(text('list')).toBe('')
+    expect(count(MARKS)()).toBe(0)
+  })
+
   it('opening the redacted file again uses the kept view and the proposed list once', async () => {
     const held = heldEngine()
     await render(RedactionHarness, {
