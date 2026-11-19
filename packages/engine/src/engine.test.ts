@@ -583,6 +583,7 @@ describe('fallback fonts', () => {
   async function fontEngine(fallbackFonts?: EngineOptions['fallbackFonts']) {
     const native = await loadNative({ wasm })
     const registered = new Set<FontKey>()
+    const pageNeeds = vi.fn(native.fn.INK_Fonts_PageNeeds)
     const fn: Native = {
       ...native.fn,
       INK_Fonts_Register: (bit, data, size) => {
@@ -590,6 +591,7 @@ describe('fallback fonts', () => {
         if (ok) for (const key of keysOf(bit)) registered.add(key)
         return ok
       },
+      INK_Fonts_PageNeeds: pageNeeds,
     }
     const core = new EngineCore(
       withFunctions(native, fn),
@@ -601,8 +603,54 @@ describe('fallback fonts', () => {
       expect(missed.filter((key) => registered.has(key))).toEqual([])
       return missed
     }
-    return { engine: fonts, registered, misses }
+    return { engine: fonts, registered, misses, pageNeeds }
   }
+
+  test.each([
+    ['without fallback fonts', undefined],
+    ['with fallback fonts', { japanese: ALL.japanese }],
+  ] as const)(
+    'render, write and redact work where AbortSignal.any does not exist, %s',
+    async (_, sources) => {
+      const any = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
+      Reflect.deleteProperty(AbortSignal, 'any')
+      try {
+        expect('any' in AbortSignal).toBe(false)
+        const { engine: fonts } = await fontEngine(sources)
+        const file = await fixtureBytes('unembedded-japanese')
+        const opened = await fonts.open(file)
+        const page = await opened.renderPage(0, { signal: new AbortController().signal })
+        expect(page.missingFonts).toEqual(sources ? [] : ['japanese'])
+        await opened.write(square())
+        const other = await fonts.open(file)
+        await other.redact({
+          marks: [mark('m1', { page: 0, quad: [72, 785, 130, 785, 72, 755, 130, 755] })],
+        })
+        expect((await other.save()).subarray(0, 5)).toEqual(PDF_MAGIC)
+        await fonts.destroy()
+      } finally {
+        if (any) Object.defineProperty(AbortSignal, 'any', any)
+      }
+    }
+  )
+
+  test('with no fallback fonts, write and redact do not read which fonts a page needs', async () => {
+    const { engine: fonts, pageNeeds } = await fontEngine()
+    const file = await fixtureBytes('unembedded-japanese-field')
+    const opened = await fonts.open(file)
+    await opened.write({ ...square(), fields: { f: { value: '日本語' } } })
+    const other = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    await other.redact({
+      marks: [mark('m1', { page: 0, quad: [72, 785, 130, 785, 72, 755, 130, 755] })],
+    })
+    expect(pageNeeds).not.toHaveBeenCalled()
+    // A render still lists what the page missed.
+    const fresh = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    expect((await fresh.renderPage(0)).missingFonts).toEqual(['japanese'])
+    expect(pageNeeds).toHaveBeenCalled()
+    expect(requests).toEqual([])
+    await fonts.destroy()
+  })
 
   test('a file that names no unembedded font fetches nothing', async () => {
     const { engine: fonts, misses } = await fontEngine(ALL)

@@ -77,8 +77,12 @@ export function createFontLoader(
   ensure(keys: readonly FontKey[], signal?: AbortSignal): Promise<FontKey[]>
   /** The keys of `keys` not registered, without fetching. */
   missing(keys: readonly FontKey[]): FontKey[]
+  /** False when there is no source at all: `ensure` then only reports what is missing. */
+  readonly fetches: boolean
 } {
-  const pending = new Map(Object.entries(sources ?? {})) as Map<FontKey, FontSource>
+  const pending = new Map(
+    Object.entries(sources ?? {}).filter(([, source]) => source !== undefined)
+  ) as Map<FontKey, FontSource>
   const states = new Map<FontKey, FontState>()
 
   const settle = (key: FontKey, bytes: Uint8Array | undefined) => {
@@ -99,6 +103,7 @@ export function createFontLoader(
 
   return {
     missing,
+    fetches: pending.size > 0,
     async ensure(keys, signal) {
       for (const key of keys) {
         if (states.has(key)) continue
