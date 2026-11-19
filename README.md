@@ -33,7 +33,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one core and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way. The annotation's data sets its shape, colours and text, and their paint is locked against stylesheets. A stylesheet adds or changes only what surrounds the drawing (the theme's outlines, note shadow and comment markers, the editor, handles and selection frame), and can still hide, move or filter elements.
-- **Redaction.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data. The Apply redactions button removes the content under the marks, cleans the file, checks the result and shows the redacted file.
+- **Redaction.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data. The Apply redactions button removes the content under the marks, removes the file's metadata, attached files, scripts, page thumbnails and private application data, checks the result and shows the redacted file.
 - **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Area redactions, freehand drawing, loupes and masks are the ones that need a pointer.
 - **Touch screens too.** Pinch to zoom the document, not the page. Under a drawing tool one finger draws and two fingers scroll.
 - **Your language.** Every string comes from a `messages` object. English is the default, French and German ship as draft sets, and switching language relabels the viewer without reloading it. Bring your own translations.
@@ -41,29 +41,29 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 
 ### What it does today
 
-| Area        | Available now                                                                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewing     | Rendering with a selectable text layer, zoom, pinch zoom, fit to width or page, continuous or single-page layout, page navigation, thumbnails |
-| Navigation  | The document's outline, links you can follow by click, tap or keyboard, and back and forward through jumps                                    |
-| Sidebars    | Panels of thumbnails, search results or your own content, resizable, saved in your storage, floating over the pages when room runs out        |
-| Search      | A find bar and Ctrl/Cmd+F in the viewer, and `doc.search` for code                                                                            |
-| Forms       | Text, checkbox, radio, choice and signature fields, with the form's scripts                                                                   |
-| Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                    |
-| Markup      | Highlights, underlines, strikeouts and squiggly underlines from a text selection                                                              |
-| Notes       | Notes with reply threads                                                                                                                      |
-| Redaction   | Text and area redaction marks; applying them removes the content, cleans the file and checks the result                                       |
-| Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                             |
-| Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                         |
-| History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
-| Files       | Download and print the open PDF, and a password prompt for locked files                                                                       |
-| Saving      | Annotations and form values written into the PDF with `@inkbar/engine`, and editable again when the file is reopened                          |
-| Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                |
-| Languages   | English, with draft French and German, switched without a reload, and your own translations through `messages`                                |
-| Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                             |
+| Area        | Available now                                                                                                                                                                      |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewing     | Rendering with a selectable text layer, zoom, pinch zoom, fit to width or page, continuous or single-page layout, page navigation, thumbnails                                      |
+| Navigation  | The document's outline, links you can follow by click, tap or keyboard, and back and forward through jumps                                                                         |
+| Sidebars    | Panels of thumbnails, search results or your own content, resizable, saved in your storage, floating over the pages when room runs out                                             |
+| Search      | A find bar and Ctrl/Cmd+F in the viewer, and `doc.search` for code                                                                                                                 |
+| Forms       | Text, checkbox, radio, choice and signature fields, with the form's scripts                                                                                                        |
+| Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                                                         |
+| Markup      | Highlights, underlines, strikeouts and squiggly underlines from a text selection                                                                                                   |
+| Notes       | Notes with reply threads                                                                                                                                                           |
+| Redaction   | Text and area redaction marks; applying them removes the content, metadata, attachments and scripts, and checks the result ([limits](packages/core/README.md#applying-redactions)) |
+| Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                                                                  |
+| Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                                                              |
+| History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                                                                 |
+| Files       | Download and print the open PDF, and a password prompt for locked files                                                                                                            |
+| Saving      | Annotations and form values written into the PDF with `@inkbar/engine`, and editable again when the file is reopened                                                               |
+| Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                                                     |
+| Languages   | English, with draft French and German, switched without a reload, and your own translations through `messages`                                                                     |
+| Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                                                                  |
 
 ### Not there yet
 
-- **Redacting every kind of content.** Inkbar refuses a mark over hatching, textures, complex gradients or soft-masked artwork, since it cannot remove that content from the file. It does not clean hidden layers, and it does not look for the removed words elsewhere in the file, such as in bookmark titles. The [`@inkbar/core` README](packages/core/README.md#applying-redactions) lists every limit.
+- **Redacting every kind of content.** Inkbar refuses a mark over patterned fills, some gradients or some soft-masked artwork, since it cannot remove that content from the file. It does not clean hidden layers, and it does not look for the removed words elsewhere in the file, such as in bookmark titles. The [`@inkbar/core` README](packages/core/README.md#applying-redactions) lists every limit.
 - **XFA forms.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
