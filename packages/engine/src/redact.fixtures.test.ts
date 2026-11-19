@@ -13,7 +13,7 @@ import { ascii, boundsOf, mark, marksOf } from './redaction/testing.ts'
 
 import type { Native } from './native/functions.ts'
 import type { RedactInput, RedactResult, WriteAnnotation } from './types.ts'
-import type { Annotation as GlossAnnotation } from 'gloss-format'
+import type { Annotation as GlossAnnotation, Quad } from 'gloss-format'
 
 let engine: Engine
 let wasm: Uint8Array
@@ -453,6 +453,29 @@ test('earlier marks whose regions cannot be read name the page', async () => {
   core.destroy()
 })
 
+test('earlier marks applied with no regions to check fail the page', async () => {
+  const marked = await withEarlierMark()
+  const native = await loadNative({ wasm })
+  // The fork reads no quads from the earlier mark, yet applies it.
+  const blind: Native = { ...native.fn, INK_Redact_OwnLockedQuads: () => 0 }
+  const core = new EngineCore(withFunctions(native, blind))
+  const { id } = core.open(marked, { password: 'inkbar' })
+  let error: unknown
+  try {
+    core.redact(id, { marks: [] })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(EngineError)
+  expect(error).toMatchObject({
+    code: 'redaction-failed',
+    page: 0,
+    reason: 'could-not-inspect',
+  })
+  expect(core.stopped).toBe(false)
+  core.destroy()
+})
+
 test('sanitises', async () => {
   expect(latin1(await fixtureBytes('redact-text'))).toContain('/Info')
   const { bytes, result } = await redacted('redact-text')
@@ -633,6 +656,106 @@ test('missing or malformed input is a RangeError and keeps the engine', async ()
     )
   expect(core.stopped).toBe(false)
   core.destroy()
+})
+
+test('a mark with no appearance, or with quads or a rect it cannot use, is a RangeError and keeps the engine', async () => {
+  const [good] = marksOf('redact-text') as [WriteAnnotation]
+  const { quads: _, ...noQuads } = good.annotation
+  const corner = { x: 1, y: 2 }
+  const quad = { p1: corner, p2: corner, p3: corner, p4: corner }
+  const bad: [string, unknown][] = [
+    ['no appearance', { ...good, appearance: undefined }],
+    ['an appearance that is not an object', { ...good, appearance: 'x' }],
+    ['quads that are not a list', { ...good, annotation: { ...noQuads, quads: 'x' } }],
+    ['a quad that is not an object', { ...good, annotation: { ...noQuads, quads: [1] } }],
+    [
+      'a quad without a corner',
+      { ...good, annotation: { ...noQuads, quads: [{ ...quad, p4: undefined }] } },
+    ],
+    [
+      'a quad with a number that is not finite',
+      {
+        ...good,
+        annotation: { ...noQuads, quads: [{ ...quad, p2: { x: Infinity, y: 2 } }] },
+      },
+    ],
+    [
+      'a quad with a corner that is not a number',
+      { ...good, annotation: { ...noQuads, quads: [{ ...quad, p3: { x: '1', y: 2 } }] } },
+    ],
+    ['no quads and no rect', { ...good, annotation: { ...noQuads, rect: undefined } }],
+    [
+      'empty quads and a rect that is not finite',
+      {
+        ...good,
+        annotation: {
+          ...noQuads,
+          quads: [],
+          rect: { x: 0, y: 0, width: NaN, height: 1 },
+        },
+      },
+    ],
+    [
+      'no quads and a rect with a side missing',
+      { ...good, annotation: { ...noQuads, rect: { x: 0, y: 0, width: 10 } } },
+    ],
+  ]
+  const own = await createEngine({ wasm, worker: false })
+  try {
+    for (const [what, item] of bad) {
+      const doc = await own.open(await fixtureBytes('redact-text'))
+      try {
+        const error: unknown = await doc
+          .redact({ marks: [item as WriteAnnotation] })
+          .catch((e: unknown) => e)
+        expect(error, what).toBeInstanceOf(RangeError)
+      } finally {
+        await doc.close()
+      }
+    }
+    // The engine still opens and redacts another document.
+    const doc = await own.open(await fixtureBytes('redact-text'))
+    try {
+      const result = await doc.redact({ marks: marksOf('redact-text') })
+      expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+      await expectClean('redact-text', await doc.save())
+    } finally {
+      await doc.close()
+    }
+  } finally {
+    await own.destroy()
+  }
+})
+
+test('a mark with a quad that has no area beside a quad over text fails closed', async () => {
+  const [over] = marksOf('redact-text') as [WriteAnnotation]
+  const annotation = over.annotation as GlossAnnotation & { quads: Quad[] }
+  const [first] = annotation.quads as [Quad]
+  // A line along the bottom edge of the region: no area.
+  const flat: Quad = { p1: first.p3, p2: first.p4, p3: first.p3, p4: first.p4 }
+  const several: WriteAnnotation = {
+    ...over,
+    annotation: { ...annotation, quads: [flat, first] },
+  }
+  const doc = await engine.open(await fixtureBytes('redact-text'))
+  try {
+    // The fork cannot look under a quad with no area, so the apply refuses and changes nothing.
+    const error: unknown = await doc.redact({ marks: [several] }).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(EngineError)
+    expect(error).toMatchObject({
+      code: 'redaction-failed',
+      page: 0,
+      reason: 'could-not-inspect',
+    })
+    expect((await pageTexts(await doc.save()))[0]).toContain('SECRET-ALPHA')
+  } finally {
+    await doc.close()
+  }
+  // The same mark without the flat quad applies.
+  const { bytes } = await redacted('redact-text', {
+    marks: [{ ...over, annotation: { ...annotation, quads: [first] } }],
+  })
+  await expectClean('redact-text', bytes)
 })
 
 describe.runIf(qpdfAvailable)('qpdf', () => {

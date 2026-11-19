@@ -403,9 +403,15 @@ export function applyRedactions(
         foreignMarks += applied.second
         if (applied.value === 1) {
           const own = context.encrypted ? before - applied.second - handles.length : 0
+          // Earlier marks applied with no regions read leave nothing to check them by.
+          if (own > 0 && earlier.length === 0)
+            throw new EngineError(
+              'redaction-failed',
+              `What the earlier marks on page ${index} removed could not be inspected.`,
+              { page: index, reason: 'could-not-inspect' }
+            )
           ownLockedMarks += own
-          if (own > 0 && earlier.length > 0)
-            ownLockedRegions.push({ page: index, quads: earlier })
+          if (own > 0) ownLockedRegions.push({ page: index, quads: earlier })
           pages.push({
             page: index,
             marks: handles.length + own,
