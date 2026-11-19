@@ -1,4 +1,4 @@
-import { fileBusy, printDocument } from '@inkbar/core/dom'
+import { fileBusy, printDocument, redactionBusy } from '@inkbar/core/dom'
 import { Printer } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
@@ -17,8 +17,9 @@ export interface InkPrintButtonProps extends ComponentPropsWithoutRef<'button'> 
 
 /**
  * Prints the open document's file with the browser's own PDF viewer (on iOS, in a new tab).
- * Disabled until the document is ready. It prints what InkDownloadButton downloads, is busy
- * while a copy is written as that button is, and reports a failure the same way.
+ * Disabled until the document is ready, and while its redaction marks are applied. It prints
+ * what InkDownloadButton downloads, is busy while a copy is written as that button is, and
+ * reports a failure the same way.
  */
 export function InkPrintButton({
   asChild = false,
@@ -31,6 +32,8 @@ export function InkPrintButton({
   const m = useMessages()
   const { document: doc, status, reportFileError } = useInkContext('InkPrintButton')
   const busy = useReadable(doc ? fileBusy(doc) : undefined, false)
+  // The document's redaction marks are being applied: its file is about to be replaced.
+  const redacting = useReadable(doc ? redactionBusy(doc) : undefined, false)
   return (
     <Toolbar.Button
       asChild={asChild}
@@ -43,7 +46,9 @@ export function InkPrintButton({
       aria-disabled={busy || undefined}
       {...rest}
       disabled={
-        disabled === true || (!busy && (doc === null || status.state !== 'ready'))
+        disabled === true ||
+        redacting ||
+        (!busy && (doc === null || status.state !== 'ready'))
       }
       onClick={(e) => {
         onClick?.(e)

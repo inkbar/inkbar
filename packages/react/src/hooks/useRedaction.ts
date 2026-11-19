@@ -16,10 +16,11 @@ export interface RedactionHandle {
   busy: boolean
   /**
    * Asks first (InkRoot's `redactionConfirm`), applies the marks, calls InkRoot's `onRedacted`
-   * and shows the redacted file. Resolves with what was done, or null when the reader
-   * cancelled, nothing was applied, the apply failed, or the root unmounted or another
-   * document opened while it ran. A failure is shown in InkViewport's
-   * message box and reaches InkRoot's `onError`; it never rejects.
+   * and shows the redacted file. Resolves with what was done once `onRedacted` has been
+   * called, even when the root unmounted or another document opened after that. Resolves with
+   * null when the reader cancelled, an apply was already running, the apply failed, or the
+   * root unmounted or another document opened before `onRedacted` was called. A failure is
+   * shown in InkViewport's message box and reaches InkRoot's `onError`; it never rejects.
    */
   apply: () => Promise<RedactionResult | null>
 }

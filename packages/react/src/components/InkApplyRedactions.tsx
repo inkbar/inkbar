@@ -21,7 +21,8 @@ export interface InkApplyRedactionsProps extends Omit<
  * (InkRoot's `redactionConfirm`), removes the content under them and shows the redacted file.
  * Disabled until the document is ready, was opened with InkRoot's `engine` and holds a mark.
  * While the marks are applied the button says so and is `aria-busy` and `aria-disabled`,
- * keeping focus, and a press does nothing. A children function receives
+ * keeping focus, and a press does nothing. A disabled control applies nothing, whatever element
+ * `asChild` renders. A children function receives
  * `{ label, busy, disabled }`, for a host's own content or, with `asChild`, its own element.
  */
 export function InkApplyRedactions({
@@ -49,7 +50,9 @@ export function InkApplyRedactions({
       disabled={off}
       onClick={(e) => {
         onClick?.(e)
-        if (!e.defaultPrevented) void apply()
+        // A host's own element that is not a button takes clicks whatever `disabled` says.
+        if (off || e.defaultPrevented) return
+        void apply()
       }}
     >
       {typeof children === 'function'

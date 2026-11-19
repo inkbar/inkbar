@@ -486,3 +486,50 @@ test("the render prop's disabled follows the host's own disabled", async ({
   await expect(own).toBeDisabled()
   await expect(own).toHaveAttribute('data-disabled', 'true')
 })
+
+test('Download and Print are disabled while the marks are applied', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness src={fixtureUrl('redact-text')} assets={assets} engine="held" />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const download = cmp.locator('[data-ink-download]')
+  const print = cmp.locator('[data-ink-print]')
+  await mark(page)
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await expect(download).toBeDisabled()
+  await expect(print).toBeDisabled()
+  await page.evaluate(() => window.__heldEngine!.fail())
+  await expect(cmp.getByTestId('errors')).toHaveText('RedactionFailed')
+  await expect(download).toBeEnabled()
+  await expect(print).toBeEnabled()
+})
+
+test('a disabled control of your own that is not a button does not apply', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <Harness
+      src={fixtureUrl('redact-text')}
+      assets={assets}
+      engine="held"
+      own="div"
+      disabled
+    />
+  )
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await expect(cmp.getByTestId('probe')).toHaveAttribute('data-can-redact', 'true')
+  const own = cmp.locator('div.host-apply')
+  await expect(own).toHaveAttribute('data-disabled', 'true')
+  await own.click()
+  await page.waitForTimeout(200)
+  expect(await writing(page)).toBe(false)
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+})

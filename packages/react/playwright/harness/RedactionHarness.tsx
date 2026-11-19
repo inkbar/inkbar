@@ -1,6 +1,7 @@
 /*
  * The apply redactions control in a toolbar over a document. `engine: 'held'` gives the root a
- * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`.
+ * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`,
+ * and `own: 'div'` a `div` in its place. The toolbar holds Download and Print too.
  * `confirm` passes `redactionConfirm` as a function answering yes or no, recording the marks
  * of each preview in `previews`; `confirm: 'dialog'` leaves the built-in dialog; without it the
  * root applies without asking. `throwing` makes `onRedacted` throw, and `shown: false` unmounts
@@ -17,6 +18,8 @@ import { allTools } from '@inkbar/core/dom'
 import { StrictMode, useRef, useState } from 'react'
 
 import { InkApplyRedactions } from '../../src/components/InkApplyRedactions'
+import { InkDownloadButton } from '../../src/components/InkDownloadButton'
+import { InkPrintButton } from '../../src/components/InkPrintButton'
 import { InkRoot } from '../../src/components/InkRoot'
 import { InkToolbar } from '../../src/components/InkToolbar'
 import { InkToolButton } from '../../src/components/InkToolButton'
@@ -75,7 +78,7 @@ export interface RedactionHarnessProps {
   src: DocumentSource
   assets: PdfAssets
   engine?: 'held' | undefined
-  own?: boolean
+  own?: boolean | 'div'
   confirm?: 'yes' | 'no' | 'dialog' | undefined
   throwing?: boolean
   shown?: boolean
@@ -153,7 +156,19 @@ function Harness({
             <InkToolButton tool="select-text" />
             <InkToolButton tool="redact-area" />
             <InkUndo />
-            {own ? (
+            {own === 'div' ? (
+              <InkApplyRedactions asChild disabled={hostDisabled}>
+                {({ label, disabled }) => (
+                  <div
+                    role="button"
+                    className="host-apply"
+                    data-disabled={String(disabled)}
+                  >
+                    {label}
+                  </div>
+                )}
+              </InkApplyRedactions>
+            ) : own ? (
               <InkApplyRedactions asChild disabled={hostDisabled}>
                 {({ label, busy, disabled }) => (
                   <button
@@ -169,6 +184,8 @@ function Harness({
             ) : (
               <InkApplyRedactions />
             )}
+            <InkDownloadButton />
+            <InkPrintButton />
           </InkToolbar>
           {/* Test-only box: the scroll container needs a bounded height. */}
           <div style={{ height: 400, width: 600 }}>
