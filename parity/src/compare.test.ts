@@ -135,6 +135,19 @@ describe('compare', () => {
     expect(result.same).toBe(false)
   })
 
+  it('finds a page filled with one flat colour against a white page', () => {
+    // As a shading painted over the whole page would be: no edge anywhere, every pixel apart.
+    for (const rgb of [
+      [128, 128, 128],
+      [0x33, 0x66, 0x99],
+      [255, 255, 200],
+    ] as [number, number, number][]) {
+      const result = compare(image(300, 400, rgb), image(300, 400))
+      expect(result.share).toBe(1)
+      expect(result.same).toBe(false)
+    }
+  })
+
   it('throws on images of different sizes', () => {
     expect(() => compare(image(10, 10), image(10, 11))).toThrow(/size/)
   })

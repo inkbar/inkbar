@@ -578,9 +578,6 @@
     "reason": "A combo box widget with no /AP: the engine generates an appearance for it (a drop-down arrow); PDF.js draws nothing",
     "accepted": false
   },
-  "corpus-axial-shading-zero-axis": {
-    "state": "same"
-  },
   "corpus-bug-1302355": {
     "state": "different",
     "reason": "PDF.js draws the SoftLight-blended form (a black rectangle); the engine draws a blank page",

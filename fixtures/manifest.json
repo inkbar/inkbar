@@ -2058,17 +2058,6 @@
     "source": "pdfium testing/resources/annots.pdf",
     "features": ["cropped-page"]
   },
-  "corpus-axial-shading-zero-axis": {
-    "file": "axial_shading_zero_axis.pdf",
-    "pages": 1,
-    "opens": true,
-    "describes": "An axial shading whose axis has zero length, painted over the page",
-    "source": "pdfium testing/resources/pixel/axial_shading_zero_axis.in (expanded)",
-    "features": ["axial-shading"],
-    "engine": {
-      "render": "PDF.js fills the whole page with one colour (a shading with a zero-length axis); the engine draws a blank page"
-    }
-  },
   "corpus-bug-1302355": {
     "file": "bug_1302355.pdf",
     "pages": 1,

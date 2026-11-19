@@ -14,7 +14,8 @@ We set the constants by measuring every fixture, and the unit tests pin what the
 
 One entry per fixture that opens:
 
-- `{ "state": "same" }`: every page compared must be the same.
+- `{ "state": "same" }`: every page compared must be the same, and at least one reader must draw something on it. Two blank pages match whatever went wrong, so a page both readers draw pure white fails.
+- `{ "state": "same", "blank": true }`: for a fixture whose compared pages are meant to be empty. Both readers must draw every one of them pure white.
 - `{ "state": "different", "reason": "...", "accepted": false }`: at least one page must differ. The reason says what differs and, where known, which drawing feature causes it. Only the project owner sets `accepted` to `true`. When the difference goes away, the test fails with "now the same: update parity.json": change the entry to `same`.
 - `{ "state": "baseline", "reason": "..." }`: PDF.js cannot be the reference (it draws text in fonts the file does not embed with whatever fonts the machine has), so the test compares the engine's drawing with `baselines/<fixture>-<page>.png`, the engine's own committed output, and skips PDF.js.
 - `{ "state": "skipped", "reason": "..." }`: one reader does not open the file, or the readers count its pages differently. The test checks that this still holds.

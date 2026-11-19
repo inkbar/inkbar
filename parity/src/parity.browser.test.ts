@@ -21,7 +21,11 @@ import type { InkDocument, PageInfo } from '@inkbar/core'
 import type { FixtureMeta } from '@inkbar/fixtures'
 
 export type Verdict =
-  | { state: 'same' }
+  /**
+   * `blank: true` says the compared pages are meant to be empty: both readers drawing every one
+   * of them pure white is then the expected result, and without it that fails.
+   */
+  | { state: 'same'; blank?: true }
   | { state: 'different'; reason: string; accepted: boolean }
   /** Compared with parity/baselines/<fixture>-<page>.png. */
   | { state: 'baseline'; reason: string }
@@ -65,6 +69,15 @@ function inked(img: ImageData): number {
     if (img.data[i]! < 250 || img.data[i + 1]! < 250 || img.data[i + 2]! < 250) n++
   }
   return n / (img.width * img.height)
+}
+
+/** Whether every pixel of `img` is pure white. */
+function blank(img: ImageData): boolean {
+  for (let i = 0; i < img.data.length; i += 4) {
+    if (img.data[i] !== 255 || img.data[i + 1] !== 255 || img.data[i + 2] !== 255)
+      return false
+  }
+  return true
 }
 
 /** Where `a` and `b` disagree on a page's box, rotation or user unit; empty when they agree. */
@@ -202,11 +215,14 @@ describe.each(opening)('%s', (name) => {
       }
 
       const results: Comparison[] = []
+      /** Pages both readers draw pure white. */
+      const bothBlank: boolean[] = []
       for (let page = 0; page < pages; page++) {
         const a = await drawPage(pdfjs, page)
         const b = await drawPage(engine, page)
         const measured = compare(a, b)
         results.push(measured)
+        bothBlank.push(blank(a) && blank(b))
         measures.push({
           fixture: name,
           page,
@@ -224,6 +240,19 @@ describe.each(opening)('%s', (name) => {
       if (verdict.state === 'same') {
         results.forEach((r, page) => {
           expect(r.same, `page ${page + 1} differs: ${describeNumbers(r)}`).toBe(true)
+        })
+        bothBlank.forEach((isBlank, page) => {
+          if (verdict.blank) {
+            expect(
+              isBlank,
+              `page ${page + 1} is not blank: remove blank from parity.json`
+            ).toBe(true)
+          } else {
+            expect(
+              isBlank,
+              `both readers draw page ${page + 1} blank, which proves nothing: record blank: true if the page is meant to be empty`
+            ).toBe(false)
+          }
         })
       } else {
         expect(
