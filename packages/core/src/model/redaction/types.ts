@@ -18,6 +18,11 @@ export interface RedactionResult {
   foreignMarks: number
   /** Inkbar's own earlier marks applied where they came back locked, in an encrypted file. */
   ownLockedMarks: number
+  /**
+   * The names of the changed form fields not written into the redacted file, because a mark
+   * removed their widgets.
+   */
+  fieldsSkipped: readonly string[]
   /** What sanitising removed. */
   sanitised: RedactionSanitised
   /** Whether the file has layers that are hidden. They are not cleaned. */

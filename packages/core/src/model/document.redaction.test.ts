@@ -55,6 +55,10 @@ function fakeEngine() {
     pages?: RedactResult['pages']
     /** Inkbar's earlier locked marks the redaction reports it applied, by region. */
     ownLockedRegions?: { page: number; quads: Quad[] }[]
+    /** The earlier marks the redaction reports it applied, when not one per region quad. */
+    ownLockedMarks?: number
+    /** The fields the redaction reports it skipped. */
+    fieldsSkipped?: string[]
     verdicts?: RedactionCandidate['verdict'][]
     failRedact?: Error
     failCheck?: Error
@@ -96,15 +100,14 @@ function fakeEngine() {
                 marks,
                 annotationsRemoved: 0,
               })),
-            ownLockedMarks: (state.ownLockedRegions ?? []).reduce(
-              (n, r) => n + r.quads.length,
-              0
-            ),
+            ownLockedMarks:
+              state.ownLockedMarks ??
+              (state.ownLockedRegions ?? []).reduce((n, r) => n + r.quads.length, 0),
             // Core's quads stand in for Gloss quads, which only add an index signature.
             ownLockedRegions: (state.ownLockedRegions ??
               []) as RedactResult['ownLockedRegions'],
             foreignMarks: 0,
-            fieldsSkipped: [],
+            fieldsSkipped: state.fieldsSkipped ?? [],
             sanitised: nothingSanitised,
             hiddenLayers: false,
             signed: false,
@@ -247,6 +250,7 @@ describe('applyRedactions', () => {
       removed: { session: [], file: 0 },
       foreignMarks: 0,
       ownLockedMarks: 0,
+      fieldsSkipped: [],
       sanitised: nothingSanitised,
       hiddenLayers: false,
       signed: false,
@@ -625,6 +629,51 @@ describe('applyRedactions', () => {
     delete fake.state.failRedact
     await doc.applyRedactions()
     expect(fake.calls).toContain('redact 2')
+  })
+
+  it('rejects NothingToRedact when the engine applied no mark, and saves as before', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    markOver(doc, { x: 2000, y: 2000, width: 50, height: 20 })
+    // The engine skips the one mark: it lies off the page.
+    fake.state.pages = []
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      name: 'InkError',
+      code: 'NothingToRedact',
+    })
+    // The engine's copy holds the redaction, so the next save opens the file again.
+    const bytes = await doc.save()
+    expect(new TextDecoder().decode(bytes)).toBe('%PDF-redacted')
+    expect(fake.calls.slice(-4)).toEqual(['close 1', 'open 1', 'write 1', 'save 1'])
+  })
+
+  it('reports the fields the engine skipped', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    markOver(doc)
+    fake.state.fieldsSkipped = ['name']
+    const { result } = await doc.applyRedactions()
+    expect(result.fieldsSkipped).toEqual(['name'])
+  })
+
+  it('fails at verify when the engine applied earlier marks and gave no regions for them', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    markOver(doc)
+    fake.state.ownLockedMarks = 1
+    fake.state.ownLockedRegions = []
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'verify' },
+    })
+  })
+
+  it('names the marks it applied, for a host to drop from its list', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    const mark = markOver(doc)
+    const applied = await doc.applyRedactions()
+    expect(applied._marks).toEqual([mark.id])
   })
 
   it('counts a mark off the page as skipped, not as a failure', async () => {

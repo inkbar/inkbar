@@ -39,7 +39,12 @@ import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
-import { applyRedactions, redactionPreview, type RedactionState } from './redaction/apply'
+import {
+  applyRedactions,
+  redactionPreview,
+  type AppliedRedactions,
+  type RedactionState,
+} from './redaction/apply'
 import {
   canonical,
   canonicalAnnotation,
@@ -281,8 +286,16 @@ export interface InkDocument {
    * run or did not find every mark's place clean (`'verify'`, with those places in
    * `details.regions`). It never overlaps a save: a save that has started writing finishes
    * first, and one that has not may run after it. A call while one runs gets the same promise.
+   *
+   * It applies the session as it stands when called. In uncontrolled use, changes made to the
+   * session through the API while it runs are not carried into the redacted document.
    */
-  applyRedactions(): Promise<{ bytes: Uint8Array; result: RedactionResult }>
+  applyRedactions(): Promise<{
+    bytes: Uint8Array
+    result: RedactionResult
+    /** @internal The ids of the session marks applied. */
+    _marks: readonly string[]
+  }>
   /**
    * What `applyRedactions()` would do, without loading the engine: the marks, the pages they are
    * on, the other annotations they overlap, whether the file is signed, and the locked marks an
@@ -783,8 +796,8 @@ export async function openDocument(
     encrypted: info.isEncrypted,
   })
   /** The apply running, which a second call shares. */
-  let applying: Promise<{ bytes: Uint8Array; result: RedactionResult }> | undefined
-  const apply = async (): Promise<{ bytes: Uint8Array; result: RedactionResult }> => {
+  let applying: Promise<AppliedRedactions> | undefined
+  const apply = async (): Promise<AppliedRedactions> => {
     if (destroyed) throw destroyedError()
     await ready
     await baselineTaken
