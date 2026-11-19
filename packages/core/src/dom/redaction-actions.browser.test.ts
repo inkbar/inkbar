@@ -105,7 +105,7 @@ describe('runRedaction', () => {
     const before = doc.annotations.list.get()
     const changed = doc.changed.get()
     const confirm = vi.fn((_: RedactionPreview) => Promise.resolve(false))
-    const apply = vi.spyOn(doc, 'applyRedactions')
+    const apply = vi.spyOn(doc, '_applyRedactions')
     const out = await runRedaction(doc, { confirm })
     expect(out).toBeNull()
     expect(confirm).toHaveBeenCalledTimes(1)
@@ -129,7 +129,7 @@ describe('runRedaction', () => {
     markSecret(doc)
     const answer = deferred<boolean>()
     const confirm = vi.fn((_: RedactionPreview) => answer.promise)
-    const apply = vi.spyOn(doc, 'applyRedactions')
+    const apply = vi.spyOn(doc, '_applyRedactions')
     const busy = redactionBusy(doc)
     const first = runRedaction(doc, { confirm })
     // While the confirmation is open: nothing else starts.

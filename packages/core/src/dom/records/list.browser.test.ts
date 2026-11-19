@@ -214,7 +214,7 @@ describe('createRecordList', () => {
     const held = new Promise<never>((_, reject) => {
       fail = () => reject(new Error('held'))
     })
-    vi.spyOn(doc, 'applyRedactions').mockReturnValue(held)
+    vi.spyOn(doc, '_applyRedactions').mockReturnValue(held)
     const applying = runRedaction(doc, { confirm: () => Promise.resolve(true) })
     await until(() => redactionBusy(doc).get())
     const accept = () =>

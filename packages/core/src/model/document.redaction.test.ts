@@ -668,12 +668,15 @@ describe('applyRedactions', () => {
     })
   })
 
-  it('names the marks it applied, for a host to drop from its list', async () => {
+  it('names the marks it applied to the viewer only, for a host to drop from its list', async () => {
     const fake = fakeEngine()
     const doc = await open('redact-text', { engine: fake.loader })
     const mark = markOver(doc)
+    const internal = doc._applyRedactions()
     const applied = await doc.applyRedactions()
-    expect(applied._marks).toEqual([mark.id])
+    expect(Object.keys(applied).sort()).toEqual(['bytes', 'result'])
+    expect((await internal)._marks).toEqual([mark.id])
+    expect(fake.calls.filter((c) => c.startsWith('redact'))).toHaveLength(1)
   })
 
   it('counts a mark off the page as skipped, not as a failure', async () => {

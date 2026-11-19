@@ -83,30 +83,65 @@ export function canRedact(doc: InkDocument): Readable<boolean> {
 }
 
 /**
+ * What the reader is asked to confirm, as one string: the preview's counts and every session
+ * mark as it stands. Two equal strings apply the same marks.
+ */
+const confirmedKey = (doc: InkDocument, preview: RedactionPreview): string =>
+  JSON.stringify([
+    preview,
+    doc.annotations.list
+      .get()
+      .filter((a) => a.type === 'redact' && a.source === 'session'),
+  ])
+
+/** `runRedaction`, resolving with the ids of the marks applied too. */
+async function run(
+  doc: InkDocument,
+  options: RunRedactionOptions
+): Promise<Awaited<ReturnType<InkDocument['_applyRedactions']>> | null> {
+  const state = stateOf(doc)
+  if (state.running) return null
+  state.running = true
+  try {
+    let preview = doc._saves ? doc.redactionPreview() : undefined
+    if (preview && hasMarks(preview)) {
+      // The marks can change while the reader is asked (a host's list, a call through the API):
+      // the apply goes ahead only on the marks the reader confirmed, else the reader is asked
+      // again about the marks there are now.
+      for (;;) {
+        const asked = confirmedKey(doc, preview)
+        if (!(await options.confirm(preview))) return null
+        const now = doc.redactionPreview()
+        if (confirmedKey(doc, now) === asked) break
+        // Every mark went meanwhile: there is nothing left to apply.
+        if (!hasMarks(now)) return null
+        preview = now
+      }
+    }
+    state.busy.set(true)
+    return await doc._applyRedactions()
+  } finally {
+    state.running = false
+    state.busy.set(false)
+  }
+}
+
+/**
  * Asks `confirm` with `doc.redactionPreview()`, then applies the marks with
- * `doc.applyRedactions()`. Resolves with the redacted bytes and what was done, or null when the
- * reader cancelled or a run of `doc` was already going (a second press does nothing). Without
- * an engine or a mark nothing is asked, and it rejects as `doc.applyRedactions()` does: with
- * `EngineUnavailable`, `NothingToRedact` or `RedactionFailed`. The open document is not changed
- * either way.
+ * `doc.applyRedactions()`. When the marks change while the reader is asked, the reader is
+ * asked again with the new preview; when every mark has gone by then, nothing is applied.
+ * Resolves with the redacted bytes and what was done, or null when the reader cancelled,
+ * nothing was left to apply, or a run of `doc` was already going (a second press does nothing).
+ * Without an engine or a mark nothing is asked, and it rejects as `doc.applyRedactions()` does:
+ * with `EngineUnavailable`, `NothingToRedact` or `RedactionFailed`. The open document is not
+ * changed either way.
  */
 export async function runRedaction(
   doc: InkDocument,
   options: RunRedactionOptions
 ): Promise<Awaited<ReturnType<InkDocument['applyRedactions']>> | null> {
-  const state = stateOf(doc)
-  if (state.running) return null
-  state.running = true
-  try {
-    if (doc._saves && hasMarks(doc.redactionPreview())) {
-      if (!(await options.confirm(doc.redactionPreview()))) return null
-    }
-    state.busy.set(true)
-    return await doc.applyRedactions()
-  } finally {
-    state.running = false
-    state.busy.set(false)
-  }
+  const out = await run(doc, options)
+  return out && { bytes: out.bytes, result: out.result }
 }
 
 /** The ids of the marks a `RedactionFailed` names as over content that cannot be removed. */
@@ -262,9 +297,9 @@ export async function applyRedactionsFlow(
       })
     }
   }
-  let out: Awaited<ReturnType<typeof runRedaction>>
+  let out: Awaited<ReturnType<typeof run>>
   try {
-    out = await runRedaction(doc, { confirm: opts.confirm })
+    out = await run(doc, { confirm: opts.confirm })
   } catch (error) {
     const failure = redactionFailure(error, opts.messages())
     if (failure && opts.isCurrent()) {

@@ -2974,7 +2974,7 @@ describe('forms', () => {
     button.click()
     expect(fieldMenu('sig')).not.toBeNull()
     let fail!: () => void
-    vi.spyOn(doc, 'applyRedactions').mockReturnValue(
+    vi.spyOn(doc, '_applyRedactions').mockReturnValue(
       new Promise<never>((_, reject) => {
         fail = () => reject(new InkError('RedactionFailed', 'held', { stage: 'apply' }))
       })
@@ -4232,7 +4232,7 @@ describe('applying redactions', () => {
     const { viewer } = make('redact-text', { engine: realEngine(), onRedacted })
     const { doc } = await ready(viewer)
     markSecret(doc)
-    const apply = vi.spyOn(doc, 'applyRedactions')
+    const apply = vi.spyOn(doc, '_applyRedactions')
     const applying = viewer.applyRedactions()
     await until(() => dialog() !== null)
     viewer.destroy()
@@ -4523,7 +4523,7 @@ describe('applying redactions', () => {
     const held = new Promise<never>((_, reject) => {
       fail = () => reject(new InkError('RedactionFailed', 'held', { stage: 'apply' }))
     })
-    vi.spyOn(doc, 'applyRedactions').mockReturnValue(held)
+    vi.spyOn(doc, '_applyRedactions').mockReturnValue(held)
     const applying = viewer.applyRedactions()
     return { applying, fail }
   }
