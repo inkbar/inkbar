@@ -41,6 +41,7 @@ test('runs in a worker: open, inspect, render, save', async () => {
     height: 792,
     rotation: 0,
     box: { x: 0, y: 0, width: 612, height: 792 },
+    userUnit: 1,
   })
   const page = await doc.renderPage(0)
   expect(page).toMatchObject({ width: 612, height: 792 })
@@ -402,6 +403,7 @@ test('worker: false runs in the page thread', async () => {
     height: 792,
     rotation: 0,
     box: { x: 0, y: 0, width: 612, height: 792 },
+    userUnit: 1,
   })
   expect((await doc.renderPage(0)).width).toBe(612)
 })

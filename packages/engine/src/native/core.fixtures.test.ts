@@ -76,3 +76,31 @@ describe.each(Object.entries(manifest))('%s', (name, meta) => {
     }
   })
 })
+
+describe('form widgets', () => {
+  // acroform-basic: a text field holding "Sam" at [71.5 599.5 272.5 624.5] on a 792-point page.
+  const inField = (page: { data: Uint8ClampedArray; width: number }) => {
+    let marked = 0
+    for (let y = 168; y < 192; y++)
+      for (let x = 72; x < 272; x++) {
+        const at = (y * page.width + x) * 4
+        if (
+          page.data[at] !== 255 ||
+          page.data[at + 1] !== 255 ||
+          page.data[at + 2] !== 255
+        )
+          marked++
+      }
+    return marked
+  }
+
+  test('are drawn unless annotations are off', async () => {
+    const { id } = core.open(await fixtureBytes('acroform-basic'))
+    try {
+      expect(inField(core.renderPage(id, 0, 1))).toBeGreaterThan(0)
+      expect(inField(core.renderPage(id, 0, 1, false))).toBe(0)
+    } finally {
+      core.close(id)
+    }
+  })
+})

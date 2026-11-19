@@ -178,6 +178,24 @@ export const FUNCTIONS = {
   // (FPDF_DOCUMENT doc, const unsigned char* bytes, unsigned long size) -> char* JSON report
   INK_Inspect_File: { args: ['ptr', 'ptr', 'i32'], ret: 'ptr' },
   INK_Inspect_Free: { args: ['ptr'], ret: 'void' },
+  // (bitmap, page, int start_x, int start_y, int size_x, int size_y, int rotate, int flags,
+  //  const unsigned int* skip, int skip_count) -> InkRender*
+  INK_Render_Start: {
+    args: ['ptr', 'ptr', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'ptr', 'i32'],
+    ret: 'ptr',
+  },
+  // (InkRender* r, int slice_ms)
+  INK_Render_Continue: { args: ['ptr', 'i32'], ret: 'i32' },
+  INK_Render_Close: { args: ['ptr'], ret: 'void' },
+  // (FPDF_PAGE page)
+  INK_Page_UserUnit: { args: ['ptr'], ret: 'f32' },
+  // (FPDF_DOCUMENT doc, int page_index, float* out): left, bottom, right, top, rotation, user unit
+  INK_Page_Facts: { args: ['ptr', 'i32', 'ptr'], ret: 'i32' },
+  // (int key_bit, const unsigned char* data, size_t len)
+  INK_Fonts_Register: { args: ['i32', 'ptr', 'i32'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, int page_index)
+  INK_Fonts_PageNeeds: { args: ['ptr', 'i32'], ret: 'i32' },
+  INK_Fonts_TakeMisses: { args: [], ret: 'i32' },
 } as const satisfies Record<string, { args: readonly Kind[]; ret: Kind }>
 
 type Returned<R extends Kind> = R extends 'void' ? void : number

@@ -25,6 +25,8 @@ import type { Heap } from './strings.ts'
 
 const BITMAP_BGRA = 4
 const FPDF_ANNOT = 0x01
+/** The build's flag for drawing form widgets, which the annotation flag alone leaves out. */
+const RENDER_WIDGETS = 0x8000
 const FPDF_REVERSE_BYTE_ORDER = 0x10
 const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
 const MAX_PIXELS = 268_435_456
@@ -282,6 +284,7 @@ export class EngineCore {
           height: turned ? width : height,
           rotation: rotation as PageInfo['rotation'],
           box: this.#pageBox(page),
+          userUnit: fn.INK_Page_UserUnit(page),
         }
       })
     )
@@ -328,7 +331,8 @@ export class EngineCore {
       const height = Math.ceil(fn.FPDF_GetPageHeightF(page) * scale)
       if (width < 1 || height < 1 || width * height > MAX_PIXELS)
         throw new ArgumentError('the rendered page would be too large')
-      const flags = (annotations ? FPDF_ANNOT : 0) | FPDF_REVERSE_BYTE_ORDER
+      const flags =
+        (annotations ? FPDF_ANNOT | RENDER_WIDGETS : 0) | FPDF_REVERSE_BYTE_ORDER
       const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
