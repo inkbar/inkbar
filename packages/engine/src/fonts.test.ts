@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 
 import { afterEach, beforeAll, expect, test, vi } from 'vitest'
 
+import { EngineError } from './errors.ts'
 import { createFontLoader, FONT_BITS, keysOf } from './fonts.ts'
 
 import type { FontKey } from './types.ts'
@@ -198,4 +199,25 @@ test('a signal aborted before the call fetches nothing', async () => {
     code: 'aborted',
   })
   expect(fetch).not.toHaveBeenCalled()
+})
+
+test('a register that runs out of memory fails the key, not the call', async () => {
+  const fetch = stubFetch()
+  const register = vi.fn((): boolean => {
+    throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+  })
+  const loader = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, register)
+  expect(await loader.ensure(['japanese'])).toEqual(['japanese'])
+  expect(await loader.ensure(['japanese'])).toEqual(['japanese'])
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(register).toHaveBeenCalledTimes(1)
+})
+
+test('any other error from register reaches the caller', async () => {
+  stubFetch()
+  const failure = new EngineError('engine-failure', 'The engine failed: unreachable')
+  const loader = createFontLoader({ default: new Uint8Array([1]) }, () => {
+    throw failure
+  })
+  await expect(loader.ensure(['default'])).rejects.toBe(failure)
 })

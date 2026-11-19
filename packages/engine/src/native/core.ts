@@ -666,7 +666,8 @@ export class EngineCore {
 
   /**
    * `write`, after fetching the fallback fonts of the pages it loads: those it removes from,
-   * appends to, and that hold an annotation replied to. Setting form values loads no page.
+   * appends to, and that hold an annotation replied to. With form values, every page: redrawing
+   * a field loads the font its /DA names, and the text the appearance holds depends on it.
    */
   async writeAfterFonts(
     id: number,
@@ -677,6 +678,8 @@ export class EngineCore {
     if (entry.redacted) return this.write(id, input)
     this.#checkWrite(entry, input)
     const pages = new Set<number>()
+    if (Object.keys(input.fields ?? {}).length > 0)
+      for (let i = 0; i < entry.pageCount; i++) pages.add(i)
     for (const ref of input.remove ?? []) pages.add(ref.page)
     for (const item of input.annotations ?? []) {
       pages.add(item.page)

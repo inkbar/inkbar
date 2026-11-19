@@ -24,7 +24,10 @@ export function fromWire(error: WireError): Error {
 interface Pending {
   resolve: (value: unknown) => void
   reject: (reason: Error) => void
-  /** Asks the worker to stop the call; set for a render, the one call that can stop part way. */
+  /**
+   * Asks the worker to stop the call; set for the calls that can stop part way: a render, and a
+   * write or redact while it waits for a fallback font.
+   */
   abort?: () => void
 }
 
@@ -68,6 +71,7 @@ class WorkerTransport implements Transport {
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
         const render = request.op === 'renderPage'
+        const stoppable = render || request.op === 'write' || request.op === 'redact'
         const abort = () => {
           // Only while the call is unanswered: once the reply has arrived it stands.
           if (!this.#pending.has(id)) return
@@ -88,7 +92,7 @@ class WorkerTransport implements Transport {
             settled()
             reject(reason)
           },
-          ...(render && { abort }),
+          ...(stoppable && { abort }),
         })
         let sent = request
         const transfer: Transferable[] = []
@@ -119,9 +123,9 @@ class WorkerTransport implements Transport {
   }
 
   /**
-   * Rejects queued calls, stops a running render, waits up to the bound for the running call,
-   * then terminates the worker. A running call that has not answered by then rejects with
-   * `aborted`.
+   * Rejects queued calls, stops a running render, or a write or redact waiting for a font, waits
+   * up to the bound for the running call, then terminates the worker. A running call that has not
+   * answered by then rejects with `aborted`.
    */
   destroy(): Promise<void> {
     this.#destroying ??= this.#destroy()

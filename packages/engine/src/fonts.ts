@@ -64,8 +64,8 @@ async function read(source: string | URL, signal: AbortSignal | undefined) {
 
 /**
  * Fetches each key's font the first time it is needed and hands its bytes to `register`. A key
- * whose fetch fails (a network error, a status other than 2xx, or bytes `register` refuses) is
- * failed for the loader's life and not fetched again. An aborted fetch fails nothing: the key is
+ * whose fetch fails (a network error, a status other than 2xx, bytes `register` refuses, or
+ * `register` running out of memory) is failed for the loader's life and not fetched again. An aborted fetch fails nothing: the key is
  * fetched again next time. A source is dropped once its key is settled, so its bytes are not
  * kept once registered.
  */
@@ -82,8 +82,16 @@ export function createFontLoader(
   const states = new Map<FontKey, FontState>()
 
   const settle = (key: FontKey, bytes: Uint8Array | undefined) => {
+    let registered = false
+    try {
+      registered = bytes !== undefined && register(key, bytes)
+    } catch (error) {
+      // No memory for the engine's copy fails the font, not the call; anything else is the
+      // engine's own failure and goes to the caller.
+      if (!(error instanceof EngineError && error.code === 'out-of-memory')) throw error
+    }
+    states.set(key, registered ? 'registered' : 'failed')
     pending.delete(key)
-    states.set(key, bytes && register(key, bytes) ? 'registered' : 'failed')
   }
 
   const missing = (keys: readonly FontKey[]) =>

@@ -33,7 +33,8 @@ export interface Transport {
 
 /**
  * Messages between the page and the worker. `abort` asks the worker to stop call `id` if it is a
- * render still running; for any other call it changes nothing.
+ * render still running, or a write or redact still waiting for a fallback font; for any other
+ * call it changes nothing.
  */
 export type ToWorker =
   | {

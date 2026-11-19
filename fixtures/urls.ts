@@ -132,6 +132,7 @@ export const FIXTURE_NAMES = [
   'bad-unapplied',
   'bad-appended',
   'unembedded-japanese',
+  'unembedded-japanese-field',
   'unembedded-simplified-chinese',
   'unembedded-traditional-chinese',
   'unembedded-korean',

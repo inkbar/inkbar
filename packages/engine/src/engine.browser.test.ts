@@ -698,18 +698,38 @@ describe('fallback fonts', () => {
     await expect
       .poll(async () => (await fontLog()).length, { timeout: 10_000 })
       .toBeGreaterThan(before)
-    const started = performance.now()
     controller.abort()
+    // The server never answers, so a rejection shows the abort reached the fetch.
     await expect(running).rejects.toMatchObject({ code: 'aborted' })
-    expect(performance.now() - started).toBeLessThan(500)
     // Not failed: the next render asks again.
     const again = doc.renderPage(0)
     await expect
       .poll(async () => (await fontLog()).length, { timeout: 10_000 })
       .toBeGreaterThan(before + 1)
-    const destroying = performance.now()
     await engine.destroy()
-    expect(performance.now() - destroying).toBeLessThan(1_000)
-    await expect(again).rejects.toMatchObject({ code: 'aborted' })
+    // The worker's own answer, not the one destroy gives a call still running at its bound.
+    await expect(again).rejects.toMatchObject({
+      code: 'aborted',
+      message: 'The call was aborted.',
+    })
+  })
+
+  test('destroy during the font fetch of a write in the worker stops the fetch', async () => {
+    const engine = await start({
+      worker,
+      wasm,
+      fallbackFonts: { japanese: `/inkbar-fonts/hang/${fontFiles.japanese}` },
+    })
+    const doc = await engine.open(await fixture('unembedded-japanese-field'))
+    const before = (await fontLog()).length
+    const writing = doc.write({ fields: { f: { value: '日本語' } } })
+    await expect
+      .poll(async () => (await fontLog()).length, { timeout: 10_000 })
+      .toBeGreaterThan(before)
+    await engine.destroy()
+    await expect(writing).rejects.toMatchObject({
+      code: 'aborted',
+      message: 'The call was aborted.',
+    })
   })
 })

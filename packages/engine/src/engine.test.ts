@@ -484,6 +484,44 @@ test.each([
   }
 )
 
+/**
+ * A two-page file: page 0 has one Latin line in Helvetica at the top, and page 1 is the page of
+ * `japanese` (the `unembedded-japanese` fixture), whose objects it reuses as they are.
+ */
+function twoPages(japanese: Uint8Array): Uint8Array {
+  const text = latin1(japanese)
+  const body = (n: number) => {
+    const match = new RegExp(`\\n${n} 0 obj\\n([\\s\\S]*?)\\nendobj`).exec(text)
+    if (!match?.[1]) throw new Error(`object ${n} not found`)
+    return match[1]
+  }
+  const content = 'BT /F1 24 Tf 72 760 Td (Latin line under the mark) Tj ET\n'
+  const bodies = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [10 0 R 3 0 R] /Count 2 >>',
+    body(3),
+    body(4),
+    body(5),
+    body(6),
+    body(7),
+    body(8),
+    body(9),
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 11 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+  ]
+  let out = '%PDF-1.7\n'
+  const offsets: number[] = []
+  bodies.forEach((b, i) => {
+    offsets.push(out.length)
+    out += `${i + 1} 0 obj\n${b}\nendobj\n`
+  })
+  const xref = out.length
+  out += `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n`
+  for (const offset of offsets) out += `${String(offset).padStart(10, '0')} 00000 n \n`
+  out += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return new Uint8Array(Buffer.from(out, 'latin1'))
+}
+
 describe('fallback fonts', () => {
   const FONT_DIR = dirname(
     createRequire(import.meta.url).resolve('@inkbar/fonts/files/NotoSans-Regular.ttf')
@@ -709,10 +747,9 @@ describe('fallback fonts', () => {
     const controller = new AbortController()
     const running = opened.renderPage(0, { signal: controller.signal })
     await waiting
-    const started = performance.now()
     controller.abort()
+    // The fetch answers only by rejecting on abort, so a rejection shows the abort reached it.
     await expect(running).rejects.toMatchObject({ code: 'aborted' })
-    expect(performance.now() - started).toBeLessThan(100)
     expect(registered.size).toBe(0)
 
     beforeAnswer = () => Promise.resolve()
@@ -814,6 +851,63 @@ describe('fallback fonts', () => {
     const notDrawn = await redactAndSave(false)
     expect(notDrawn).toBe(drawn)
     expect(requests).toEqual([ALL.japanese, ALL.japanese])
+  })
+
+  test('filling a field whose font is unembedded saves the same bytes whatever came first', async () => {
+    // The field's /DA names the page's unembedded Japanese font through the form's /DR, and the
+    // text written into its appearance depends on whether that font is registered.
+    const file = await fixtureBytes('unembedded-japanese-field')
+    const fill = { fields: { f: { value: '日本語' } } }
+    const filled = async (drawFirst: boolean) => {
+      const {
+        engine: fonts,
+        misses,
+        registered,
+      } = await fontEngine({
+        japanese: ALL.japanese,
+      })
+      const opened = await fonts.open(file)
+      if (drawFirst) await opened.renderPage(0)
+      await opened.write(fill)
+      expect(registered.has('japanese')).toBe(true)
+      misses()
+      const saved = await opened.save({ mode: 'rewrite' })
+      await fonts.destroy()
+      return withoutId(saved)
+    }
+    const drawn = await filled(true)
+    const notDrawn = await filled(false)
+    expect(notDrawn).toBe(drawn)
+    expect(requests).toEqual([ALL.japanese, ALL.japanese])
+  })
+
+  test('a redact fetches the fonts of pages without marks before it applies', async () => {
+    // Page 0 holds the mark over Latin text; only page 1 names the unembedded font.
+    const japanese = await fixtureBytes('unembedded-japanese')
+    const file = twoPages(japanese)
+    const marks = [mark('m1', { page: 0, quad: [72, 785, 300, 785, 72, 755, 300, 755] })]
+    const redacted = async (drawFirst: boolean) => {
+      const {
+        engine: fonts,
+        misses,
+        registered,
+      } = await fontEngine({
+        japanese: ALL.japanese,
+      })
+      const opened = await fonts.open(file)
+      expect(opened.pageCount).toBe(2)
+      if (drawFirst) await opened.renderPage(1)
+      await opened.redact({ marks })
+      // Registered before the apply loaded page 1: no miss for it.
+      expect(registered.has('japanese')).toBe(true)
+      expect(misses()).toEqual([])
+      const saved = await opened.save()
+      await fonts.destroy()
+      return withoutId(saved)
+    }
+    const notDrawn = await redacted(false)
+    expect(requests).toEqual([ALL.japanese])
+    expect(notDrawn).toBe(await redacted(true))
   })
 
   test('a write or redact on pages that need no font fetches nothing', async () => {

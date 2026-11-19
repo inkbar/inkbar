@@ -278,3 +278,29 @@ test('without fallback fonts the start-up message carries none', async () => {
   await createWorkerTransport(worker as unknown as Worker, new Uint8Array(0))
   expect(worker.posted[0]).not.toHaveProperty('fallbackFonts')
 })
+
+test.each(['write', 'redact'] as const)(
+  'destroy during a %s tells the worker to stop it, so a font fetch ends at once',
+  async (op) => {
+    const { worker, engine, doc } = await manualEngine()
+    const running = op === 'write' ? doc.write({}) : doc.redact({ marks: [] })
+    await vi.waitUntil(() => worker.waiting.length === 1)
+    const id = worker.waiting[0]!
+    const destroyed = engine.destroy()
+    expect(worker.aborts).toEqual([{ type: 'abort', id }])
+    worker.refuse(id)
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+    await expect(destroyed).resolves.toBeUndefined()
+  }
+)
+
+test('destroy does not tell a running pageInfo to stop', async () => {
+  const { worker, engine, doc } = await manualEngine()
+  const running = doc.pageInfo(0)
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  const destroyed = engine.destroy()
+  expect(worker.aborts).toEqual([])
+  worker.answer(worker.waiting[0]!)
+  await running
+  await destroyed
+})
