@@ -20,7 +20,7 @@
 
 ---
 
-`@inkbar/engine` writes annotations and form values into a PDF. `@inkbar/core` uses it to save: Download, Print and `doc.save()` then hand over the file with the session's changes written in. Most hosts never call it directly. They install it and pass a loader to core:
+`@inkbar/engine` writes annotations and form values into a PDF, and applies redactions. `@inkbar/core` uses it to save: Download, Print and `doc.save()` then hand over the file with the session's changes written in. Most hosts never call it directly. They install it and pass a loader to core:
 
 ```ts
 const viewer = createViewer(el, {
@@ -38,7 +38,7 @@ The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/
 pnpm add @inkbar/engine
 ```
 
-The package holds a 5.9 MB WebAssembly binary (2.6 MB gzipped) and a worker script. Core loads them on the first save that has changes. A host that does not pass the loader bundles none of it.
+The package holds a 6.7 MB WebAssembly binary (2.9 MB gzipped) and a worker script. Core loads them on the first save that has changes. A host that does not pass the loader bundles none of it.
 
 ## Serving the files
 
@@ -65,9 +65,9 @@ In Node (22.3 or later) the engine runs in the calling thread and reads the wasm
 
 ## What it does not do
 
-- It does not apply redactions. Core writes a redaction mark as a Redact annotation; the text and images under it stay in the file.
 - It does not embed fonts. An appearance can name the twelve standard PDF fonts, and each viewer draws those with its own equivalent.
 - It does not support XFA forms, and it runs no form scripts.
+- It does not clean hidden layers when it redacts.
 
 ## API and lifetimes
 
@@ -111,6 +111,7 @@ Writing:
 Saving:
 
 - `save()` rewrites the whole file, except when the document holds a digital signature: then it appends the changes after the original bytes, so the signature can still be verified. An empty signature field does not count. Pass `mode: 'rewrite'` or `mode: 'incremental'` to choose.
+- After a `redact`, `save()` always rewrites the whole file, signed or not, and `mode: 'incremental'` is a `RangeError`: an appended save would keep the original bytes, and with them everything the redaction removed.
 - Saving keeps the document's encryption and its password.
 
 Ownership and lifetimes:
@@ -123,12 +124,58 @@ Ownership and lifetimes:
 
 Errors:
 
-- Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `aborted` or `engine-failure`.
+- Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `redaction-failed`, `aborted` or `engine-failure`.
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
-- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings.
+- `redaction-failed` means `redact` could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
+- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.
+
+## Redacting
+
+`redact()` removes content from the file for good:
+
+```ts
+const result = await doc.redact({ remove, marks, annotations, fields })
+const redacted = await doc.save()
+```
+
+Each of `marks` is a Gloss `redact` annotation with an `appearance`, written as `write` writes annotations. Under each mark the engine removes:
+
+- text: every character whose box overlaps the mark,
+- images: the samples under the mark, which become blank,
+- drawing: paths and shadings, cut to the mark's shape,
+- annotations the mark overlaps, with their pop-ups, and the form fields of widgets it removes.
+
+A mark covers its Gloss `quads`, or its `rect` when it has none. Its appearance bounds play no part: they may be padded for an outline. The appearance becomes part of the page in the mark's place, and no annotation remains. The engine skips a mark with no area, or one that lies wholly outside the page's crop box.
+
+The engine does not enter tiling patterns, so content inside one stays.
+
+`redact` works in this order, starting from the document as opened, as `write` does:
+
+1. Removes the annotations in `remove`.
+2. Writes the marks and applies them, page by page.
+3. Writes `annotations`, so an annotation that copies a page, such as a loupe, copies the redacted page.
+4. Writes `fields`, skipping any field whose widgets a mark removed.
+5. Sanitises the file. It removes the document information dictionary and XMP metadata, attached files, JavaScript and script actions, page thumbnails, and private application data (`/PieceInfo`). A form's calculations and validation are scripts, so a redacted form no longer calculates.
+
+In an encrypted file, Inkbar's own earlier marks come back locked. The engine knows them by the data stored with them and applies them as well. Redact annotations from other programs stay in the file, unapplied.
+
+The result holds counts, flags and places, and no text from the file:
+
+- `pages`: for each page where marks were applied, the number of marks and the number of other annotations they removed, pop-ups included.
+- `ownLockedMarks`: Inkbar's earlier locked marks it applied.
+- `ownLockedRegions`: the page and quads of each of those marks, read before the apply, for `checkRedaction` to check beside the regions of `marks`.
+- `foreignMarks`: other programs' Redact annotations left in the file, counted on every page.
+- `fieldsSkipped`: the names of the `fields` it skipped.
+- `sanitised`: what sanitising found and removed: `metadata`, `attachments` (a count), `scripts`, `thumbnails` and `privateData`.
+- `hiddenLayers`: the file has layers that are hidden. Redacting does not clean them.
+- `signed`: the file holds a digital signature. The rewritten file's signature no longer verifies.
+
+`redact` rejects with `redaction-failed` when it cannot remove an annotation in `remove`, load a page, write a mark, apply the marks of a page, read the file's report on layers and signatures, or sanitise the file. The annotations and fields it writes after the apply reject with `write-failed`, as in `write`, and so does a field name that the opened file never had. Either way the engine leaves the document as it was opened.
+
+A second `redact` starts again from the document as opened. A `write` after a `redact` rejects with a `RangeError`, since it would start from the opened bytes and undo the redaction. To add to a redacted file, save it and open the saved bytes as a new document.
 
 ## Building from source
 

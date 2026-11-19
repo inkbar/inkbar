@@ -138,6 +138,47 @@ test('error codes cross the worker boundary', async () => {
       ],
     })
   ).rejects.toMatchObject({ code: 'write-failed', annotation: 'bare' })
+  // A redaction that fails on one mark names its page and the mark.
+  await expect(
+    doc.redact({
+      marks: [
+        {
+          page: 0,
+          annotation: {
+            id: 'bare-mark',
+            type: 'redact',
+            page: 0,
+            rect: { x: 10, y: 10, width: 10, height: 10 },
+            opacity: 1,
+          },
+          data: '{}',
+        },
+      ],
+    })
+  ).rejects.toMatchObject({ code: 'redaction-failed', page: 0, annotation: 'bare-mark' })
+})
+
+test('redacts through the worker', async () => {
+  const engine = await start()
+  const doc = await engine.open(await fixture('redact-text'))
+  const rect = { x: 45, y: 190, width: 170, height: 35 }
+  const result = await doc.redact({
+    marks: [
+      {
+        page: 0,
+        annotation: { id: 'mark', type: 'redact', page: 0, rect, opacity: 1 },
+        appearance: {
+          bounds: rect,
+          content: new TextEncoder().encode('0 g 45 190 170 35 re f'),
+        },
+        data: '{}',
+      },
+    ],
+  })
+  expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+  expect(result.sanitised.metadata).toBe(true)
+  await expect(doc.save({ mode: 'incremental' })).rejects.toBeInstanceOf(RangeError)
+  expect((await doc.save()).length).toBeGreaterThan(0)
 })
 
 test('aborting a queued call rejects it and lets the running one finish', async () => {

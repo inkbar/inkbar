@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 
 import { describe, expect, it } from 'vitest'
 
+import { holdsText } from './pdf-bytes'
+
 import {
   FIXTURE_NAMES,
   fixtureBytes,
@@ -192,4 +194,51 @@ describe('fixtures corpus', () => {
       await task.destroy()
     }
   )
+})
+
+const redaction = FIXTURE_NAMES.filter((name) => name.startsWith('redact-'))
+
+describe('redaction fixtures', () => {
+  /** The text PDF.js reads from every page of a fixture, page by page. */
+  async function pageTexts(name: FixtureName): Promise<string[]> {
+    const task = await open(name)
+    const doc = await task.promise
+    const texts: string[] = []
+    for (let i = 1; i <= doc.numPages; i++) {
+      const content = await (await doc.getPage(i)).getTextContent()
+      texts.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '))
+    }
+    await task.destroy()
+    return texts
+  }
+
+  it.each(redaction)('%s holds its secrets and the text it keeps', async (name) => {
+    const { secrets, keeps, regions } = manifest[name]
+    expect(regions?.length).toBeGreaterThan(0)
+    const text = (await pageTexts(name)).join('\n')
+    const bytes = await fixtureBytes(name)
+    for (const word of keeps ?? []) expect(text, word).toContain(word)
+    // A secret may sit in an annotation rather than in the page's text.
+    for (const word of secrets ?? []) expect(holdsText(bytes, word), word).toBe(true)
+    // Every stream is compressed and every string in a dictionary is hex, so the plain bytes
+    // hold none of the words.
+    const plain = Buffer.from(bytes).toString('latin1')
+    for (const word of [...(secrets ?? []), ...(keeps ?? [])])
+      expect(plain.includes(word), word).toBe(false)
+  })
+
+  it.each(redaction)('%s puts each region inside a page', async (name) => {
+    const { pages, regions } = manifest[name]
+    const task = await open(name)
+    const doc = await task.promise
+    for (const { page, quad } of regions ?? []) {
+      expect(page).toBeLessThan(pages)
+      const [left, bottom, right, top] = (await doc.getPage(page + 1)).view
+      const xs = quad.filter((_, i) => i % 2 === 0)
+      const ys = quad.filter((_, i) => i % 2 === 1)
+      expect(xs.every((x) => x >= (left as number) && x <= (right as number))).toBe(true)
+      expect(ys.every((y) => y >= (bottom as number) && y <= (top as number))).toBe(true)
+    }
+    await task.destroy()
+  })
 })

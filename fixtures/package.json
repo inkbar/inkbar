@@ -10,10 +10,12 @@
     "./vite-serve": "./vite-serve.ts",
     "./generate-large": "./generate-large.ts",
     "./other-program": "./other-program.ts",
-    "./qpdf": "./qpdf.ts"
+    "./qpdf": "./qpdf.ts",
+    "./pdf-bytes": "./pdf-bytes.ts"
   },
   "scripts": {
     "generate": "tsx generate.ts",
+    "generate:redaction": "tsx generate-redaction.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint ."

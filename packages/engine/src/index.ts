@@ -9,6 +9,8 @@ export type {
   OpenOptions,
   PageInfo,
   Rect,
+  RedactInput,
+  RedactResult,
   RenderOptions,
   RenderedPage,
   SaveMode,

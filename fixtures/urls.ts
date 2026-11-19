@@ -55,6 +55,12 @@ export const FIXTURE_NAMES = [
   'saved-encrypted',
   'saved-signed',
   'saved-replied',
+  'redact-text',
+  'redact-image-flate',
+  'redact-path',
+  'redact-annotations',
+  'redact-foreign-mark',
+  'redact-hidden-layer',
 ] as const
 
 export type FixtureName = (typeof FIXTURE_NAMES)[number]

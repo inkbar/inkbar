@@ -9,6 +9,16 @@ import type { FixtureName } from './urls'
 export { FIXTURE_NAMES, fixtureUrl, type FixtureName } from './urls'
 export { generateLarge } from './generate-large'
 
+/**
+ * Where a test puts a redaction mark: a page index counting from 0 and a quad in PDF user space,
+ * x1 y1 to x4 y4 with corners in Gloss order: top left, top right, bottom left, bottom right.
+ */
+export interface RedactionRegion {
+  page: number
+  /** Eight numbers. */
+  quad: number[]
+}
+
 export interface FixtureMeta {
   file: string
   pages: number
@@ -18,6 +28,12 @@ export interface FixtureMeta {
   annotations?: Record<string, number>
   /** Where the PDFium engine is known to behave differently, and why. Absent when it does not. */
   engine?: { open?: string; saveRewrite?: string; saveIncremental?: string }
+  /** Words under the `regions` that must be gone once the regions are redacted. */
+  secrets?: string[]
+  /** Page text beside the `regions` that must survive their redaction. */
+  keeps?: string[]
+  /** Where the redaction tests put their marks. */
+  regions?: RedactionRegion[]
 }
 
 export const manifest = manifestJson as Record<FixtureName, FixtureMeta>

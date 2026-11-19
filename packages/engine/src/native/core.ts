@@ -4,11 +4,14 @@ import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
 import { hasSignature, writeFields } from './fields.ts'
 import { FUNCTIONS } from './functions.ts'
+import { applyRedactions } from './redact.ts'
 
 import type {
   OpenOptions,
   PageInfo,
   Rect,
+  RedactInput,
+  RedactResult,
   RenderedPage,
   SaveMode,
   WriteInput,
@@ -54,6 +57,34 @@ interface OpenDocument {
   pageCount: number
   /** True when `doc` holds a write; false when it is the file as opened. */
   written: boolean
+  /** True when `doc` holds a redaction, which only a full rewrite may save. */
+  redacted: boolean
+  /** Whether the file is encrypted. */
+  encrypted: boolean
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/** Throws an `ArgumentError` for redact input whose shape `#checkWrite` cannot read. */
+function checkRedactInput(input: unknown): void {
+  if (!isRecord(input)) throw new ArgumentError('the input must be an object')
+  const list = (key: string, required: boolean) => {
+    const value = input[key]
+    if (value === undefined && !required) return
+    if (!Array.isArray(value)) throw new ArgumentError(`${key} must be a list`)
+    if (!value.every(isRecord))
+      throw new ArgumentError(`every item of ${key} must be an object`)
+  }
+  list('marks', true)
+  list('remove', false)
+  list('annotations', false)
+  if (input.fields !== undefined && !isRecord(input.fields))
+    throw new ArgumentError('fields must be an object')
+  for (const key of ['marks', 'annotations'])
+    for (const item of (input[key] as Record<string, unknown>[] | undefined) ?? [])
+      if (!isRecord(item.annotation))
+        throw new ArgumentError(`every item of ${key} must hold an annotation`)
 }
 
 export class EngineCore {
@@ -124,7 +155,8 @@ export class EngineCore {
     try {
       this.#native.HEAPU8.set(bytes, data)
       const password = options.password === '' ? undefined : options.password
-      doc = this.#load(data, bytes.length, password)
+      const loaded = this.#load(data, bytes.length, password)
+      doc = loaded.doc
       const pageCount = fn.FPDF_GetPageCount(doc)
       if (pageCount <= 0)
         throw new EngineError('invalid-pdf', 'The file is not a valid PDF.')
@@ -136,6 +168,8 @@ export class EngineCore {
         password,
         pageCount,
         written: false,
+        redacted: false,
+        encrypted: loaded.encrypted,
       })
       return { id, pageCount }
     } catch (error) {
@@ -148,8 +182,12 @@ export class EngineCore {
     }
   }
 
-  /** Loads a document from bytes already in engine memory. */
-  #load(data: number, size: number, password: string | undefined): number {
+  /** Loads a document from bytes already in engine memory, and says whether it is encrypted. */
+  #load(
+    data: number,
+    size: number,
+    password: string | undefined
+  ): { doc: number; encrypted: boolean } {
     const fn = this.#fn
     const pointer = password === undefined ? 0 : this.#allocString(password)
     let doc: number
@@ -162,8 +200,8 @@ export class EngineCore {
     // Writing ignores the file's permission flags, so every handle has owner permissions: parts
     // of PDFium that consult them would otherwise skip a write the caller asked for. The call
     // returns false only for a file with no encryption, which has no permission flags to lift.
-    fn.EPDF_SetRuntimeOwnerPermissions(doc, 1)
-    return doc
+    const encrypted = fn.EPDF_SetRuntimeOwnerPermissions(doc, 1) !== 0
+    return { doc, encrypted }
   }
 
   pageInfo(id: number, index: number): PageInfo {
@@ -264,13 +302,19 @@ export class EngineCore {
   /** Saves with `mode`, or with none: incrementally when the file holds a digital signature. */
   save(id: number, mode: SaveMode | undefined): Uint8Array {
     const entry = this.#get(id)
+    // An incremental save keeps the earlier revision, and with it what the redaction removed.
+    if (entry.redacted && mode === 'incremental')
+      throw new ArgumentError(
+        'a redacted document is saved by rewriting it, not incrementally'
+      )
     return this.#guard(() => this.#save(entry, mode))
   }
 
   #save(entry: OpenDocument, mode: SaveMode | undefined): Uint8Array {
     const fn = this.#fn
-    const chosen =
-      mode ?? (hasSignature(this.#heap, entry.doc) ? 'incremental' : 'rewrite')
+    const chosen = entry.redacted
+      ? 'rewrite'
+      : (mode ?? (hasSignature(this.#heap, entry.doc) ? 'incremental' : 'rewrite'))
     const writer = fn.INK_Save(entry.doc, SAVE_FLAGS[chosen])
     if (writer === 0)
       throw new EngineError('engine-failure', 'The document could not be saved.')
@@ -291,6 +335,11 @@ export class EngineCore {
    */
   write(id: number, input: WriteInput): void {
     const entry = this.#get(id)
+    // A write starts again from the opened bytes, so it would silently undo the redaction.
+    if (entry.redacted)
+      throw new ArgumentError(
+        'the document holds a redaction; save it and open the redacted bytes as a new document to write to them'
+      )
     this.#checkWrite(entry, input)
     this.#guard(() => {
       this.#write(entry, input)
@@ -339,10 +388,21 @@ export class EngineCore {
   }
 
   #write(entry: OpenDocument, input: WriteInput): void {
+    this.#replace(entry, false, (doc) => {
+      this.#apply(doc, input)
+    })
+  }
+
+  /**
+   * Runs `work` on the document loaded again from its bytes, and puts the result in place of the
+   * document when it succeeds. When it fails the document is put back to the file as opened.
+   */
+  #replace<T>(entry: OpenDocument, redacted: boolean, work: (doc: number) => T): T {
     const fn = this.#fn
-    const fresh = this.#load(entry.data, entry.size, entry.password)
+    const fresh = this.#load(entry.data, entry.size, entry.password).doc
+    let result: T
     try {
-      this.#apply(fresh, input)
+      result = work(fresh)
     } catch (error) {
       if (!this.#stopped) {
         fn.FPDF_CloseDocument(fresh)
@@ -353,13 +413,44 @@ export class EngineCore {
     fn.FPDF_CloseDocument(entry.doc)
     entry.doc = fresh
     entry.written = true
+    entry.redacted = redacted
+    return result
+  }
+
+  /**
+   * Applies redaction marks and sanitises, on the document as opened, as `write` writes: the
+   * document is replaced only when everything succeeds. Bad input is an `ArgumentError` before
+   * any native call, checked as `write` checks it.
+   */
+  redact(id: number, input: RedactInput): RedactResult {
+    const entry = this.#get(id)
+    checkRedactInput(input)
+    this.#checkWrite(entry, {
+      ...(input.remove && { remove: input.remove }),
+      annotations: [...input.marks, ...(input.annotations ?? [])],
+      ...(input.fields && { fields: input.fields }),
+    })
+    return this.#guard(() =>
+      this.#replace(entry, true, (doc) =>
+        applyRedactions(this.#heap, doc, input, {
+          data: entry.data,
+          size: entry.size,
+          pageCount: entry.pageCount,
+          encrypted: entry.encrypted,
+          pageBox: (page) => this.#pageBox(page),
+          writeAnnotations: (annotations) => {
+            this.#apply(doc, { annotations })
+          },
+        })
+      )
+    )
   }
 
   /** Puts the document back to the file as opened, after a failed write. */
   #reopen(entry: OpenDocument): void {
     let doc: number
     try {
-      doc = this.#load(entry.data, entry.size, entry.password)
+      doc = this.#load(entry.data, entry.size, entry.password).doc
     } catch (error) {
       // A trap has stopped the engine, and the caller must learn that rather than only why
       // the write failed.
@@ -370,6 +461,7 @@ export class EngineCore {
     this.#fn.FPDF_CloseDocument(entry.doc)
     entry.doc = doc
     entry.written = false
+    entry.redacted = false
   }
 
   /**

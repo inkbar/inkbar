@@ -151,6 +151,33 @@ export const FUNCTIONS = {
     args: ['ptr', 'i32', 'ptr', 'ptr', 'i32', 'ptr'],
     ret: 'i32',
   },
+  // Not called here: INK_Redact_ApplyPage calls both. (FPDF_PAGE page,
+  //  FPDF_ANNOTATION* annots, int count, uint32_t* out_removed) -> FPDF_BOOL
+  EPDFPage_ApplyRedactions: { args: ['ptr', 'ptr', 'i32', 'ptr'], ret: 'i32' },
+  FPDFPage_GenerateContent: { args: ['ptr'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, FPDF_ANNOTATION annot, INK_APPEARANCE* appearance); takes the appearance
+  INK_Redact_SetOverlay: { args: ['ptr', 'ptr', 'ptr'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, FPDF_PAGE page, const FPDF_ANNOTATION* marks, int count,
+  //  int own_locked, unsigned* out_removed, unsigned* out_left) -> 1 applied, 0 none, -1 failed
+  INK_Redact_ApplyPage: {
+    args: ['ptr', 'ptr', 'ptr', 'i32', 'i32', 'ptr', 'ptr'],
+    ret: 'i32',
+  },
+  // (FPDF_DOCUMENT doc, FPDF_PAGE page, float* out, int capacity) -> total quads, -1 failed.
+  //  Writes the quads of the page's REDACT annotations that carry /INKB_Gloss, 8 floats each.
+  INK_Redact_OwnLockedQuads: { args: ['ptr', 'ptr', 'ptr', 'i32'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, int page_index, const float* quads, int count) -> char* JSON report of
+  //  what the apply cannot remove under each quad, freed with INK_Inspect_Free; NULL when it
+  //  could not look
+  INK_Redact_Unremovable: { args: ['ptr', 'i32', 'ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc, unsigned* out_removed, unsigned* out_attachment_count)
+  INK_Sanitize: { args: ['ptr', 'ptr', 'ptr'], ret: 'i32' },
+  // Not called yet. (FPDF_DOCUMENT doc, int page_index, const float* quads, int count)
+  //  -> char* JSON report, freed with INK_Inspect_Free
+  INK_Inspect_Page: { args: ['ptr', 'i32', 'ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc, const unsigned char* bytes, unsigned long size) -> char* JSON report
+  INK_Inspect_File: { args: ['ptr', 'ptr', 'i32'], ret: 'ptr' },
+  INK_Inspect_Free: { args: ['ptr'], ret: 'void' },
 } as const satisfies Record<string, { args: readonly Kind[]; ret: Kind }>
 
 type Returned<R extends Kind> = R extends 'void' ? void : number

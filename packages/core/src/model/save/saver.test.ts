@@ -55,6 +55,26 @@ function fakeEngine() {
           }
           current = input.annotations?.length ?? 0
         }),
+      redact: (input) =>
+        queued(() => {
+          calls.push(`redact ${n} ${input.marks.length}`)
+          return Promise.resolve({
+            pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
+            ownLockedMarks: 0,
+            ownLockedRegions: [],
+            foreignMarks: 0,
+            fieldsSkipped: [],
+            sanitised: {
+              metadata: false,
+              attachments: 0,
+              scripts: false,
+              thumbnails: false,
+              privateData: false,
+            },
+            hiddenLayers: false,
+            signed: false,
+          })
+        }),
       save: () =>
         queued(() => {
           calls.push(`save ${n}`)

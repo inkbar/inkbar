@@ -12,6 +12,9 @@
  * - `write-failed`: `write` could not write an annotation or a form value. The message names the
  *   annotation's id, which is also in `annotation`, or the field. The document is left as it was opened, and the engine keeps
  *   working.
+ * - `redaction-failed`: `redact` could not apply the marks or sanitise the file. `page` names the
+ *   page, and `annotation` the mark when one mark was the cause. The document is left as it was
+ *   opened, and the engine keeps working.
  * - `aborted`: the call's signal fired while it was queued, or `destroy()` ran while it was queued.
  * - `engine-failure`: anything else. The engine or its worker could not load, a document was
  *   used after `close()`, the engine was used after `destroy()`, or PDFium failed. After an
@@ -25,6 +28,7 @@ export type EngineErrorCode =
   | 'unsupported-security'
   | 'out-of-memory'
   | 'write-failed'
+  | 'redaction-failed'
   | 'aborted'
   | 'engine-failure'
 
@@ -38,19 +42,30 @@ export class EngineError extends Error {
   readonly code: EngineErrorCode
   /** PDFium's own error number, when it gave one. For diagnostics only. */
   readonly pdfiumError?: number
-  /** The id of the annotation a `write-failed` error is about, when it is about one. */
+  /**
+   * The id of the annotation a `write-failed` or `redaction-failed` error is about, when it is
+   * about one.
+   */
   readonly annotation?: string
+  /** The page index, from 0, a `redaction-failed` error is about, when it is about one. */
+  readonly page?: number
 
   constructor(
     code: EngineErrorCode,
     message: string,
-    options?: { pdfiumError?: number; annotation?: string; cause?: unknown }
+    options?: {
+      pdfiumError?: number
+      annotation?: string
+      page?: number
+      cause?: unknown
+    }
   ) {
     super(message, options && 'cause' in options ? { cause: options.cause } : undefined)
     this.name = 'EngineError'
     this.code = code
     if (options?.pdfiumError !== undefined) this.pdfiumError = options.pdfiumError
     if (options?.annotation !== undefined) this.annotation = options.annotation
+    if (options?.page !== undefined) this.page = options.page
   }
 }
 

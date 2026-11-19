@@ -70,6 +70,7 @@ function realEngine() {
             }
             return d.write(input)
           },
+          redact: (input) => d.redact(input),
           save: (o) => d.save(o),
           close: () => d.close(),
         }
