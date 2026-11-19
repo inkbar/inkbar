@@ -247,7 +247,8 @@ export interface Viewer {
    * Saves the open document's file through the browser's download, under its `fileName` or
    * `opts.filename`. With the `engine` option and changes, that is a copy with them written in
    * (`document.save()`); otherwise the file as it was opened. Does nothing while no document is
-   * open, or while a download or print is writing its copy (`fileBusy`). When the copy cannot
+   * open, while a download or print is writing its copy (`fileBusy`), or while the document's
+   * redaction marks are applied (`redactionBusy`). When the copy cannot
    * be written it downloads nothing, reports the `SaveFailed` to `onError`, shows the reader
    * why in the viewer's message box, and rejects with it.
    */
@@ -255,7 +256,8 @@ export interface Viewer {
   /**
    * Prints the open document's file with the browser's own PDF viewer; on iOS the PDF opens
    * in a new tab instead. It hands over the same file as `download`, and fails the same way.
-   * Does nothing while no document is open, or while a copy is being written.
+   * Does nothing while no document is open, while a copy is being written, or while redaction
+   * marks are applied.
    */
   print(): Promise<void>
   /**
@@ -263,9 +265,10 @@ export interface Viewer {
    * the content under them (`doc.applyRedactions()`), calls `onRedacted` with the redacted
    * bytes, and reopens the viewer on them with the same key, page, zoom, layout mode, rotation
    * and tool. The marks are gone, undo history starts over, and Download and Print give the
-   * redacted file. In controlled mode the host is proposed its list without the marks and the
-   * annotations removed with them (reason `'redaction'`), and the reopened document starts from
-   * that list. Resolves with what was done, or null when the reader cancelled or nothing was
+   * redacted file. While the marks are applied the pages take no input, and Download and Print
+   * do nothing. In controlled mode the host is proposed its list without the marks applied and
+   * the annotations removed with them (reason `'redaction'`), and the reopened document starts
+   * from that list. Resolves with what was done, or null when the reader cancelled or nothing was
    * applied. A failure leaves the document as it was, shows the reader why in the viewer's
    * message box and reaches `onError`; it does not reject. A failure is not reported once
    * another document is showing or the viewer is destroyed.

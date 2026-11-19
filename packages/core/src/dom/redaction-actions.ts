@@ -34,7 +34,8 @@ export interface RunRedactionOptions {
 interface RedactionState {
   busy: Writable<boolean>
   busyView: Readable<boolean>
-  can: Readable<boolean>
+  /** Made on first use: a document's busy state reads nothing of its annotations. */
+  can: Readable<boolean> | undefined
   /** From the press until the run settles, the confirmation included. */
   running: boolean
 }
@@ -60,12 +61,7 @@ function stateOf(doc: InkDocument): RedactionState {
   let found = stateByDoc.get(doc)
   if (!found) {
     const busy = writable(false)
-    found = {
-      busy,
-      busyView: readonly(busy),
-      can: derived(doc.annotations.list, () => doc._saves && holdsMarks(doc)),
-      running: false,
-    }
+    found = { busy, busyView: readonly(busy), can: undefined, running: false }
     stateByDoc.set(doc, found)
   }
   return found
@@ -85,7 +81,9 @@ export function redactionBusy(doc: InkDocument): Readable<boolean> {
  * added and removed. The same store on every call.
  */
 export function canRedact(doc: InkDocument): Readable<boolean> {
-  return stateOf(doc).can
+  const state = stateOf(doc)
+  state.can ??= derived(doc.annotations.list, () => doc._saves && holdsMarks(doc))
+  return state.can
 }
 
 /**
@@ -99,7 +97,7 @@ export function canRedact(doc: InkDocument): Readable<boolean> {
 export async function runRedaction(
   doc: InkDocument,
   options: RunRedactionOptions
-): Promise<{ bytes: Uint8Array; result: RedactionResult } | null> {
+): Promise<Awaited<ReturnType<InkDocument['applyRedactions']>> | null> {
   const state = stateOf(doc)
   if (state.running) return null
   state.running = true
@@ -172,7 +170,7 @@ export interface RedactionView {
 
 /** What to open in place of the document, once its marks are applied. */
 export interface RedactionReopen {
-  /** The redacted bytes, under the document's key. */
+  /** A copy of the redacted bytes, the viewer's own, under the document's key. */
   source: DocumentSource
   /** The name to save under: the document's. */
   fileName: string
@@ -181,7 +179,7 @@ export interface RedactionReopen {
   /** The view to open at; undefined when there was none to keep. */
   view: RedactionView | undefined
   /**
-   * The list a controlled document starts from: the host's without the marks and the
+   * The list a controlled document starts from: the host's without the marks applied and the
    * annotations removed with them, already proposed with reason `'redaction'`. Undefined when
    * the annotations are uncontrolled.
    */
@@ -195,11 +193,17 @@ export interface RedactionFlowOptions {
   confirm: (preview: RedactionPreview) => Promise<boolean>
   /** False once the caller has gone or shows another document: the flow then stops. */
   isCurrent: () => boolean
-  /** Hands the redacted file to the host. A throw is reported, and the flow goes on. */
+  /**
+   * Hands the redacted file to the host, whose array it is: the reopen uses a copy. A throw is
+   * reported, and the flow goes on.
+   */
   notify: (event: { bytes: Uint8Array; result: RedactionResult }) => void
   /** The callback's name, for `details.callback` on the error a throwing `notify` gives. */
   callbackName: string
-  /** Hears a failed apply's error, and what a throwing `notify` threw. */
+  /**
+   * Hears a failed apply's error, and what a throwing `notify` threw. What it throws is
+   * rethrown from a microtask, so it surfaces as an uncaught error and the flow goes on.
+   */
   onError: (error: InkError) => void
   /** Shows the reader why the apply failed. */
   showFailure: (message: string) => void
@@ -253,7 +257,16 @@ export async function applyRedactionsFlow(
   doc: InkDocument,
   opts: RedactionFlowOptions
 ): Promise<{ result: RedactionResult; reopen: RedactionReopen | null } | null> {
-  let out: { bytes: Uint8Array; result: RedactionResult } | null
+  const report = (error: InkError): void => {
+    try {
+      opts.onError(error)
+    } catch (thrown) {
+      queueMicrotask(() => {
+        throw thrown
+      })
+    }
+  }
+  let out: Awaited<ReturnType<typeof runRedaction>>
   try {
     out = await runRedaction(doc, { confirm: opts.confirm })
   } catch (error) {
@@ -263,18 +276,20 @@ export async function applyRedactionsFlow(
       const refused = refusedMarks(failure.error)
       if (refused.length > 0) doc.annotations.select(refused)
       opts.showFailure(failure.message)
-      opts.onError(failure.error)
+      report(failure.error)
     }
     return null
   }
   // Gone, or another document opened, meanwhile: there is nothing to reopen.
   if (!out || !opts.isCurrent()) return null
-  const { bytes, result } = out
+  const { bytes, result, _marks: applied } = out
+  // The viewer's own copy: the host may change or transfer the array it is given.
+  const data = bytes.slice()
   try {
     opts.notify({ bytes, result })
   } catch (error) {
     // The reader confirmed: the reopen goes ahead, and the host hears what it threw.
-    opts.onError(
+    report(
       isInkError(error)
         ? error
         : new InkError(
@@ -288,15 +303,16 @@ export async function applyRedactionsFlow(
   // The host may have opened another document already.
   if (!opts.isCurrent()) return { result, reopen: null }
   const view = opts.view()
-  // A controlled host is proposed its list without the marks and the annotations removed with
-  // them, once; the reopened document starts from it, so the proposal its lifting makes agrees.
+  // A controlled host is proposed its list without the marks applied and the annotations
+  // removed with them, once; the reopened document starts from it, so the proposal its lifting
+  // makes agrees. A mark the host added while the apply ran was not applied, and stays.
   let initial: Annotation[] | undefined
   if (doc.annotations.mode === 'controlled') {
-    const gone = new Set(result.removed.session)
+    const gone = new Set([...applied, ...result.removed.session])
     // What the host holds: the file's own annotations never pass through it.
     initial = doc.annotations.list
       .get()
-      .filter((a) => a.source !== 'pdf' && a.type !== 'redact' && !gone.has(a.id))
+      .filter((a) => a.source !== 'pdf' && !gone.has(a.id))
     doc.annotations.replaceAll(initial, 'redaction')
     opts.proposed?.(initial)
     if (!opts.isCurrent()) return { result, reopen: null }
@@ -304,7 +320,7 @@ export async function applyRedactionsFlow(
   return {
     result,
     reopen: {
-      source: { data: bytes, key: doc.key },
+      source: { data, key: doc.key },
       fileName: doc.fileName,
       password: opts.password,
       view,

@@ -216,9 +216,10 @@ export function createToolbarSeparator(): HTMLDivElement {
 }
 
 /**
- * Saves the document's file (`viewer.download()`); disabled until a document is ready. While a
- * download or print writes its copy (`fileBusy`) it is `aria-busy` and `aria-disabled`, keeping
- * focus, and a press does nothing.
+ * Saves the document's file (`viewer.download()`); disabled until a document is ready, and
+ * while its redaction marks are applied (`redactionBusy`). While a download or print writes its
+ * copy (`fileBusy`) it is `aria-busy` and `aria-disabled`, keeping focus, and a press does
+ * nothing.
  */
 export function createDownloadButton(
   viewer: Viewer,
@@ -228,8 +229,9 @@ export function createDownloadButton(
 }
 
 /**
- * Prints the document's file (`viewer.print()`); disabled until a document is ready, and busy
- * as `createDownloadButton` is while a copy is written.
+ * Prints the document's file (`viewer.print()`); disabled until a document is ready and while
+ * its redaction marks are applied, and busy as `createDownloadButton` is while a copy is
+ * written.
  */
 export function createPrintButton(viewer: Viewer): HTMLButtonElement {
   return fileButton(viewer, 'print', () => viewer.print())
@@ -261,8 +263,9 @@ function fileButton(
     (doc, watch) => {
       let ready = false
       let busy = false
+      let redacting = false
       const sync = (): void => {
-        b.disabled = !ready && !busy
+        b.disabled = redacting || (!ready && !busy)
         showBusy(busy)
       }
       watch(doc.status, (s) => {
@@ -271,6 +274,10 @@ function fileButton(
       })
       watch(fileBusy(doc), (on) => {
         busy = on
+        sync()
+      })
+      watch(redactionBusy(doc), (on) => {
+        redacting = on
         sync()
       })
     },

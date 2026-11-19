@@ -8,6 +8,8 @@ import { en, type InkMessages } from '../messages'
 import { isInkError, type InkError } from '../model/errors'
 import { readonly, writable, type Readable, type Writable } from '../model/readable'
 
+import { redactionBusy } from './redaction-actions'
+
 import type { InkDocument } from '../model/document'
 
 export interface DownloadOptions {
@@ -49,12 +51,20 @@ export function fileBusy(doc: InkDocument): Readable<boolean> {
 }
 
 /**
+ * Whether a download or print of `doc` does nothing now: while one writes its copy, or while
+ * its redaction marks are applied, as the file is about to be replaced.
+ */
+const held = (doc: InkDocument): boolean =>
+  fileBusy(doc).get() || redactionBusy(doc).get()
+
+/**
  * The document's file as an object URL; revoke it when done. Marks `doc` busy until the URL is
- * made or the copy has failed; undefined, doing nothing, when `doc` is busy already.
+ * made or the copy has failed; undefined, doing nothing, when `doc` is busy already or its
+ * redaction marks are being applied.
  */
 async function fileUrl(doc: InkDocument): Promise<string | undefined> {
   const { state } = busyOf(doc)
-  if (state.get()) return undefined
+  if (held(doc)) return undefined
   state.set(true)
   try {
     const data = await (doc._saves ? doc.save() : doc.getData())
@@ -69,7 +79,8 @@ const REVOKE_AFTER_MS = 30_000
 
 /**
  * Saves the document's file through the browser's download. Rejects with `SaveFailed`, having
- * downloaded nothing, when the copy could not be written. Does nothing while `fileBusy(doc)`.
+ * downloaded nothing, when the copy could not be written. Does nothing while `fileBusy(doc)` or
+ * `redactionBusy(doc)`.
  */
 export async function downloadDocument(
   doc: InkDocument,
@@ -105,13 +116,14 @@ let lastPrint: { frame: HTMLIFrameElement; url: string } | null = null
  * the tab opens at once, inside the press that asked, since a tab opened once the copy is
  * written would be blocked, and goes to the file when it is ready. Resolves once the print
  * dialog has been asked for. Rejects with `SaveFailed`, having printed nothing and closed the
- * tab, when the copy could not be written. Does nothing while `fileBusy(doc)`.
+ * tab, when the copy could not be written. Does nothing while `fileBusy(doc)` or
+ * `redactionBusy(doc)`.
  */
 export async function printDocument(
   doc: InkDocument,
   opts: PrintOptions = {}
 ): Promise<void> {
-  if (fileBusy(doc).get()) return
+  if (held(doc)) return
   if (!printsFromFrame())
     return printInTab(doc, (opts.messages ?? en).viewer.preparingFile)
   const url = await fileUrl(doc)

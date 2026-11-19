@@ -30,6 +30,7 @@ import {
 import { createNavigation, type Navigation } from './navigation'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
+import { redactionBusy } from './redaction-actions'
 import { createSearchHighlights } from './search/highlights'
 import { getSelectionQuads } from './selection'
 import {
@@ -321,6 +322,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     for (const field of el.querySelectorAll('[data-ink-editor]'))
       field.setAttribute('aria-label', m.annotations.freetext)
   })
+  // While the document's marks are applied the pages take no input: an edit made meanwhile
+  // would not reach the redacted file.
+  const applying = redactionBusy(doc)
+  const stopApplying = applying.subscribe((on) => {
+    el.toggleAttribute('inert', on)
+  })
+  el.toggleAttribute('inert', applying.get())
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -901,6 +909,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (destroyed) return
       destroyed = true
       stopEditorNames()
+      stopApplying()
+      el.removeAttribute('inert')
       teardown()
       openPageEvents(undefined)
       layers?.destroy()

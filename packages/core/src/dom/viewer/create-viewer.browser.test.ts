@@ -30,11 +30,13 @@ import {
   createApplyRedactionsButton,
   createBack,
   createCommandButton,
+  createDownloadButton,
   createForward,
   createNextPage,
   createPageCount,
   createPageInput,
   createPrevPage,
+  createPrintButton,
   createRedo,
   createToolbar,
   createToolbarSeparator,
@@ -4120,11 +4122,32 @@ describe('applying redactions', () => {
 
   it('a reopen that fails shows only the open failure', async () => {
     const errors: InkError[] = []
+    /** The real engine, whose redacted bytes are spoiled once the check has passed them. */
+    const spoiling: EngineLoader = async () => {
+      const m = await import('@inkbar/engine')
+      return {
+        createEngine: async () => {
+          const engine = await m.createEngine()
+          return new Proxy(engine, {
+            get(target, key) {
+              if (key === 'checkRedaction')
+                return async (...args: Parameters<typeof engine.checkRedaction>) => {
+                  const found = await target.checkRedaction(...args)
+                  args[0].fill(0)
+                  return found
+                }
+              const value: unknown = Reflect.get(target, key, target)
+              return typeof value === 'function'
+                ? (value as (...a: unknown[]) => unknown).bind(target)
+                : value
+            },
+          })
+        },
+      }
+    }
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      engine: spoiling,
       redactionConfirm: false,
-      // The host spoils the bytes the viewer reopens on.
-      onRedacted: ({ bytes }) => bytes.fill(0),
       onError: (e) => errors.push(e),
     })
     const { doc } = await ready(viewer)
@@ -4135,6 +4158,34 @@ describe('applying redactions', () => {
     expect(errors.map((e) => e.code)).toEqual(['InvalidPdf'])
     expect(alertText()).toBeNull()
   })
+
+  it.each([
+    ['zeroes', (bytes: Uint8Array) => bytes.fill(0)],
+    [
+      'transfers',
+      (bytes: Uint8Array) => void structuredClone(bytes, { transfer: [bytes.buffer] }),
+    ],
+  ])(
+    'a host that %s the bytes it is given still sees the redacted file reopen',
+    async (_, spoil) => {
+      const errors: InkError[] = []
+      const { viewer } = make('redact-text', {
+        engine: realEngine(),
+        redactionConfirm: false,
+        onRedacted: ({ bytes }) => spoil(bytes),
+        onError: (e) => errors.push(e),
+      })
+      const { doc } = await ready(viewer)
+      markSecret(doc)
+      await viewer.applyRedactions()
+      const next = await reopened(viewer, doc)
+      expect(errors).toEqual([])
+      expect(next.pages).toHaveLength(doc.pages.length)
+      const textLayer = () => viewer.element.querySelector('.ink-text-layer')
+      await until(() => (textLayer()?.textContent ?? '').includes('KEEP-BETA'))
+      expect(textLayer()!.textContent).not.toContain('SECRET')
+    }
+  )
 
   it('the dialog closes, answering no, when its document is replaced', async () => {
     const errors: InkError[] = []
@@ -4357,6 +4408,91 @@ describe('applying redactions', () => {
     markSecret(bareDoc)
     expect(bareControl.disabled).toBe(true)
     await expect(bare.applyRedactions()).resolves.toBeNull()
+  })
+
+  /** `loader`, held until `gate` resolves. */
+  const gated =
+    (loader: EngineLoader, gate: Promise<void>): EngineLoader =>
+    async () => {
+      await gate
+      return loader()
+    }
+
+  it('the pages take no input while the marks are applied, and take it again after a failure', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const errors: InkError[] = []
+    const { viewer } = make('redact-text', {
+      engine: gated(failingCheck, gate),
+      redactionConfirm: false,
+      tools: [noteTool()],
+      onError: (e) => errors.push(e),
+    })
+    const { doc, engine } = await ready(viewer)
+    markSecret(doc)
+    const notes = () => doc.annotations.list.get().filter((a) => a.type === 'text')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    const page = () => scroll.querySelector<HTMLElement>('[data-page="0"]')!
+    await until(() => page() !== null)
+    expect(scroll.inert).toBe(false)
+
+    engine.tools.set('note')
+    const applying = viewer.applyRedactions()
+    await until(() => redactionBusy(doc).get())
+    expect(scroll.inert).toBe(true)
+    // A real press: the browser sends it past the inert pages.
+    await userEvent.click(page(), { force: true, position: { x: 200, y: 300 } })
+    await settle()
+    expect(notes()).toEqual([])
+
+    release()
+    await expect(applying).resolves.toBeNull()
+    expect(errors.map((e) => e.code)).toEqual(['RedactionFailed'])
+    expect(scroll.inert).toBe(false)
+    engine.tools.set('note')
+    await userEvent.click(page(), { force: true, position: { x: 200, y: 300 } })
+    await until(() => notes().length === 1)
+  })
+
+  it('Download and Print are disabled and do nothing while the marks are applied', async () => {
+    const clicked = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const { viewer } = make('redact-text', {
+      engine: realEngine(gate),
+      redactionConfirm: false,
+    })
+    const download = createDownloadButton(viewer)
+    const print = createPrintButton(viewer)
+    viewer.element.prepend(download, print)
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    expect(download.disabled).toBe(false)
+    expect(print.disabled).toBe(false)
+
+    const applying = viewer.applyRedactions()
+    await until(() => redactionBusy(doc).get())
+    expect(download.disabled).toBe(true)
+    expect(print.disabled).toBe(true)
+    await viewer.download()
+    await viewer.print()
+    expect(clicked).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
+    // The keys do what the buttons would.
+    const keys = { bubbles: true, cancelable: true, ctrlKey: true }
+    viewer.element.dispatchEvent(new KeyboardEvent('keydown', { ...keys, key: 's' }))
+    await settle()
+    expect(clicked).not.toHaveBeenCalled()
+
+    release()
+    await applying
+    await reopened(viewer, doc)
+    expect(download.disabled).toBe(false)
+    expect(print.disabled).toBe(false)
+    await viewer.download()
+    expect(clicked).toHaveBeenCalledTimes(1)
   })
 
   it('the control is busy while the marks are applied', async () => {
