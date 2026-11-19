@@ -43,6 +43,36 @@ pnpm test
 pnpm test:browser
 ```
 
+## Smoke tests in real browsers
+
+Every suite above runs in Playwright's Chromium on Linux. The smoke tests run a short list of checks in real browsers: real Safari on a Mac, and Safari on an iPhone and an iPad, Chrome on an Android phone, and Edge and Firefox on Windows 11 through [BrowserStack](https://www.browserstack.com/).
+
+The checks live in one page of the sandbox, `apps/sandbox/src/smoke/`, served at `/smoke/`. Inside the browser, it loads the engine's WebAssembly in its worker, renders a page, reads the text layer, adds an annotation, saves and reopens the file, applies a redaction and checks it, produces a download and runs a search. It shows the results as text, keeps them on `window.__inkbarSmoke`, and POSTs them to the URL in `?report=` when there is one. On the phones and tablets, the BrowserStack run also taps a tool button, and on Android it draws with a finger and pinches to zoom. BrowserStack's iOS automation has no touch drag or multi-touch, so those two gestures are not tested on iOS.
+
+`.github/workflows/smoke.yml` runs them on release pull requests, on pull requests that change the smoke page, its scripts or the workflow, and by hand from the Actions tab. They are not required checks. The sandbox's own suite also opens the page in Chromium (`apps/sandbox/e2e/smoke.spec.ts`), so ordinary CI covers the page itself.
+
+To run them locally, build the sandbox first:
+
+```sh
+pnpm exec turbo run build --filter=@inkbar/sandbox
+pnpm --filter @inkbar/smoke serve   # serves it at http://127.0.0.1:3010/smoke/
+```
+
+Open that URL in any browser to see the results. For real Safari on a Mac, allow automation once with `sudo safaridriver --enable`, then, with the sandbox served, run:
+
+```sh
+pnpm --filter @inkbar/smoke safari
+```
+
+The BrowserStack run reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from the environment. It serves the sandbox, starts the BrowserStack Local tunnel, runs one session per target, five at a time, and stops the tunnel. Each session uses the account's minutes, so run one target first:
+
+```sh
+pnpm --filter @inkbar/smoke browserstack --project=iPhone
+pnpm --filter @inkbar/smoke browserstack
+```
+
+The targets are in `apps/smoke/browserstack/targets.ts`. In CI the BrowserStack job runs only when the repository variable `BROWSERSTACK_SMOKE` is `true` and the repository secrets `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` are set. A pull request from a fork gets no secrets, so the job skips its steps and passes.
+
 ## Translations
 
 Inkbar ships English, French and German. Each is a complete message set in `packages/core/src/locales/`: `en` is the source, and `fr.ts` and `de.ts` follow its shape. Write labels with values using `template` and `plural`, so numbers and plural forms follow the language.

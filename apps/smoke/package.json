@@ -1,0 +1,19 @@
+{
+  "name": "@inkbar/smoke",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo skip",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint safari.ts browserstack",
+    "serve": "pnpm --filter @inkbar/sandbox exec vite preview --host 127.0.0.1 --port 3010 --strictPort",
+    "safari": "node safari.ts",
+    "browserstack": "playwright test -c browserstack/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24",
+    "browserstack-local": "1.5.16"
+  }
+}
