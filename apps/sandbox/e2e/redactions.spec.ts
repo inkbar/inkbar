@@ -1,4 +1,6 @@
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { inflateSync } from 'node:zlib'
 
 // eslint-disable-next-line import-x/no-named-as-default
 import AxeBuilder from '@axe-core/playwright'
@@ -424,5 +426,84 @@ for (const framework of FRAMEWORK_ORDER) {
         "definePlugin<SuggestionsOptions>('sandbox'"
       )
     })
+  })
+}
+
+/** A phone number the first record holds once, high on the page: nothing else in the document repeats it. */
+const SECRET = '07700 900123'
+const SECRET_DIGITS = '900123'
+
+/**
+ * The file's text as latin1, with every flate stream inflated and each hex string a page draws
+ * decoded, so a search can find page text.
+ */
+function readableText(bytes: Uint8Array): string {
+  const raw = Buffer.from(bytes).toString('latin1')
+  const parts = [raw]
+  for (const match of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+    try {
+      const content = inflateSync(Buffer.from(match[1]!, 'latin1')).toString('latin1')
+      parts.push(content)
+      for (const hex of content.matchAll(/<((?:[0-9A-Fa-f]{2})+)>\s*Tj/g))
+        parts.push(Buffer.from(hex[1]!, 'hex').toString('latin1'))
+    } catch {
+      // Not a flate stream.
+    }
+  }
+  return parts.join('\n')
+}
+
+async function downloaded(page: Page): Promise<Uint8Array> {
+  const saving = page.waitForEvent('download')
+  await viewer(page).getByRole('button', { name: 'Download' }).click()
+  const path = test.info().outputPath(`download-${Date.now()}.pdf`)
+  await (await saving).saveAs(path)
+  return new Uint8Array(await readFile(path))
+}
+
+const textLayer = (page: Page) =>
+  viewer(page).locator('.ink-page[data-page="0"] [data-ink-text-layer]')
+
+for (const framework of FRAMEWORK_ORDER) {
+  test(`${framework} redactions: applies a mark and offers the redacted file`, async ({
+    page,
+  }) => {
+    await open(page, framework)
+    await expect(textLayer(page)).toContainText(SECRET)
+    // The check can see the text in the file as opened.
+    expect(readableText(await downloaded(page))).toContain(SECRET_DIGITS)
+
+    const apply = viewer(page).getByRole('button', { name: 'Apply redactions' })
+    await expect(apply).toBeDisabled()
+    await viewer(page).locator('button[data-tool="redact-area"]').click()
+    const box = (await textLayer(page)
+      .locator('span', { hasText: SECRET })
+      .boundingBox())!
+    await page.mouse.move(box.x - 6, box.y - 6)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width + 6, box.y + box.height + 6, { steps: 5 })
+    await page.mouse.up()
+    await expect(redactions(page)).toHaveCount(1)
+    await expect(apply).toBeEnabled()
+
+    await apply.click()
+    const dialog = page.locator('[data-ink-redaction-dialog]')
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(dialog).toHaveCount(0)
+
+    // The viewer reopens on the redacted file: no mark, and the text is gone and not selectable.
+    await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+      '1 redaction applied.',
+      { timeout: 20_000 }
+    )
+    await page.locator('[data-ink-form-alert-ok]').click()
+    await expect(redactions(page)).toHaveCount(0)
+    await expect(textLayer(page)).toContainText('Customer record')
+    await expect(textLayer(page)).not.toContainText(SECRET_DIGITS)
+    await expect(apply).toBeDisabled()
+
+    // Download gives the redacted file.
+    expect(readableText(await downloaded(page))).not.toContain(SECRET_DIGITS)
   })
 }
