@@ -186,17 +186,24 @@ export function InkViewport({
     builtWith.current = { gap: g, buffer: b, pinchZoom: pz, custom: cu }
     // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
     c.setOpenedToolIds(toolIdsOf(c.hostTools, c.pluginHost))
+    // Opened on redacted bytes: the view of the document it replaced. It is handed over once, so
+    // only this first build of the reopened document starts from it.
+    const kept = c.keptView(doc)
     const e = mountViewer({
       container: el,
       document: doc,
-      zoom: c.zoomModel ?? 'fit-width',
-      ...(c.pageModel === undefined ? {} : { page: c.pageModel }),
-      mode: m,
-      rotation: r,
+      zoom: kept?.zoom ?? c.zoomModel ?? 'fit-width',
+      ...(kept
+        ? { page: kept.page }
+        : c.pageModel === undefined
+          ? {}
+          : { page: c.pageModel }),
+      mode: kept?.mode ?? m,
+      rotation: kept?.rotation ?? r,
       gap: g,
       buffer: b,
       pinchZoom: pz,
-      tool: c.tool,
+      tool: kept?.tool ?? c.tool,
       ...(c.hostTools ? { tools: c.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.

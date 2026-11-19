@@ -105,7 +105,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `annotations` with `onAnnotationsChange` makes your list the source of truth. Leave them off and Inkbar keeps the state itself, with undo and redo. The example passes `history` so that `InkUndo` and `InkRedo` work with your list; see below.
 
-`InkRoot` takes a few more props. `password` opens an encrypted file (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `messages` and `locale` set the viewer's language (see [Translations](#translations)). `engine` loads `@inkbar/engine` so Download and Print write the session into the file (see [Saving](#saving)). `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors, refused signatures and saves that could not be written, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
+`InkRoot` takes a few more props. `password` opens an encrypted file (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `messages` and `locale` set the viewer's language (see [Translations](#translations)). `engine` loads `@inkbar/engine` so Download and Print write the session into the file (see [Saving](#saving)) and the redaction marks can be applied; `redactionConfirm` and `onRedacted` go with applying them (see [Redaction](#redaction)). `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors, refused signatures, saves that could not be written and redactions that could not be applied, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
 
 ## Viewport
 
@@ -336,17 +336,51 @@ const engine = () => import('@inkbar/engine')
 
 Without the prop nothing changes: Download and Print give the file as it was opened, and the engine is not bundled.
 
-Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file. A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and `onError` hears a `SaveFailed` error.
+Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file until you apply it (see [Redaction](#redaction)). A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and `onError` hears a `SaveFailed` error.
 
 The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#saving-into-the-pdf) has the details, including where the saved file differs from the screen.
 
+## Redaction
+
+`InkApplyRedactions` removes the content under every redaction mark of the session. It needs the `engine` prop on `InkRoot`, and it is disabled while no document is ready, without the engine and while there is no mark. It shows "Applying redactions…" while it works, keeps focus with `aria-busy` and `aria-disabled`, and a press then does nothing.
+
+```tsx
+<InkRoot src={url} assets={assets} engine={engine} onRedacted={store}>
+  <InkToolbar>
+    <InkToolButton tool="redact-area" />
+    <InkApplyRedactions />
+  </InkToolbar>
+  <InkViewport />
+</InkRoot>
+```
+
+A press asks first with the built-in "Apply redactions?" dialog. It names the marks and their pages, says the change cannot be undone, and adds a line when the marks overlap other annotations, when the file is signed and when an encrypted file holds earlier marks. Focus starts on Cancel. To ask your own way, pass `redactionConfirm={(preview) => ask(preview)}`, a function that gets `doc.redactionPreview()` and resolves true to apply. `redactionConfirm={false}` applies without asking.
+
+After the apply, `onRedacted` gets `{ bytes, result }`: the redacted file, which a host that stores files stores, and what was done. `InkRoot` then shows those bytes in place of `src`, with the same key, file name, page, zoom, layout mode, rotation and tool, and with the password the file was opened with. `src` stays as you passed it, and a new `src` opens as usual. A new `src` means a new source identity: a different `key`, or for a source without one, a different URL string, `File` or bytes object. Passing the stored bytes back under the same `key` reopens nothing. The marks are gone, undo history starts over, and Download and Print give the redacted file. The message box says how many redactions were applied, and adds a line when the file has hidden layers or other programs' marks were left in place. When `onRedacted` throws, `onError` hears a `RedactionFailed` error with `details.callback` set to `'onRedacted'`, and the redacted file still opens. A `src` change made inside `onRedacted` opens that source instead: the redacted file, its kept view and its message are skipped.
+
+With `annotations` and `onAnnotationsChange`, Inkbar proposes your list without the marks and without the annotations removed with them, through `onAnnotationsChange` and `onChange` with `reason: 'redaction'`, before the redacted file opens. With `history={true}`, the list you answer with is no undo step, however late it comes: the history starts from it. Until you answer, the redacted file shows the proposed list, not the one you still hold.
+
+When the apply fails, the document stays as it was, the message box says why, and `onError` hears a `RedactionFailed`, `EngineUnavailable` or `NothingToRedact` error.
+
+`useRedaction()` gives the same action for a control of your own: `canRedact` and `busy` are booleans, and `apply()` resolves with `result`, or with null when the reader cancelled, nothing was applied, the apply failed, or the root unmounted or another document opened while it ran. It never rejects for a failure the viewer has already shown. `InkApplyRedactions` takes a node or a function of `{ label, busy, disabled }` as `children`.
+
+Known limits:
+
+- Hidden layers are not cleaned.
+- The removed words may also appear where Inkbar does not look: bookmark titles, comments on other annotations, form values, alternate text for screen readers.
+- A scanned page is one image: a mark removes the pixels under it, and there is no text to remove. OCR text layers are removed like any text.
+- Scripts are removed, so forms stop calculating.
+- A signed file's signature stops verifying.
+
+The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#applying-redactions) has the details: what the engine removes, what `result` holds, and the full list of limits.
+
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `locked`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` and `InkOutline` take `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `locked`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkApplyRedactions` a node or a function of `{ label, busy, disabled }`; `InkThumbnails` and `InkOutline` take `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`; `.pdf` is added to a name without it). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` prop they give the file with this session's changes written into it (see [Saving](#saving)); without it, the file as it was opened.
 
-`InkRoot`, `InkToolbar`, `InkToolButton`, `InkToolbarButton`, `InkSearchButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkToolbarButton`, `InkSearchButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkApplyRedactions`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 
 ## Keyboard
 
@@ -420,7 +454,7 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 ## Hooks
 
-`useDocument`, `useAnnotations`, `useTool`, `useToolOptions`, `useToolStyle`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useSearch`, `useForm`, `useEmbedded`, `useCommand`, `useRecords` and `useRecordSelection` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. `useToolOptions` reads and sets a tool's options, such as the shape kind; they last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
+`useDocument`, `useAnnotations`, `useTool`, `useToolOptions`, `useToolStyle`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useSearch`, `useForm`, `useEmbedded`, `useCommand`, `useRecords`, `useRecordSelection` and `useRedaction` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. `useToolOptions` reads and sets a tool's options, such as the shape kind; they last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
 
 ## Licence
 
