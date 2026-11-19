@@ -1,0 +1,1 @@
+import{n as e}from"./index-CWz_2iuG.js";var t=()=>e(()=>import(`./dist-B2Llj_lA.js`),[]);export{t};
