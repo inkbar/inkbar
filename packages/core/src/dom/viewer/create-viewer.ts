@@ -34,7 +34,11 @@ import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
-import { applyRedactionsFlow, type RedactionView } from '../redaction-actions'
+import {
+  applyRedactionsFlow,
+  redactionBusy,
+  type RedactionView,
+} from '../redaction-actions'
 import { savePictures } from '../save-pictures'
 import {
   createSearchController,
@@ -182,7 +186,8 @@ export interface Viewer {
   /**
    * Activates annotation `id`, or clears the activation with `null` (closing the thread
    * popover). Unlike a click, it does not select the annotation or call `onActivate`. An id
-   * not in the open document's annotations is ignored.
+   * not in the open document's annotations is ignored, as is any id while the document's
+   * redaction marks are applied: applying closes the thread popover, and none opens meanwhile.
    */
   setActivated(id: string | null): void
   /**
@@ -382,8 +387,15 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   )
   root.append(viewportRoot)
   el.append(root)
+  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
+  const applying = (): boolean => {
+    const doc = current.get()
+    return doc !== null && redactionBusy(doc).get()
+  }
   // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
-  const stopHistoryKeys = attachHistoryKeys(root, () => current.get()?.history)
+  const stopHistoryKeys = attachHistoryKeys(root, () =>
+    applying() ? null : current.get()?.history
+  )
   rootEl.set(scroll)
 
   /** One controller for the viewer's life: the host, the engine and the find bar share it. */
@@ -409,7 +421,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     history: () => current.get()?.history ?? passThrough,
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+        activated.set(id)
     },
     root: readonly(rootEl),
     decorate: () => view.decorateAnnotation,
@@ -552,6 +565,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       const id = activated.get()
       if (id !== null && !store.get(id)) activated.set(null)
     })
+    // While the marks are applied no thread is open: a reply written then would be lost.
+    const stopApplying = redactionBusy(doc).subscribe((on) => {
+      if (on) activated.set(null)
+    })
     // A failed script leaves the form fillable; its error reaches the host. Subscribed first,
     // so the form replays the errors from while the document opened here, and they are held
     // until `onReady` has run.
@@ -595,6 +612,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         signFieldMenu.open(req)
       },
       onActivate: (id) => {
+        if (redactionBusy(doc).get()) return
         activated.set(id)
         onActivate?.(id)
       },
@@ -654,6 +672,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       signFieldMenu?.close()
       formAlert.close()
       stopList()
+      stopApplying()
       threads?.destroy()
       activated.set(null)
       engine.set(null)
@@ -897,7 +916,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     tools: readonly(tools),
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+        activated.set(id)
     },
     setFormHighlight(on) {
       formHighlight = on

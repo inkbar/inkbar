@@ -4495,6 +4495,91 @@ describe('applying redactions', () => {
     expect(clicked).toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * Starts `viewer.applyRedactions()` with `doc`'s apply held, so the marks stay being applied
+   * until `fail` rejects it.
+   */
+  function holdApply(viewer: Viewer, doc: InkDocument) {
+    let fail!: () => void
+    const held = new Promise<never>((_, reject) => {
+      fail = () => reject(new InkError('RedactionFailed', 'held', { stage: 'apply' }))
+    })
+    vi.spyOn(doc, 'applyRedactions').mockReturnValue(held)
+    const applying = viewer.applyRedactions()
+    return { applying, fail }
+  }
+
+  it('comment threads close, and none opens, while the marks are applied', async () => {
+    const { viewer } = make('text-simple', { onError: () => undefined })
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 100, y: 600, width: 20, height: 20 },
+      contents: 'Before',
+    })
+    viewer.setActivated(note.id)
+    await until(() => isOpen(threadPopover()))
+    const list = doc.annotations.list.get()
+
+    const { applying, fail } = holdApply(viewer, doc)
+    await until(() => redactionBusy(doc).get())
+    expect(isOpen(threadPopover())).toBe(false)
+    expect(viewer.activated.get()).toBeNull()
+    // Neither the API nor the keyboard opens one meanwhile.
+    viewer.setActivated(note.id)
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    await settle()
+    expect(viewer.activated.get()).toBeNull()
+    expect(isOpen(threadPopover())).toBe(false)
+    expect(doc.annotations.list.get()).toBe(list)
+
+    fail()
+    await expect(applying).resolves.toBeNull()
+    viewer.setActivated(note.id)
+    await until(() => isOpen(threadPopover()))
+  })
+
+  it('Undo and Redo do nothing while the marks are applied', async () => {
+    const { viewer } = make('text-simple', { onError: () => undefined })
+    const undo = createUndo(viewer)
+    const redo = createRedo(viewer)
+    viewer.element.prepend(undo, redo)
+    const { doc } = await ready(viewer)
+    addSquare(doc)
+    addSquare(doc)
+    doc.history.undo()
+    expect(undo.disabled).toBe(false)
+    expect(redo.disabled).toBe(false)
+    const list = doc.annotations.list.get()
+    const press = (shiftKey: boolean) =>
+      viewer.element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          ctrlKey: true,
+          shiftKey,
+          bubbles: true,
+          cancelable: true,
+        })
+      )
+
+    const { applying, fail } = holdApply(viewer, doc)
+    await until(() => redactionBusy(doc).get())
+    expect(undo.disabled).toBe(true)
+    expect(redo.disabled).toBe(true)
+    press(false)
+    press(true)
+    expect(doc.annotations.list.get()).toBe(list)
+
+    fail()
+    await expect(applying).resolves.toBeNull()
+    expect(undo.disabled).toBe(false)
+    expect(redo.disabled).toBe(false)
+    press(false)
+    expect(doc.annotations.list.get()).toHaveLength(list.length - 1)
+  })
+
   it('the control is busy while the marks are applied', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))

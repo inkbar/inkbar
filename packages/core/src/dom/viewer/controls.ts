@@ -351,12 +351,15 @@ export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {
   return b
 }
 
-/** Undoes the last change to the document's annotations; disabled when there is none. */
+/**
+ * Undoes the last change to the document's annotations; disabled when there is none, and while
+ * its redaction marks are applied.
+ */
 export function createUndo(viewer: Viewer): HTMLButtonElement {
   return historyButton(viewer, 'undo')
 }
 
-/** Redoes the last undone change; disabled when there is none. */
+/** Redoes the last undone change; disabled as `createUndo` is. */
 export function createRedo(viewer: Viewer): HTMLButtonElement {
   return historyButton(viewer, 'redo')
 }
@@ -368,16 +371,30 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     action === 'undo' ? Undo2 : Redo2
   )
-  b.addEventListener('click', () => viewer.document.get()?.history[action]())
+  b.addEventListener('click', () => {
+    const doc = viewer.document.get()
+    if (doc && !redactionBusy(doc).get()) doc.history[action]()
+  })
   // Undoing the last step disables the focused button: focus goes back to the document.
   keepHistoryFocus(b, () =>
     viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')
   )
-  follow<InkDocument>(viewer.document, b, (doc, watch) =>
-    watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (can) => {
-      b.disabled = !can
+  follow<InkDocument>(viewer.document, b, (doc, watch) => {
+    let can = false
+    let applying = false
+    // While the marks are applied the history stays still: the redacted file replaces it.
+    const sync = (): void => {
+      b.disabled = !can || applying
+    }
+    watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (on) => {
+      can = on
+      sync()
     })
-  )
+    watch(redactionBusy(doc), (on) => {
+      applying = on
+      sync()
+    })
+  })
   return b
 }
 
