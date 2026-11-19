@@ -19,8 +19,9 @@
    * (InkRoot's `redactionConfirm`), removes the content under them and shows the redacted file.
    * Disabled until the document is ready, was opened with InkRoot's `engine` and holds a mark.
    * While the marks are applied the button says so and is `aria-busy` and `aria-disabled`,
-   * keeping focus, and a press does nothing. `disabled` turns it off whatever the state. The
-   * `children` snippet receives `{ label, busy, disabled }`.
+   * keeping focus, and a press does nothing. `disabled` turns it off whatever the state, and
+   * whatever element `child` renders. The `children` snippet receives
+   * `{ label, busy, disabled }`.
    */
   import { Toolbar } from 'bits-ui'
 
@@ -57,7 +58,9 @@
   {...asBitsProps(rest)}
   onclick={(e) => {
     onclick?.(e)
-    if (!e.defaultPrevented) void redaction.apply()
+    // A host's own element that is not a button takes clicks whatever `disabled` says.
+    if (off || e.defaultPrevented) return
+    void redaction.apply()
   }}
 >
   {#if children}{@render children({

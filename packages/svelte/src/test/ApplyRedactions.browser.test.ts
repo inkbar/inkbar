@@ -137,6 +137,43 @@ describe('InkApplyRedactions', () => {
     await expect.poll(text('errors')).toBe('RedactionFailed')
   })
 
+  it('a disabled control of your own that is not a button does not apply', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, {
+      src,
+      assets,
+      engine: held.loader,
+      own: 'div',
+      disabled: true,
+    })
+    const own = await q<HTMLElement>('div.host-apply')
+    await firstPage()
+    mark()
+    await expect.poll(attr('[data-testid="probe"]', 'data-can-redact')).toBe('true')
+    own.click()
+    await settle(200)
+    expect(held.writing()).toBe(false)
+    expect(text('redacted')()).toBe('0')
+  })
+
+  it('Download and Print are disabled while the marks are applied', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    expect(disabledOf('[data-ink-download]')()).toBe(false)
+    expect(disabledOf('[data-ink-print]')()).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect.poll(disabledOf('[data-ink-download]')).toBe(true)
+    await expect.poll(disabledOf('[data-ink-print]')).toBe(true)
+    held.fail()
+    await expect.poll(text('errors')).toBe('RedactionFailed')
+    await expect.poll(disabledOf('[data-ink-download]')).toBe(false)
+    await expect.poll(disabledOf('[data-ink-print]')).toBe(false)
+  })
+
   it("the snippet gets the label, busy and disabled, and disabled follows the host's own", async () => {
     const held = heldEngine()
     const screen = await render(RedactionHarness, {

@@ -15,13 +15,13 @@
 <script lang="ts">
   /*
    * Saves the open document's file through the browser's download, under its `fileName`
-   * or `filename`. Disabled until the document is ready. With InkRoot's `engine` and changes,
-   * that is a copy with them written in; otherwise the file as it was opened. While a download
-   * or print writes its copy the button is `aria-busy` and `aria-disabled`, keeping focus, and a
-   * press does nothing. A copy that cannot be written reaches InkRoot's `onError`, and the
-   * reader is told in InkViewport's message box.
+   * or `filename`. Disabled until the document is ready, and while its redaction marks are
+   * applied. With InkRoot's `engine` and changes, that is a copy with them written in; otherwise
+   * the file as it was opened. While a download or print writes its copy the button is
+   * `aria-busy` and `aria-disabled`, keeping focus, and a press does nothing. A copy that cannot
+   * be written reaches InkRoot's `onError`, and the reader is told in InkViewport's message box.
    */
-  import { downloadDocument, fileBusy } from '@inkbar/core/dom'
+  import { downloadDocument, fileBusy, redactionBusy } from '@inkbar/core/dom'
   import { Download } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
@@ -45,6 +45,11 @@
   const ctx = useInkContext('InkDownloadButton')
   const ready = $derived(ctx.document !== null && ctx.status.state === 'ready')
   const busy = useReadable(() => (ctx.document ? fileBusy(ctx.document) : null), false)
+  // The document's redaction marks are being applied: its file is about to be replaced.
+  const redacting = useReadable(
+    () => (ctx.document ? redactionBusy(ctx.document) : null),
+    false
+  )
   const m = useMessages()
 </script>
 
@@ -55,7 +60,7 @@
   title={m.current.toolbar.download}
   aria-busy={busy.current}
   aria-disabled={busy.current ? 'true' : undefined}
-  disabled={(!ready && !busy.current) || !!disabled}
+  disabled={(!ready && !busy.current) || redacting.current || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {

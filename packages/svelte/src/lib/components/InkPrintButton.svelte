@@ -13,10 +13,11 @@
 <script lang="ts">
   /*
    * Prints the open document's file with the browser's own PDF viewer (on iOS, in a new
-   * tab). Disabled until the document is ready. It prints what InkDownloadButton downloads, is
-   * busy while a copy is written as that button is, and reports a failure the same way.
+   * tab). Disabled until the document is ready, and while its redaction marks are applied. It
+   * prints what InkDownloadButton downloads, is busy while a copy is written as that button is,
+   * and reports a failure the same way.
    */
-  import { fileBusy, printDocument } from '@inkbar/core/dom'
+  import { fileBusy, printDocument, redactionBusy } from '@inkbar/core/dom'
   import { Printer } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
@@ -39,6 +40,11 @@
   const ctx = useInkContext('InkPrintButton')
   const ready = $derived(ctx.document !== null && ctx.status.state === 'ready')
   const busy = useReadable(() => (ctx.document ? fileBusy(ctx.document) : null), false)
+  // The document's redaction marks are being applied: its file is about to be replaced.
+  const redacting = useReadable(
+    () => (ctx.document ? redactionBusy(ctx.document) : null),
+    false
+  )
   const m = useMessages()
 </script>
 
@@ -49,7 +55,7 @@
   title={m.current.toolbar.print}
   aria-busy={busy.current}
   aria-disabled={busy.current ? 'true' : undefined}
-  disabled={(!ready && !busy.current) || !!disabled}
+  disabled={(!ready && !busy.current) || redacting.current || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {

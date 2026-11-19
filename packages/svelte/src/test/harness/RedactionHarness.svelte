@@ -1,8 +1,8 @@
 <script lang="ts">
   /*
-   * The apply redactions control in a toolbar over a document. `own: 'child'` renders the host's
-   * own button through `child`, `own: 'children'` the control's snippet of
-   * `{ label, busy, disabled }`. `confirm` passes `redactionConfirm` as a function answering yes
+   * The apply redactions control in a toolbar over a document, with Download and Print.
+   * `own: 'child'` renders the host's own button through `child`, `own: 'div'` a `div` in its
+   * place, and `own: 'children'` the control's snippet of `{ label, busy, disabled }`. `confirm` passes `redactionConfirm` as a function answering yes
    * or no, recording the marks of each preview in `previews`; `confirm: 'dialog'` leaves the
    * built-in dialog; without it the root applies without asking. `throwing` makes `onRedacted`
    * throw, and `shown: false` unmounts the root. `swap` is a source `onRedacted` passes as the
@@ -20,6 +20,8 @@
   import { allTools } from '@inkbar/core/dom'
 
   import InkApplyRedactions from '../../lib/components/InkApplyRedactions.svelte'
+  import InkDownloadButton from '../../lib/components/InkDownloadButton.svelte'
+  import InkPrintButton from '../../lib/components/InkPrintButton.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
   import InkToolButton from '../../lib/components/InkToolButton.svelte'
@@ -53,7 +55,7 @@
     src: DocumentSource
     assets: PdfAssets
     engine?: EngineLoader | undefined
-    own?: 'child' | 'children' | undefined
+    own?: 'child' | 'div' | 'children' | undefined
     confirm?: 'yes' | 'no' | 'dialog' | undefined
     throwing?: boolean
     shown?: boolean
@@ -118,6 +120,12 @@
           <button {...props} class="host-apply">Mine</button>
         {/snippet}
       </InkApplyRedactions>
+    {:else if own === 'div'}
+      <InkApplyRedactions {disabled}>
+        {#snippet child({ props })}
+          <div {...props} role="button" class="host-apply">Mine</div>
+        {/snippet}
+      </InkApplyRedactions>
     {:else if own === 'children'}
       <InkApplyRedactions {disabled}>
         {#snippet children({ label, busy, disabled: off })}
@@ -129,6 +137,8 @@
     {:else}
       <InkApplyRedactions />
     {/if}
+    <InkDownloadButton />
+    <InkPrintButton />
   </InkToolbar>
   <!-- Test-only box: the scroll container needs a bounded height. -->
   <div style="height: 400px; width: 600px"><InkViewport /></div>
