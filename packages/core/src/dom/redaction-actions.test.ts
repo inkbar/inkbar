@@ -106,6 +106,22 @@ function options(over: Partial<RedactionFlowOptions> = {}) {
   return { opts, ...spies }
 }
 
+/** Runs the microtasks the flow queues to rethrow, and returns what they threw. */
+function rethrown() {
+  const thrown: unknown[] = []
+  const original = globalThis.queueMicrotask.bind(globalThis)
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+    original(() => {
+      try {
+        cb()
+      } catch (error) {
+        thrown.push(error)
+      }
+    })
+  })
+  return thrown
+}
+
 describe('applyRedactionsFlow', () => {
   it('applies, tells the host and returns what to reopen', async () => {
     const { doc, replaceAll } = fakeDoc()
@@ -335,21 +351,6 @@ describe('applyRedactionsFlow', () => {
   })
 
   describe('an onError that throws', () => {
-    /** Runs the microtasks the flow queues to rethrow, and returns what they threw. */
-    function rethrown() {
-      const thrown: unknown[] = []
-      const original = globalThis.queueMicrotask.bind(globalThis)
-      vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
-        original(() => {
-          try {
-            cb()
-          } catch (error) {
-            thrown.push(error)
-          }
-        })
-      })
-      return thrown
-    }
     afterEach(() => {
       vi.restoreAllMocks()
     })
@@ -402,6 +403,25 @@ describe('applyRedactionsFlow', () => {
     const out = await applyRedactionsFlow(doc, opts)
     expect(order).toEqual(['replaceAll', 'proposed 0', 'answer'])
     expect(proposed).toHaveBeenCalledExactlyOnceWith(out!.reopen!.initial)
+  })
+
+  it('a proposed hook that throws: the flow resolves, reopens, and the throw is rethrown', async () => {
+    const thrown = rethrown()
+    try {
+      const { doc } = fakeDoc({ controlled: true })
+      const hook = new Error('hook failed')
+      const { opts, onError } = options({
+        proposed: () => {
+          throw hook
+        },
+      })
+      const out = await applyRedactionsFlow(doc, opts)
+      expect(out?.reopen?.initial).toEqual([])
+      expect(onError).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(thrown).toEqual([hook]))
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('does not run proposed when the annotations are uncontrolled', async () => {

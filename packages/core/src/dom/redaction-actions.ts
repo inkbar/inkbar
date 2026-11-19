@@ -247,7 +247,8 @@ export interface RedactionFlowOptions {
    * Runs straight after a controlled host is proposed its list (reason `'redaction'`), before
    * the flow awaits anything and so before a framework hands the host's answer back. A binding
    * with a snapshot history arms `SnapshotHistory.replaced()` here, so that answer starts the
-   * history again instead of being a step.
+   * history again instead of being a step. What it throws is rethrown from a microtask, as
+   * `onError`'s is, and the flow goes on.
    */
   proposed?: (initial: Annotation[]) => void
 }
@@ -288,15 +289,17 @@ export async function applyRedactionsFlow(
   doc: InkDocument,
   opts: RedactionFlowOptions
 ): Promise<{ result: RedactionResult; reopen: RedactionReopen | null } | null> {
-  const report = (error: InkError): void => {
+  /** Runs `hook`; what it throws is rethrown from a microtask, so the flow goes on. */
+  const guarded = (hook: () => void): void => {
     try {
-      opts.onError(error)
+      hook()
     } catch (thrown) {
       queueMicrotask(() => {
         throw thrown
       })
     }
   }
+  const report = (error: InkError): void => guarded(() => opts.onError(error))
   let out: Awaited<ReturnType<typeof run>>
   try {
     out = await run(doc, { confirm: opts.confirm })
@@ -341,11 +344,13 @@ export async function applyRedactionsFlow(
   if (doc.annotations.mode === 'controlled') {
     const gone = new Set([...applied, ...result.removed.session])
     // What the host holds: the file's own annotations never pass through it.
-    initial = doc.annotations.list
+    const list = doc.annotations.list
       .get()
       .filter((a) => a.source !== 'pdf' && !gone.has(a.id))
-    doc.annotations.replaceAll(initial, 'redaction')
-    opts.proposed?.(initial)
+    initial = list
+    doc.annotations.replaceAll(list, 'redaction')
+    const { proposed } = opts
+    if (proposed) guarded(() => proposed(list))
     if (!opts.isCurrent()) return { result, reopen: null }
   }
   return {
