@@ -4473,6 +4473,35 @@ describe('applying redactions', () => {
     await until(() => notes().length === 1)
   })
 
+  it('the pages take no input until the redacted file has replaced the old one', async () => {
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    // Each time the pages take input again, whether the old document is still the one shown.
+    const seen: boolean[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        if (
+          r.target instanceof HTMLElement &&
+          r.target.isConnected &&
+          !r.target.hasAttribute('inert')
+        )
+          seen.push(viewer.document.get() === doc)
+    })
+    observer.observe(viewer.element, {
+      attributes: true,
+      attributeFilter: ['inert'],
+      subtree: true,
+    })
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    observer.disconnect()
+    expect(seen).not.toContain(true)
+  })
+
   it('Download and Print are disabled and do nothing while the marks are applied', async () => {
     const clicked = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')

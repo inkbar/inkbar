@@ -350,7 +350,7 @@ The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/
 
 ## Redaction
 
-`InkApplyRedactions` removes the content under every redaction mark of the session. It needs the `engine` prop on `InkRoot`, and it is disabled while no document is ready, without the engine and while there is no mark. It shows "Applying redactions…" while it works, keeps focus with `aria-busy` and `aria-disabled`, and a press then does nothing. The document takes no input while redactions are being applied: the pages, comment threads, undo and redo, and Download and Print are off.
+`InkApplyRedactions` removes the content under every redaction mark of the session. It needs the `engine` prop on `InkRoot`, and it is disabled while no document is ready, without the engine and while there is no mark. It shows "Applying redactions…" while it works, keeps focus with `aria-busy` and `aria-disabled`, and a press then does nothing. The document takes no input while redactions are being applied, until the redacted file has replaced it or the apply has failed: the pages, comment threads, undo and redo, and Download and Print are off.
 
 ```svelte
 <InkRoot src={url} {assets} {engine} onRedacted={store}>

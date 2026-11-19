@@ -6,6 +6,7 @@ import { writable } from '../model/readable'
 
 import {
   applyRedactionsFlow,
+  redactionBusy,
   redactionDoneMessage,
   runRedaction,
   type RedactionFlowOptions,
@@ -142,6 +143,42 @@ describe('applyRedactionsFlow', () => {
     expect(replaceAll).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
     expect(showFailure).not.toHaveBeenCalled()
+  })
+
+  it('keeps the document busy when it hands back a reopen, until the caller replaces it', async () => {
+    const { doc } = fakeDoc()
+    const out = await applyRedactionsFlow(doc, options().opts)
+    expect(out?.reopen).not.toBeNull()
+    expect(redactionBusy(doc).get()).toBe(true)
+  })
+
+  it.each([
+    ['cancelled', () => options({ confirm: () => Promise.resolve(false) })],
+    [
+      'not current after the notify',
+      () => {
+        let current = true
+        return options({
+          isCurrent: () => current,
+          notify: () => {
+            current = false
+          },
+        })
+      },
+    ],
+  ])('is not busy once it ends with no reopen: %s', async (_, made) => {
+    const { doc } = fakeDoc()
+    await applyRedactionsFlow(doc, made().opts)
+    expect(redactionBusy(doc).get()).toBe(false)
+  })
+
+  it('is not busy once the apply has failed', async () => {
+    const { doc } = fakeDoc({
+      apply: () =>
+        Promise.reject(new InkError('RedactionFailed', 'failed', { stage: 'apply' })),
+    })
+    await applyRedactionsFlow(doc, options().opts)
+    expect(redactionBusy(doc).get()).toBe(false)
   })
 
   it('a cancelled confirmation applies nothing', async () => {

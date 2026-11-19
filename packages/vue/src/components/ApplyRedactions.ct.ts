@@ -189,6 +189,44 @@ test('a redacted listener that throws goes to the app error handler; the file st
   await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
 })
 
+test('the pages take no input until the redacted file has replaced the old one', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute('inert', '')
+  // Each time the pages take input again, whether the old document is still the one shown.
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-ink-root]') as Hooked
+    const before = root.__inkDocument
+    const seen: boolean[] = []
+    ;(window as { __oldTakesInput?: boolean[] }).__oldTakesInput = seen
+    new MutationObserver((records) => {
+      for (const r of records)
+        if (
+          r.target instanceof HTMLElement &&
+          r.target.isConnected &&
+          r.target.matches('[data-ink-scroll]') &&
+          !r.target.hasAttribute('inert')
+        )
+          seen.push(root.__inkDocument === before)
+    }).observe(root, { attributes: true, attributeFilter: ['inert'], subtree: true })
+  })
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  expect(
+    await page.evaluate(() => (window as { __oldTakesInput?: boolean[] }).__oldTakesInput)
+  ).not.toContain(true)
+})
+
 test('keeps the tool across the reopen', async ({ mount, page }) => {
   const cmp = await mount(Harness, {
     props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },

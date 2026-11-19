@@ -332,6 +332,42 @@ describe('InkApplyRedactions', () => {
     await expect.poll(count(MARKS)).toBe(0)
   })
 
+  it('the pages take no input until the redacted file has replaced the old one', async () => {
+    const held = heldEngine()
+    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await firstPage()
+    mark()
+    await expect.poll(disabledOf(APPLY)).toBe(false)
+    document.querySelector<HTMLButtonElement>(APPLY)!.click()
+    await expect.poll(() => held.writing()).toBe(true)
+    await expect
+      .poll(() => document.querySelector('[data-ink-scroll]')?.hasAttribute('inert'))
+      .toBe(true)
+    // Each time the pages take input again, whether the old document is still the one shown.
+    const root = document.querySelector<Hooked>('[data-ink-root]')!
+    const before = root.__inkDocument
+    const seen: boolean[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        if (
+          r.target instanceof HTMLElement &&
+          r.target.isConnected &&
+          r.target.matches('[data-ink-scroll]') &&
+          !r.target.hasAttribute('inert')
+        )
+          seen.push(root.__inkDocument === before)
+    })
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ['inert'],
+      subtree: true,
+    })
+    held.finish()
+    await expect.poll(alertText).toBe('1 redaction applied.')
+    observer.disconnect()
+    expect(seen).not.toContain(true)
+  })
+
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
     await render(RedactionHarness, { src, assets, engine: held.loader })
