@@ -325,9 +325,21 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   // While the document's marks are applied the pages take no input: an edit made meanwhile
   // would not reach the redacted file.
   const applying = redactionBusy(doc)
+  // Meanwhile a polite live region beside the pages says so: inert content is not read out.
+  const applyingStatus = el.ownerDocument.createElement('div')
+  applyingStatus.className = 'ink-visually-hidden'
+  applyingStatus.setAttribute('aria-live', 'polite')
+  applyingStatus.setAttribute('data-ink-redaction-status', '')
+  el.after(applyingStatus)
+  const sayApplying = (): void => {
+    const said = applying.get() ? messages.get().messages.viewer.redacting : ''
+    if (applyingStatus.textContent !== said) applyingStatus.textContent = said
+  }
   const stopApplying = applying.subscribe((on) => {
     el.toggleAttribute('inert', on)
+    sayApplying()
   })
+  const stopApplyingWords = messages.subscribe(sayApplying)
   el.toggleAttribute('inert', applying.get())
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
@@ -910,6 +922,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       destroyed = true
       stopEditorNames()
       stopApplying()
+      stopApplyingWords()
+      applyingStatus.remove()
       el.removeAttribute('inert')
       teardown()
       openPageEvents(undefined)

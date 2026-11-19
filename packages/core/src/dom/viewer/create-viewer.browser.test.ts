@@ -4557,6 +4557,29 @@ describe('applying redactions', () => {
     return { applying, fail }
   }
 
+  it('a polite live region says the marks are being applied, and is emptied after', async () => {
+    const { viewer } = make('text-simple', { onError: () => undefined })
+    const { doc } = await ready(viewer)
+    const region = () =>
+      viewer.element.querySelector<HTMLElement>('[data-ink-redaction-status]')
+    expect(region()).not.toBeNull()
+    expect(region()!.getAttribute('aria-live')).toBe('polite')
+    expect(region()!.classList.contains('ink-visually-hidden')).toBe(true)
+    expect(region()!.textContent).toBe('')
+
+    const { applying, fail } = holdApply(viewer, doc)
+    await until(() => redactionBusy(doc).get())
+    expect(region()!.textContent).toBe('Applying redactions…')
+    // Outside the pages, which take no input meanwhile: inert content is not read out.
+    expect(region()!.closest('[inert]')).toBeNull()
+    viewer.setMessages({ viewer: { redacting: 'Redacting…' } })
+    expect(region()!.textContent).toBe('Redacting…')
+
+    fail()
+    await expect(applying).resolves.toBeNull()
+    expect(region()!.textContent).toBe('')
+  })
+
   it('comment threads close, and none opens, while the marks are applied', async () => {
     const { viewer } = make('text-simple', { onError: () => undefined })
     const { doc } = await ready(viewer)
