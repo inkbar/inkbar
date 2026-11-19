@@ -53,11 +53,17 @@ test('page boxes are reported before rotation', () => {
 })
 
 test('scale multiplies the bitmap', () => {
-  expect(core.renderPage(simple, 0, 2)).toMatchObject({ width: 1224, height: 1584 })
+  expect(core.renderPage(simple, 0, { scale: 2 })).toMatchObject({
+    width: 1224,
+    height: 1584,
+  })
 })
 
 test('a rotated page renders in displayed orientation', () => {
-  expect(core.renderPage(rotated, 0, 1)).toMatchObject({ width: 792, height: 612 })
+  expect(core.renderPage(rotated, 0, { scale: 1 })).toMatchObject({
+    width: 792,
+    height: 612,
+  })
 })
 
 test.each([new Uint8Array(0), new TextEncoder().encode('not a pdf'), PNG_HEADER])(
@@ -76,7 +82,7 @@ test.each([-1, 3, 1.5, NaN])('page index %s is a RangeError', (i) => {
 })
 
 test.each([0, -1, NaN, Infinity, 1000])('scale %s is a RangeError', (s) => {
-  expect(() => core.renderPage(simple, 0, s)).toThrow(RangeError)
+  expect(() => core.renderPage(simple, 0, { scale: s })).toThrow(RangeError)
 })
 
 test("mutating the caller's bytes after open does not change the document", () => {
@@ -94,7 +100,7 @@ test('a closed document rejects every method but close', () => {
   expect(() => core.pageInfo(simple, 0)).toThrow(
     expect.objectContaining({ code: 'engine-failure' })
   )
-  expect(() => core.renderPage(simple, 0, 1)).toThrow(
+  expect(() => core.renderPage(simple, 0, { scale: 1 })).toThrow(
     expect.objectContaining({ code: 'engine-failure' })
   )
   expect(() => core.save(simple, 'rewrite')).toThrow(
@@ -120,7 +126,7 @@ test('opening and closing 200 times does not grow memory', () => {
   const before = native.HEAPU8.length
   for (let i = 0; i < 200; i++) {
     const { id } = core.open(simpleBytes)
-    core.renderPage(id, 0, 1)
+    core.renderPage(id, 0, { scale: 1 })
     core.save(id, 'rewrite')
     core.close(id)
   }

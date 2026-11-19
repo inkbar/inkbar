@@ -19,15 +19,16 @@ export interface Rect {
 }
 
 /**
- * A page's size and rotation. Sizes are in PDF points (1/72 inch) and describe the page box
- * PDFium reports: the crop box intersected with the media box, or the media box when the page has
- * no crop box. They are taken before /Rotate is applied, so a page rotated by 90 degrees keeps its
- * unrotated width and height.
+ * A page's size and rotation. Sizes are in user-space units and describe the page box: the crop
+ * box intersected with the media box, or the media box when the page has no crop box. A unit is a
+ * PDF point (1/72 inch) unless the page has a /UserUnit; multiply by `userUnit` for points. They
+ * are taken before /Rotate is applied, so a page rotated by 90 degrees keeps its unrotated width
+ * and height.
  */
 export interface PageInfo {
-  /** Width in PDF points, before /Rotate. */
+  /** Width in user-space units, before /Rotate. */
   width: number
-  /** Height in PDF points, before /Rotate. */
+  /** Height in user-space units, before /Rotate. */
   height: number
   /** The page's /Rotate entry in degrees clockwise, reduced to 0, 90, 180 or 270. */
   rotation: 0 | 90 | 180 | 270
@@ -43,8 +44,9 @@ export interface PageInfo {
 /** Options for `EngineDocument.renderPage`. */
 export interface RenderOptions {
   /**
-   * Pixels per PDF point. Default 1. It must be a finite number above 0. A scale that gives
-   * a bitmap of more than 268,435,456 pixels is a `RangeError`.
+   * Pixels per user-space unit, which is a PDF point unless the page has a /UserUnit. Default 1
+   * when there is no `size`. It must be a finite number above 0. A scale that gives a bitmap of
+   * more than 268,435,456 pixels is a `RangeError`. Not with `size`.
    */
   scale?: number
   /**
@@ -57,11 +59,29 @@ export interface RenderOptions {
    * so a caller that paints annotations itself does not draw them twice.
    */
   annotations?: boolean
+  /**
+   * The part of the page to draw, in user space. Default: the whole page box. The part outside
+   * the page box is white. Its width and height must be finite and above 0.
+   */
+  region?: Rect
+  /**
+   * The exact bitmap size in pixels, each a whole number from 1. The region is stretched to fill
+   * it, so its two sides may scale differently. Not with `scale`.
+   */
+  size?: { width: number; height: number }
+  /** A turn clockwise on top of the page's /Rotate. Default 0. */
+  rotation?: 0 | 90 | 180 | 270
+  /**
+   * Object numbers of annotations on this page whose appearance is not drawn. Each is a whole
+   * number from 1. The document is not changed, so a later `save` is as it would have been.
+   */
+  hide?: readonly number[]
 }
 
 /**
- * A rendered page. The bitmap is in displayed orientation, after /Rotate. Its width and
- * height are the displayed size times the scale, rounded up to whole pixels.
+ * A rendered page. The bitmap is in displayed orientation, after /Rotate and any `rotation`. Its
+ * width and height are the `size` asked, or else the displayed size of the region times the
+ * scale, rounded up to whole pixels.
  */
 export interface RenderedPage {
   /** Width in pixels. */

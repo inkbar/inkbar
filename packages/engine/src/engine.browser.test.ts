@@ -87,6 +87,32 @@ test('writes an annotation through the worker and leaves the caller its arrays',
   await again.close()
 })
 
+test('render options cross to the worker', async () => {
+  const engine = await start()
+  const doc = await engine.open(await fixture('text-simple'))
+  const whole = await doc.renderPage(0, { scale: 2, rotation: 90 })
+  const part = await doc.renderPage(0, {
+    region: { x: 72, y: 500, width: 200, height: 150 },
+    scale: 2,
+    rotation: 90,
+    hide: [1],
+    signal: new AbortController().signal,
+  })
+  expect(part).toMatchObject({ width: 300, height: 400 })
+  // Turned a quarter, the region's top-left corner is at (500, 72) points.
+  const row = part.width * 4
+  for (let y = 0; y < part.height; y++) {
+    const from = ((72 * 2 + y) * whole.width + 500 * 2) * 4
+    expect(part.data.subarray(y * row, (y + 1) * row)).toEqual(
+      whole.data.subarray(from, from + row)
+    )
+  }
+  await expect(
+    doc.renderPage(0, { scale: 1, size: { width: 1, height: 1 } })
+  ).rejects.toBeInstanceOf(RangeError)
+  await engine.destroy()
+})
+
 test('rendering does not block the page', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))
