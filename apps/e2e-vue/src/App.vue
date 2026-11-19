@@ -2,14 +2,20 @@
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
 import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
+import {
+  isRedactionFixture,
+  redactionPageOptions,
+} from '@inkbar/e2e-shared/redaction-page'
 
 import FormPage from './FormPage.vue'
 import LinksPage from './LinksPage.vue'
+import RedactPage from './RedactPage.vue'
 import ReviewPage from './ReviewPage.vue'
 
 const params = new URLSearchParams(location.search)
 const doc = params.get('doc') ?? 'text-simple'
 const large = clampPageCount(params.get('large'))
+const redaction = redactionPageOptions(params)
 </script>
 
 <template>
@@ -17,6 +23,12 @@ const large = clampPageCount(params.get('large'))
     <h1 class="sandbox-title">Inkbar review app</h1>
     <FormPage v-if="isFormFixture(doc)" :fixture="doc" />
     <LinksPage v-else-if="isLinksFixture(doc)" :fixture="doc" />
+    <RedactPage
+      v-else-if="isRedactionFixture(doc)"
+      :fixture="doc"
+      :controlled="redaction.controlled"
+      :confirm="redaction.confirm"
+    />
     <ReviewPage v-else :fixture="doc" :large-pages="large" />
   </main>
 </template>

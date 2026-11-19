@@ -34,6 +34,7 @@ import { useHistory } from './useHistory'
 import { usePage } from './usePage'
 import { useRecords } from './useRecords'
 import { useRecordSelection } from './useRecordSelection'
+import { useRedaction } from './useRedaction'
 import { useSelection } from './useSelection'
 import { useTool } from './useTool'
 import { useToolOptions } from './useToolOptions'
@@ -55,6 +56,7 @@ describe('composables outside InkRoot', () => {
     ['useToolOptions()', () => useToolOptions('note')],
     ['useRecords()', () => useRecords('sandbox.suggestions')],
     ['useRecordSelection()', () => useRecordSelection('sandbox.suggestions')],
+    ['useRedaction()', useRedaction],
   ])('%s throws a readable error', (name, use) => {
     expect(() => use()).toThrow(
       `[inkbar] ${name} must be called in a component inside <InkRoot>.`

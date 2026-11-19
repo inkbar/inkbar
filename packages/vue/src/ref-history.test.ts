@@ -115,4 +115,18 @@ describe('createRefHistory', () => {
     expect(h.history.canRedo.value).toBe(false)
     h.stop()
   })
+
+  it('starts again from the host list that follows a replaced one, with no step', async () => {
+    const h = host([note('a'), note('mark')])
+    await h.set([note('a'), note('b'), note('mark')])
+    expect(h.history.canUndo.value).toBe(true)
+    h.history.replaced()
+    expect(h.history.canUndo.value).toBe(false)
+    await h.set([note('a'), note('b')])
+    expect(h.history.canUndo.value).toBe(false)
+    // Later changes are steps again.
+    await h.set([note('a')])
+    expect(h.history.canUndo.value).toBe(true)
+    h.stop()
+  })
 })

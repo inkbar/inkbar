@@ -15,6 +15,8 @@ import {
   fileActionFailure,
   createMessageState,
   createPluginHost,
+  createRedactionDialog,
+  applyRedactionsFlow,
   createSearchController,
   createPasswordPrompt,
   createToolOptions,
@@ -34,6 +36,7 @@ import {
 import { Primitive } from 'reka-ui'
 import {
   computed,
+  nextTick,
   onBeforeUnmount,
   onUnmounted,
   onMounted,
@@ -63,12 +66,17 @@ import type {
   InkMessagesInput,
   InkStorage,
   PdfAssets,
+  RedactionPreview,
+  RedactionResult,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
   InkPlugin,
   Navigation,
   PluginHost,
+  RedactionDialog,
+  RedactionReopen,
+  RedactionView,
   SearchController,
   Tool,
   ToolController,
@@ -170,10 +178,19 @@ const props = withDefaults(
      * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
      * over the file with this session's annotations and changed form values written into it:
      * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
-     * before. Without it they hand over the file as it was opened, and the engine is not
-     * bundled. Read when a document opens: a change applies from the next open.
+     * before. Without it they hand over the file as it was opened, the redaction marks cannot
+     * be applied (InkApplyRedactions stays disabled), and the engine is not bundled. Read when
+     * a document opens: a change applies from the next open.
      */
     engine?: EngineLoader | undefined
+    /**
+     * How applying redactions (InkApplyRedactions, `useRedaction`) asks before it applies.
+     * Default: the built-in dialog (`createRedactionDialog`). A function asks your own way with
+     * what the apply will do: resolve true to apply. `false` applies without asking, for a
+     * host that has asked already.
+     */
+    redactionConfirm?:
+      false | ((preview: RedactionPreview) => Promise<boolean>) | undefined
     asChild?: boolean
   }>(),
   {
@@ -197,6 +214,7 @@ const props = withDefaults(
     locale: undefined,
     history: undefined,
     engine: undefined,
+    redactionConfirm: undefined,
     asChild: false,
   }
 )
@@ -216,9 +234,18 @@ const emit = defineEmits<{
   'update:zoom': [zoom: ZoomValue]
   ready: [doc: InkDocument]
   /**
-   * Opening failed, or later a form script failed, a signature field refused its signing, or a
-   * download or print could not write its copy (`SaveFailed`, also shown to the reader in
-   * InkViewport's message box). An error from while the document opened comes after `ready`.
+   * The redaction marks were applied: `bytes` is the redacted file, which the root now shows
+   * in place of `src` (a host that stores files stores these), and `result` says what was done.
+   * A listener that throws goes to Vue's own error handling (`app.config.errorHandler`,
+   * `onErrorCaptured`), not to `error`; the redacted file still opens.
+   */
+  redacted: [event: { bytes: Uint8Array; result: RedactionResult }]
+  /**
+   * Opening failed, or later a form script failed, a signature field refused its signing, a
+   * download or print could not write its copy (`SaveFailed`), or applying redactions failed
+   * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`); the last two kinds are also
+   * shown to the reader in InkViewport's message box. An error from while the document opened
+   * comes after `ready`.
    */
   error: [error: InkError]
   activate: [id: string]
@@ -277,13 +304,40 @@ function setTestHook(doc: InkDocument | undefined): void {
     (rootEl.value as TestHookElement).__inkDocument = doc
 }
 
+/**
+ * The redacted file shown in place of `src` (what `applyRedactionsFlow` said to open), until the
+ * host passes a new `src` or password.
+ */
+let reopened: RedactionReopen | null = null
+/**
+ * The host's list as it stood when it was proposed the list without the marks, and that
+ * proposal. Until the host passes another list, the old one (marks included) is never pushed
+ * into the redacted file: the viewer shows the proposed list instead.
+ */
+let staleHost: { list: Annotation[] | undefined; proposed: Annotation[] } | null = null
+/** The host's list, or the proposed one while the host still holds the stale list. */
+function hostList(): Annotation[] | undefined {
+  const current = props.annotations
+  return staleHost && current === staleHost.list ? staleHost.proposed : current
+}
+/** Runs once the next load's document is ready and `ready` has gone out. */
+let onShown: ((doc: InkDocument) => void) | undefined
+/** The password the open document was opened with: a redacted copy opens with it too. */
+let openedWith: string | undefined
+/** The view each document opened on redacted bytes starts from, until InkViewport reads it. */
+const keptViews = new WeakMap<InkDocument, RedactionView>()
+
 let generation = 0
-/** The dialog's state machine. A submitted password goes straight to a retry of `src`. */
+/**
+ * The dialog's state machine. A submitted password goes straight to a retry of `src`, or of
+ * the redacted file showing in its place.
+ */
 const prompt = createPasswordPrompt((password) => void open(password))
 let stopFormErrors: () => void = noop
 function release(): void {
   stopFormErrors()
   stopFormErrors = noop
+  openedWith = undefined
   // Cleared first, so the plugins close their stores while the document is still alive.
   const doc = document.value
   document.value = null
@@ -293,6 +347,7 @@ function release(): void {
 
 /** A new source or password from the host: the prompt starts over. */
 function start(): void {
+  reopened = null
   prompt.reset()
   void open()
 }
@@ -300,20 +355,32 @@ function start(): void {
 /** `retryPassword` is the reader's, from the prompt: used for this load only. */
 async function open(retryPassword?: string): Promise<void> {
   const gen = ++generation
-  const src = props.src
+  const re = reopened
+  // The list and the view are for the first open of the redacted file only: a later open of it
+  // (a password attempt) starts as any open does.
+  if (re && (re.initial || re.view))
+    reopened = { ...re, initial: undefined, view: undefined }
+  // A new source: the host's list is its own again.
+  if (!re) staleHost = null
+  const src = re ? re.source : props.src
+  const shown = onShown
+  onShown = undefined
   release()
-  refHistory.clear()
+  // A controlled reopen after applying redactions keeps the history as `proposed` left it:
+  // emptied, and starting again from the host's answer, which may still be on its way.
+  if (!re?.initial) refHistory.clear()
   if (src === null) {
     override.value = null
     return
   }
   override.value = { state: 'loading' }
   syncRootEl()
+  const password = retryPassword ?? (re ? re.password : props.password)
   let doc: InkDocument
   try {
     doc = await openDocument(src, {
       assets: props.assets,
-      password: retryPassword ?? props.password,
+      password,
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
       pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
@@ -323,7 +390,7 @@ async function open(retryPassword?: string): Promise<void> {
       annotations: controlled.value
         ? {
             mode: 'controlled',
-            initial: props.annotations ?? [],
+            initial: re?.initial ?? hostList() ?? [],
             onChange: (next, change) => {
               // Lifting is no edit: the list the host answers with re-seeds the history.
               if (change.kind === 'replace' && change.reason === 'file')
@@ -340,6 +407,7 @@ async function open(retryPassword?: string): Promise<void> {
             onChange: (next, change) => emit('update:fields', next, change),
           }
         : { mode: 'uncontrolled' },
+      _fileName: re?.fileName,
     })
   } catch (cause) {
     if (gen !== generation) return
@@ -360,9 +428,11 @@ async function open(retryPassword?: string): Promise<void> {
     doc.destroy()
     return
   }
+  if (re?.view) keptViews.set(doc, re.view)
   // The prop may have changed while the file loaded, when there was no store to apply it to.
-  if (doc.annotations.mode === 'controlled' && props.annotations !== undefined)
-    doc.annotations.setControlledValue(props.annotations)
+  const current = hostList()
+  if (doc.annotations.mode === 'controlled' && current !== undefined)
+    doc.annotations.setControlledValue(current)
   // The same for the fields; a document whose fields opened uncontrolled ignores the push.
   if (props.fields !== undefined) doc.form.setControlledValue(props.fields)
   // A form script that fails leaves the form fillable; the failure goes to `error`. Subscribed
@@ -374,6 +444,7 @@ async function open(retryPassword?: string): Promise<void> {
     else emit('error', e)
   })
   document.value = doc
+  openedWith = password
   override.value = null
   setTestHook(doc)
   const s = doc.status.get()
@@ -386,6 +457,7 @@ async function open(retryPassword?: string): Promise<void> {
   const early = held
   held = undefined
   if (gen === generation) for (const e of early) emit('error', e)
+  if (gen === generation && s.state === 'ready') shown?.(doc)
 }
 
 /**
@@ -499,13 +571,119 @@ watch(
 )
 const words = useReadable(messageState, messageState.get())
 
-/** Who shows the reader a failed download's or print's message: InkViewport, when mounted. */
+/**
+ * Who shows the reader a failed download's or print's message, and what applying redactions
+ * did: InkViewport, when mounted.
+ */
 const fileMessageListeners = new Set<(message: string) => void>()
+function showMessage(message: string): void {
+  for (const show of fileMessageListeners) show(message)
+}
 function reportFileError(error: unknown): void {
   const failure = fileActionFailure(error, messageState.get().messages)
   if (!failure) return
-  for (const show of fileMessageListeners) show(failure.message)
+  showMessage(failure.message)
   emit('error', failure.error)
+}
+
+/**
+ * The built-in confirmation, made on first use (so never on the server) and kept for the
+ * root's life. `answer` settles the question it is showing.
+ */
+let redactionDialog: RedactionDialog | null = null
+let answer: (apply: boolean) => void = noop
+function askInDialog(preview: RedactionPreview): Promise<boolean> {
+  redactionDialog ??= createRedactionDialog({
+    messages: messageState.get().messages,
+    onConfirm: () => answer(true),
+    onCancel: () => answer(false),
+  })
+  const dialog = redactionDialog
+  return new Promise<boolean>((resolve) => {
+    answer = (apply) => {
+      answer = noop
+      resolve(apply)
+    }
+    dialog.open(preview)
+  })
+}
+// The dialog speaks of one document: when that one closes or another opens, it closes,
+// answering no, so Apply never reaches a document that has gone.
+watch(
+  document,
+  () => {
+    redactionDialog?.close()
+    answer(false)
+  },
+  { flush: 'sync' }
+)
+let unmounted = false
+
+/**
+ * Applies the open document's redaction marks through core's `applyRedactionsFlow`: asks first
+ * (`redactionConfirm`), removes the content under them, emits `redacted`, then shows the
+ * redacted file in place of `src`, with the same key, file name, password and view. Controlled,
+ * the host is proposed its list without the marks and the annotations removed with them (reason
+ * `'redaction'`), and the history starts again from its answer. Resolves with what was done, or
+ * null when the reader cancelled, nothing was applied, or the root unmounted or another
+ * document opened while it ran. A failure leaves the document as it was, is shown in
+ * InkViewport's message box and emitted as `error`; it does not reject. A `src` the host passes
+ * from its `redacted` listener opens in place of the redacted file.
+ */
+async function applyRedactions(): Promise<RedactionResult | null> {
+  const doc = document.value
+  if (!doc || status.value.state !== 'ready') return null
+  const ask = props.redactionConfirm
+  const out = await applyRedactionsFlow(doc, {
+    confirm: ask === false ? () => Promise.resolve(true) : (ask ?? askInDialog),
+    isCurrent: () => !unmounted && document.value === doc,
+    notify: (event) => {
+      try {
+        emit('redacted', event)
+      } catch {
+        // Vue hands a listener's throw to its own error handling, which in a development build
+        // with no handler installed also throws it on: it has been reported there already.
+      }
+    },
+    callbackName: 'redacted',
+    onError: (error) => emit('error', error),
+    showFailure: showMessage,
+    messages: () => messageState.get().messages,
+    view: () => {
+      const vp = viewport.value
+      const tc = toolController.value
+      return vp && tc
+        ? {
+            zoom: vp.zoom.get(),
+            page: vp.currentPage.get(),
+            mode: vp.mode.get(),
+            rotation: vp.rotation.get(),
+            tool: tc.active.get(),
+          }
+        : undefined
+    },
+    password: openedWith,
+    proposed: (initial) => {
+      staleHost = { list: props.annotations, proposed: initial }
+      // Armed before Vue hands the host's answer back, so the answer is the restart, not a step.
+      refHistory.replaced()
+    },
+  })
+  if (!out?.reopen) return out?.result ?? null
+  // A `src` the host passed from its `redacted` listener has opened already (Vue's flush runs
+  // before this continuation): that source stays, and the redacted file is not opened.
+  if (unmounted || document.value !== doc) return out.result
+  const reopen = out.reopen
+  reopened = reopen
+  // Said once the redacted file shows, after InkViewport has built for it (a build empties its
+  // message box); a reopen that fails shows its own failure instead.
+  onShown = (next) =>
+    void nextTick(() => {
+      if (document.value === next) showMessage(reopen.message)
+    })
+  // The new document has a history of its own: the old one goes with it.
+  void open()
+  return out.result
 }
 const currentMessages = computed(() => words.value.messages)
 const currentLocale = computed(() => words.value.locale)
@@ -595,6 +773,9 @@ watch([() => identity(props.src), () => props.password], start)
 watch(
   () => props.annotations,
   (next) => {
+    // The host has not answered the redaction's proposal yet: its old list stays out.
+    if (staleHost && next === staleHost.list) return
+    staleHost = null
     if (next && document.value?.annotations.mode === 'controlled')
       document.value.annotations.setControlledValue(next)
   }
@@ -653,9 +834,14 @@ function setTool(id: ToolId): void {
   emit('update:tool', id)
 }
 
+watch(currentMessages, (m) => redactionDialog?.setMessages(m))
+
 onBeforeUnmount(() => {
+  unmounted = true
   generation++
   release()
+  redactionDialog?.destroy()
+  answer(false)
 })
 
 // After the children: InkViewport's engine, and the plugin layers with it, are gone by now, as
@@ -716,6 +902,12 @@ provideInkContext({
   onFileMessage: (show) => {
     fileMessageListeners.add(show)
     return () => fileMessageListeners.delete(show)
+  },
+  applyRedactions,
+  keptView: (doc) => {
+    const view = keptViews.get(doc)
+    keptViews.delete(doc)
+    return view
   },
 })
 

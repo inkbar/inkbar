@@ -12,6 +12,7 @@ import type {
   PdfAssets,
   PluginHistory,
   Readable,
+  RedactionResult,
   SignatureLibrary,
 } from '@inkbar/core'
 import type {
@@ -20,6 +21,7 @@ import type {
   Navigation,
   PasswordPrompt,
   PluginHost,
+  RedactionView,
   SearchController,
   Tool,
   ToolController,
@@ -157,8 +159,23 @@ export interface InkContext {
    * failure is ignored, as before.
    */
   reportFileError(this: void, error: unknown): void
-  /** Calls `show` with each message `reportFileError` has for the reader; returns the stop. */
+  /**
+   * Calls `show` with each message InkRoot has for the reader in InkViewport's message box: a
+   * download or print that failed (`reportFileError`), and what applying redactions did or why
+   * it failed. Returns the stop.
+   */
   onFileMessage(show: (message: string) => void): () => void
+  /**
+   * Applies the open document's redaction marks and shows the redacted file: what
+   * `useRedaction().apply` does.
+   */
+  applyRedactions(this: void): Promise<RedactionResult | null>
+  /**
+   * The view a document opened on redacted bytes starts from (the one it replaced, tool
+   * included), for InkViewport's first build of it; undefined for any other document, and on
+   * any later call for the same one.
+   */
+  keptView(this: void, doc: InkDocument): RedactionView | undefined
 }
 
 export const [injectInkContext, provideInkContext] = createContext<InkContext>('InkRoot')

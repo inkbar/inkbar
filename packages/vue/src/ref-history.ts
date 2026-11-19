@@ -28,6 +28,11 @@ export interface RefHistory extends InkHistory {
    * re-seeds the history and is no step.
    */
   lifted(annotations: readonly Annotation[]): void
+  /**
+   * The host was proposed a list in place of its own, after applying redactions: the history
+   * empties and starts again from the host's next list (core's `SnapshotHistory.replaced`).
+   */
+  replaced(): void
 }
 
 /**
@@ -70,5 +75,6 @@ export function createRefHistory(opts: RefHistoryOptions): RefHistory {
     react: (fn) => history.react(fn),
     attach: (store) => history.attach(store),
     lifted: (annotations) => history.lifted(annotations),
+    replaced: () => history.replaced(),
   }
 }
