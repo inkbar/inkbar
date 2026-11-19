@@ -1,0 +1,1 @@
+import{n as e}from"./index-CU_h6KU-.js";var t=()=>e(()=>import(`./dist-DqPIxQxT.js`),[]);export{t};
