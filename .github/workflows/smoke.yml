@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-safari
-          path: ${{ runner.temp }}/safari.png
+          path: ${{ runner.temp }}/safari-*.png
           if-no-files-found: ignore
           retention-days: 7
 
@@ -87,7 +87,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.run == 'true' && vars.BROWSERSTACK_SMOKE == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}

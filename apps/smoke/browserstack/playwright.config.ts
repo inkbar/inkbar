@@ -17,8 +17,9 @@ const port = 3010
 export default defineConfig({
   testDir: '.',
   testMatch: 'smoke.spec.ts',
-  // A real device takes a while to start, and every command over the tunnel is slow.
-  timeout: 300_000,
+  // A real device takes a while to start, every command over the tunnel is slow, and the page
+  // loads four times, once for each front end.
+  timeout: 900_000,
   expect: { timeout: 30_000 },
   retries: 0,
   workers: 5,
