@@ -7,6 +7,7 @@
 import { allTools, type SidebarOpen } from '@inkbar/core/dom'
 import { Check, Square, SquareDashed } from '@inkbar/icons'
 import {
+  InkApplyRedactions,
   InkDownloadButton,
   InkPrintButton,
   InkColorMenu,
@@ -174,6 +175,7 @@ export default function SuggestRedactions({
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
+          <InkApplyRedactions />
           <InkToolButton tool="sketch" />
           <InkToolButton tool="draw" />
           <InkShapeMenu />
