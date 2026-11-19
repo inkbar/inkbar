@@ -23,6 +23,7 @@ interface SmokeState {
     status: 'pass' | 'fail' | 'skip'
     error?: string
     stack?: string
+    notes?: string[]
     ms: number
   }[]
   userAgent: string
@@ -161,7 +162,7 @@ test('smoke page', async ({ remote }) => {
       if (front === FRONTS[0]) console.log(`${target.name}: ${results.userAgent}`)
       for (const r of results.results)
         console.log(
-          `${target.name} ${front}: ${WORD[r.status]}  ${r.name}  ${Math.round(r.ms)} ms${r.error ? `  ${r.error}` : ''}${r.stack ? `\n${r.stack}` : ''}`
+          `${target.name} ${front}: ${WORD[r.status]}  ${r.name}  ${Math.round(r.ms)} ms${r.error ? `  ${r.error}` : ''}${r.notes ? `  (${r.notes.join('; ')})` : ''}${r.stack ? `\n${r.stack}` : ''}`
         )
       expect.soft(results.results.length, `${front} ran no checks`).toBeGreaterThan(0)
       expect

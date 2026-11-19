@@ -71,7 +71,9 @@ jobs:
           exit 1
       # Safari takes automation only once it is allowed, which needs an administrator.
       - run: sudo safaridriver --enable
-      - run: pnpm --filter @inkbar/smoke safari --screenshot "$RUNNER_TEMP/safari.png"
+      # Keeps the display awake: a window on a sleeping display gets no animation frames, and
+      # the viewer's page tracking waits for them.
+      - run: caffeinate -dimsu pnpm --filter @inkbar/smoke safari --screenshot "$RUNNER_TEMP/safari.png"
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

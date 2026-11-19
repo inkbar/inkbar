@@ -24,6 +24,7 @@ interface SmokeResult {
   ok: boolean
   status: 'pass' | 'fail' | 'skip'
   error?: string
+  notes?: string[]
   ms: number
 }
 
@@ -103,7 +104,8 @@ const WORD = { pass: 'PASS', fail: 'FAIL', skip: 'SKIP' } as const
 function print(state: SmokeState): void {
   for (const r of state.results) {
     console.log(`${WORD[r.status]}  ${r.name}  ${Math.round(r.ms)} ms`)
-    if (r.error) console.log(`      ${r.error}`)
+    for (const line of [...(r.error ? [r.error] : []), ...(r.notes ?? [])])
+      console.log(`      ${line}`)
   }
 }
 
@@ -138,6 +140,14 @@ async function main(): Promise<number> {
     })
     session = created.sessionId
     console.log(`Safari ${String(created.capabilities.browserVersion)}`)
+    // A window that is covered or off screen gets no animation frames and slowed timers, and
+    // the viewer's page tracking waits for frames: give the page the whole screen.
+    await command(base, 'POST', `/session/${session}/window/maximize`, {}).catch(
+      (error: unknown) =>
+        console.log(
+          `Could not maximise the window: ${error instanceof Error ? error.message : String(error)}`
+        )
+    )
     let allPassed = true
     for (const front of FRONTS) {
       const url = pageFor(args.url, front)

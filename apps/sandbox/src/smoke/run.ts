@@ -8,7 +8,8 @@ export interface SmokeCheck {
   name: string
   /** Milliseconds before the check counts as failed. */
   timeout: number
-  run(): Promise<void>
+  /** `note` adds a line to the check's result, such as how long each step took. */
+  run(note: (text: string) => void): Promise<void>
 }
 
 export type SmokeStatus = 'pass' | 'fail' | 'skip'
@@ -22,6 +23,11 @@ export interface SmokeResult {
   error?: string
   /** The first lines of the error's stack, where the browser gives one. */
   stack?: string
+  /**
+   * What the check noted, and for a check that failed or was slow, whether the page was visible
+   * and how often frames and timers ran just after it.
+   */
+  notes?: string[]
   ms: number
 }
 
@@ -67,11 +73,48 @@ function describe(error: unknown): string {
   return String(error)
 }
 
+/** A check slower than this gets a note on the page's state, as a failed one does. */
+const SLOW_MS = 5_000
+
+/**
+ * Whether the page is visible and focused, and how many animation frames and 50 ms timer ticks
+ * ran in half a second. A hidden or covered window gets no frames and slowed timers, so
+ * anything that waits for a frame stalls there.
+ */
+async function pageState(): Promise<string> {
+  let frames = 0
+  let ticks = 0
+  let on = true
+  const frame = () => {
+    frames++
+    if (on) requestAnimationFrame(frame)
+  }
+  const tick = () => {
+    ticks++
+    if (on) setTimeout(tick, 50)
+  }
+  requestAnimationFrame(frame)
+  setTimeout(tick, 50)
+  const start = performance.now()
+  // A message channel is not slowed down as timers are in a hidden page, so it measures.
+  const channel = new MessageChannel()
+  await new Promise<void>((resolve) => {
+    channel.port1.onmessage = () =>
+      performance.now() - start >= 500 ? resolve() : channel.port2.postMessage(null)
+    channel.port2.postMessage(null)
+  })
+  on = false
+  channel.port1.close()
+  return `page ${document.visibilityState}, ${document.hasFocus() ? 'focused' : 'not focused'}: ${frames} frames and ${ticks} timer ticks in ${Math.round(performance.now() - start)} ms`
+}
+
 const WORD: Record<SmokeStatus, string> = { pass: 'PASS', fail: 'FAIL', skip: 'SKIP' }
 
 function line(result: SmokeResult): string {
   const text = `${WORD[result.status]}  ${result.name}  ${Math.round(result.ms)} ms`
-  return result.error ? `${text}\n      ${result.error}` : text
+  return [text, ...(result.error ? [result.error] : []), ...(result.notes ?? [])].join(
+    '\n      '
+  )
 }
 
 /** The results so far as text, with a closing line once every check has run. */
@@ -128,17 +171,19 @@ export async function runChecks(
   for (const check of checks) {
     const started = performance.now()
     const limit = deadline(check.timeout)
+    const notes: string[] = []
+    let result: SmokeResult
     try {
-      await Promise.race([check.run(), limit.promise])
-      state.results.push({
+      await Promise.race([check.run((text) => notes.push(text)), limit.promise])
+      result = {
         name: check.name,
         ok: true,
         status: 'pass',
         ms: performance.now() - started,
-      })
+      }
     } catch (error) {
       const skipped = error instanceof SkipCheck
-      state.results.push({
+      result = {
         name: check.name,
         ok: false,
         status: skipped ? 'skip' : 'fail',
@@ -147,10 +192,13 @@ export async function runChecks(
           ? { stack: error.stack.split('\n').slice(0, 6).join('\n') }
           : {}),
         ms: performance.now() - started,
-      })
+      }
     } finally {
       limit.cancel()
     }
+    if (result.status === 'fail' || result.ms > SLOW_MS) notes.push(await pageState())
+    if (notes.length > 0) result.notes = notes
+    state.results.push(result)
     show()
   }
   state.done = true

@@ -615,10 +615,15 @@ export function smokeChecks(
     {
       name: 'form values survive a save and reopen',
       timeout: 45_000,
-      async run() {
+      async run(note) {
         if (!formOpen) throw new SkipCheck('skipped: the form did not open')
+        const t0 = performance.now()
         const formSaved = await currentDoc().save()
+        const t1 = performance.now()
+        // The reopened form starts its own script sandbox before it is ready.
         const doc = await reopen(formSaved)
+        const t2 = performance.now()
+        note(`save ${Math.round(t1 - t0)} ms, reopen ${Math.round(t2 - t1)} ms`)
         try {
           assert(
             doc.form.get('name') === 'Robin Hale',
@@ -628,6 +633,14 @@ export function smokeChecks(
             Number(doc.form.get('total')) === 37.5,
             `total is ${JSON.stringify(doc.form.get('total'))}`
           )
+          // Whether the reopened form's scripts run: a new quantity recalculates the total.
+          doc.form.set({ qty: '4' })
+          const ran = await until(
+            'the reopened total',
+            () => Number(doc.form.get('total')) === 50,
+            2_000
+          ).catch(() => false)
+          note(`the reopened form's scripts ${ran ? 'ran' : 'did not run within 2 s'}`)
         } finally {
           doc.destroy()
         }
