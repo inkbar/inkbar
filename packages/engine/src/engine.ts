@@ -157,11 +157,11 @@ export interface Engine {
     options?: CheckRedactionOptions
   ): Promise<RedactionFindings>
   /**
-   * Rejects queued calls with `aborted`, closes every document and frees the engine. In a worker
-   * it waits up to two seconds for the running call, then terminates the worker; a running call
-   * that has not finished by then rejects with `aborted`. In the calling thread it waits for the
-   * running call to finish. Later calls reject with `engine-failure`; a later `destroy()` or
-   * document `close()` resolves.
+   * Rejects queued calls with `aborted`, stops a running render, which rejects with `aborted`,
+   * closes every document and frees the engine. Any other running call is waited for: in a worker
+   * for up to two seconds, then the worker is terminated and the call rejects with `aborted`; in
+   * the calling thread until it finishes. Later calls reject with `engine-failure`; a later
+   * `destroy()` or document `close()` resolves.
    */
   destroy(): Promise<void>
 }
