@@ -165,7 +165,8 @@ describe('the engine reader, behind the switch', () => {
   })
 
   it('draws unembedded Japanese with the fallback fonts, and warns once without them', async () => {
-    const warn = vi.spyOn(console, 'warn')
+    // Kept out of the test output: the warning is expected and checked below.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     // The two Japanese lines sit at baselines 790 and 740 on an A4 page: CSS y 52 to 152.
     const band = (canvas: HTMLCanvasElement) => darkPixels(canvas, 72, 52, 328, 100)
 
