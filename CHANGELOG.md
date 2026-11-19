@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.17.0](https://github.com/inkbar/inkbar/compare/v0.16.0...v0.17.0) (2026-11-19)
+
+
+### Features
+
+* **core:** apply redactions and check the result ([#437](https://github.com/inkbar/inkbar/issues/437)) ([1e28842](https://github.com/inkbar/inkbar/commit/1e28842d36261d777d83d6ea0be4d7e6ff30d285))
+* **core:** confirm, apply and reopen on the redacted file ([#438](https://github.com/inkbar/inkbar/issues/438)) ([0790713](https://github.com/inkbar/inkbar/commit/079071372a388d1a1526b458e294f74e5cce2158))
+* **core:** plan what a redaction removes and what it leaves ([#436](https://github.com/inkbar/inkbar/issues/436)) ([d123ff4](https://github.com/inkbar/inkbar/commit/d123ff49cd4848582df8e59f103d839f5c692193))
+* **engine:** apply redaction marks and sanitise the file ([#432](https://github.com/inkbar/inkbar/issues/432)) ([92e5ad0](https://github.com/inkbar/inkbar/commit/92e5ad0036d40419bc23628d119da70821a49de3))
+* **engine:** check what is left under a redaction ([#433](https://github.com/inkbar/inkbar/issues/433)) ([45d2453](https://github.com/inkbar/inkbar/commit/45d24534f3d25354f1ed542a06e60b92c2f21f5f))
+* **engine:** refuse a mark over content the apply cannot remove ([#434](https://github.com/inkbar/inkbar/issues/434)) ([4897a27](https://github.com/inkbar/inkbar/commit/4897a2715ce1a388e8991cc857a9a12a95f64782))
+* **react:** add the apply redactions control ([#440](https://github.com/inkbar/inkbar/issues/440)) ([8e9ed5e](https://github.com/inkbar/inkbar/commit/8e9ed5e23719715be74df1e8fe8ced9328f1c2b3))
+* **sandbox:** apply redactions in the redaction scenario ([#442](https://github.com/inkbar/inkbar/issues/442)) ([e60f602](https://github.com/inkbar/inkbar/commit/e60f6028dbb0f0506dd2f7b9898fe215d476d696))
+* **svelte:** add the apply redactions control ([#441](https://github.com/inkbar/inkbar/issues/441)) ([c4ae4fd](https://github.com/inkbar/inkbar/commit/c4ae4fd7817490ea0786fca9f292723a43057d26))
+* **vue:** add the apply redactions control ([#439](https://github.com/inkbar/inkbar/issues/439)) ([1926e98](https://github.com/inkbar/inkbar/commit/1926e9815cc3bb328b6255aad1781fa7de5b4fa1))
+
+
+### Bug Fixes
+
+* close small gaps in applying redactions ([#447](https://github.com/inkbar/inkbar/issues/447)) ([842cbbc](https://github.com/inkbar/inkbar/commit/842cbbca0aa2e839a402c83068efa4e5375ddd27))
+* **core:** read page text without async iteration over a stream ([#448](https://github.com/inkbar/inkbar/issues/448)) ([a15bdea](https://github.com/inkbar/inkbar/commit/a15bdeaaeb36ec822a38660dce49fd77ca9b83fb))
+* take no edits while redactions are being applied ([#444](https://github.com/inkbar/inkbar/issues/444)) ([f2807d7](https://github.com/inkbar/inkbar/commit/f2807d7bbddce6bd088ef0a34c1fea9d30f4fb76))
+
 ## [0.16.0](https://github.com/inkbar/inkbar/compare/v0.15.0...v0.16.0) (2026-11-18)
 
 
