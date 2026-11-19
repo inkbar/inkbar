@@ -143,7 +143,9 @@ describe('InkDocument.search', () => {
   it('stops on abort and reads no more pages', async () => {
     const doc = await open('text-simple')
     const reads = await Promise.all(
-      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getTextContent'))
+      [0, 1, 2].map(async (i) =>
+        vi.spyOn(await doc._pdfjs.getPage(i), 'streamTextContent')
+      )
     )
     const abort = new AbortController()
     const it = doc.search('QQ123456C', { signal: abort.signal })[Symbol.asyncIterator]()
@@ -175,7 +177,9 @@ describe('InkDocument.search', () => {
     const doc = await open('text-simple')
     await doc.search('QQ123456C').all()
     const reads = await Promise.all(
-      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getTextContent'))
+      [0, 1, 2].map(async (i) =>
+        vi.spyOn(await doc._pdfjs.getPage(i), 'streamTextContent')
+      )
     )
     await doc.search('QQ123456C').all()
     await doc.search('a', { matchCase: true }).all()
