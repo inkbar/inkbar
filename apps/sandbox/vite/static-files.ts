@@ -58,8 +58,10 @@ export function staticFiles(): Plugin {
     configureServer(server) {
       const base = server.config.base
       server.middlewares.use((req, res, next) => {
+        // Only under the base, so a URL that ignores it fails here as it would once built.
         const url = req.url?.split('?')[0] ?? ''
-        const path = url.startsWith(base) ? url.slice(base.length) : url.slice(1)
+        if (!url.startsWith(base)) return next()
+        const path = url.slice(base.length)
         if (!Object.hasOwn(files, path)) return next()
         res.setHeader('Content-Type', TYPES[extname(path)] ?? 'application/octet-stream')
         res.setHeader('Cache-Control', 'no-store')

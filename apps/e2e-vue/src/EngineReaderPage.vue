@@ -19,7 +19,7 @@ import {
   InkZoomIn,
 } from '@inkbar/vue'
 import { assets } from 'virtual:inkbar-assets'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { InkDocument } from '@inkbar/core'
 
@@ -27,7 +27,10 @@ const props = defineProps<{ fixture: string }>()
 
 const engine = () => import('@inkbar/engine')
 const tools = allTools()
-const src = { url: fixtureUrl(props.fixture as FixtureName), key: props.fixture }
+const src = computed(() => ({
+  url: fixtureUrl(props.fixture as FixtureName),
+  key: props.fixture,
+}))
 const status = ref('loading')
 const reader = ref('')
 

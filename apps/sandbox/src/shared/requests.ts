@@ -7,6 +7,12 @@
  * but for one thing: its base URL is the wrapper's `blob:` URL, so its `fetch` resolves a
  * relative URL against the real script's URL first, as it would have been. No request is
  * otherwise changed or held up. A classic worker is only recorded as started.
+ *
+ * It is made for the smoke and measure pages, not as a general tool. What it does not cover:
+ * - only a string passed to a wrapped worker's `fetch` is rebased; a `URL` or `Request` input,
+ *   `XMLHttpRequest`, `importScripts` and `new URL(…, self.location)` see the `blob:` base;
+ * - classic workers are not wrapped, so their requests are not seen;
+ * - the `blob:` URLs it makes are never revoked.
  */
 
 export interface SeenRequest {

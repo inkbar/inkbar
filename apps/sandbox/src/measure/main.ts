@@ -1,6 +1,7 @@
 /*
- * The measure page, for maintainers and linked from nowhere: `?file=<name>&reader=engine|pdfjs`
- * opens one file with one reader and prints, as plain text, the bytes fetched from the open on,
+ * The measure page, for maintainers and linked from nowhere:
+ * `<base>measure/?file=<name>&reader=engine|pdfjs` (the slash after `measure` is needed: without
+ * it `vite preview` serves the sandbox's own page) opens one file with one reader and prints, as plain text, the bytes fetched from the open on,
  * the time from the open to the first page drawn, and then the first page drawn at each step of
  * Zoom in (×1.25) from zoom 1 to the viewer's largest, 8: per step the canvas size, the draw
  * time, `ok` or the error, and whether the canvas is over the most pixels the engine draws in
@@ -24,8 +25,12 @@ const watch = watchRequests()
 const BASE = import.meta.env.BASE_URL
 /** The most pixels the engine draws in one bitmap; a larger canvas is drawn smaller and stretched. */
 const ENGINE_MAX_PIXELS = 268_435_456
-/** The viewer's largest zoom, and the factor of its Zoom in button. */
+/**
+ * The viewer's largest zoom. The viewport does not expose it: it is the default of `maxZoom` in
+ * `createViewport` (packages/core/src/dom/viewport.ts), which the viewer does not change.
+ */
 const MAX_ZOOM = 8
+/** The factor of the viewer's Zoom in button (packages/core/src/dom/viewer/controls.ts). */
 const ZOOM_IN = 1.25
 const LARGE_PAGES = 50
 
@@ -135,7 +140,11 @@ function format(m: Measurement): string {
     '',
   ]
   if (m.firstPageMs !== undefined)
-    lines.push(`open to the first page drawn: ${Math.round(m.firstPageMs)} ms`, '')
+    lines.push(
+      `open to the first page drawn: ${Math.round(m.firstPageMs)} ms`,
+      '  (this includes starting each worker through the small module that watches its requests)',
+      ''
+    )
   if (m.requests.length > 0) {
     lines.push('bytes fetched from the open on (transfer / body):')
     let transfer = 0
