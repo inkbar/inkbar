@@ -3,10 +3,16 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { afterEach, beforeAll, expect, test, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 
 import { EngineError } from './errors.ts'
-import { createFontLoader, FONT_BITS, keysOf } from './fonts.ts'
+import {
+  createFontLoader,
+  FONT_BITS,
+  FONT_FETCH_TIMEOUT_MS,
+  keysOf,
+  type FontSources,
+} from './fonts.ts'
 
 import type { FontKey } from './types.ts'
 
@@ -23,6 +29,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 /** A stubbed `fetch` that answers every URL with `FONT`, counting calls. */
@@ -220,4 +227,123 @@ test('any other error from register reaches the caller', async () => {
     throw failure
   })
   await expect(loader.ensure(['default'])).rejects.toBe(failure)
+})
+
+test('a loader with no sources fetches nothing and says so', async () => {
+  const fetch = stubFetch()
+  // A host in plain JavaScript can pass a key with no value.
+  const holes = { japanese: undefined } as unknown as FontSources
+  for (const sources of [undefined, {}, holes]) {
+    const loader = createFontLoader(sources, accept())
+    expect(loader.fetches).toBe(false)
+    expect(await loader.ensure(['japanese'])).toEqual(['japanese'])
+  }
+  expect(createFontLoader({ korean: FONT }, accept()).fetches).toBe(true)
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+describe('the bound on a fetch', () => {
+  /** Only the timers: reading a response body waits on the others. */
+  const fakeTimers = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+
+  test('is sixty seconds', () => {
+    expect(FONT_FETCH_TIMEOUT_MS).toBe(60_000)
+  })
+
+  test('a fetch that never settles is missing for that call, not failed, and fetched again', async () => {
+    fakeTimers()
+    let signalSeen: AbortSignal | undefined
+    const fetch = stubFetch()
+    fetch.mockImplementationOnce((_url, init) => {
+      signalSeen = init?.signal ?? undefined
+      return new Promise<Response>(() => {})
+    })
+    const register = accept()
+    const loader = createFontLoader(
+      { japanese: 'https://fonts.test/jp.otf', korean: 'https://fonts.test/ko.otf' },
+      register
+    )
+    let settled = false
+    const ensured = loader.ensure(['japanese', 'korean'])
+    void ensured.then(() => {
+      settled = true
+    })
+    await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS - 1)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    // The fetch was told to stop, and the call went on to the next key.
+    expect(signalSeen?.aborted).toBe(true)
+    expect(await ensured).toEqual(['japanese'])
+    expect(register).toHaveBeenCalledTimes(1)
+    expect(register.mock.calls[0]?.[0]).toBe('korean')
+    expect(vi.getTimerCount()).toBe(0)
+    // Not failed: the next call fetches it again, and this time it arrives.
+    expect(await loader.ensure(['japanese'])).toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(register).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('the bound is applied to each fetch on its own', async () => {
+    fakeTimers()
+    const fetch = stubFetch(
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => {
+            resolve(new Response(FONT))
+          }, FONT_FETCH_TIMEOUT_MS - 1000)
+        })
+    )
+    const loader = createFontLoader(
+      { japanese: 'https://fonts.test/jp.otf', korean: 'https://fonts.test/ko.otf' },
+      accept()
+    )
+    const ensured = loader.ensure(['japanese', 'korean'])
+    await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS - 1000)
+    // Reading the body takes real turns of the event loop before the second fetch starts.
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledTimes(2)
+    })
+    await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS - 1000)
+    expect(await ensured).toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('the timer is cleared on success, on failure and on abort', async () => {
+    fakeTimers()
+    const fetch = stubFetch()
+    const ok = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, accept())
+    expect(await ok.ensure(['japanese'])).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
+
+    fetch.mockImplementation(() => Promise.resolve(new Response('', { status: 404 })))
+    const notFound = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, accept())
+    expect(await notFound.ensure(['japanese'])).toEqual(['japanese'])
+    expect(vi.getTimerCount()).toBe(0)
+
+    fetch.mockImplementation(() => Promise.reject(new TypeError('network down')))
+    const down = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, accept())
+    expect(await down.ensure(['japanese'])).toEqual(['japanese'])
+    expect(vi.getTimerCount()).toBe(0)
+
+    fetch.mockImplementation(() => new Promise<Response>(() => {}))
+    const held = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, accept())
+    const controller = new AbortController()
+    const ensured = held.ensure(['japanese'], controller.signal)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(vi.getTimerCount()).toBe(1)
+    controller.abort()
+    await expect(ensured).rejects.toMatchObject({ code: 'aborted' })
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('a 404 or a network error is still remembered as failed', async () => {
+    fakeTimers()
+    const fetch = stubFetch(() => Promise.reject(new TypeError('network down')))
+    const loader = createFontLoader({ japanese: 'https://fonts.test/jp.otf' }, accept())
+    expect(await loader.ensure(['japanese'])).toEqual(['japanese'])
+    expect(await loader.ensure(['japanese'])).toEqual(['japanese'])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })

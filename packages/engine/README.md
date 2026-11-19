@@ -89,8 +89,11 @@ const engine = await createEngine({ fallbackFonts: fontUrls('/fonts/') })
 - A field whose font is named only in the form's `/DR`, and used by no page, is not covered: the engine does not fetch that font before it redraws the field.
 - A file that embeds its fonts, or names only the standard Latin fonts, fetches nothing. With no `fallbackFonts`, the engine fetches nothing.
 - Besides its wasm and worker, these fonts are the only files the engine requests, and only from the URLs you give. In a worker the engine fetches them itself, after resolving relative URLs against the page.
-- `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none or the fetch failed. The engine still draws the page.
+- `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none, the fetch failed or it ran out of time. The engine still draws the page.
+- `write` and `redact` do not say which fonts were missing. A host that redacts should run `checkRedaction` on the saved bytes; Inkbar's own `applyRedactions` does.
 - The engine does not retry a failed fetch while it runs. A fetch fails on a network error, a status other than 2xx, or a file that is not a font.
+- Each font is given 60 seconds. A fetch still going after that is stopped, and the call goes on without the font: the page is drawn, written or redacted with what there is, and `renderPage` lists the key in `missingFonts`. That font is not failed: the next call that needs it fetches it again.
+- Every other call on the engine waits while a font is being fetched, as it waits behind any running call.
 - Bytes you pass are read when a page first needs them, so leave them unchanged.
 
 ## What it does not do

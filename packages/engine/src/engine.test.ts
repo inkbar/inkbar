@@ -10,7 +10,7 @@ import { fontFiles, fontUrls } from '@inkbar/fonts'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
-import { keysOf } from './fonts.ts'
+import { FONT_FETCH_TIMEOUT_MS, keysOf } from './fonts.ts'
 import {
   createEngine,
   EngineError,
@@ -998,6 +998,58 @@ describe('fallback fonts', () => {
     await waiting
     await expect(slowFonts.destroy()).resolves.toBeUndefined()
     await expect(writing).rejects.toMatchObject({ code: 'aborted' })
+  })
+
+  test('a font fetch that never answers holds a write for the bound only, and is tried again', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      let arrived: (() => void) | undefined
+      const waiting = new Promise<void>((resolve) => {
+        arrived = resolve
+      })
+      beforeAnswer = () =>
+        new Promise(() => {
+          arrived?.()
+        })
+      const { engine: fonts, registered } = await fontEngine({ japanese: ALL.japanese })
+      const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+      let written = false
+      const writing = opened.write(square()).then(() => {
+        written = true
+      })
+      await waiting
+      await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS - 1)
+      expect(written).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      await writing
+      expect(registered.size).toBe(0)
+      // Not remembered as failed: the next call that needs the font fetches it again.
+      beforeAnswer = () => Promise.resolve()
+      const page = await opened.renderPage(0)
+      expect(page.missingFonts).toEqual([])
+      expect(requests).toEqual([ALL.japanese, ALL.japanese])
+      await fonts.destroy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('a render whose font fetch runs out lists the font as missing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      beforeAnswer = () => new Promise(() => {})
+      const { engine: fonts } = await fontEngine({ japanese: ALL.japanese })
+      const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+      const drawing = opened.renderPage(0)
+      await vi.waitFor(() => {
+        expect(requests).toHaveLength(1)
+      })
+      await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS)
+      expect((await drawing).missingFonts).toEqual(['japanese'])
+      await fonts.destroy()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('a render that fetches a font does not change what save writes', async () => {

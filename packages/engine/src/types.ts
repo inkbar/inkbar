@@ -100,7 +100,7 @@ export interface RenderedPage {
   data: Uint8ClampedArray
   /**
    * Fallback fonts this page needed and did not get: no entry in `fallbackFonts`, or the fetch
-   * failed. Empty when none.
+   * failed or ran out of time. Empty when none.
    */
   missingFonts: readonly FontKey[]
 }

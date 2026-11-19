@@ -1,4 +1,5 @@
 import { EngineError } from './errors.ts'
+import { anySignal, timeoutSignal } from './signals.ts'
 
 import type { FontKey } from './types.ts'
 
@@ -24,6 +25,12 @@ export function keysOf(bits: number): FontKey[] {
 }
 
 export type FontState = 'registered' | 'failed'
+
+/**
+ * The longest one font fetch may take, in milliseconds. A fetch that runs out leaves the key
+ * missing for that call only: the next call that needs it fetches it again.
+ */
+export const FONT_FETCH_TIMEOUT_MS = 60_000
 
 const isNode = () =>
   typeof process !== 'undefined' && typeof process.versions?.node === 'string'
@@ -66,8 +73,9 @@ async function read(source: string | URL, signal: AbortSignal | undefined) {
  * Fetches each key's font the first time it is needed and hands its bytes to `register`. A key
  * whose fetch fails (a network error, a status other than 2xx, bytes `register` refuses, or
  * `register` running out of memory) is failed for the loader's life and not fetched again. An
- * aborted fetch fails nothing: the key is fetched again next time. A source is dropped once its
- * key is settled, so its bytes are not kept once registered.
+ * aborted fetch, or one that runs past `FONT_FETCH_TIMEOUT_MS`, fails nothing: the key is fetched
+ * again next time. A source is dropped once its key is settled, so its bytes are not kept once
+ * registered.
  */
 export function createFontLoader(
   sources: FontSources | undefined,
@@ -115,12 +123,18 @@ export function createFontLoader(
           continue
         }
         let bytes: Uint8Array | undefined
+        const bound = timeoutSignal(FONT_FETCH_TIMEOUT_MS)
+        const stop = anySignal([signal, bound.signal])
         try {
-          bytes = await untilAborted(read(source, signal), signal)
+          bytes = await untilAborted(read(source, stop.signal), stop.signal)
         } catch {
-          // An abort leaves the key to be fetched again; any other failure is final.
+          // An abort or a timeout leaves the key to be fetched again; any other failure is final.
           if (signal?.aborted) throw abortedError()
+          if (bound.timedOut()) continue
           bytes = undefined
+        } finally {
+          bound.dispose()
+          stop.dispose()
         }
         // A fetch that finished as the call was aborted is not registered either.
         if (signal?.aborted) throw abortedError()
