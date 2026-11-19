@@ -10,6 +10,16 @@ import { defineConfig, type Plugin } from 'vitest/config'
 import type { BrowserCommand } from 'vitest/node'
 
 const root = dirname(fileURLToPath(import.meta.url))
+/**
+ * Core's own PDF.js. Core loads it through its `#pdfjs` import, which Vite's dependency scan does
+ * not follow, so on a cold cache Vite found it mid-run and reloaded the page, failing every test.
+ * Aliased so the name resolves from here and can be pre-bundled under the name core asks for.
+ */
+const pdfjsDir = dirname(
+  createRequire(
+    createRequire(import.meta.url).resolve('@inkbar/core/package.json')
+  ).resolve('pdfjs-dist/package.json')
+)
 /** `PARITY_REPORT=1` lists the pages that are not the same; `PARITY_REPORT=all` lists every page. */
 const reportMode = process.env.PARITY_REPORT ?? ''
 const report =
@@ -83,14 +93,11 @@ export default defineConfig({
       },
       {
         plugins: [serveFixtures(), serveFonts()],
-        // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
+        // Pre-bundled up front: discovering one mid-run makes Vite reload the test page.
         optimizeDeps: {
-          include: [
-            '@inkbar/core > pdfjs-dist',
-            '@inkbar/core > pdfjs-dist/build/pdf.sandbox.mjs',
-            '@inkbar/fonts',
-          ],
+          include: ['pdfjs-dist', 'pdfjs-dist/build/pdf.sandbox.mjs', '@inkbar/fonts'],
         },
+        resolve: { alias: { 'pdfjs-dist': pdfjsDir } },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
