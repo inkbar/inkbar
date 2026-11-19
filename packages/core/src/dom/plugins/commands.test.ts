@@ -53,12 +53,17 @@ describe('createCommandRegistry', () => {
     })
     const run = vi.fn()
     const cmd = registry.add('sandbox', { id: 'suggest', label: 'Suggest', run })
+    const enabled: boolean[] = []
+    cmd.enabled.subscribe((v) => enabled.push(v))
     const applying = redactionApplying(doc.annotations)
     applying.set(true)
+    // Disabled meanwhile, as Undo and Download are.
+    expect(cmd.enabled.get()).toBe(false)
     await cmd.run()
     expect(run).not.toHaveBeenCalled()
     expect(cmd.busy.get()).toBe(false)
     applying.set(false)
+    expect(enabled).toEqual([false, true])
     await cmd.run()
     expect(run).toHaveBeenCalledTimes(1)
   })
