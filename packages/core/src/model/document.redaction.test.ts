@@ -871,19 +871,42 @@ describe('applyRedactions with the engine', () => {
     }
   }
 
-  it('a crossed rectangle over text is never skipped', async () => {
+  /** The text runs of `doc`'s first page whose boxes share area with `rect`. */
+  async function textIn(doc: InkDocument, rect: typeof SECRET): Promise<string[]> {
+    const content = await (await doc._pdfjs.getPage(0)).getTextContent()
+    return content.items.flatMap((item) => {
+      if (!('str' in item) || !item.str.trim()) return []
+      const [, , , , x, y] = item.transform as number[]
+      const inside =
+        x! < rect.x + rect.width &&
+        x! + item.width > rect.x &&
+        y! < rect.y + rect.height &&
+        y! + item.height > rect.y
+      return inside ? [item.str] : []
+    })
+  }
+
+  it('a crossed rectangle over text removes the whole rectangle', async () => {
     const { loader } = realEngine()
     const doc = await open('redact-text', { engine: loader })
+    // SECRET-ALPHA reaches into the rectangle's left and right thirds, not only its middle.
+    for (const third of [
+      { ...SECRET, width: SECRET.width / 3 },
+      { ...SECRET, x: SECRET.x + (SECRET.width * 2) / 3, width: SECRET.width / 3 },
+    ])
+      expect((await textIn(doc, third)).join('')).toMatch(/SECRET/)
     doc.annotations.add({
       type: 'redact',
       page: 0,
       rect: SECRET,
       quads: [crossed(45, 190, 170, 35)],
     })
-    const out = await outcome(doc)
-    expect(out).toMatchObject({ result: { marks: 1 } })
-    expect(out.text).not.toContain('SECRET')
-    expect(out.text).toContain('KEEP-BETA')
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    const back = await openBytes(bytes)
+    // Not a character of the text inside the rectangle survives, at its edges or its middle.
+    expect(await textIn(back, SECRET)).toEqual([])
+    expect(await back.pageText(0)).toContain('KEEP-BETA')
   })
 
   it('a crossed rectangle beside a real piece is never skipped', async () => {
