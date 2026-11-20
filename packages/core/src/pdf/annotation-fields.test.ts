@@ -495,6 +495,42 @@ describe('readSavedAnnotations marks', () => {
     })
   })
 
+  it('takes the pop-up only when it is a pop-up whose parent is the mark', async () => {
+    const listedAs = async (nine: string) =>
+      (
+        await readSavedAnnotations(
+          await markFile(redact('/Popup 9 0 R'), '[8 0 R 9 0 R]', nine)
+        )
+      ).marks[0]!.popupListed
+    expect(await listedAs('<< /Type /Annot /Subtype /Popup /Parent 8 0 R >>')).toBe(true)
+    // Its parent is another object.
+    expect(await listedAs('<< /Type /Annot /Subtype /Popup /Parent 7 0 R >>')).toBe(false)
+    // A note, not a pop-up.
+    expect(
+      await listedAs('<< /Type /Annot /Subtype /Text /Rect [0 0 1 1] /Parent 8 0 R >>')
+    ).toBe(false)
+    // No parent at all.
+    expect(await listedAs('<< /Type /Annot /Subtype /Popup >>')).toBe(false)
+  })
+
+  it('gives a pop-up two marks name to the mark its parent names, at most', async () => {
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        '<< /Type /Page /Parent 2 0 R /Annots [4 0 R 5 0 R 6 0 R] >>',
+        redact('/Popup 6 0 R'),
+        redact('/Popup 6 0 R'),
+        '<< /Type /Annot /Subtype /Popup /Parent 5 0 R >>',
+      ])
+    ))!
+    const { marks } = await readSavedAnnotations(objs)
+    expect(marks.map((m) => [m.ref.num, m.popupListed])).toEqual([
+      [4, false],
+      [5, true],
+    ])
+  })
+
   it('gives no quad points for seven numbers, an empty array or a name among them', async () => {
     for (const quads of [
       '[45 225 215 225 45 190 215]',

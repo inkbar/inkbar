@@ -919,6 +919,19 @@ describe("another program's redaction marks, adopted", () => {
     expect(text).not.toContain('GAMMA')
   })
 
+  it('applying an adopted mark with a pop-up removes both and what lies under the mark', async () => {
+    const doc = await open('redact-foreign-popup')
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.foreignMarks).toBe(0)
+    const text = await textOf(bytes)
+    expect(text).toContain('KEEP-BETA')
+    expect(text).not.toContain('SECRET')
+    expect(text).not.toContain('GAMMA')
+    const back = await open(bytes)
+    expect(back.annotations.list.get()).toEqual([])
+    expect(await annotsOn(back)).toBe(0)
+  })
+
   it('leaves the mark another program replied to', async () => {
     const doc = await open(repliedTo())
     const marks = doc.annotations.list.get().filter((a) => a.type === 'redact')

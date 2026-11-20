@@ -5,6 +5,7 @@ import {
   applyMatrix,
   approxEqual,
   invertMatrix,
+  normaliseQuad,
   multiplyMatrix,
   quadFromRect,
   quadsFromFlat,
@@ -19,6 +20,7 @@ import {
   unionRects,
   type Matrix,
   type Point,
+  type Quad,
 } from './geometry'
 
 const point = fc.record({
@@ -190,5 +192,52 @@ describe('quadsFromRect and rectFromQuads', () => {
       ...quadsFromRect({ x: 20, y: 10, width: 5, height: 5 }),
     ]
     expect(rectFromQuads(quads)).toEqual({ x: 0, y: 0, width: 25, height: 15 })
+  })
+})
+
+describe('normaliseQuad', () => {
+  const TL = { x: 45, y: 225 }
+  const TR = { x: 215, y: 225 }
+  const BL = { x: 45, y: 190 }
+  const BR = { x: 215, y: 190 }
+  const upright = { p1: TL, p2: TR, p3: BL, p4: BR }
+
+  /** Whether segments ab and cd cross at a point inside both. */
+  function cross(a: Point, b: Point, c: Point, d: Point): boolean {
+    const side = (p: Point, q: Point, r: Point) =>
+      Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x))
+    return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0
+  }
+  /** Whether the outline p1, p2, p4, p3 crosses itself. */
+  const selfCrosses = (q: Quad) =>
+    cross(q.p1, q.p2, q.p4, q.p3) || cross(q.p2, q.p4, q.p3, q.p1)
+
+  it('keeps top-left, top-right, bottom-left, bottom-right', () => {
+    expect(normaliseQuad(upright)).toEqual(upright)
+  })
+
+  it("reorders the specification's order, round the edge from the bottom left", () => {
+    expect(normaliseQuad({ p1: BL, p2: BR, p3: TR, p4: TL })).toEqual(upright)
+  })
+
+  it('reorders bottom-left, bottom-right, top-left, top-right', () => {
+    expect(normaliseQuad({ p1: BL, p2: BR, p3: TL, p4: TR })).toEqual(upright)
+  })
+
+  it("gives a turned quad in the specification's order an outline that does not cross", () => {
+    // A 100 by 20 box turned 30 degrees about the origin, its corners round the edge.
+    const c = Math.cos(Math.PI / 6)
+    const s = Math.sin(Math.PI / 6)
+    const a = { x: 0, y: 0 }
+    const b = { x: 100 * c, y: 100 * s }
+    const top = { x: 100 * c - 20 * s, y: 100 * s + 20 * c }
+    const d = { x: -20 * s, y: 20 * c }
+    const stored = { p1: a, p2: b, p3: top, p4: d }
+    expect(selfCrosses(stored)).toBe(true)
+    const q = normaliseQuad(stored)
+    expect(selfCrosses(q)).toBe(false)
+    expect(new Set([q.p1, q.p2, q.p3, q.p4])).toEqual(new Set([a, b, top, d]))
+    // The upper edge comes first.
+    expect([q.p1, q.p2]).toEqual([d, top])
   })
 })

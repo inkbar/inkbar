@@ -6,7 +6,7 @@ import {
   readTextIcon,
   refOfPdfjsId,
 } from '../../pdf/annotation-fields'
-import { hasArea, quadsFromFlat } from '../geometry'
+import { hasArea, normaliseQuad, quadsFromFlat, rectFromQuads } from '../geometry'
 
 import { importedId, pdfColorToHex } from './embedded'
 import { liftable } from './saved-data'
@@ -208,8 +208,10 @@ function withParents(
 
 /**
  * Another program's Redact annotation as a session mark: the imported one with its quads and
- * fill read from the file, unlocked. Undefined when `marks` lacks the imported annotation, its
- * pop-up is not listed on its page, or the result fails the schema.
+ * fill read from the file, unlocked. Its quads have their corners put in `Quad`'s order, and
+ * its `rect` is then their bounding box, as a mark Inkbar makes from text has it. Undefined when
+ * `marks` lacks the imported annotation, its pop-up cannot go with it (see
+ * `ForeignMarkPlace.popupListed`), or the result fails the schema.
  */
 function adoptedMark(
   m: ForeignMarkPlace,
@@ -221,12 +223,14 @@ function adoptedMark(
   if (!imported || (m.popup && !m.popupListed)) return undefined
   const { locked: _locked, hasAppearance: _appearance, ...withQuads } = imported
   const { quads: _quads, ...rest } = withQuads as typeof withQuads & { quads?: unknown }
-  const quads = m.quadPoints ? quadsFromFlat(m.quadPoints.flat()).filter(hasArea) : []
+  const quads = m.quadPoints
+    ? quadsFromFlat(m.quadPoints.flat()).filter(hasArea).map(normaliseQuad)
+    : []
   const candidate = {
     ...rest,
     id: `redact-${pdfjsId}`,
     source: 'session',
-    ...(quads.length > 0 ? { quads } : {}),
+    ...(quads.length > 0 ? { quads, rect: rectFromQuads(quads) } : {}),
     ...(m.fill ? { interiorColor: fillHex(m.fill, imported) } : {}),
   }
   const parsed = AnnotationSchema.safeParse(candidate)
@@ -239,14 +243,18 @@ function adoptedMark(
   }
 }
 
-/** `/IC` (grey, RGB or CMYK, each 0..1) as `#RRGGBB`. */
+/**
+ * `/IC` (grey, RGB or CMYK, each 0..1) as `#RRGGBB`. A component outside 0..1 is taken as the
+ * nearer end, so `[255 0 0]` is red.
+ */
 function fillHex(c: readonly number[], imported: Annotation): string {
+  const n = c.map((v) => Math.min(1, Math.max(0, v)))
   const rgb =
-    c.length === 1
-      ? [c[0]!, c[0]!, c[0]!]
-      : c.length === 4
-        ? [0, 1, 2].map((i) => 1 - Math.min(1, c[i]! + c[3]!))
-        : c
+    n.length === 1
+      ? [n[0]!, n[0]!, n[0]!]
+      : n.length === 4
+        ? [0, 1, 2].map((i) => 1 - Math.min(1, n[i]! + n[3]!))
+        : n
   return pdfColorToHex(
     rgb.map((n) => n * 255),
     imported.type === 'redact' ? imported.interiorColor : '#000000'

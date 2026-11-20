@@ -23,6 +23,22 @@ export interface Quad {
   p4: Point
 }
 
+/**
+ * `q` with its corners in `Quad`'s order, whichever order a file stored them in. Writers differ:
+ * Acrobat stores top-left, top-right, bottom-left, bottom-right; the PDF specification goes round
+ * the edge (bottom-left, bottom-right, top-right, top-left); others store bottom-left,
+ * bottom-right, top-left, top-right. When the edges p1→p2 and p3→p4 point opposite ways, p3 and
+ * p4 swap, so the outline p1, p2, p4, p3 does not cross itself. Then, when the p1–p2 edge lies
+ * below the p3–p4 edge, the pairs swap, so upright text comes out top-left first.
+ */
+export function normaliseQuad(q: Quad): Quad {
+  let { p1, p2, p3, p4 } = q
+  const dot = (p2.x - p1.x) * (p4.x - p3.x) + (p2.y - p1.y) * (p4.y - p3.y)
+  if (dot < 0) [p3, p4] = [p4, p3]
+  if (p1.y + p2.y < p3.y + p4.y) [p1, p2, p3, p4] = [p3, p4, p1, p2]
+  return { p1, p2, p3, p4 }
+}
+
 /** PDF transformation matrix [a b c d e f]: x' = a·x + c·y + e, y' = b·x + d·y + f. */
 export type Matrix = readonly [number, number, number, number, number, number]
 

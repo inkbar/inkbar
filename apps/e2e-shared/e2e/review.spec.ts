@@ -45,7 +45,9 @@ test.describe('accessibility', () => {
   }) => {
     await page.goto('/?doc=annotated-notes-threaded')
     await waitForFirstPage(page)
-    await expect(page.getByTestId('embedded-banner')).toContainText('4 annotations')
+    const banner = page.getByTestId('embedded-banner')
+    await expect(banner).toContainText('4 annotations')
+    await expect(banner).toContainText('(4 Text)')
     expect(await axe(page)).toEqual([])
   })
 
