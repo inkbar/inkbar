@@ -102,7 +102,13 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            // PDF.js draws text through the browser, with the machine's fonts and font settings.
+            // fontconfig.xml fixes both, so a page compares the same on every Linux machine.
+            provider: playwright({
+              launchOptions: {
+                env: { ...process.env, FONTCONFIG_FILE: join(root, 'fontconfig.xml') },
+              },
+            }),
             instances: [{ browser: 'chromium', viewport: { width: 1280, height: 900 } }],
             commands: { writeParityFile, readParityFile },
             screenshotFailures: false,
