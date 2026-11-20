@@ -378,12 +378,15 @@ describe('readLifted', () => {
       })
       expect(a.locked).toBeUndefined()
       expect(a).not.toHaveProperty('hasAppearance')
-      const quads = (a as { quads?: { p1: { x: number; y: number } }[] }).quads!
-      expect(quads).toHaveLength(1)
-      const xs = Object.values(quads[0]!).map((p) => (p as { x: number }).x)
-      const ys = Object.values(quads[0]!).map((p) => (p as { y: number }).y)
-      expect([Math.min(...xs), Math.max(...xs)]).toEqual([45, 215])
-      expect([Math.min(...ys), Math.max(...ys)]).toEqual([190, 225])
+      const quads = (a as { quads?: unknown }).quads
+      expect(quads).toEqual([
+        {
+          p1: { x: 45, y: 225 },
+          p2: { x: 215, y: 225 },
+          p3: { x: 45, y: 190 },
+          p4: { x: 215, y: 190 },
+        },
+      ])
     })
 
     it('carries a listed pop-up', async () => {

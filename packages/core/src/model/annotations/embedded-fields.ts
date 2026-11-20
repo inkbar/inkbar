@@ -6,7 +6,7 @@ import {
   readTextIcon,
   refOfPdfjsId,
 } from '../../pdf/annotation-fields'
-import { quadsFromFlat, type Quad } from '../geometry'
+import { hasArea, quadsFromFlat } from '../geometry'
 
 import { importedId, pdfColorToHex } from './embedded'
 import { liftable } from './saved-data'
@@ -219,8 +219,8 @@ function adoptedMark(
   const embeddedId = importedId(m.page, pdfjsId)
   const imported = marks.get(embeddedId)
   if (!imported || (m.popup && !m.popupListed)) return undefined
-  const { locked: _locked, hasAppearance: _appearance, ...rest } = imported
-  delete (rest as { quads?: Quad[] }).quads
+  const { locked: _locked, hasAppearance: _appearance, ...withQuads } = imported
+  const { quads: _quads, ...rest } = withQuads as typeof withQuads & { quads?: unknown }
   const quads = m.quadPoints ? quadsFromFlat(m.quadPoints.flat()).filter(hasArea) : []
   const candidate = {
     ...rest,
@@ -251,11 +251,4 @@ function fillHex(c: readonly number[], imported: Annotation): string {
     rgb.map((n) => n * 255),
     imported.type === 'redact' ? imported.interiorColor : '#000000'
   )
-}
-
-/** Whether a quad covers more than a line or a point, as the redaction plan counts it. */
-function hasArea(q: Quad): boolean {
-  const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
-  const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]
-  return Math.max(...xs) !== Math.min(...xs) && Math.max(...ys) !== Math.min(...ys)
 }
