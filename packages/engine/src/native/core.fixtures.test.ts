@@ -79,6 +79,62 @@ describe.each(Object.entries(manifest))('%s', (name, meta) => {
   })
 })
 
+describe('blend modes', () => {
+  // alpha-composite: a cyan square at [175 250 275 350] on a 450 by 600 page, painted with the
+  // Screen blend mode at 0.75 opacity. Screen against white is white, so a page drawn straight
+  // onto white paper loses the square; against an empty page it keeps its colour.
+  test('blend against an empty page, not against white paper', async () => {
+    withOpen(await fixtureBytes('corpus-alpha-composite'), (id) => {
+      const page = core.renderPage(id, 0, { scale: 1 })
+      const at = (300 * page.width + 250) * 4
+      expect([...page.data.subarray(at, at + 4)]).toEqual([64, 255, 255, 255])
+    })
+  })
+
+  // A black triangle with a slanted edge under a yellow fill at 0.4 opacity, on a 100-point
+  // page. On the edge the two mix: where the triangle covers 69% of a pixel, the pixel is
+  // 0.4 yellow over 69% black over white.
+  test('mix a translucent fill with the soft edge under it exactly', () => {
+    const content =
+      '0 0 0 rg 10 10 m 60 90 l 10 90 l f q /G gs 1 1 0 rg 20 20 70 60 re f Q'
+    const objects = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Contents 4 0 R ' +
+        '/Resources << /ExtGState << /G << /ca 0.4 >> >> >> >>',
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    ]
+    let file = '%PDF-1.7\n'
+    const offsets = objects.map((object, i) => {
+      const at = file.length
+      file += `${i + 1} 0 obj\n${object}\nendobj\n`
+      return at
+    })
+    const xref = file.length
+    file += `xref\n0 5\n0000000000 65535 f \n`
+    for (const at of offsets) file += `${String(at).padStart(10, '0')} 00000 n \n`
+    file += `trailer << /Size 5 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+    withOpen(new TextEncoder().encode(file), (id) => {
+      const page = core.renderPage(id, 0, { scale: 1 })
+      const pixel = (x: number) => [
+        ...page.data.subarray((50 * page.width + x) * 4, (50 * page.width + x) * 4 + 4),
+      ]
+      expect(pixel(30)).toEqual([102, 102, 0, 255])
+      // 149 exactly; the two steps each round down.
+      expect(pixel(34)).toEqual([148, 148, 47, 255])
+      expect(pixel(38)).toEqual([255, 255, 153, 255])
+    })
+  })
+
+  test('leave a page with no blending as it was: opaque, white where nothing is drawn', async () => {
+    withOpen(await fixtureBytes('text-simple'), (id) => {
+      const page = core.renderPage(id, 0, { scale: 1 })
+      expect(page.data.every((v, i) => i % 4 !== 3 || v === 255)).toBe(true)
+      expect([...page.data.subarray(0, 4)]).toEqual([255, 255, 255, 255])
+    })
+  })
+})
+
 describe('form widgets', () => {
   // acroform-basic: a text field holding "Sam" at [71.5 599.5 272.5 624.5] on a 792-point page.
   const inField = (page: { data: Uint8ClampedArray; width: number }) => {

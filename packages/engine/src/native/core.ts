@@ -33,7 +33,6 @@ const BITMAP_BGRA = 4
 const FPDF_ANNOT = 0x01
 /** The build's flag for drawing form widgets, which the annotation flag alone leaves out. */
 const RENDER_WIDGETS = 0x8000
-const FPDF_REVERSE_BYTE_ORDER = 0x10
 const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
 /**
  * The longest one slice of a render runs, in milliseconds. Between slices a sliced render returns
@@ -548,16 +547,20 @@ export class EngineCore {
     try {
       const geometry = renderGeometry(this.#info(page), options)
       const { width, height } = geometry
-      const flags =
-        (options.annotations === false ? 0 : FPDF_ANNOT | RENDER_WIDGETS) |
-        FPDF_REVERSE_BYTE_ORDER
+      // Not FPDF_REVERSE_BYTE_ORDER: with it, PDFium leaves a part-transparent pixel's alpha
+      // as it was when a translucent fill is laid over it, which shows as a pale fringe on the
+      // edges of text under a highlight. `#copyBitmap` puts the bytes in order instead.
+      const flags = options.annotations === false ? 0 : FPDF_ANNOT | RENDER_WIDGETS
       const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
       let skip = 0
       let render = 0
       try {
-        fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0xffffffff)
+        // An empty page, not white paper: a blend mode mixes with what is under it, and under
+        // the first thing drawn there is nothing. On white, Screen and SoftLight content
+        // vanishes. `#copyBitmap` lays the result over white.
+        fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0x00000000)
         if (hide.length > 0) {
           skip = fn.malloc(hide.length * 4)
           if (skip === 0)
@@ -600,7 +603,7 @@ export class EngineCore {
     }
   }
 
-  /** The bitmap's pixels as tightly packed rows, in memory the caller owns. */
+  /** The bitmap's pixels as tightly packed RGBA rows over white, opaque, in memory the caller owns. */
   #copyBitmap(bitmap: number, width: number, height: number): Drawn {
     const fn = this.#fn
     const stride = fn.FPDFBitmap_GetStride(bitmap)
@@ -622,6 +625,7 @@ export class EngineCore {
         const from = buffer + y * stride
         data.set(heap.subarray(from, from + row), y * row)
       }
+    overWhite(data)
     return { width, height, data }
   }
 
@@ -1063,5 +1067,34 @@ export class EngineCore {
     if (ptr === 0) throw new EngineError('out-of-memory', 'The engine ran out of memory.')
     this.#native.stringToUTF8(text, ptr, size)
     return ptr
+  }
+}
+
+/**
+ * Turns PDFium's pixels (blue, green, red, alpha, with straight alpha) into opaque RGBA laid over
+ * white, in place. A pixel is read as one 32-bit number with alpha in its top byte, which holds
+ * on the little-endian machines WebAssembly runs on.
+ */
+function overWhite(data: Uint8ClampedArray): void {
+  const pixels = new Uint32Array(data.buffer, data.byteOffset, data.length >>> 2)
+  for (let i = 0; i < pixels.length; i++) {
+    const pixel = pixels[i]!
+    const alpha = pixel >>> 24
+    if (alpha === 255) {
+      // Opaque: blue and red change places.
+      pixels[i] =
+        ((pixel & 0xff00ff00) | ((pixel & 0xff) << 16) | ((pixel >>> 16) & 0xff)) >>> 0
+      continue
+    }
+    if (alpha === 0) {
+      pixels[i] = 0xffffffff
+      continue
+    }
+    // Rounded down, as PDFium does when it draws onto white itself.
+    const white = 255 * (255 - alpha)
+    const b = (((pixel & 0xff) * alpha + white) / 255) | 0
+    const g = ((((pixel >>> 8) & 0xff) * alpha + white) / 255) | 0
+    const r = ((((pixel >>> 16) & 0xff) * alpha + white) / 255) | 0
+    pixels[i] = (0xff000000 | (b << 16) | (g << 8) | r) >>> 0
   }
 }
