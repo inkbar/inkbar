@@ -4,10 +4,17 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { fixtureBytes } from '@inkbar/fixtures'
+import { generateSlowPage } from '@inkbar/fixtures/generate-large'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
-import { createEngine, EngineError, type Engine, type EngineDocument } from './index.ts'
+import {
+  createEngine,
+  EngineError,
+  type Engine,
+  type EngineDocument,
+  type RenderedPage,
+} from './index.ts'
 
 import type { Request, Transport } from './protocol.ts'
 
@@ -17,10 +24,17 @@ let wasm: Uint8Array
 let bytes: Uint8Array
 let engine: Engine
 let doc: EngineDocument
+/** A page that takes many slices to draw at scale 6, and its whole render at scale 1. */
+let slow: Uint8Array
+let slowReference: RenderedPage
 
 beforeAll(async () => {
   wasm = await readFile(new URL('../vendor/inkbar-pdfium.wasm', import.meta.url))
   bytes = await fixtureBytes('text-simple')
+  slow = await generateSlowPage()
+  const fresh = await createEngine({ wasm, worker: false })
+  slowReference = await (await fresh.open(slow)).renderPage(0)
+  await fresh.destroy()
 })
 
 beforeEach(async () => {
@@ -66,6 +80,60 @@ test('aborting a queued call rejects it and lets the running one finish', async 
   c.abort()
   await expect(second).rejects.toMatchObject({ code: 'aborted' })
   await expect(first).resolves.toMatchObject({ width: 2448 })
+})
+
+/**
+ * How a render settled, in a few words: a failed expectation never prints a page of pixels.
+ */
+const outcome = (call: Promise<unknown>) =>
+  call.then(
+    (value) => `resolved ${JSON.stringify({ ...(value as object), data: undefined })}`,
+    (reason: unknown) =>
+      `${(reason as Error).name} ${String((reason as { code?: unknown }).code)}`
+  )
+
+const later = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const latin1 = (data: Uint8Array) => new TextDecoder('latin1').decode(data)
+const withoutId = (data: Uint8Array) =>
+  latin1(data).replace(/\/ID\s*\[\s*<[0-9A-F]*>\s*<[0-9A-F]*>\s*\]/i, '/ID[]')
+
+test('aborting a running render stops it and leaves the engine usable', async () => {
+  const slowDoc = await engine.open(slow)
+  const before = await slowDoc.save({ mode: 'rewrite' })
+  const c = new AbortController()
+  const running = slowDoc.renderPage(0, { scale: 6, signal: c.signal })
+  await later(20)
+  c.abort()
+  expect(await outcome(running)).toBe('EngineError aborted')
+  await expect(slowDoc.pageInfo(0)).resolves.toMatchObject({ width: 612, height: 792 })
+  const again = await slowDoc.renderPage(0)
+  expect(again.data.length).toBe(slowReference.data.length)
+  expect(again.data.every((v, i) => v === slowReference.data[i])).toBe(true)
+  // A render, stopped or not, changes nothing a save writes.
+  expect(withoutId(await slowDoc.save({ mode: 'rewrite' }))).toBe(withoutId(before))
+})
+
+test('a render queued behind an aborted one gets only its own pixels', async () => {
+  const slowDoc = await engine.open(slow)
+  const c = new AbortController()
+  const first = slowDoc.renderPage(0, { scale: 6, signal: c.signal })
+  const second = slowDoc.renderPage(0)
+  await later(20)
+  c.abort()
+  expect(await outcome(first)).toBe('EngineError aborted')
+  const page = await second
+  expect(page).toMatchObject({ width: 612, height: 792 })
+  expect(page.data.length).toBe(slowReference.data.length)
+  expect(page.data.every((v, i) => v === slowReference.data[i])).toBe(true)
+})
+
+test('destroy stops a running render in the calling thread', async () => {
+  const slowDoc = await engine.open(slow)
+  const running = outcome(slowDoc.renderPage(0, { scale: 6 }))
+  await later(20)
+  await engine.destroy()
+  expect(await running).toBe('EngineError aborted')
+  await expect(slowDoc.pageInfo(0)).rejects.toMatchObject({ code: 'engine-failure' })
 })
 
 test('an aborted queued call is skipped and the call before it still resolves', async () => {

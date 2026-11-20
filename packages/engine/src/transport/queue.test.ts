@@ -80,3 +80,23 @@ test('a failing beforeEach rejects that job and the queue keeps draining', async
   await expect(first).rejects.toThrow('hook')
   await expect(second).resolves.toBe('b')
 })
+
+test('a job waiting behind one that yields between slices starts only once it settles', async () => {
+  const queue = new CallQueue()
+  const log: string[] = []
+  const sliced = queue.enqueue(async () => {
+    for (let slice = 0; slice < 5; slice++) {
+      log.push(`slice ${slice}`)
+      // A macrotask, as a sliced render yields, so anything waiting could run meanwhile.
+      await later(0)
+    }
+    throw new Error('stopped')
+  })
+  const waiting = queue.enqueue(() => {
+    log.push('waiting')
+    return 'ran'
+  })
+  await expect(sliced).rejects.toThrow('stopped')
+  await expect(waiting).resolves.toBe('ran')
+  expect(log).toEqual(['slice 0', 'slice 1', 'slice 2', 'slice 3', 'slice 4', 'waiting'])
+})

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes } from '@inkbar/fixtures'
+import { generateSlowPage } from '@inkbar/fixtures/generate-large'
 import { beforeAll, expect, test, vi } from 'vitest'
 
 import { engineOver } from '../engine.ts'
@@ -16,10 +17,12 @@ const STOPPED = 'The engine stopped after an internal error; create a new engine
 
 let wasm: Uint8Array
 let bytes: Uint8Array
+let slow: Uint8Array
 
 beforeAll(async () => {
   wasm = await readFile(new URL('../../vendor/inkbar-pdfium.wasm', import.meta.url))
   bytes = await fixtureBytes('text-simple')
+  slow = await generateSlowPage()
 })
 
 /** A fresh module whose `name` traps from its `trapAt`-th call on, and a log of the calls made. */
@@ -392,5 +395,159 @@ test('a render passes the object numbers to leave out and frees their list', asy
   const { id } = core.open(bytes)
   core.renderPage(id, 0, { hide: [7, 4_294_967_295] })
   expect(seen).toEqual([7, 4_294_967_295])
+  core.destroy()
+})
+
+/** How a render settled, in a few words: a failed expectation never prints a page of pixels. */
+const outcome = (call: Promise<unknown>) =>
+  call.then(
+    (value) => `resolved ${JSON.stringify({ ...(value as object), data: undefined })}`,
+    (reason: unknown) =>
+      `${(reason as Error).name} ${String((reason as { code?: unknown }).code)}`
+  )
+
+/** A module that logs the calls a render makes, each with its first argument or result. */
+async function watched() {
+  const native = await loadNative({ wasm })
+  const calls: [string, number | undefined][] = []
+  const names = new Set([
+    'malloc',
+    'free',
+    'FPDF_LoadPage',
+    'FPDF_ClosePage',
+    'FPDFBitmap_CreateEx',
+    'FPDFBitmap_Destroy',
+    'INK_Render_Start',
+    'INK_Render_Continue',
+    'INK_Render_Close',
+  ])
+  const fn = new Proxy(native.fn, {
+    get(target, key: keyof Native) {
+      const real = target[key]
+      return (...args: number[]) => {
+        const result = real(...args)
+        if (names.has(key))
+          calls.push([
+            key,
+            key === 'malloc' || key === 'FPDF_LoadPage' ? (result as number) : args[0],
+          ])
+        return result
+      }
+    },
+  })
+  const count = (name: string) => calls.filter(([call]) => call === name).length
+  return { native: withFunctions(native, fn), calls, count }
+}
+
+test('an aborted sliced render ends the render, frees what it took and keeps the engine', async () => {
+  const { native, calls, count } = await watched()
+  const core = new EngineCore(native)
+  const { id } = core.open(slow)
+  calls.length = 0
+  let slices = 0
+  const running = core.renderPageSliced(id, 0, { scale: 6, hide: [5] }, () => {
+    slices++
+    return slices > 3
+  })
+  expect(await outcome(running)).toBe('EngineError aborted')
+  expect(count('INK_Render_Continue')).toBe(3)
+  expect(count('INK_Render_Close')).toBe(1)
+  expect(count('FPDFBitmap_Destroy')).toBe(1)
+  expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))
+  const allocated = calls.filter(([call]) => call === 'malloc').map(([, at]) => at)
+  const freed = calls.filter(([call]) => call === 'free').map(([, at]) => at)
+  for (const at of allocated) expect(freed).toContain(at)
+  const order = calls.map(([call]) => call)
+  expect(order.indexOf('INK_Render_Close')).toBeLessThan(
+    order.indexOf('FPDFBitmap_Destroy')
+  )
+  expect(order.lastIndexOf('FPDFBitmap_Destroy')).toBeLessThan(
+    order.lastIndexOf('FPDF_ClosePage')
+  )
+  expect(core.stopped).toBe(false)
+  expect(core.pageInfo(id, 0)).toMatchObject({ width: 612 })
+  core.destroy()
+})
+
+test('a sliced render yields to the event loop between slices', async () => {
+  const native = await loadNative({ wasm })
+  const core = new EngineCore(native)
+  const { id } = core.open(slow)
+  let ticks = 0
+  const timer = setInterval(() => ticks++, 0)
+  let checks = 0
+  expect(
+    await outcome(core.renderPageSliced(id, 0, { scale: 6 }, () => ++checks > 20))
+  ).toBe('EngineError aborted')
+  clearInterval(timer)
+  expect(ticks).toBeGreaterThan(0)
+  core.destroy()
+})
+
+test('a sliced render that finishes gives the same pixels as one drawn at once', async () => {
+  const core = new EngineCore(await loadNative({ wasm }))
+  const { id } = core.open(slow)
+  const whole = core.renderPage(id, 0, { scale: 1 })
+  const sliced = await core.renderPageSliced(id, 0, { scale: 1 }, () => false)
+  expect(sliced.data.length).toBe(whole.data.length)
+  expect(sliced.data.every((v, i) => v === whole.data[i])).toBe(true)
+  core.destroy()
+})
+
+test('a trap in a later slice stops the engine and makes no native call afterwards', async () => {
+  const { native, calls, trap } = await trapping('INK_Render_Continue', 'unreachable', 3)
+  const core = new EngineCore(native)
+  const { id } = core.open(slow)
+  let error: unknown
+  try {
+    await core.renderPageSliced(id, 0, { scale: 6 }, () => false)
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toMatchObject({ name: 'EngineError', code: 'engine-failure' })
+  expect((error as Error).cause).toBe(trap)
+  expect(calls.at(-1)).toBe('INK_Render_Continue')
+  expect(core.stopped).toBe(true)
+  expect(() => core.destroy()).not.toThrow()
+  expect(calls.at(-1)).toBe('INK_Render_Continue')
+})
+
+test('destroy during a sliced render stops it, then frees everything once', async () => {
+  const { native, count } = await watched()
+  const core = new EngineCore(native)
+  const { id } = core.open(slow)
+  let checks = 0
+  const running = core.renderPageSliced(id, 0, { scale: 6 }, () => {
+    if (++checks === 2) core.destroy()
+    return false
+  })
+  expect(await outcome(running)).toBe('EngineError aborted')
+  expect(count('INK_Render_Close')).toBe(1)
+  expect(count('FPDFBitmap_Destroy')).toBe(1)
+  expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))
+  expect(core.openCount).toBe(0)
+  expect(() => core.open(bytes)).toThrow(
+    expect.objectContaining({ code: 'engine-failure' })
+  )
+})
+
+test('other calls are refused while a sliced render runs', async () => {
+  const core = new EngineCore(await loadNative({ wasm }))
+  const { id } = core.open(slow)
+  let refused: unknown
+  let checks = 0
+  const running = core.renderPageSliced(id, 0, { scale: 6 }, () => {
+    if (++checks === 2)
+      try {
+        core.close(id)
+      } catch (error) {
+        refused = error
+      }
+    return checks > 3
+  })
+  expect(await outcome(running)).toBe('EngineError aborted')
+  expect(refused).toMatchObject({ code: 'engine-failure' })
+  expect(core.openCount).toBe(1)
+  expect(core.pageInfo(id, 0)).toMatchObject({ width: 612 })
   core.destroy()
 })

@@ -1,5 +1,13 @@
 // Browser-safe: pdf-lib only, no Node imports.
-import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib'
+import {
+  drawEllipse,
+  drawObject,
+  PDFDocument,
+  rgb,
+  StandardFonts,
+  type PDFFont,
+  type PDFPage,
+} from 'pdf-lib'
 
 /** Body lines shared by the text fixtures. */
 export const BODY = [
@@ -37,4 +45,38 @@ export async function generateLarge(pages = 1000): Promise<Uint8Array> {
     drawLines(page, font, [`Page ${p + 1} of ${pages}`, ...BODY])
   }
   return d.save({ useObjectStreams: true })
+}
+
+/**
+ * One Letter page that is slow to draw at a large scale: `forms` form XObjects, each holding
+ * four half-transparent circles. A render can stop after each form, so at scale 6 this page takes
+ * many short slices, for tests that stop a render part way. Never committed.
+ */
+export async function generateSlowPage(forms = 400): Promise<Uint8Array> {
+  const { d } = await newFixtureDoc()
+  const page = d.addPage([612, 792])
+  const alpha = d.context.obj({ Type: 'ExtGState', ca: 0.4, CA: 0.6 })
+  for (let f = 0; f < forms; f++) {
+    const circles = [0, 1, 2, 3].flatMap((c) => {
+      // A fixed walk, so every run draws the same page.
+      const i = f * 4 + c
+      const size = 20 + (i % 60)
+      return drawEllipse({
+        x: 36 + ((i * 37) % 540),
+        y: 36 + ((i * 53) % 720),
+        xScale: size,
+        yScale: size,
+        color: rgb((i % 7) / 7, (i % 11) / 11, (i % 13) / 13),
+        borderColor: rgb(0, 0, 0),
+        borderWidth: 1.5,
+        graphicsState: 'A',
+      })
+    })
+    const form = d.context.formXObject(circles, {
+      BBox: [0, 0, 612, 792],
+      Resources: { ExtGState: { A: alpha } },
+    })
+    page.pushOperators(drawObject(page.node.newXObject('Form', d.context.register(form))))
+  }
+  return d.save()
 }

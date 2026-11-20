@@ -21,7 +21,9 @@ export function fromWire(error: WireError): Error {
 
 interface Pending {
   resolve: (value: unknown) => void
-  reject: (reason: unknown) => void
+  reject: (reason: Error) => void
+  /** Asks the worker to stop the call; set for a render, the one call that can stop part way. */
+  abort?: () => void
 }
 
 class WorkerTransport implements Transport {
@@ -63,7 +65,29 @@ class WorkerTransport implements Transport {
       if (this.#dead) throw this.#dead
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
-        this.#pending.set(id, { resolve: resolve as Pending['resolve'], reject })
+        const render = request.op === 'renderPage'
+        const abort = () => {
+          // Only while the call is unanswered: once the reply has arrived it stands.
+          if (!this.#pending.has(id)) return
+          const message: ToWorker = { type: 'abort', id }
+          try {
+            this.#worker.postMessage(message)
+          } catch {
+            // The worker is gone; `fail` or `destroy` settles the call.
+          }
+        }
+        const settled = () => signal?.removeEventListener('abort', abort)
+        this.#pending.set(id, {
+          resolve: (value) => {
+            settled()
+            resolve(value as T)
+          },
+          reject: (reason) => {
+            settled()
+            reject(reason)
+          },
+          ...(render && { abort }),
+        })
         let sent = request
         const transfer: Transferable[] = []
         if (request.op === 'open' || request.op === 'checkRedaction') {
@@ -81,14 +105,21 @@ class WorkerTransport implements Transport {
         } catch (error) {
           this.#pending.delete(id)
           reject(failure('The request could not be sent to the engine worker.', error))
+          return
+        }
+        // A running render stops when its signal aborts; the worker then answers `aborted`.
+        if (render && signal) {
+          if (signal.aborted) abort()
+          else signal.addEventListener('abort', abort, { once: true })
         }
       })
     }, signal)
   }
 
   /**
-   * Rejects queued calls, waits up to the bound for the running call, then terminates the worker.
-   * A running call that has not answered by then rejects with `aborted`.
+   * Rejects queued calls, stops a running render, waits up to the bound for the running call,
+   * then terminates the worker. A running call that has not answered by then rejects with
+   * `aborted`.
    */
   destroy(): Promise<void> {
     this.#destroying ??= this.#destroy()
@@ -97,6 +128,7 @@ class WorkerTransport implements Transport {
 
   async #destroy(): Promise<void> {
     const drained = this.#queue.destroy()
+    for (const pending of this.#pending.values()) pending.abort?.()
     let timer: ReturnType<typeof setTimeout> | undefined
     const timedOut = await Promise.race([
       drained.then(() => false),

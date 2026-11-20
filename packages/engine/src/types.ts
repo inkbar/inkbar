@@ -50,8 +50,10 @@ export interface RenderOptions {
    */
   scale?: number
   /**
-   * Cancels the call while it waits in the queue. A call that has started runs to the end, and
-   * may still resolve or reject; the signal no longer affects it.
+   * Cancels the render while it waits in the queue, and stops it once it has started: it then
+   * rejects with `aborted` within a few milliseconds and delivers no pixels. A render that
+   * finishes before the abort is seen still resolves. Every other call that has started runs to
+   * the end.
    */
   signal?: AbortSignal
   /**

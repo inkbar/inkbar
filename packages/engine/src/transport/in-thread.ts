@@ -1,20 +1,26 @@
-import { EngineCore } from '../native/core.ts'
+import { EngineCore, nextTask } from '../native/core.ts'
 import { loadNative } from '../native/module.ts'
 
 import { CallQueue } from './queue.ts'
 
 import type { Request, Transport } from '../protocol.ts'
 
-const nextMacrotask = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
-
-export function dispatch(core: EngineCore, request: Request): unknown {
+/**
+ * Runs a request on the core. A render runs in slices and stops once `aborted` says true; every
+ * other call runs to the end.
+ */
+export function dispatch(
+  core: EngineCore,
+  request: Request,
+  aborted: () => boolean
+): unknown {
   switch (request.op) {
     case 'open':
       return core.open(request.bytes, request.options)
     case 'pageInfo':
       return core.pageInfo(request.doc, request.index)
     case 'renderPage':
-      return core.renderPage(request.doc, request.index, request.options)
+      return core.renderPageSliced(request.doc, request.index, request.options, aborted)
     case 'write':
       core.write(request.doc, request.input)
       return undefined
@@ -33,8 +39,10 @@ export function dispatch(core: EngineCore, request: Request): unknown {
 export class InThreadTransport implements Transport {
   readonly #core: EngineCore
   // Yielding between calls lets a queued call be aborted while another runs.
-  readonly #queue = new CallQueue(nextMacrotask)
+  readonly #queue = new CallQueue(nextTask)
   #destroying: Promise<void> | undefined
+  /** Set when `destroy()` is called: it stops a running render. */
+  #ending = false
 
   constructor(core: EngineCore) {
     this.#core = core
@@ -46,10 +54,12 @@ export class InThreadTransport implements Transport {
   }
 
   call<T>(request: Request, signal?: AbortSignal): Promise<T> {
-    return this.#queue.enqueue(() => dispatch(this.#core, request) as T, signal)
+    const aborted = () => this.#ending || signal?.aborted === true
+    return this.#queue.enqueue(() => dispatch(this.#core, request, aborted) as T, signal)
   }
 
   destroy(): Promise<void> {
+    this.#ending = true
     this.#destroying ??= this.#queue.destroy().then(() => {
       this.#core.destroy()
     })

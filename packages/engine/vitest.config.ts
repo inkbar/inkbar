@@ -61,6 +61,8 @@ export default defineConfig({
       },
       {
         plugins: [serveFixtures(), serveBuiltPackage(), serveHtmlAsWasm()],
+        // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
+        optimizeDeps: { include: ['@inkbar/fixtures > pdf-lib'] },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],

@@ -1,3 +1,4 @@
+import { generateSlowPage } from '@inkbar/fixtures/generate-large'
 import { fixtureUrl } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, test } from 'vitest'
 
@@ -5,9 +6,13 @@ import wasm from '../vendor/inkbar-pdfium.wasm?url'
 
 import { engineOver } from './engine.ts'
 import { createEngine, type Engine, type EngineDocument } from './index.ts'
+import { EngineCore } from './native/core.ts'
+import { loadNative } from './native/module.ts'
+import { serve, type WorkerScope } from './transport/worker-host.ts'
 import { createWorkerTransport } from './transport/worker.ts'
 
 import type * as Built from './index.ts'
+import type { FromWorker, ToWorker } from './protocol.ts'
 
 const PDF_MAGIC = new TextEncoder().encode('%PDF-')
 
@@ -264,15 +269,120 @@ test('aborting a queued call rejects it and lets the running one finish', async 
   })
 })
 
-test('destroy terminates the worker and rejects later calls', async () => {
+/**
+ * How a render settled, in a few words: a failed expectation never prints a page of pixels.
+ */
+const outcome = (call: Promise<unknown>) =>
+  call.then(
+    (value) => `resolved ${JSON.stringify({ ...(value as object), data: undefined })}`,
+    (reason: unknown) =>
+      `${(reason as Error).name} ${String((reason as { code?: unknown }).code)}`
+  )
+
+test('aborting a running render in the worker rejects it promptly', async () => {
+  const engine = await start()
+  const doc = await engine.open(await generateSlowPage())
+  const reference = await doc.renderPage(0)
+  const times: number[] = []
+  for (let run = 0; run < 3; run++) {
+    const c = new AbortController()
+    const running = doc.renderPage(0, { scale: 6, signal: c.signal })
+    // A generous start, so the render is well under way on a loaded machine.
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const at = performance.now()
+    c.abort()
+    expect(await outcome(running)).toBe('EngineError aborted')
+    times.push(performance.now() - at)
+  }
+  console.info(`abort to rejection: ${times.map((t) => t.toFixed(1)).join(', ')} ms`)
+  expect(Math.max(...times)).toBeLessThan(100)
+  // The engine keeps working and draws the same page again.
+  const again = await doc.renderPage(0)
+  expect(again.data.length).toBe(reference.data.length)
+  expect(again.data.every((v, i) => v === reference.data[i])).toBe(true)
+})
+
+test('rendered pixels move from the worker to the page', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))
-  const queued = [doc.renderPage(0, { scale: 4 }), doc.renderPage(0)]
-  await new Promise((resolve) => setTimeout(resolve, 0)) // the first call is now running
+  const page = await doc.renderPage(0)
+  expect(page.data.buffer.byteLength).toBe(612 * 792 * 4)
+})
+
+test('the worker host gives up its copy of the pixels when it posts them', async () => {
+  // The host answers over a real channel, so the transfer is the browser's own.
+  const { port1, port2 } = new MessageChannel()
+  const sent: FromWorker[] = []
+  const scope: WorkerScope = {
+    postMessage(message, transfer) {
+      sent.push(message)
+      port2.postMessage(message, transfer ?? [])
+    },
+    addEventListener: (
+      type: string,
+      listener: (event: MessageEvent<ToWorker>) => void
+    ) => {
+      port2.addEventListener(type, listener as EventListener)
+    },
+  }
+  let core: EngineCore | undefined
+  serve(
+    scope,
+    async (source) => (core = new EngineCore(await loadNative({ wasm: source })))
+  )
+  port2.start()
+  const replies: FromWorker[] = []
+  const next = () =>
+    new Promise<FromWorker>((resolve) => {
+      port1.onmessage = (event: MessageEvent<FromWorker>) => {
+        replies.push(event.data)
+        resolve(event.data)
+      }
+    })
+  let reply = next()
+  port1.postMessage({
+    type: 'init',
+    wasm: new URL(wasm, location.href).href,
+  } satisfies ToWorker)
+  expect(await reply).toEqual({ type: 'ready' })
+  reply = next()
+  port1.postMessage({
+    id: 1,
+    request: { op: 'open', bytes: await fixture('text-simple') },
+  } satisfies ToWorker)
+  const opened = (await reply) as { value: { id: number } }
+  reply = next()
+  port1.postMessage({
+    id: 2,
+    request: { op: 'renderPage', doc: opened.value.id, index: 0, options: {} },
+  } satisfies ToWorker)
+  const rendered = (await reply) as { value: { data: Uint8ClampedArray } }
+  expect(rendered.value.data.buffer.byteLength).toBe(612 * 792 * 4)
+  // The host's own array is detached: its buffer moved rather than being copied.
+  const own = (sent[2] as { value: { data: Uint8ClampedArray } }).value.data
+  expect(own.buffer.byteLength).toBe(0)
+  // Frees the document and the host's engine.
+  reply = next()
+  port1.postMessage({
+    id: 3,
+    request: { op: 'close', doc: opened.value.id },
+  } satisfies ToWorker)
+  expect(await reply).toMatchObject({ id: 3, ok: true })
+  core?.destroy()
+  port1.close()
+})
+
+test('destroy terminates the worker and rejects later calls', async () => {
+  const engine = await start()
+  const doc = await engine.open(await generateSlowPage())
+  const queued = [doc.renderPage(0, { scale: 6 }), doc.renderPage(0)]
+  await new Promise((resolve) => setTimeout(resolve, 50)) // the first call is now running
   const settled = Promise.allSettled(queued)
   await engine.destroy()
   const [running, waiting] = await settled
-  expect(running).toMatchObject({ status: 'fulfilled', value: { width: 2448 } })
+  // Destroy stops a running render, as an abort does.
+  expect(running?.status).toBe('rejected')
+  expect(running).toMatchObject({ reason: { code: 'aborted' } })
   expect(waiting).toMatchObject({ status: 'rejected', reason: { code: 'aborted' } })
   await expect(doc.pageInfo(0)).rejects.toMatchObject({ code: 'engine-failure' })
   await expect(engine.open(await fixture('text-simple'))).rejects.toMatchObject({
