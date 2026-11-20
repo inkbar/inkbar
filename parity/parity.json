@@ -39,8 +39,8 @@
   },
   "annotated-redact": {
     "state": "different",
-    "reason": "Two unapplied Redact annotations with no /AP: the engine generates an appearance for them (red outlines); PDF.js draws nothing",
-    "accepted": false
+    "reason": "Two unapplied Redact annotations with no /AP: the engine generates an appearance for them (red outlines); PDF.js draws nothing; the viewer adopts the mark and hides this drawing",
+    "accepted": true
   },
   "annotated-shapes": {
     "state": "different",
@@ -192,8 +192,8 @@
   },
   "redact-foreign-mark": {
     "state": "different",
-    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
-    "accepted": false,
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing; the viewer adopts the mark and hides this drawing",
+    "accepted": true,
     "pages": [2]
   },
   "redact-foreign-popup": {
@@ -421,8 +421,8 @@
   },
   "bad-unapplied": {
     "state": "different",
-    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
-    "accepted": false
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing; the viewer adopts the mark and hides this drawing",
+    "accepted": true
   },
   "bad-appended": {
     "state": "same"
