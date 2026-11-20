@@ -554,6 +554,9 @@ importers:
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
+      '@inkbar/fonts':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../theme

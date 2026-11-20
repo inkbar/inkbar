@@ -9,6 +9,7 @@ import { createPdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
 import { readTextContent } from '../pdfjs/text-content'
+import { readerKind } from '../reader/select'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
 import {
@@ -429,7 +430,28 @@ export async function openDocument(
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
+  /**
+   * With the internal switch on, pages are drawn by an engine reader over the file PDF.js
+   * opened; PDF.js still reads text, links and forms. Its module loads only then.
+   */
+  const engineReader =
+    readerKind() === 'engine'
+      ? async (proxy: PdfjsDocument): Promise<DocumentReader> => {
+          const { createEngineReader } = await import('../engine-reader/reader')
+          return createEngineReader({
+            loader: options.engine!,
+            bytes: () => proxy.getData(),
+            password: options.password,
+          })
+        }
+      : undefined
+
   const load = (async () => {
+    if (engineReader && !options.engine)
+      throw new InkError(
+        'EngineUnavailable',
+        'Drawing pages with the engine needs the engine option'
+      )
     const pdfjs = await loadPdfjs(options.assets)
     const bytes = await resolved.bytes()
     const { task, proxy } = await openProxy(pdfjs, bytes, {
@@ -454,7 +476,7 @@ export async function openDocument(
       return cache.get(index)
     }
     handles = { module: pdfjs, proxy, getPage }
-    reader = createPdfjsReader(handles)
+    reader = engineReader ? await engineReader(proxy) : createPdfjsReader(handles)
     const meta = await proxy.getMetadata().catch(() => {
       // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
       // title/author are nice-to-have. The document itself has opened, so carry on without it.

@@ -1,0 +1,526 @@
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+
+import { createEngineReader, MAX_PIXELS } from './reader'
+
+import type { ReaderEngine, ReaderEngineDocument } from './types'
+import type { EngineLoader } from '../model/save/saver'
+import type { DrawRequest } from '../reader/types'
+import type * as EngineModule from '@inkbar/engine'
+
+type RenderOptions = Parameters<ReaderEngineDocument['renderPage']>[1]
+type Rendered = Awaited<ReturnType<ReaderEngineDocument['renderPage']>>
+
+/** An `EngineError` as the engine throws it, told by its name and code. */
+function engineError(code: string): Error {
+  const error = new Error(code) as Error & { code: string }
+  error.name = 'EngineError'
+  error.code = code
+  return error
+}
+
+/** A rejection with a plain object that carries only a code. */
+const rejectWithCode = (code: string): Promise<never> =>
+  // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- told by its code alone
+  Promise.reject({ code })
+
+/** A bitmap of the size asked, with a token array: nothing here allocates the pixels. */
+const bitmap = (options: RenderOptions, missingFonts: string[] = []): Rendered => ({
+  width: options.size!.width,
+  height: options.size!.height,
+  data: new Uint8ClampedArray(4),
+  missingFonts,
+})
+
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+}
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+/** A render that waits for `gate`, and rejects with `aborted` as the engine does on abort. */
+function abortable(options: RenderOptions, gate: Promise<void>): Promise<Rendered> {
+  return new Promise<Rendered>((resolve, reject) => {
+    const signal = options.signal
+    if (signal?.aborted) return reject(engineError('aborted'))
+    signal?.addEventListener('abort', () => reject(engineError('aborted')), {
+      once: true,
+    })
+    void gate.then(() => resolve(bitmap(options)))
+  })
+}
+
+type RenderFn = (call: number, index: number, options: RenderOptions) => Promise<Rendered>
+
+interface FakeEngine extends ReaderEngine {
+  open: ReturnType<typeof vi.fn<ReaderEngine['open']>>
+  destroy: ReturnType<typeof vi.fn<ReaderEngine['destroy']>>
+  doc: Omit<ReaderEngineDocument, 'close'> & {
+    close: ReturnType<typeof vi.fn<ReaderEngineDocument['close']>>
+  }
+}
+
+/** A fake engine module: every `createEngine` makes a new engine over a one-page document. */
+function setup(
+  opts: {
+    render?: RenderFn
+    rotation?: 0 | 90 | 180 | 270
+    pageCount?: number
+  } = {}
+) {
+  const engines: FakeEngine[] = []
+  const renders: { index: number; options: RenderOptions }[] = []
+  const render: RenderFn =
+    opts.render ?? ((_, __, options) => Promise.resolve(bitmap(options)))
+  const createEngine = vi.fn((): Promise<FakeEngine> => {
+    const doc = {
+      pageCount: opts.pageCount ?? 1,
+      pageInfo: vi.fn(() =>
+        Promise.resolve({
+          width: 612,
+          height: 792,
+          rotation: opts.rotation ?? 0,
+          box: { x: 0, y: 0, width: 612, height: 792 },
+          userUnit: 1,
+        })
+      ),
+      renderPage: vi.fn((index: number, options: RenderOptions) => {
+        renders.push({ index, options })
+        return render(renders.length, index, options)
+      }),
+      close: vi.fn(() => Promise.resolve()),
+    }
+    const engine: FakeEngine = {
+      open: vi.fn(() => Promise.resolve(doc)),
+      destroy: vi.fn(() => Promise.resolve()),
+      doc,
+    }
+    engines.push(engine)
+    return Promise.resolve(engine)
+  })
+  const loader = vi.fn(() => Promise.resolve({ createEngine }))
+  const warn = vi.fn<(message: string) => void>()
+  const open = () =>
+    createEngineReader({
+      loader: loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn,
+    })
+  return { engines, renders, createEngine, loader, warn, open }
+}
+
+/** A canvas with a stubbed 2D context: its bitmap is never allocated. */
+function fakeCanvas() {
+  const scratchContext = { putImageData: vi.fn(), drawImage: vi.fn() }
+  const scratch = {
+    width: 0,
+    height: 0,
+    getContext: vi.fn(() => scratchContext),
+  }
+  const context = { putImageData: vi.fn(), drawImage: vi.fn() }
+  const canvas = {
+    width: 300,
+    height: 150,
+    getContext: vi.fn(() => context),
+    ownerDocument: { createElement: vi.fn(() => scratch) },
+  }
+  return {
+    canvas: canvas as unknown as HTMLCanvasElement,
+    raw: canvas,
+    context,
+    scratch,
+    scratchContext,
+  }
+}
+
+const request = (over: Partial<DrawRequest> = {}): DrawRequest => ({
+  page: 0,
+  rotation: 0,
+  zoom: 1,
+  pixelRatio: 1,
+  width: 612,
+  height: 792,
+  hide: [],
+  ...over,
+})
+
+class FakeImageData {
+  constructor(
+    readonly data: Uint8ClampedArray,
+    readonly width: number,
+    readonly height: number
+  ) {}
+}
+
+beforeEach(() => {
+  vi.stubGlobal('ImageData', FakeImageData)
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+// The reader declares the engine by shape; this holds the shape to the engine's own types.
+describe('the engine shapes', () => {
+  it('asks of the engine only what the engine has', () => {
+    expectTypeOf<EngineModule.Engine>().toExtend<ReaderEngine>()
+    expectTypeOf<EngineModule.EngineDocument>().toExtend<ReaderEngineDocument>()
+  })
+})
+
+describe('opening', () => {
+  it('opens the bytes in an engine of its own and reports the page count', async () => {
+    const t = setup({ pageCount: 3 })
+    const reader = await t.open()
+    expect(reader.kind).toBe('engine')
+    expect(reader.pageCount).toBe(3)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+    expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), {})
+  })
+
+  it('passes the password', async () => {
+    const t = setup()
+    await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: 'secret',
+    })
+    expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1]), {
+      password: 'secret',
+    })
+  })
+
+  it('rejects with SaveFailed at the engine stage when the loader fails', async () => {
+    const reader = createEngineReader({
+      loader: () => Promise.reject(new Error('offline')),
+      bytes: () => Promise.resolve(new Uint8Array()),
+      password: undefined,
+    })
+    await expect(reader).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'engine' },
+    })
+  })
+
+  it('rejects with SaveFailed at the engine stage when createEngine fails', async () => {
+    const reader = createEngineReader({
+      loader: () =>
+        Promise.resolve({ createEngine: () => Promise.reject(new Error('no wasm')) }),
+      bytes: () => Promise.resolve(new Uint8Array()),
+      password: undefined,
+    })
+    await expect(reader).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'engine' },
+    })
+  })
+
+  it('rejects with SaveFailed at the write stage when the engine refuses the file, and destroys it', async () => {
+    const t = setup()
+    t.createEngine.mockImplementationOnce(() => {
+      const engine = {
+        open: vi.fn(() => Promise.reject(engineError('invalid-pdf'))),
+        destroy: vi.fn(() => Promise.resolve()),
+      }
+      t.engines.push(engine as unknown as FakeEngine)
+      return Promise.resolve(engine as unknown as FakeEngine)
+    })
+    await expect(t.open()).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write' },
+    })
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects with EngineUnavailable when the document cannot render, and frees it once', async () => {
+    const t = setup()
+    const close = vi.fn(() => Promise.resolve())
+    const destroy = vi.fn(() => Promise.resolve())
+    t.createEngine.mockImplementationOnce(() =>
+      Promise.resolve({
+        open: () => Promise.resolve({ pageCount: 1, close, write: () => undefined }),
+        destroy,
+      } as unknown as FakeEngine)
+    )
+    await expect(t.open()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(destroy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('page facts', () => {
+  it("maps the engine's page info to core's", async () => {
+    const t = setup({ rotation: 90 })
+    const reader = await t.open()
+    await expect(reader.pageInfo(0)).resolves.toEqual({
+      index: 0,
+      box: { x: 0, y: 0, width: 612, height: 792 },
+      rotate: 90,
+      userUnit: 1,
+      width: 612,
+      height: 792,
+    })
+  })
+
+  it('rejects with PageOutOfRange for a page the file does not have', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await expect(reader.pageInfo(1)).rejects.toMatchObject({ code: 'PageOutOfRange' })
+    await expect(reader.pageInfo(-1)).rejects.toMatchObject({ code: 'PageOutOfRange' })
+  })
+})
+
+describe('drawing', () => {
+  it("turns by the request's rotation less the page's own", async () => {
+    const t = setup({ rotation: 90 })
+    const reader = await t.open()
+    const { canvas } = fakeCanvas()
+    await reader.draw(request({ rotation: 270, width: 792, height: 612 }), canvas)
+    expect(t.renders[0]!.options.rotation).toBe(180)
+  })
+
+  it('asks for the exact size and region, and puts the pixels on the canvas at that size', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const { canvas, raw, context } = fakeCanvas()
+    const region = { x: 72, y: 700, width: 50, height: 50 }
+    await reader.draw(request({ width: 200, height: 201, region }), canvas)
+    expect(t.renders[0]).toMatchObject({
+      index: 0,
+      options: { size: { width: 200, height: 201 }, region, rotation: 0 },
+    })
+    expect(raw.width).toBe(200)
+    expect(raw.height).toBe(201)
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    const [image, x, y] = context.putImageData.mock.calls[0]! as [
+      FakeImageData,
+      number,
+      number,
+    ]
+    expect([image.width, image.height, x, y]).toEqual([200, 201, 0, 0])
+    expect(context.drawImage).not.toHaveBeenCalled()
+  })
+
+  it('hides the annotations it has object numbers for', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await reader.draw(
+      request({ hide: [{ id: '12R', objectNumber: 12 }, { id: 'annot_4' }] }),
+      fakeCanvas().canvas
+    )
+    expect(t.renders[0]!.options.hide).toEqual([12])
+  })
+
+  it('draws an oversized request smaller and stretches it onto the canvas', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const { canvas, raw, context, scratch, scratchContext } = fakeCanvas()
+    await reader.draw(request({ width: 16_588, height: 23_458 }), canvas)
+    const size = t.renders[0]!.options.size!
+    expect(size.width * size.height).toBeLessThanOrEqual(MAX_PIXELS)
+    expect(Math.abs(size.width / size.height / (16_588 / 23_458) - 1)).toBeLessThan(0.001)
+    expect(raw.width).toBe(16_588)
+    expect(raw.height).toBe(23_458)
+    expect(scratchContext.putImageData).toHaveBeenCalledTimes(1)
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect(context.drawImage).toHaveBeenCalledWith(scratch, 0, 0, 16_588, 23_458)
+    // The scratch bitmap is let go once drawn.
+    expect([scratch.width, scratch.height]).toEqual([0, 0])
+  })
+
+  it('warns once per missing font key', async () => {
+    const t = setup({
+      render: (_, __, options) => Promise.resolve(bitmap(options, ['japanese'])),
+    })
+    const reader = await t.open()
+    await reader.draw(request(), fakeCanvas().canvas)
+    await reader.draw(request(), fakeCanvas().canvas)
+    expect(t.warn).toHaveBeenCalledTimes(1)
+    expect(t.warn).toHaveBeenCalledWith(
+      'Inkbar: no fallback font for "japanese" text; some text on this page is drawn with a substitute.'
+    )
+  })
+})
+
+describe('an engine that stops', () => {
+  it('is replaced and the draw retried once', async () => {
+    const t = setup({
+      render: (call, _, options) =>
+        call === 1
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const { canvas, context } = fakeCanvas()
+    await reader.draw(request(), canvas)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    // The dead engine is freed once; the new one opened the file again.
+    expect(t.engines[0]!.doc.close).toHaveBeenCalledTimes(1)
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    expect(t.engines[1]!.open).toHaveBeenCalledTimes(1)
+    expect(t.engines[1]!.destroy).not.toHaveBeenCalled()
+  })
+
+  it('a plain { code } rejection counts as well', async () => {
+    const t = setup({
+      render: (call, _, options) =>
+        call === 1 ? rejectWithCode('engine-failure') : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    await reader.draw(request(), fakeCanvas().canvas)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+
+  it('a second failure rejects, without a third engine', async () => {
+    const t = setup({ render: () => Promise.reject(engineError('engine-failure')) })
+    const reader = await t.open()
+    await expect(reader.draw(request(), fakeCanvas().canvas)).rejects.toMatchObject({
+      code: 'engine-failure',
+    })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+
+  it('draws waiting on the dead engine retry on one new engine, once each', async () => {
+    const gate = deferred<void>()
+    const t = setup({
+      render: (call, _, options) =>
+        call <= 3
+          ? gate.promise.then(() => Promise.reject(engineError('engine-failure')))
+          : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const draws = [0, 1, 2].map(() => reader.draw(request(), fakeCanvas().canvas))
+    await vi.waitFor(() => expect(t.renders).toHaveLength(3))
+    gate.resolve()
+    await Promise.all(draws)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.renders).toHaveLength(6)
+  })
+
+  it('an aborted draw is never taken for a stopped engine', async () => {
+    const t = setup({
+      render: (_, __, options) => abortable(options, new Promise(() => {})),
+    })
+    const reader = await t.open()
+    const controller = new AbortController()
+    const drawing = reader.draw(request(), fakeCanvas().canvas, controller.signal)
+    await vi.waitFor(() => expect(t.renders).toHaveLength(1))
+    controller.abort()
+    await expect(drawing).rejects.toBe(controller.signal.reason)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('destroy', () => {
+  it('rejects a running draw with DocumentDestroyed and frees the engine once', async () => {
+    const t = setup({
+      render: (_, __, options) => abortable(options, new Promise(() => {})),
+    })
+    const reader = await t.open()
+    const { canvas, context } = fakeCanvas()
+    const drawing = reader.draw(request(), canvas)
+    await vi.waitFor(() => expect(t.renders).toHaveLength(1))
+    await Promise.all([reader.destroy(), reader.destroy()])
+    await expect(drawing).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    expect(t.renders[0]!.options.signal!.aborted).toBe(true)
+    expect(t.engines[0]!.doc.close).toHaveBeenCalledTimes(1)
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    expect(context.putImageData).not.toHaveBeenCalled()
+  })
+
+  it('a draw that resolves after destroy does not touch its canvas', async () => {
+    const gate = deferred<void>()
+    // This render ignores its signal and finishes anyway.
+    const t = setup({
+      render: (_, __, options) => gate.promise.then(() => bitmap(options)),
+    })
+    const reader = await t.open()
+    const { canvas, raw, context } = fakeCanvas()
+    const drawing = reader.draw(request(), canvas)
+    await vi.waitFor(() => expect(t.renders).toHaveLength(1))
+    const destroying = reader.destroy()
+    gate.resolve()
+    await expect(drawing).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await destroying
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect([raw.width, raw.height]).toEqual([300, 150])
+  })
+
+  it('a draw after destroy rejects at once', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await reader.destroy()
+    await expect(reader.draw(request(), fakeCanvas().canvas)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    expect(t.renders).toHaveLength(0)
+  })
+
+  it('a replacement engine still starting is freed once it has started', async () => {
+    const t = setup({
+      render: (call, _, options) =>
+        call === 1
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(bitmap(options)),
+    })
+    const reader = await t.open()
+    const starting = deferred<void>()
+    const make = t.createEngine.getMockImplementation()!
+    t.createEngine.mockImplementationOnce(async () => {
+      await starting.promise
+      return make()
+    })
+    const drawing = reader.draw(request(), fakeCanvas().canvas)
+    await vi.waitFor(() => expect(t.createEngine).toHaveBeenCalledTimes(2))
+    const destroying = reader.destroy()
+    starting.resolve()
+    await expect(drawing).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await destroying
+    await vi.waitFor(() => expect(t.engines[1]?.destroy).toHaveBeenCalledTimes(1))
+    expect(t.engines[1]!.doc.close).toHaveBeenCalledTimes(1)
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    expect(t.renders).toHaveLength(1)
+  })
+})
+
+describe('superseded draws', () => {
+  it('twenty draws, each aborting the one before: only the last paints', async () => {
+    const gate = deferred<void>()
+    const t = setup({ render: (_, __, options) => abortable(options, gate.promise) })
+    const reader = await t.open()
+    const { canvas, context } = fakeCanvas()
+    const controllers: AbortController[] = []
+    const draws: Promise<void>[] = []
+    for (let i = 0; i < 20; i++) {
+      controllers[i - 1]?.abort()
+      const controller = new AbortController()
+      controllers.push(controller)
+      const drawing = reader.draw(request(), canvas, controller.signal)
+      // Observed now: the superseded ones reject while the loop goes on.
+      drawing.catch(() => undefined)
+      draws.push(drawing)
+      await vi.waitFor(() => expect(t.renders).toHaveLength(i + 1))
+    }
+    gate.resolve()
+    const results = await Promise.allSettled(draws)
+    results.slice(0, 19).forEach((r, i) => {
+      expect(r).toEqual({
+        status: 'rejected',
+        reason: controllers[i]!.signal.reason as unknown,
+      })
+    })
+    expect(results[19]).toEqual({ status: 'fulfilled', value: undefined })
+    expect(t.renders.filter((r) => r.options.signal?.aborted)).toHaveLength(19)
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+})
