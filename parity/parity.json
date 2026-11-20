@@ -23,7 +23,7 @@
   "userunit-2": {
     "state": "different",
     "reason": "Text in Helvetica, not embedded, at /UserUnit 2 (4 px per point): the readers substitute different Helvetica outlines, and glyph tops and curves differ by a pixel or two",
-    "accepted": false,
+    "accepted": true,
     "pages": [1, 2, 3]
   },
   "mixed-page-sizes": {
@@ -35,7 +35,7 @@
   "annotated-notes-threaded": {
     "state": "different",
     "reason": "Text notes with no /AP: the engine generates an appearance for them (note icons); PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "annotated-redact": {
     "state": "different",
@@ -44,7 +44,7 @@
   },
   "annotated-shapes": {
     "state": "different",
-    "reason": "Annotations with no /AP, each reader generating its own: the engine closes the polygon, draws the ink as smooth curves and boxes the FreeText; PDF.js leaves the polygon open, draws the ink as straight segments and the FreeText unboxed",
+    "reason": "Annotations with no /AP, each reader generating its own: the engine closes the polygon, draws the ink as smooth curves and boxes the FreeText; PDF.js leaves the polygon open, draws the ink as straight segments and the FreeText unboxed. The closed polygon and the boxed FreeText match Poppler and Ghostscript; the smooth ink is a known engine fault, as those readers draw straight segments",
     "accepted": false
   },
   "standard-callout": {
@@ -68,12 +68,12 @@
   "freetext-fonts": {
     "state": "different",
     "reason": "FreeText annotations with no /AP: the engine generates an appearance for each with a border; PDF.js draws the text alone",
-    "accepted": false
+    "accepted": true
   },
   "annotated-unsupported": {
     "state": "different",
     "reason": "A Link and a FileAttachment with no /AP: the engine generates an appearance for them (a blue link border, a pushpin icon); PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "acroform-basic": {
     "state": "same"
@@ -120,7 +120,7 @@
   "form-bare-appearances": {
     "state": "different",
     "reason": "A text field with no /AP: the engine generates an appearance for it (a bordered box); PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "form-goto": {
     "state": "same"
@@ -173,7 +173,7 @@
   "saved-replied": {
     "state": "different",
     "reason": "A reply note written as another program would, with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
-    "accepted": false,
+    "accepted": true,
     "pages": [1]
   },
   "redact-text": {
@@ -188,7 +188,7 @@
   "redact-annotations": {
     "state": "different",
     "reason": "A Text note with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "redact-foreign-mark": {
     "state": "different",
@@ -214,7 +214,7 @@
   "redact-text-clip": {
     "state": "different",
     "reason": "Text in render mode 7 (clip) under a magenta fill: the engine shows the clipped text in magenta, PDF.js draws nothing there",
-    "accepted": false
+    "accepted": true
   },
   "redact-text-pattern": {
     "state": "same"
@@ -339,7 +339,7 @@
   "redact-page-userunit": {
     "state": "different",
     "reason": "Text in Helvetica, not embedded, at /UserUnit 2 (4 px per point): the readers substitute different Helvetica outlines, and glyph tops and curves differ by a pixel or two",
-    "accepted": false
+    "accepted": true
   },
   "redact-page-cropbox": {
     "state": "same"
@@ -359,7 +359,7 @@
   "redact-annotation-loupe": {
     "state": "different",
     "reason": "The loupe square draws a page copy at twice its size: glyph edges of the substituted Helvetica (not embedded) differ at that size, as on userunit-2",
-    "accepted": false
+    "accepted": true
   },
   "redact-annotation-loupe-drawing": {
     "state": "same"
@@ -391,7 +391,7 @@
   "redact-file-attachment": {
     "state": "different",
     "reason": "A FileAttachment with no /AP: the engine generates an appearance for it (a paperclip icon); PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "redact-file-script": {
     "state": "same"
@@ -453,12 +453,12 @@
   "corpus-shade": {
     "state": "different",
     "reason": "Mesh shadings (rows four to eight, first two columns): the engine blends through olive and brown where PDF.js blends magenta to cyan; function-based, axial and radial shadings agree",
-    "accepted": false
+    "accepted": true
   },
   "corpus-shade-tensor": {
     "state": "different",
     "reason": "Coons and tensor patch meshes: in four clipped squares the engine draws different patch outlines (petals and stars) from PDF.js (diamonds and wedges)",
-    "accepted": false
+    "accepted": true
   },
   "corpus-radial-shading-point-at-center": {
     "state": "same"
@@ -484,7 +484,7 @@
   "corpus-matte": {
     "state": "different",
     "reason": "Images whose soft mask carries a /Matte: the colours differ, most in the top band of the first images (PDF.js pink, the engine brownish); cause not yet investigated",
-    "accepted": false
+    "accepted": true
   },
   "corpus-bug-1845": {
     "state": "same"
@@ -498,7 +498,7 @@
   "corpus-jpxdecode": {
     "state": "different",
     "reason": "JPEG 2000: PDF.js leaves two of the four images blank (one shows only a black square) and draws the SMaskInData overlay darker; the engine draws all four",
-    "accepted": false
+    "accepted": true
   },
   "corpus-bug-1469": {
     "state": "same"
@@ -506,7 +506,7 @@
   "corpus-bug-1396264": {
     "state": "different",
     "reason": "JPEG 2000 image: PDF.js draws narrow vertical colour stripes, the engine two flat bands (red over blue); cause not yet investigated",
-    "accepted": false
+    "accepted": true
   },
   "corpus-bug-1236": {
     "state": "same"
@@ -520,7 +520,7 @@
   "corpus-bug-1746": {
     "state": "different",
     "reason": "Type 3 glyphs over a CCITT image at half opacity: the engine draws both glyphs much paler than PDF.js; cause not yet investigated",
-    "accepted": false
+    "accepted": true
   },
   "corpus-bug-1087": {
     "state": "same"
@@ -540,7 +540,7 @@
   "corpus-bug-1883": {
     "state": "different",
     "reason": "A NoRotate (/F 16) annotation on the pages with /Rotate 90 and 180: the engine keeps its arrow upright, PDF.js turns it with the page",
-    "accepted": false,
+    "accepted": true,
     "pages": [2, 3]
   },
   "corpus-rectangles-multi-pages": {
@@ -561,7 +561,7 @@
   "corpus-bug-1388": {
     "state": "different",
     "reason": "Text in render mode 2 (fill and stroke): the engine draws the glyph, a black square; PDF.js draws nothing",
-    "accepted": false
+    "accepted": true
   },
   "corpus-bug-842": {
     "state": "same"
@@ -578,7 +578,7 @@
   "corpus-annots": {
     "state": "different",
     "reason": "A combo box widget with no /AP: the engine generates an appearance for it (a drop-down arrow); PDF.js draws nothing",
-    "accepted": false,
+    "accepted": true,
     "pages": [1]
   },
   "corpus-bug-1302355": {
@@ -587,6 +587,6 @@
   "corpus-smask-blend": {
     "state": "different",
     "reason": "A form under an alpha soft mask and the Screen blend: PDF.js draws a grey and a black square, the engine one grey bar, as Poppler does; Ghostscript and Quartz draw the page blank, so no reader is the reference",
-    "accepted": false
+    "accepted": true
   }
 }
