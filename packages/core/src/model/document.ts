@@ -5,6 +5,7 @@ import { destinationPage, resolveDestination } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { readOutline } from '../pdfjs/outline'
+import { createPdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
 import { readTextContent } from '../pdfjs/text-content'
@@ -38,7 +39,7 @@ import { linkFromPdfjs, type PageLink } from './links'
 import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
-import { pageInfoFromProxy, type PageInfo } from './pages'
+import { type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import {
   applyRedactions,
@@ -85,6 +86,7 @@ import type {
   PdfjsModule,
   PdfjsPage,
 } from '../pdfjs/types'
+import type { DocumentReader } from '../reader/types'
 import type { AnnotationRef } from '@inkbar/engine'
 
 export type DocumentStatus =
@@ -334,6 +336,8 @@ export interface InkDocument {
     proxy: PdfjsDocument
     getPage(index: number): Promise<PdfjsPage>
   }
+  /** @internal Page facts and pixels for the DOM layer. Not part of the public contract. */
+  readonly _reader: DocumentReader
 }
 
 interface PdfjsInfoDict {
@@ -359,6 +363,7 @@ export async function openDocument(
   let pageCache: PageCache<PdfjsPage> | undefined
   let destroyed = false
   let handles: InkDocument['_pdfjs'] | undefined
+  let reader: DocumentReader | undefined
   const measure = canvasMeasureChar()
   let destroyTask: (() => Promise<void>) | undefined
 
@@ -449,6 +454,7 @@ export async function openDocument(
       return cache.get(index)
     }
     handles = { module: pdfjs, proxy, getPage }
+    reader = createPdfjsReader(handles)
     const meta = await proxy.getMetadata().catch(() => {
       // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
       // title/author are nice-to-have. The document itself has opened, so carry on without it.
@@ -462,8 +468,7 @@ export async function openDocument(
     info.pageCount = proxy.numPages
     info.isEncrypted =
       docInfo.EncryptFilterName !== null && docInfo.EncryptFilterName !== undefined
-    for (let i = 0; i < proxy.numPages; i++)
-      pages.push(pageInfoFromProxy(await getPage(i), i))
+    for (let i = 0; i < proxy.numPages; i++) pages.push(await reader.pageInfo(i))
 
     const importedAt = new Date().toISOString()
     const perPage = await mapInOrder(proxy.numPages, EMBEDDED_CONCURRENCY, async (i) => {
@@ -1056,6 +1061,7 @@ export async function openDocument(
       pageCache?.clear()
       searchable.clear()
       destinationCache.clear()
+      if (reader) teardown(() => reader!.destroy())
       if (destroyTask) {
         teardown(destroyTask)
       }
@@ -1076,6 +1082,10 @@ export async function openDocument(
     get _pdfjs() {
       if (!handles) throw statusError(status.get())
       return handles
+    },
+    get _reader() {
+      if (!reader) throw statusError(status.get())
+      return reader
     },
   }
   return doc

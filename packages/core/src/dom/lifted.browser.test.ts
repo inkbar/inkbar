@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { withoutReplies } from '../model/annotations/threads'
 import { writable } from '../model/readable'
-import { renderRegion } from '../pdfjs/render-region'
+import { renderRegion } from '../test-support/render-region'
 
 import { createLoupeLayer } from './loupe-layer'
 import { createOverlay } from './overlay'
