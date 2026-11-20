@@ -6,7 +6,9 @@ import { hasSignature, writeFields } from './fields.ts'
 import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
 import { applyRedactions } from './redact.ts'
+import { hiddenObjects, renderGeometry } from './render.ts'
 
+import type { RenderRequestOptions } from '../protocol.ts'
 import type {
   OpenOptions,
   PageInfo,
@@ -29,7 +31,8 @@ const FPDF_ANNOT = 0x01
 const RENDER_WIDGETS = 0x8000
 const FPDF_REVERSE_BYTE_ORDER = 0x10
 const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
-const MAX_PIXELS = 268_435_456
+/** The longest one slice of a render runs, in milliseconds. */
+const RENDER_SLICE_MS = 1000
 
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
 const CLOSED = 'The document is closed.'
@@ -271,23 +274,23 @@ export class EngineCore {
   pageInfo(id: number, index: number): PageInfo {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
-    return this.#guard(() =>
-      this.#withPage(entry, index, (page) => {
-        const fn = this.#fn
-        const width = fn.FPDF_GetPageWidthF(page)
-        const height = fn.FPDF_GetPageHeightF(page)
-        const rotation = (((fn.FPDFPage_GetRotation(page) % 4) + 4) % 4) * 90
-        // PDFium reports the size after /Rotate; the public size is before it.
-        const turned = rotation === 90 || rotation === 270
-        return {
-          width: turned ? height : width,
-          height: turned ? width : height,
-          rotation: rotation as PageInfo['rotation'],
-          box: this.#pageBox(page),
-          userUnit: fn.INK_Page_UserUnit(page),
-        }
-      })
-    )
+    return this.#guard(() => this.#withPage(entry, index, (page) => this.#info(page)))
+  }
+
+  #info(page: number): PageInfo {
+    const fn = this.#fn
+    const width = fn.FPDF_GetPageWidthF(page)
+    const height = fn.FPDF_GetPageHeightF(page)
+    const rotation = (((fn.FPDFPage_GetRotation(page) % 4) + 4) % 4) * 90
+    // PDFium reports the size after /Rotate; the public size is before it.
+    const turned = rotation === 90 || rotation === 270
+    return {
+      width: turned ? height : width,
+      height: turned ? width : height,
+      rotation: rotation as PageInfo['rotation'],
+      box: this.#pageBox(page),
+      userUnit: fn.INK_Page_UserUnit(page),
+    }
   }
 
   /** The page box in PDF user space, from PDFium's FS_RECTF (left, top, right, bottom). */
@@ -311,58 +314,102 @@ export class EngineCore {
     }
   }
 
-  renderPage(id: number, index: number, scale: number, annotations = true): RenderedPage {
+  renderPage(
+    id: number,
+    index: number,
+    options: RenderRequestOptions = {}
+  ): RenderedPage {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
-    if (!Number.isFinite(scale) || scale <= 0)
-      throw new ArgumentError('scale must be a finite number above 0')
-    return this.#guard(() => this.#render(entry, index, scale, annotations))
+    if (!isRecord(options)) throw new ArgumentError('the options must be an object')
+    const hide = hiddenObjects(options.hide)
+    return this.#guard(() => this.#render(entry, index, options, hide))
   }
 
+  /**
+   * Draws a page through the fork's sliced render, which leaves out the annotations in `hide`
+   * and puts the document back as it was before it returns from starting.
+   */
   #render(
     entry: OpenDocument,
     index: number,
-    scale: number,
-    annotations: boolean
+    options: RenderRequestOptions,
+    hide: readonly number[]
   ): RenderedPage {
     return this.#withPage(entry, index, (page) => {
       const fn = this.#fn
-      const width = Math.ceil(fn.FPDF_GetPageWidthF(page) * scale)
-      const height = Math.ceil(fn.FPDF_GetPageHeightF(page) * scale)
-      if (width < 1 || height < 1 || width * height > MAX_PIXELS)
-        throw new ArgumentError('the rendered page would be too large')
+      const geometry = renderGeometry(this.#info(page), options)
+      const { width, height } = geometry
       const flags =
-        (annotations ? FPDF_ANNOT | RENDER_WIDGETS : 0) | FPDF_REVERSE_BYTE_ORDER
+        (options.annotations === false ? 0 : FPDF_ANNOT | RENDER_WIDGETS) |
+        FPDF_REVERSE_BYTE_ORDER
       const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+      let skip = 0
+      let render = 0
       try {
         fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0xffffffff)
-        fn.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, flags)
-        const stride = fn.FPDFBitmap_GetStride(bitmap)
-        const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
-        const heap = this.#native.HEAPU8
-        const row = width * 4
-        let data: Uint8ClampedArray
-        try {
-          data = new Uint8ClampedArray(row * height)
-        } catch (cause) {
-          // JavaScript could not allocate the copy. The module is unharmed.
-          throw new EngineError('out-of-memory', 'The engine ran out of memory.', {
-            cause,
-          })
+        if (hide.length > 0) {
+          skip = fn.malloc(hide.length * 4)
+          if (skip === 0)
+            throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+          const heap = this.#native.HEAPU8
+          new Uint32Array(heap.buffer, heap.byteOffset + skip, hide.length).set(hide)
         }
-        if (stride === row) data.set(heap.subarray(buffer, buffer + row * height))
-        else
-          for (let y = 0; y < height; y++) {
-            const from = buffer + y * stride
-            data.set(heap.subarray(from, from + row), y * row)
-          }
-        return { width, height, data }
+        render = fn.INK_Render_Start(
+          bitmap,
+          page,
+          geometry.startX,
+          geometry.startY,
+          geometry.sizeX,
+          geometry.sizeY,
+          geometry.rotate,
+          flags,
+          skip,
+          hide.length
+        )
+        if (render === 0)
+          throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
+        let state = 0
+        while (state === 0) state = fn.INK_Render_Continue(render, RENDER_SLICE_MS)
+        if (state !== 1)
+          throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
+        return this.#copyBitmap(bitmap, width, height)
       } finally {
-        if (!this.#stopped) fn.FPDFBitmap_Destroy(bitmap)
+        if (!this.#stopped) {
+          // The render ends before the bitmap it draws into goes.
+          fn.INK_Render_Close(render)
+          if (skip !== 0) fn.free(skip)
+          fn.FPDFBitmap_Destroy(bitmap)
+        }
       }
     })
+  }
+
+  /** The bitmap's pixels as tightly packed rows, in memory the caller owns. */
+  #copyBitmap(bitmap: number, width: number, height: number): RenderedPage {
+    const fn = this.#fn
+    const stride = fn.FPDFBitmap_GetStride(bitmap)
+    const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
+    const heap = this.#native.HEAPU8
+    const row = width * 4
+    let data: Uint8ClampedArray
+    try {
+      data = new Uint8ClampedArray(row * height)
+    } catch (cause) {
+      // JavaScript could not allocate the copy. The module is unharmed.
+      throw new EngineError('out-of-memory', 'The engine ran out of memory.', {
+        cause,
+      })
+    }
+    if (stride === row) data.set(heap.subarray(buffer, buffer + row * height))
+    else
+      for (let y = 0; y < height; y++) {
+        const from = buffer + y * stride
+        data.set(heap.subarray(from, from + row), y * row)
+      }
+    return { width, height, data }
   }
 
   /** Saves with `mode`, or with none: incrementally when the file holds a digital signature. */

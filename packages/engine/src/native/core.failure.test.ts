@@ -63,7 +63,7 @@ test('a trap is an engine-failure with the trap as its cause', async () => {
 test.each([
   ['open', 'FPDF_GetPageCount'],
   ['pageInfo', 'FPDF_GetPageWidthF'],
-  ['render', 'FPDF_RenderPageBitmap'],
+  ['render', 'INK_Render_Continue'],
   ['save', 'INK_WriterSize'],
 ] as const)(
   'a trap in %s makes no native call afterwards and the caller sees the trap',
@@ -74,7 +74,7 @@ test.each([
     const run = {
       open: () => core.open(bytes),
       pageInfo: () => core.pageInfo(id, 0),
-      render: () => core.renderPage(id, 0, 1),
+      render: () => core.renderPage(id, 0, { scale: 1 }),
       save: () => core.save(id, 'rewrite'),
     }[operation]
     let error: unknown
@@ -154,17 +154,17 @@ test('a trap while putting the document back after a failed write is an engine-f
 })
 
 test('after a trap every call fails and nothing reaches the module', async () => {
-  const { native, calls } = await trapping('FPDF_RenderPageBitmap')
+  const { native, calls } = await trapping('INK_Render_Continue')
   const core = new EngineCore(native)
   const { id } = core.open(bytes)
-  expect(() => core.renderPage(id, 0, 1)).toThrow(
+  expect(() => core.renderPage(id, 0, { scale: 1 })).toThrow(
     expect.objectContaining({ code: 'engine-failure' })
   )
   calls.length = 0
   for (const call of [
     () => core.open(bytes),
     () => core.pageInfo(id, 0),
-    () => core.renderPage(id, 0, 1),
+    () => core.renderPage(id, 0, { scale: 1 }),
     () => core.save(id, 'rewrite'),
   ])
     expect(call).toThrow(
@@ -248,11 +248,11 @@ async function throwing(name: keyof Native, error: unknown) {
 
 test('a stack overflow in the module stops the engine as an engine-failure', async () => {
   const overflow = new RangeError('Maximum call stack size exceeded')
-  const core = new EngineCore(await throwing('FPDF_RenderPageBitmap', overflow))
+  const core = new EngineCore(await throwing('INK_Render_Continue', overflow))
   const { id } = core.open(bytes)
   let error: unknown
   try {
-    core.renderPage(id, 0, 1)
+    core.renderPage(id, 0, { scale: 1 })
   } catch (caught) {
     error = caught
   }
@@ -267,8 +267,8 @@ test('a bad page index and an oversized render are RangeErrors and leave the eng
   const core = new EngineCore(await loadNative({ wasm }))
   const { id } = core.open(bytes)
   expect(() => core.pageInfo(id, 9)).toThrow(RangeError)
-  expect(() => core.renderPage(id, 0, 1000)).toThrow(RangeError)
-  expect(() => core.renderPage(id, 0, 1000)).toThrow(
+  expect(() => core.renderPage(id, 0, { scale: 1000 })).toThrow(RangeError)
+  expect(() => core.renderPage(id, 0, { scale: 1000 })).toThrow(
     'the rendered page would be too large'
   )
   expect(core.stopped).toBe(false)
@@ -290,14 +290,14 @@ test('a bitmap copy that JavaScript cannot allocate is out-of-memory and the eng
     }
   )
   try {
-    expect(() => core.renderPage(id, 0, 1)).toThrow(
+    expect(() => core.renderPage(id, 0, { scale: 1 })).toThrow(
       expect.objectContaining({ code: 'out-of-memory' })
     )
   } finally {
     vi.unstubAllGlobals()
   }
   expect(core.stopped).toBe(false)
-  expect(core.renderPage(id, 0, 1).width).toBe(612)
+  expect(core.renderPage(id, 0, { scale: 1 }).width).toBe(612)
   core.destroy()
 })
 
@@ -311,4 +311,86 @@ test('a trap while destroy closes a document still destroys the engine', async (
   expect(() => core.open(bytes)).toThrow(
     expect.objectContaining({ code: 'engine-failure' })
   )
+})
+
+/**
+ * A fresh module whose `name` returns `value` instead of running, and a log of the render and
+ * memory calls made, each with its first argument.
+ */
+async function failing(name: keyof Native, value: number) {
+  const native = await loadNative({ wasm })
+  const calls: [string, number | undefined][] = []
+  const watched = new Set([
+    'malloc',
+    'free',
+    'FPDFBitmap_CreateEx',
+    'FPDFBitmap_Destroy',
+    'INK_Render_Start',
+    'INK_Render_Continue',
+    'INK_Render_Close',
+  ])
+  const fn = new Proxy(native.fn, {
+    get(target, key: keyof Native) {
+      const real = target[key]
+      return (...args: number[]) => {
+        const result = key === name ? value : real(...args)
+        if (watched.has(key))
+          calls.push([key, key === 'malloc' ? (result as number) : args[0]])
+        return result
+      }
+    },
+  })
+  return { native: withFunctions(native, fn), calls }
+}
+
+test.each([
+  ['a render that cannot start', 'INK_Render_Start' as const, 0],
+  ['a render that fails part way', 'INK_Render_Continue' as const, -1],
+])(
+  '%s is an engine-failure, frees what it took and leaves the engine running',
+  async (_, name, value) => {
+    const { native, calls } = await failing(name, value)
+    const core = new EngineCore(native)
+    const { id } = core.open(bytes)
+    calls.length = 0
+    expect(() => core.renderPage(id, 0, { hide: [5, 6] })).toThrow(
+      expect.objectContaining({
+        code: 'engine-failure',
+        message: 'Page 0 could not be drawn.',
+      })
+    )
+    const allocated = calls.filter(([call]) => call === 'malloc').map(([, at]) => at)
+    const freed = calls.filter(([call]) => call === 'free').map(([, at]) => at)
+    for (const at of allocated) expect(freed).toContain(at)
+    const names = calls.map(([call]) => call)
+    expect(names.filter((call) => call === 'INK_Render_Close')).toHaveLength(1)
+    expect(names.filter((call) => call === 'FPDFBitmap_Destroy')).toHaveLength(1)
+    // The render ends before its bitmap goes.
+    expect(names.indexOf('INK_Render_Close')).toBeLessThan(
+      names.indexOf('FPDFBitmap_Destroy')
+    )
+    expect(core.stopped).toBe(false)
+    core.destroy()
+  }
+)
+
+test('a render passes the object numbers to leave out and frees their list', async () => {
+  const native = await loadNative({ wasm })
+  let seen: number[] = []
+  const fn = new Proxy(native.fn, {
+    get(target, key: keyof Native) {
+      const real = target[key]
+      if (key !== 'INK_Render_Start') return real
+      return (...args: number[]) => {
+        const [skip, count] = [args[8] as number, args[9] as number]
+        seen = [...new Uint32Array(native.HEAPU8.buffer, skip, count)]
+        return real(...args)
+      }
+    },
+  })
+  const core = new EngineCore(withFunctions(native, fn))
+  const { id } = core.open(bytes)
+  core.renderPage(id, 0, { hide: [7, 4_294_967_295] })
+  expect(seen).toEqual([7, 4_294_967_295])
+  core.destroy()
 })

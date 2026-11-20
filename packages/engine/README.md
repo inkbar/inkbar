@@ -96,8 +96,25 @@ try {
 
 Units and orientation:
 
-- `pageInfo` gives the width and height in PDF points (1/72 inch) of the page box PDFium reports, before /Rotate. That box is the crop box intersected with the media box, or the media box when there is no crop box. `box` is the same box as `{ x, y, width, height }` in user space; its origin is the crop box's corner, so it is not always (0, 0). `rotation` is the page's /Rotate in degrees. `userUnit` is the page's /UserUnit, the size of one user-space unit in points, or 1 when the page has none.
-- `renderPage` returns the page in displayed orientation, after /Rotate. The bitmap is the displayed size times `scale`, rounded up to whole pixels. The data is straight RGBA and opaque. The largest bitmap is 268,435,456 pixels. It draws the page's annotations, form widgets included, unless you pass `annotations: false`.
+- `pageInfo` gives the width and height of the page box PDFium reports, before /Rotate. That box is the crop box intersected with the media box, or the media box when there is no crop box. `box` is the same box as `{ x, y, width, height }` in user space; its origin is the crop box's corner, so it is not always (0, 0). `rotation` is the page's /Rotate in degrees. `userUnit` is the page's /UserUnit, the size of one user-space unit in points, or 1 when the page has none.
+- `width`, `height` and `box` are in user-space units. A page with `/UserUnit 2` and a 612 by 792 box reports 612 by 792 and is 1224 by 1584 points. Multiply by `userUnit` for points.
+- `renderPage` returns the page in displayed orientation, after /Rotate. The bitmap is the displayed size times `scale`, rounded up to whole pixels. `scale` is pixels per user-space unit. The data is straight RGBA and opaque. The largest bitmap is 268,435,456 pixels. It draws the page's annotations, form widgets included, unless you pass `annotations: false`.
+- `region` draws part of the page: a rectangle in user space, like `box`. The part of it outside the page box is white. At the same `scale`, with edges that fall on whole pixels, a region's bitmap is the same pixels as that part of the whole-page bitmap.
+- `size` asks for an exact bitmap, `{ width, height }` in whole pixels from 1, in place of `scale`. `renderPage` stretches the region, or the whole page, to fill it, so each side may scale differently. Passing both `scale` and `size` is a `RangeError`.
+- `rotation` turns the result a further 90, 180 or 270 degrees clockwise on top of /Rotate.
+- `hide` lists the object numbers of annotations on the page to leave out, so annotations you draw yourself appear once. The document stays as it was, and a later `save` writes the same file.
+
+```ts
+// The page's top-left inch as a 256 by 256 tile, turned a quarter with the view,
+// without the annotation in object 12.
+const { box } = await doc.pageInfo(0)
+const tile = await doc.renderPage(0, {
+  region: { x: box.x, y: box.y + box.height - 72, width: 72, height: 72 },
+  size: { width: 256, height: 256 },
+  rotation: 90,
+  hide: [12],
+})
+```
 
 Writing:
 
@@ -117,7 +134,7 @@ Saving:
 
 Ownership and lifetimes:
 
-- `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way.
+- `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way, and `renderPage` its options.
 - `renderPage` and `save` return buffers that belong to the caller.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
 - `destroy()` rejects queued calls with `aborted` and closes every document. In a worker it waits up to two seconds for the running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for the running call to finish. A `close()` after `destroy()` resolves.
@@ -129,7 +146,7 @@ Errors:
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
 - `redaction-failed` means `redact` refused a mark before changing anything (its `reason` says why; see [Redacting](#redacting)), or could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
 - `check-failed` means `checkRedaction` could not inspect a page or the file. The error's `page` holds the page index when a page was the cause. Treat it as a failed check. The engine keeps working.
-- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
+- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, `scale` and `size` together, a size that is not two whole numbers from 1, a region whose width or height is not a finite number above 0, a rotation other than 0, 90, 180 or 270, a `hide` entry that is not a whole number from 1, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.

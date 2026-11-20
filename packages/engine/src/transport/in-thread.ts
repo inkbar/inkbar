@@ -14,12 +14,7 @@ export function dispatch(core: EngineCore, request: Request): unknown {
     case 'pageInfo':
       return core.pageInfo(request.doc, request.index)
     case 'renderPage':
-      return core.renderPage(
-        request.doc,
-        request.index,
-        request.scale,
-        request.annotations
-      )
+      return core.renderPage(request.doc, request.index, request.options)
     case 'write':
       core.write(request.doc, request.input)
       return undefined

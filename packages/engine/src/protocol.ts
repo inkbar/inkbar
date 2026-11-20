@@ -3,14 +3,18 @@ import type {
   OpenOptions,
   RedactInput,
   RedactionRegion,
+  RenderOptions,
   SaveMode,
   WriteInput,
 } from './types.ts'
 
+/** `RenderOptions` as they cross to the worker: everything but the signal. */
+export type RenderRequestOptions = Omit<RenderOptions, 'signal'>
+
 export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
   | { op: 'pageInfo'; doc: number; index: number }
-  | { op: 'renderPage'; doc: number; index: number; scale: number; annotations: boolean }
+  | { op: 'renderPage'; doc: number; index: number; options: RenderRequestOptions }
   | { op: 'write'; doc: number; input: WriteInput }
   | { op: 'redact'; doc: number; input: RedactInput }
   | { op: 'save'; doc: number; mode?: SaveMode | undefined }

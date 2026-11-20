@@ -342,3 +342,64 @@ test('pageInfo reports the page user unit', async () => {
   expect((await scaled.pageInfo(0)).userUnit).toBe(2)
   await scaled.close()
 })
+
+test('renderPage passes its options to the core without the signal', async () => {
+  const requests: Request[] = []
+  const fake: Transport = {
+    call: <T>(request: Request) => {
+      requests.push(request)
+      return Promise.resolve((request.op === 'open' ? { id: 1, pageCount: 1 } : {}) as T)
+    },
+    destroy: () => Promise.resolve(),
+  }
+  const opened = await engineOver(fake).open(bytes)
+  const region = { x: 1, y: 2, width: 3, height: 4 }
+  const hide = [5]
+  const signal = new AbortController().signal
+  const call = opened.renderPage(0, {
+    region,
+    rotation: 90,
+    hide,
+    annotations: false,
+    signal,
+  })
+  // The options are copied when the call is made.
+  region.x = 100
+  hide.push(6)
+  await call
+  expect(requests.at(-1)).toEqual({
+    op: 'renderPage',
+    doc: 1,
+    index: 0,
+    options: {
+      region: { x: 1, y: 2, width: 3, height: 4 },
+      rotation: 90,
+      hide: [5],
+      annotations: false,
+    },
+  })
+})
+
+test('renderPage draws a region at an exact size, turned', async () => {
+  const page = await doc.renderPage(0, {
+    region: { x: 0, y: 692, width: 100, height: 100 },
+    size: { width: 30, height: 60 },
+    rotation: 270,
+  })
+  expect(page).toMatchObject({ width: 30, height: 60 })
+  expect(page.data).toHaveLength(30 * 60 * 4)
+})
+
+test.each([
+  ['scale with size', { scale: 2, size: { width: 10, height: 10 } }],
+  ['a region of no width', { region: { x: 0, y: 0, width: 0, height: 10 } }],
+  ['a size that is not whole', { size: { width: 0.5, height: 1 } }],
+  ['a rotation off the quarter turns', { rotation: 45 }],
+  ['a hide list of non-numbers', { hide: ['7'] }],
+])(
+  'renderPage with %s rejects with a RangeError and the engine goes on',
+  async (_, options) => {
+    await expect(doc.renderPage(0, options as never)).rejects.toBeInstanceOf(RangeError)
+    expect((await doc.renderPage(0)).width).toBe(612)
+  }
+)

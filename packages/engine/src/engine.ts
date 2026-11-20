@@ -43,10 +43,12 @@ export interface EngineDocument {
    */
   pageInfo(index: number): Promise<PageInfo>
   /**
-   * Renders a page to an RGBA bitmap in displayed orientation, after /Rotate. The bitmap is
-   * `ceil(width × scale)` by `ceil(height × scale)` pixels, where width and height are the
-   * displayed size in points. A bad index or scale, or a bitmap above 268,435,456 pixels,
-   * rejects with a `RangeError`. The returned data belongs to the caller.
+   * Renders a page, or the `region` of it, to an RGBA bitmap in displayed orientation, after
+   * /Rotate and `rotation`. The bitmap is `size`, or else `ceil(width × scale)` by
+   * `ceil(height × scale)` pixels, where width and height are the region's displayed size in
+   * user-space units. A bad index, scale, size, region, rotation or `hide` list, or a bitmap
+   * above 268,435,456 pixels, rejects with a `RangeError`. The returned data belongs to the
+   * caller.
    */
   renderPage(index: number, options?: RenderOptions): Promise<RenderedPage>
   /**
@@ -111,7 +113,7 @@ export interface EngineDocument {
  * Engine memory grows to fit the largest work it has done and does not shrink. Closing a
  * document lets the engine reuse its memory. Only `destroy()` returns all of it.
  *
- * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, a render larger
+ * Errors are `EngineError`s. A `RangeError` means a bad page index or render option, a render larger
  * than 268,435,456 pixels, a bad resource name or a box with no area in an appearance given
  * to `write`, or a region `checkRedaction` cannot use. After an
  * internal error in PDFium the engine stops. Every later call rejects with `engine-failure`,
@@ -189,17 +191,12 @@ class Document implements EngineDocument {
     return this.#call({ op: 'pageInfo', doc: this.id, index })
   }
 
-  renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
-    return this.#call(
-      {
-        op: 'renderPage',
-        doc: this.id,
-        index,
-        scale: options.scale ?? 1,
-        annotations: options.annotations ?? true,
-      },
-      options.signal
-    )
+  async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
+    const { signal, ...rest } = options
+    // A copy taken now, as in `write`, so a region or list the caller changes while the call
+    // waits is not used. The core checks the options.
+    const copy = structuredClone(rest)
+    return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal)
   }
 
   async write(input: WriteInput): Promise<void> {
