@@ -47,7 +47,9 @@ function serveHtmlAsWasm(): Plugin {
 /**
  * Serves the `@inkbar/fonts` files at any path holding `/inkbar-fonts/`, so a test can show which
  * base a relative URL was resolved against, and logs each request's path at
- * `/inkbar-fonts-log`. A path holding `/inkbar-fonts/hang/` is never answered.
+ * `/inkbar-fonts-log`. A path holding `/inkbar-fonts/hang/` is never answered. The log is one for
+ * the whole server: a test puts a segment of its own in its font URLs and reads back only those,
+ * since several browsers may share the server.
  */
 function serveFonts(): Plugin {
   const dir = dirname(
@@ -75,7 +77,7 @@ function serveFonts(): Plugin {
           res.end()
           return
         }
-        res.setHeader('Content-Type', 'font/otf')
+        res.setHeader('Content-Type', file.endsWith('.ttf') ? 'font/ttf' : 'font/otf')
         res.end(readFileSync(file))
       })
     },

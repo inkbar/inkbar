@@ -1,4 +1,5 @@
 import { EngineError } from './errors.ts'
+import { anySignal, timeoutSignal } from './signals.ts'
 
 import type { FontKey } from './types.ts'
 
@@ -24,6 +25,12 @@ export function keysOf(bits: number): FontKey[] {
 }
 
 export type FontState = 'registered' | 'failed'
+
+/**
+ * The longest one font fetch may take, in milliseconds. A fetch that runs out leaves the key
+ * missing for that call only: the next call that needs it fetches it again.
+ */
+export const FONT_FETCH_TIMEOUT_MS = 60_000
 
 const isNode = () =>
   typeof process !== 'undefined' && typeof process.versions?.node === 'string'
@@ -65,9 +72,10 @@ async function read(source: string | URL, signal: AbortSignal | undefined) {
 /**
  * Fetches each key's font the first time it is needed and hands its bytes to `register`. A key
  * whose fetch fails (a network error, a status other than 2xx, bytes `register` refuses, or
- * `register` running out of memory) is failed for the loader's life and not fetched again. An aborted fetch fails nothing: the key is
- * fetched again next time. A source is dropped once its key is settled, so its bytes are not
- * kept once registered.
+ * `register` running out of memory) is failed for the loader's life and not fetched again. An
+ * aborted fetch, or one that runs past `FONT_FETCH_TIMEOUT_MS`, fails nothing: the key is fetched
+ * again next time. A source is dropped once its key is settled, so its bytes are not kept once
+ * registered.
  */
 export function createFontLoader(
   sources: FontSources | undefined,
@@ -77,8 +85,12 @@ export function createFontLoader(
   ensure(keys: readonly FontKey[], signal?: AbortSignal): Promise<FontKey[]>
   /** The keys of `keys` not registered, without fetching. */
   missing(keys: readonly FontKey[]): FontKey[]
+  /** False when there is no source at all: `ensure` then only reports what is missing. */
+  readonly fetches: boolean
 } {
-  const pending = new Map(Object.entries(sources ?? {})) as Map<FontKey, FontSource>
+  const pending = new Map(
+    Object.entries(sources ?? {}).filter(([, source]) => source !== undefined)
+  ) as Map<FontKey, FontSource>
   const states = new Map<FontKey, FontState>()
 
   const settle = (key: FontKey, bytes: Uint8Array | undefined) => {
@@ -99,6 +111,7 @@ export function createFontLoader(
 
   return {
     missing,
+    fetches: pending.size > 0,
     async ensure(keys, signal) {
       for (const key of keys) {
         if (states.has(key)) continue
@@ -110,12 +123,18 @@ export function createFontLoader(
           continue
         }
         let bytes: Uint8Array | undefined
+        const bound = timeoutSignal(FONT_FETCH_TIMEOUT_MS)
+        const stop = anySignal([signal, bound.signal])
         try {
-          bytes = await untilAborted(read(source, signal), signal)
+          bytes = await untilAborted(read(source, stop.signal), stop.signal)
         } catch {
-          // An abort leaves the key to be fetched again; any other failure is final.
+          // An abort or a timeout leaves the key to be fetched again; any other failure is final.
           if (signal?.aborted) throw abortedError()
+          if (bound.timedOut()) continue
           bytes = undefined
+        } finally {
+          bound.dispose()
+          stop.dispose()
         }
         // A fetch that finished as the call was aborted is not registered either.
         if (signal?.aborted) throw abortedError()

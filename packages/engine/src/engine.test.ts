@@ -10,7 +10,7 @@ import { fontFiles, fontUrls } from '@inkbar/fonts'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
-import { keysOf } from './fonts.ts'
+import { FONT_FETCH_TIMEOUT_MS, keysOf } from './fonts.ts'
 import {
   createEngine,
   EngineError,
@@ -74,6 +74,15 @@ test('opens, inspects, renders, saves and closes', async () => {
   expect((await doc.save()).subarray(0, 5)).toEqual(PDF_MAGIC)
   expect((await doc.save({ mode: 'incremental' })).subarray(0, 5)).toEqual(PDF_MAGIC)
   await doc.close()
+})
+
+test('render options that are not an object, or cannot be copied, reject', async () => {
+  await expect(doc.renderPage(0, null as never)).rejects.toThrow(RangeError)
+  await expect(
+    doc.renderPage(0, { region: () => undefined } as never)
+  ).rejects.toMatchObject({ name: 'DataCloneError' })
+  // The engine still draws.
+  expect(await doc.renderPage(0)).toMatchObject({ width: 612, height: 792 })
 })
 
 test('a signal aborted before the call rejects with aborted', async () => {
@@ -574,6 +583,7 @@ describe('fallback fonts', () => {
   async function fontEngine(fallbackFonts?: EngineOptions['fallbackFonts']) {
     const native = await loadNative({ wasm })
     const registered = new Set<FontKey>()
+    const pageNeeds = vi.fn(native.fn.INK_Fonts_PageNeeds)
     const fn: Native = {
       ...native.fn,
       INK_Fonts_Register: (bit, data, size) => {
@@ -581,6 +591,7 @@ describe('fallback fonts', () => {
         if (ok) for (const key of keysOf(bit)) registered.add(key)
         return ok
       },
+      INK_Fonts_PageNeeds: pageNeeds,
     }
     const core = new EngineCore(
       withFunctions(native, fn),
@@ -592,8 +603,54 @@ describe('fallback fonts', () => {
       expect(missed.filter((key) => registered.has(key))).toEqual([])
       return missed
     }
-    return { engine: fonts, registered, misses }
+    return { engine: fonts, registered, misses, pageNeeds }
   }
+
+  test.each([
+    ['without fallback fonts', undefined],
+    ['with fallback fonts', { japanese: ALL.japanese }],
+  ] as const)(
+    'render, write and redact work where AbortSignal.any does not exist, %s',
+    async (_, sources) => {
+      const any = Object.getOwnPropertyDescriptor(AbortSignal, 'any')
+      Reflect.deleteProperty(AbortSignal, 'any')
+      try {
+        expect('any' in AbortSignal).toBe(false)
+        const { engine: fonts } = await fontEngine(sources)
+        const file = await fixtureBytes('unembedded-japanese')
+        const opened = await fonts.open(file)
+        const page = await opened.renderPage(0, { signal: new AbortController().signal })
+        expect(page.missingFonts).toEqual(sources ? [] : ['japanese'])
+        await opened.write(square())
+        const other = await fonts.open(file)
+        await other.redact({
+          marks: [mark('m1', { page: 0, quad: [72, 785, 130, 785, 72, 755, 130, 755] })],
+        })
+        expect((await other.save()).subarray(0, 5)).toEqual(PDF_MAGIC)
+        await fonts.destroy()
+      } finally {
+        if (any) Object.defineProperty(AbortSignal, 'any', any)
+      }
+    }
+  )
+
+  test('with no fallback fonts, write and redact do not read which fonts a page needs', async () => {
+    const { engine: fonts, pageNeeds } = await fontEngine()
+    const file = await fixtureBytes('unembedded-japanese-field')
+    const opened = await fonts.open(file)
+    await opened.write({ ...square(), fields: { f: { value: '日本語' } } })
+    const other = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    await other.redact({
+      marks: [mark('m1', { page: 0, quad: [72, 785, 130, 785, 72, 755, 130, 755] })],
+    })
+    expect(pageNeeds).not.toHaveBeenCalled()
+    // A render still lists what the page missed.
+    const fresh = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    expect((await fresh.renderPage(0)).missingFonts).toEqual(['japanese'])
+    expect(pageNeeds).toHaveBeenCalled()
+    expect(requests).toEqual([])
+    await fonts.destroy()
+  })
 
   test('a file that names no unembedded font fetches nothing', async () => {
     const { engine: fonts, misses } = await fontEngine(ALL)
@@ -941,6 +998,58 @@ describe('fallback fonts', () => {
     await waiting
     await expect(slowFonts.destroy()).resolves.toBeUndefined()
     await expect(writing).rejects.toMatchObject({ code: 'aborted' })
+  })
+
+  test('a font fetch that never answers holds a write for the bound only, and is tried again', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      let arrived: (() => void) | undefined
+      const waiting = new Promise<void>((resolve) => {
+        arrived = resolve
+      })
+      beforeAnswer = () =>
+        new Promise(() => {
+          arrived?.()
+        })
+      const { engine: fonts, registered } = await fontEngine({ japanese: ALL.japanese })
+      const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+      let written = false
+      const writing = opened.write(square()).then(() => {
+        written = true
+      })
+      await waiting
+      await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS - 1)
+      expect(written).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      await writing
+      expect(registered.size).toBe(0)
+      // Not remembered as failed: the next call that needs the font fetches it again.
+      beforeAnswer = () => Promise.resolve()
+      const page = await opened.renderPage(0)
+      expect(page.missingFonts).toEqual([])
+      expect(requests).toEqual([ALL.japanese, ALL.japanese])
+      await fonts.destroy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('a render whose font fetch runs out lists the font as missing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      beforeAnswer = () => new Promise(() => {})
+      const { engine: fonts } = await fontEngine({ japanese: ALL.japanese })
+      const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+      const drawing = opened.renderPage(0)
+      await vi.waitFor(() => {
+        expect(requests).toHaveLength(1)
+      })
+      await vi.advanceTimersByTimeAsync(FONT_FETCH_TIMEOUT_MS)
+      expect((await drawing).missingFonts).toEqual(['japanese'])
+      await fonts.destroy()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('a render that fetches a font does not change what save writes', async () => {

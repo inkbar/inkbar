@@ -1,4 +1,4 @@
-import { EngineError } from './errors.ts'
+import { ArgumentError, EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
 import { createWorkerTransport } from './transport/worker.ts'
 
@@ -164,11 +164,12 @@ export interface Engine {
     options?: CheckRedactionOptions
   ): Promise<RedactionFindings>
   /**
-   * Rejects queued calls with `aborted`, stops a running render, which rejects with `aborted`,
-   * closes every document and frees the engine. Any other running call is waited for: in a worker
-   * for up to two seconds, then the worker is terminated and the call rejects with `aborted`; in
-   * the calling thread until it finishes. Later calls reject with `engine-failure`; a later
-   * `destroy()` or document `close()` resolves.
+   * Rejects queued calls with `aborted`, stops a running render, and a `write` or `redact` waiting
+   * on a fallback font, each of which rejects with `aborted`, then closes every document and frees
+   * the engine. Any other running call is waited for: in a worker for up to two seconds, then the
+   * worker is terminated and the call rejects with `aborted`; in the calling thread until it
+   * finishes. Later calls reject with `engine-failure`; a later `destroy()` or document `close()`
+   * resolves.
    */
   destroy(): Promise<void>
 }
@@ -199,9 +200,12 @@ class Document implements EngineDocument {
   }
 
   async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
+    if (typeof options !== 'object' || options === null)
+      throw new ArgumentError('render options must be an object')
     const { signal, ...rest } = options
     // A copy taken now, as in `write`, so a region or list the caller changes while the call
-    // waits is not used. The core checks the options.
+    // waits is not used. The core checks the options. Options that cannot be copied reject
+    // with the DataCloneError the copy throws.
     const copy = structuredClone(rest)
     return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal)
   }

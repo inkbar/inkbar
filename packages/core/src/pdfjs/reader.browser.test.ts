@@ -179,6 +179,33 @@ describe('the PDF.js reader', () => {
     ).toBeLessThan(16)
   })
 
+  it('places a region at a scale that does not land on whole pixels', async () => {
+    // At 1.1 px per point the region's corner falls at (79.2, 46.2) in the full render. Its
+    // canvas size and its offset are worked out separately; they must still agree there.
+    const doc = await open('text-simple')
+    const scale = 1.1
+    const canvas = document.createElement('canvas')
+    await drawRegion(doc, REGION, scale, canvas)
+    expect([canvas.width, canvas.height]).toEqual([55, 55])
+
+    const full = await fullRender(doc, scale, 0)
+    const left = Math.round(REGION.x * scale)
+    const top = Math.round((792 - (REGION.y + REGION.height)) * scale)
+    const region = pixels(canvas, 0, 0, 55, 55)
+    expect(darkCount(region)).toBeGreaterThan(20)
+    const at = (dx: number, dy: number) =>
+      meanDiff(region, pixels(full, left + dx, top + dy, 55, 55))
+    const here = at(0, 0)
+    // No one-pixel shift matches better than the place the region should sit.
+    for (const [dx, dy] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ] as const)
+      expect(at(dx, dy)).toBeGreaterThan(here)
+  })
+
   it.each([
     [0, 90],
     [270, 0],

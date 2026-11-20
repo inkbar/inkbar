@@ -1,5 +1,6 @@
 import { ArgumentError, EngineError, fromPdfiumError } from '../errors.ts'
 import { createFontLoader, keysOf, type FontSources } from '../fonts.ts'
+import { anySignal } from '../signals.ts'
 
 import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
@@ -43,6 +44,7 @@ export const SLICE_MS = 8
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
 const CLOSED = 'The document is closed.'
 const BUSY = 'A render is running; the engine runs one call at a time.'
+const DESTROYED = 'The engine is destroyed.'
 
 /**
  * Resolves in a later task, so messages and events that arrived meanwhile are handled first. A
@@ -239,6 +241,14 @@ export class EngineCore {
     )
   }
 
+  /**
+   * True when the engine was given at least one fallback font source. Without one, `write` and
+   * `redact` do no font work at all.
+   */
+  get fetchesFonts(): boolean {
+    return this.#fonts.fetches
+  }
+
   /** True once a call into the module has failed; every later call is refused. */
   get stopped(): boolean {
     return this.#stopped
@@ -254,8 +264,7 @@ export class EngineCore {
   }
 
   open(bytes: Uint8Array, options: OpenOptions = {}): { id: number; pageCount: number } {
-    if (this.#destroyed)
-      throw new EngineError('engine-failure', 'The engine is destroyed.')
+    this.#checkLive()
     this.#checkIdle()
     return this.#guard(() => this.#open(bytes, options))
   }
@@ -431,7 +440,8 @@ export class EngineCore {
     this.#rendering = true
     const stop = () => aborted() || this.#destroyAfterRender
     try {
-      const missingFonts = await this.#ensureFonts(entry, [index], signal)
+      const fonts = this.#ensureFonts(entry, [index], signal)
+      const missingFonts = Array.isArray(fonts) ? fonts : await fonts
       for (;;) {
         if (stop()) throw new EngineError('aborted', 'The call was aborted.')
         const step = this.#guard(() => steps.next())
@@ -471,25 +481,23 @@ export class EngineCore {
 
   /**
    * Fetches and registers the fallback fonts `pages` need and have not had, and resolves with
-   * those still missing. With no needs it returns at once. Called while the core is busy, so no
-   * other call runs meanwhile. Rejects with `aborted` when `signal` aborts or `destroy()` is
-   * called.
+   * those still missing. With no needs, or no font sources, it answers at once without waiting.
+   * Called while the core is busy, so no other call runs meanwhile. Rejects with `aborted` when
+   * `signal` aborts or `destroy()` is called.
    */
-  async #ensureFonts(
+  #ensureFonts(
     entry: OpenDocument,
     pages: Iterable<number>,
     signal: AbortSignal | undefined
-  ): Promise<FontKey[]> {
+  ): FontKey[] | Promise<FontKey[]> {
     const needs = new Set<FontKey>()
     this.#guard(() => {
       for (const index of pages)
         for (const key of this.#needs(entry, index)) needs.add(key)
     })
-    if (needs.size === 0) return []
-    const stop = signal
-      ? AbortSignal.any([signal, this.#ending.signal])
-      : this.#ending.signal
-    return this.#fonts.ensure([...needs], stop)
+    if (needs.size === 0 || !this.#fonts.fetches) return this.#fonts.missing([...needs])
+    const stop = anySignal([signal, this.#ending.signal])
+    return this.#fonts.ensure([...needs], stop.signal).finally(stop.dispose)
   }
 
   /**
@@ -667,7 +675,15 @@ export class EngineCore {
   /**
    * `write`, after fetching the fallback fonts of the pages it loads: those it removes from,
    * appends to, and that hold an annotation replied to. With form values, every page: redrawing
-   * a field loads the font its /DA names, and the text the appearance holds depends on it.
+   * a field loads the font its /DA names, and the text the appearance holds depends on it. That
+   * loads each page once, which takes time on a long document.
+   *
+   * Not covered: a field font named only in the form's /DR and used by no page. The page needs
+   * call counts page resources, not /DR, so that font is not fetched first, and the appearance
+   * bytes then depend on whether an earlier render registered its key. The module writes a wrong
+   * appearance string for such a two-byte font either way.
+   *
+   * With no font sources it is `write`, with nothing read or awaited first.
    */
   async writeAfterFonts(
     id: number,
@@ -675,7 +691,7 @@ export class EngineCore {
     signal?: AbortSignal
   ): Promise<void> {
     const entry = this.#get(id)
-    if (entry.redacted) return this.write(id, input)
+    if (entry.redacted || !this.#fonts.fetches) return this.write(id, input)
     this.#checkWrite(entry, input)
     const pages = new Set<number>()
     if (Object.keys(input.fields ?? {}).length > 0)
@@ -692,13 +708,15 @@ export class EngineCore {
 
   /**
    * `redact`, after fetching the fallback fonts of every page: the apply visits each page, not
-   * only those with marks.
+   * only those with marks. With no font sources it is `redact`, with nothing read or awaited
+   * first.
    */
   async redactAfterFonts(
     id: number,
     input: RedactInput,
     signal?: AbortSignal
   ): Promise<RedactResult> {
+    if (!this.#fonts.fetches) return this.redact(id, input)
     const entry = this.#get(id)
     checkRedactInput(input)
     const pages = Array.from({ length: entry.pageCount }, (_, i) => i)
@@ -816,8 +834,7 @@ export class EngineCore {
     bytes: Uint8Array,
     options: { password?: string; regions?: readonly RedactionRegion[] } = {}
   ): RedactionFindings {
-    if (this.#destroyed)
-      throw new EngineError('engine-failure', 'The engine is destroyed.')
+    this.#checkLive()
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
     this.#checkIdle()
     checkRegions(options.regions)
@@ -947,9 +964,17 @@ export class EngineCore {
     }
   }
 
-  /** Closes a document. After an internal error it only forgets it: the module is not called. */
+  /**
+   * Closes a document. After an internal error it only forgets it: the module is not called.
+   * Once `destroy()` has been called it does nothing, since the destroy closes every document.
+   */
   close(id: number): void {
+    if (this.#destroyed || this.#destroyAfterRender) return
     this.#checkIdle()
+    this.#close(id)
+  }
+
+  #close(id: number): void {
     const entry = this.#documents.get(id)
     if (!entry) return
     this.#documents.delete(id)
@@ -973,7 +998,7 @@ export class EngineCore {
     }
     if (!this.#stopped && !this.#destroyed) {
       try {
-        for (const id of [...this.#documents.keys()]) this.close(id)
+        for (const id of [...this.#documents.keys()]) this.#close(id)
         this.#guard(() => {
           this.#fn.INK_Destroy()
         })
@@ -998,6 +1023,7 @@ export class EngineCore {
   }
 
   #get(id: number): OpenDocument {
+    this.#checkLive()
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
     this.#checkIdle()
     const entry = this.#documents.get(id)
@@ -1008,6 +1034,12 @@ export class EngineCore {
   #checkIndex(entry: OpenDocument, index: number): void {
     if (!Number.isInteger(index) || index < 0 || index >= entry.pageCount)
       throw new ArgumentError(`page index ${index} is outside 0..${entry.pageCount - 1}`)
+  }
+
+  /** Refuses a call once `destroy()` has been called, or is due once the running render ends. */
+  #checkLive(): void {
+    if (this.#destroyed || this.#destroyAfterRender)
+      throw new EngineError('engine-failure', DESTROYED)
   }
 
   /** Refuses a call that arrives while a sliced render is between slices. */

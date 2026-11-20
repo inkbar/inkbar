@@ -517,11 +517,35 @@ test('destroy during a sliced render stops it, then frees everything once', asyn
   const core = new EngineCore(native)
   const { id } = core.open(slow)
   let checks = 0
+  const meanwhile: Record<string, unknown> = {}
+  const attempt = (name: string, call: () => unknown) => {
+    try {
+      call()
+      meanwhile[name] = 'returned'
+    } catch (error) {
+      meanwhile[name] = error
+    }
+  }
   const running = core.renderPageSliced(id, 0, { scale: 6 }, () => {
-    if (++checks === 2) core.destroy()
+    if (++checks === 2) {
+      core.destroy()
+      attempt('open', () => core.open(bytes))
+      attempt('checkRedaction', () => core.checkRedaction(bytes))
+      attempt('pageInfo', () => core.pageInfo(id, 0))
+      attempt('save', () => core.save(id, undefined))
+      attempt('close', () => {
+        core.close(id)
+      })
+    }
     return false
   })
   expect(await outcome(running)).toBe('EngineError aborted')
+  // Once destroy is asked for, every call says so, not that the core is busy; close returns,
+  // since the destroy closes every document.
+  const destroyed = { code: 'engine-failure', message: 'The engine is destroyed.' }
+  for (const name of ['open', 'checkRedaction', 'pageInfo', 'save'])
+    expect(meanwhile[name], name).toMatchObject(destroyed)
+  expect(meanwhile.close).toBe('returned')
   expect(count('INK_Render_Close')).toBe(1)
   expect(count('FPDFBitmap_Destroy')).toBe(1)
   expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))

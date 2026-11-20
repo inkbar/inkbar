@@ -611,9 +611,17 @@ test('the engine requests nothing but its wasm and worker', async () => {
 })
 
 describe('fallback fonts', () => {
-  /** The paths the test server has been asked for under `/inkbar-fonts/`, in order. */
+  /**
+   * A path segment of this run's own: every font URL here holds it, so requests from other
+   * browsers sharing the test server's log are left out.
+   */
+  const run = `run-${crypto.randomUUID()}`
+  const base = `/${run}/inkbar-fonts/`
+  /** The paths this run has asked the test server for under `/inkbar-fonts/`, in order. */
   const fontLog = async () =>
-    (await (await fetch('/inkbar-fonts-log')).json()) as string[]
+    ((await (await fetch('/inkbar-fonts-log')).json()) as string[]).filter((path) =>
+      path.includes(`/${run}/`)
+    )
   /** The font requests made while `work` runs. */
   async function fontRequests(work: () => Promise<void>): Promise<string[]> {
     const before = (await fontLog()).length
@@ -631,7 +639,7 @@ describe('fallback fonts', () => {
 
   test('a worker fetches a font from a relative URL resolved against the page, once', async () => {
     // Relative to the page, not to the worker script, whose base differs.
-    const sources = fontUrls('inkbar-fonts/')
+    const sources = fontUrls(`${run}/inkbar-fonts/`)
     const expected = new URL(sources.japanese, location.href).pathname
     const engine = await start({ worker, wasm, fallbackFonts: sources })
     const bytes = await fixture('unembedded-japanese')
@@ -651,7 +659,7 @@ describe('fallback fonts', () => {
     const engine = await start({
       worker: false,
       wasm,
-      fallbackFonts: fontUrls('/inkbar-fonts/'),
+      fallbackFonts: fontUrls(base),
     })
     const plain = await fontRequests(async () => {
       for (const name of ['text-simple', 'unembedded-arial'] as const)
@@ -667,14 +675,14 @@ describe('fallback fonts', () => {
       expect(page.missingFonts).toEqual([])
       expect(inked(page)).toBeGreaterThan(500)
     })
-    expect(korean).toEqual([`/inkbar-fonts/${fontFiles.korean}`])
+    expect(korean).toEqual([`${base}${fontFiles.korean}`])
   })
 
   test('a font that 404s is listed as missing and not requested again', async () => {
     const engine = await start({
       worker,
       wasm,
-      fallbackFonts: { japanese: '/inkbar-fonts/nothing-here.otf' },
+      fallbackFonts: { japanese: `${base}nothing-here.otf` },
     })
     const bytes = await fixture('unembedded-japanese')
     const requested = await fontRequests(async () => {
@@ -682,14 +690,14 @@ describe('fallback fonts', () => {
       expect((await doc.renderPage(0)).missingFonts).toEqual(['japanese'])
       expect((await doc.renderPage(0)).missingFonts).toEqual(['japanese'])
     })
-    expect(requested).toEqual(['/inkbar-fonts/nothing-here.otf'])
+    expect(requested).toEqual([`${base}nothing-here.otf`])
   })
 
   test('aborting a render during its font fetch in the worker rejects it promptly', async () => {
     const engine = await start({
       worker,
       wasm,
-      fallbackFonts: { japanese: `/inkbar-fonts/hang/${fontFiles.japanese}` },
+      fallbackFonts: { japanese: `${base}hang/${fontFiles.japanese}` },
     })
     const doc = await engine.open(await fixture('unembedded-japanese'))
     const before = (await fontLog()).length
@@ -718,7 +726,7 @@ describe('fallback fonts', () => {
     const engine = await start({
       worker,
       wasm,
-      fallbackFonts: { japanese: `/inkbar-fonts/hang/${fontFiles.japanese}` },
+      fallbackFonts: { japanese: `${base}hang/${fontFiles.japanese}` },
     })
     const doc = await engine.open(await fixture('unembedded-japanese-field'))
     const before = (await fontLog()).length

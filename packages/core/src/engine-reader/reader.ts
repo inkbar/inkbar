@@ -31,6 +31,12 @@ interface Session {
   doc: ReaderEngineDocument
   /** Set when the session is freed, so it is freed once. */
   freed?: Promise<void>
+  /** Set when the reader drops the session; its engine then rejects what it had with `aborted`. */
+  dropped?: boolean
+  /** Set once the engine is known to have stopped. */
+  stopped?: boolean
+  /** The check on whether the engine still works, while one is running. */
+  probing?: Promise<boolean> | undefined
 }
 
 type EnginePageInfo = Awaited<ReturnType<ReaderEngineDocument['pageInfo']>>
@@ -79,7 +85,8 @@ export async function createEngineReader(
   options: EngineReaderOptions
 ): Promise<DocumentReader> {
   const warn = options.warn ?? ((message: string) => console.warn(message))
-  const passwordOption = options.password ? { password: options.password } : {}
+  const passwordOption =
+    options.password !== undefined ? { password: options.password } : {}
   let destroyed = false
   /** Aborted by `destroy`, with a DocumentDestroyed reason: every running draw listens. */
   const stopped = new AbortController()
@@ -138,16 +145,49 @@ export async function createEngineReader(
   }
 
   /** Frees a session whose engine stopped. The next call starts another, unless one has already. */
-  const drop = (dead: Promise<Session>): void => {
+  const drop = (dead: Promise<Session>, s: Session): void => {
     if (current !== dead) return
     current = undefined
-    void dead.then(free, () => undefined)
+    s.dropped = true
+    void free(s)
+  }
+
+  /** A page whose facts the engine has given: asking for them again is a cheap, sure call. */
+  let knownPage: number | undefined
+
+  /**
+   * Whether the session's engine still works after a call failed with `engine-failure`, which the
+   * engine also uses for a page it cannot load or draw. It asks again for the facts of a page it
+   * has already read: on a working engine that call reads one page dictionary the engine has
+   * parsed before and resolves; on a stopped one every call rejects with `engine-failure`. Calls
+   * that fail at the same time share one check. With no such page yet, the engine is taken as
+   * stopped.
+   */
+  const stillWorks = (s: Session): Promise<boolean> => {
+    if (s.stopped || s.dropped || knownPage === undefined) return Promise.resolve(false)
+    const page = knownPage
+    s.probing ??= s.doc.pageInfo(page).then(
+      () => true,
+      // `aborted` here means the session was dropped or the reader destroyed under the check.
+      (error: unknown) => {
+        const code = codeOf(error)
+        return code !== 'engine-failure' && code !== 'aborted'
+      }
+    )
+    const probing = s.probing
+    return probing.then((works) => {
+      if (s.probing === probing) s.probing = undefined
+      if (!works || s.dropped) s.stopped = true
+      return works && !s.dropped
+    })
   }
 
   /**
-   * `work` on the session's document. When the engine has stopped (`engine-failure`), it is
-   * replaced and `work` runs once more on the new one; never for a call that was aborted or a
-   * reader that was destroyed.
+   * `work` on the session's document. When it fails with `engine-failure` and the engine has
+   * really stopped, the engine is replaced and `work` runs once more on the new one. When the
+   * engine still works the error is the call's own and goes to the caller. A call the engine
+   * rejected with `aborted` because the reader dropped its session runs once more too. Never
+   * for a call that was aborted or a reader that was destroyed.
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
@@ -164,10 +204,16 @@ export async function createEngineReader(
       try {
         return await work(s.doc)
       } catch (error) {
-        if (destroyed || signal?.aborted || retried || codeOf(error) !== 'engine-failure')
-          throw error
+        if (destroyed || signal?.aborted || retried) throw error
+        const code = codeOf(error)
+        if (code === 'aborted' && s.dropped) {
+          retried = true
+          continue
+        }
+        if (code !== 'engine-failure') throw error
+        if (await stillWorks(s)) throw error
         retried = true
-        drop(used)
+        drop(used, s)
       }
     }
   }
@@ -185,9 +231,14 @@ export async function createEngineReader(
     if (!asked) {
       const made = run((doc) => doc.pageInfo(index))
       facts.set(index, made)
-      made.catch(() => {
-        if (facts.get(index) === made) facts.delete(index)
-      })
+      made.then(
+        () => {
+          knownPage ??= index
+        },
+        () => {
+          if (facts.get(index) === made) facts.delete(index)
+        }
+      )
       asked = made
     }
     return toPageInfo(await asked, index)

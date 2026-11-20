@@ -4,15 +4,41 @@ Draws the first three pages of every fixture that opens with both of core's read
 
 It opens each fixture twice with `openDocument`, once with `globalThis.__INKBAR_READER__ = 'engine'` set first and once without, and draws through `doc._reader.draw` at 2 pixels per point, pixel ratio 1, the page's own `/Rotate`, nothing hidden. That switch and `_reader` are internal to core. This package is the one place outside core that uses them.
 
+`src/placement.browser.test.ts` checks what the main suite does not: a page turned on top of its own `/Rotate`, and a region of a page, as the loupe draws one. For `text-simple`, `text-rotated-90`, `cropbox-offset` and `userunit-2` it draws the whole first page turned a further 90 and 270 degrees, and a region over two lines of text at the page's own turn and turned a further 90, with both readers, and each pair must be the same. It does not read `parity.json`. Each page is drawn at 2 pixels per unit, so `userunit-2` is drawn at zoom 1. One case is marked as failing: a region whose top edge falls between two pixels, which the engine draws half a pixel away from PDF.js because it places a page at whole pixels.
+
 ## How two drawings are compared
 
 `src/compare.ts` runs three checks, and two drawings are the same only when all three pass:
 
 - **Blurred.** Both images are box-blurred by `BLUR_RADIUS` pixels, so antialiasing and pixel snapping wash out, and a pixel differs when any channel is more than `CHANNEL_TOLERANCE` apart. The differing pixels may cover at most `MAX_SHARE` of the page and `MAX_BLOCK` of any 16 × 16 block. The block limit catches one missing glyph; the share limit catches a difference spread thin over the page.
-- **Unmatched.** Without the blur, a pixel is unmatched when, on some channel, it lies more than `SHIFT_TOLERANCE` below the darkest or above the lightest pixel of the other image's 3 × 3 neighbourhood. A stroke one reader snaps to whole pixels stays inside the other's range; a line the other leaves out does not. The longest straight run of unmatched pixels, across or down, may be at most `MAX_UNMATCHED_RUN` (30 pt). This catches a missing 0.5 pt rule, which the blur hides.
+- **Unmatched.** Without the blur, a pixel is unmatched when, on some channel, it lies more than `SHIFT_TOLERANCE` below the darkest or above the lightest pixel of the other image's 3 × 3 neighbourhood. A stroke one reader snaps to whole pixels stays inside the other's range; a line the other leaves out does not. The longest straight run of unmatched pixels, across or down, may be at most `MAX_UNMATCHED_RUN`: 60 px, which is 30 pt at 2 px per point. This catches a missing 0.5 pt rule at least 30 pt long, which the blur hides.
 - **Flat.** Where both images are a single colour over the whole blur window, their colours may differ by at most `FLAT_TOLERANCE`, over at most `MAX_FLAT_SHARE` of the page and `MAX_FLAT_BLOCK` of any block. This catches a missing pale fill, which lies within `CHANNEL_TOLERANCE` of white.
 
 We set the constants by measuring every fixture, and the unit tests pin what they must catch. To get a fixture past them, record the difference in `parity.json`; leave the constants alone.
+
+### How the constants were chosen
+
+Each check's limit sits between the highest value measured on a page judged the same (the noise ceiling) and the lowest value of a real difference (the signal), at 2 px per point in Chromium.
+
+| Check     | Constant                                                          | Noise ceiling on a `same` page                                                                                  | Signal                                                                                  | Limit                                                                   |
+| --------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Blurred   | `BLUR_RADIUS` 4, `CHANNEL_TOLERANCE` 48                           | at radius 2, text noise reached a worst block of 0.34, as high as a missing glyph; at radius 4 it falls to 0.03 | a missing 1 pt rule is about 57 levels after the blur                                   | below 40 the noise rises fast; above 48 a missing 1 pt rule slips       |
+| Blurred   | `MAX_BLOCK` 0.2                                                   | worst block 0.109 (`form-fieldmdp`), then 0.094, 0.070, 0.051                                                   | 0.328, the smallest real difference (`corpus-annots`, a 12 × 6 px arrow)                | catches 155 of 168 erased glyph parts of 40 px or more on `text-simple` |
+| Blurred   | `MAX_SHARE` 0.001                                                 | 0.0037%                                                                                                         | real differences start at 0.04%                                                         | about 2,000 px spread over an A4 page                                   |
+| Unmatched | `SHIFT_TOLERANCE` 48, `MAX_UNMATCHED_RUN` 60 px                   | longest run 30 px (`redact-text-vertical`); at tolerance 32 it is 59 px, at 24 it is 108 px                     | runs on `different` pages reach 456 px; a missing 1 px black rule 360 px long gives 360 | twice the noise ceiling                                                 |
+| Flat      | `FLAT_TOLERANCE` 8, `MAX_FLAT_SHARE` 0.0001, `MAX_FLAT_BLOCK` 0.1 | 0 at every tolerance from 6 to 16                                                                               | up to 21% (`corpus-matte`)                                                              | about 200 px on an A4 page, near the smallest area the check can see    |
+
+### What the comparison cannot see
+
+A drawing that leaves out any of these still passes as `same`:
+
+- a rule shorter than 30 pt (60 px), or a diagonal one: runs are counted only across and down;
+- a dashed or dotted rule, whose dashes each make a short run;
+- a pale hairline, lighter than about `#D0` on white, which stays within `SHIFT_TOLERANCE` of its neighbourhood;
+- a line within 1 px of other dark content, such as an underline touching descenders or a rule beside a border: the dark content widens the other image's neighbourhood range;
+- a pale shape narrower than 9 px, which is never flat over the blur window;
+- a flat tint within 8 levels of the other image;
+- a small glyph part such as a dot: about 8% of glyph parts of 40 px or more are missed, and most smaller ones.
 
 ## parity.json
 

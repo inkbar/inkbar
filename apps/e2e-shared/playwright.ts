@@ -36,7 +36,8 @@ export function defineSandboxConfig(opts: {
       webServer: {
         command: `pnpm exec vite build --outDir dist-e2e && pnpm exec vite preview --outDir dist-e2e --port ${previewPort} --strictPort`,
         port: previewPort,
-        reuseExistingServer: !process.env.CI,
+        // Always a fresh build: a preview server left running would serve an older one.
+        reuseExistingServer: false,
         timeout: 180_000,
       },
       projects: [{ name: 'preview', testMatch: 'engine-reader.spec.ts', use: chrome }],

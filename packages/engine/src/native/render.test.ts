@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { hiddenObjects, renderGeometry } from './render.ts'
+import { hiddenObjects, MAX_HIDDEN, renderGeometry } from './render.ts'
 
 import type { PageInfo } from '../types.ts'
 
@@ -177,6 +177,28 @@ test('a size of one pixel is allowed', () => {
     sizeX: 1,
     sizeY: 1,
   })
+})
+
+test('a placement error names what the caller can change', () => {
+  const far = { region: { x: 2e9, y: 0, width: 10, height: 10 } }
+  expect(() => renderGeometry(page, far)).toThrow(
+    'the page lies too far from the region, or is too large at this scale'
+  )
+  expect(() =>
+    renderGeometry(page, {
+      region: { x: 0, y: 0, width: 1e-6, height: 1e-6 },
+      size: { width: 100, height: 100 },
+    })
+  ).toThrow('the region is too small for the size asked')
+})
+
+test('hide may list at most MAX_HIDDEN object numbers', () => {
+  expect(hiddenObjects(Array.from({ length: MAX_HIDDEN }, () => 1))).toHaveLength(
+    MAX_HIDDEN
+  )
+  expect(() => hiddenObjects(Array.from({ length: MAX_HIDDEN + 1 }, () => 1))).toThrow(
+    RangeError
+  )
 })
 
 test('hide takes whole object numbers from 1', () => {

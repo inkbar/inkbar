@@ -99,8 +99,24 @@ describe('form widgets', () => {
   test('are drawn unless annotations are off', async () => {
     const { id } = core.open(await fixtureBytes('acroform-basic'))
     try {
-      expect(inField(core.renderPage(id, 0, { scale: 1 }))).toBeGreaterThan(0)
-      expect(inField(core.renderPage(id, 0, { annotations: false }))).toBe(0)
+      const withWidgets = core.renderPage(id, 0, { scale: 1 })
+      const without = core.renderPage(id, 0, { annotations: false })
+      expect(inField(withWidgets)).toBeGreaterThan(0)
+      expect(inField(without)).toBe(0)
+      // Control: outside the two widgets (the text field, and the checkbox at x 72 to 90,
+      // y 224 to 242 from the top), each with one pixel round it for the border's antialiasing,
+      // the two renders are the same pixels.
+      const inWidget = (x: number, y: number) =>
+        (y >= 167 && y < 193 && x >= 71 && x < 273) ||
+        (y >= 223 && y < 243 && x >= 71 && x < 91)
+      let outside = 0
+      for (let y = 0; y < without.height; y++)
+        for (let x = 0; x < without.width; x++) {
+          if (inWidget(x, y)) continue
+          const at = (y * without.width + x) * 4
+          if (withWidgets.data[at] !== without.data[at]) outside++
+        }
+      expect(outside).toBe(0)
     } finally {
       core.close(id)
     }

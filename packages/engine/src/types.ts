@@ -51,14 +51,15 @@ export interface RenderOptions {
   scale?: number
   /**
    * Cancels the render while it waits in the queue, and stops it once it has started: it then
-   * rejects with `aborted` within a few milliseconds and delivers no pixels. A render that
-   * finishes before the abort is seen still resolves. Every other call that has started runs to
-   * the end.
+   * rejects with `aborted` and delivers no pixels. How soon depends on the page: usually within
+   * one step of about 8 ms, and tens of milliseconds on a heavy page. A render that finishes
+   * before the abort is seen still resolves. Every other call that has started runs to the end.
    */
   signal?: AbortSignal
   /**
-   * Draw the page's annotations, form widgets included. Default true. With false only the page's own content is drawn,
-   * so a caller that paints annotations itself does not draw them twice.
+   * Draw the page's annotations, form widgets included. Default true. With false only the
+   * page's own content is drawn, so a caller that paints annotations itself does not draw them
+   * twice.
    */
   annotations?: boolean
   /**
@@ -75,7 +76,8 @@ export interface RenderOptions {
   rotation?: 0 | 90 | 180 | 270
   /**
    * Object numbers of annotations on this page whose appearance is not drawn. Each is a whole
-   * number from 1. The document is not changed, so a later `save` is as it would have been.
+   * number from 1; at most 1,000,000 of them. The document is not changed, so a later `save` is
+   * as it would have been.
    */
   hide?: readonly number[]
 }
@@ -98,7 +100,7 @@ export interface RenderedPage {
   data: Uint8ClampedArray
   /**
    * Fallback fonts this page needed and did not get: no entry in `fallbackFonts`, or the fetch
-   * failed. Empty when none.
+   * failed or ran out of time. Empty when none.
    */
   missingFonts: readonly FontKey[]
 }

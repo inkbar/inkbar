@@ -85,11 +85,15 @@ import { fontUrls } from '@inkbar/fonts'
 const engine = await createEngine({ fallbackFonts: fontUrls('/fonts/') })
 ```
 
-- The engine fetches a font the first time a page needs it, before it draws, writes to or redacts that page. It fetches each font once per engine.
+- The engine fetches a font the first time a page needs it, before it draws, writes to or redacts that page. It fetches each font once per engine. A `write` that sets form values, and every `redact`, first checks the fonts of every page.
+- A field whose font is named only in the form's `/DR`, and used by no page, is not covered: the engine does not fetch that font before it redraws the field.
 - A file that embeds its fonts, or names only the standard Latin fonts, fetches nothing. With no `fallbackFonts`, the engine fetches nothing.
 - Besides its wasm and worker, these fonts are the only files the engine requests, and only from the URLs you give. In a worker the engine fetches them itself, after resolving relative URLs against the page.
-- `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none or the fetch failed. The engine still draws the page.
+- `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none, the fetch failed or it ran out of time. The engine still draws the page.
+- `write` and `redact` do not say which fonts were missing. A host that redacts should run `checkRedaction` on the saved bytes; Inkbar's own `applyRedactions` does.
 - The engine does not retry a failed fetch while it runs. A fetch fails on a network error, a status other than 2xx, or a file that is not a font.
+- Each font is given 60 seconds. A fetch still going after that is stopped, and the call goes on without the font: the page is drawn, written or redacted with what there is, and `renderPage` lists the key in `missingFonts`. That font is not failed: the next call that needs it fetches it again.
+- Every other call on the engine waits while a font is being fetched, as it waits behind any running call.
 - Bytes you pass are read when a page first needs them, so leave them unchanged.
 
 ## What it does not do
@@ -126,12 +130,12 @@ try {
 Units and orientation:
 
 - `pageInfo` gives the width and height of the page box PDFium reports, before /Rotate. That box is the crop box intersected with the media box, or the media box when there is no crop box. `box` is the same box as `{ x, y, width, height }` in user space; its origin is the crop box's corner, so it is not always (0, 0). `rotation` is the page's /Rotate in degrees. `userUnit` is the page's /UserUnit, the size of one user-space unit in points, or 1 when the page has none.
-- `width`, `height` and `box` are in user-space units. A page with `/UserUnit 2` and a 612 by 792 box reports 612 by 792 and is 1224 by 1584 points. Multiply by `userUnit` for points.
+- `width`, `height` and `box` are in user-space units: multiply by `userUnit` for points. A page with `/UserUnit 2` and a 612 by 792 box reports 612 by 792 and is 1224 by 1584 points.
 - `renderPage` returns the page in displayed orientation, after /Rotate. The bitmap is the displayed size times `scale`, rounded up to whole pixels. `scale` is pixels per user-space unit. The data is straight RGBA and opaque. The largest bitmap is 268,435,456 pixels. It draws the page's annotations, form widgets included, unless you pass `annotations: false`.
 - `region` draws part of the page: a rectangle in user space, like `box`. The part of it outside the page box is white. At the same `scale`, with edges that fall on whole pixels, a region's bitmap is the same pixels as that part of the whole-page bitmap.
-- `size` asks for an exact bitmap, `{ width, height }` in whole pixels from 1, in place of `scale`. `renderPage` stretches the region, or the whole page, to fill it, so each side may scale differently. Passing both `scale` and `size` is a `RangeError`.
+- `size` asks for an exact bitmap, `{ width, height }` in whole pixels from 1, in place of `scale`. `renderPage` stretches the region, or the whole page, to fill it, so each side may scale differently. It rounds the page's edges to the nearest pixel, so a region may sit up to half a pixel off a cut from a whole-page bitmap. Passing both `scale` and `size` is a `RangeError`.
 - `rotation` turns the result a further 90, 180 or 270 degrees clockwise on top of /Rotate.
-- `hide` lists the object numbers of annotations on the page to leave out, so annotations you draw yourself appear once. The document stays as it was, and a later `save` writes the same file.
+- `hide` lists the object numbers of annotations on the page to leave out, so annotations you draw yourself appear once. It takes up to 1,000,000 numbers. The document stays as it was, and a later `save` writes the same file.
 
 ```ts
 // The page's top-left inch as a 256 by 256 tile, turned a quarter with the view,
@@ -163,11 +167,11 @@ Saving:
 
 Ownership and lifetimes:
 
-- `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way, and `renderPage` its options.
+- `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way, and `renderPage` its options. Input that `structuredClone` cannot copy, such as a function, rejects with a `DataCloneError`.
 - `renderPage` and `save` return buffers that belong to the caller. In a worker, the engine moves the pixels to your thread without copying them.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
-- `destroy()` rejects queued calls with `aborted`, stops a running render and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for any other running call to finish. A `close()` after `destroy()` resolves.
-- A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A render that finishes before the engine sees the abort still resolves. An abort while the render waits for a fallback font also rejects with `aborted`; the font is fetched again next time. Other calls that have started run to the end and may still reject.
+- `destroy()` rejects queued calls with `aborted`, stops a running render, and a `write` or `redact` waiting on a fallback font, each of which rejects with `aborted`, and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for any other running call to finish. A `close()` after `destroy()` resolves.
+- A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A page of many plain paths, or a large image, can take tens of milliseconds to stop at a viewer's zooms, and longer at very high scales. A render that finishes before the engine sees the abort still resolves. An abort while the render waits for a fallback font also rejects with `aborted`; the font is fetched again next time. Other calls that have started run to the end and may still reject.
 
 Errors:
 

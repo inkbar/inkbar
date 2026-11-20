@@ -28,7 +28,7 @@ function serveFonts(): Plugin {
           res.end()
           return
         }
-        res.setHeader('Content-Type', 'font/otf')
+        res.setHeader('Content-Type', file.endsWith('.ttf') ? 'font/ttf' : 'font/otf')
         res.end(readFileSync(file))
       })
     },

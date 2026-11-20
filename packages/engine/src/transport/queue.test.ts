@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest'
 
+import { nextTask } from '../native/core.ts'
+
 import { CallQueue } from './queue.ts'
 
 const later = (ms = 5) => new Promise<void>((resolve) => setTimeout(resolve, ms))
@@ -87,8 +89,8 @@ test('a job waiting behind one that yields between slices starts only once it se
   const sliced = queue.enqueue(async () => {
     for (let slice = 0; slice < 5; slice++) {
       log.push(`slice ${slice}`)
-      // A macrotask, as a sliced render yields, so anything waiting could run meanwhile.
-      await later(0)
+      // The yield a sliced render makes, so anything waiting could run meanwhile.
+      await nextTask()
     }
     throw new Error('stopped')
   })
