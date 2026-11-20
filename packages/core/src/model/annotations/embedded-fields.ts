@@ -207,10 +207,10 @@ function withParents(
 }
 
 /**
- * Another program's Redact annotation as a session mark: the imported one with its quads and
- * fill read from the file, unlocked. Its quads have their corners put in `Quad`'s order, and
- * its `rect` is then their bounding box, as a mark Inkbar makes from text has it. Undefined when
- * `marks` lacks the imported annotation, its pop-up cannot go with it (see
+ * Another program's Redact annotation as a session mark: the imported one with its quads, fill
+ * and overlay text read from the file, unlocked. Its quads have their corners put in `Quad`'s
+ * order, and its `rect` is then their bounding box, as a mark Inkbar makes from text has it.
+ * Undefined when `marks` lacks the imported annotation, its pop-up cannot go with it (see
  * `ForeignMarkPlace.popupListed`), or the result fails the schema.
  */
 function adoptedMark(
@@ -233,10 +233,18 @@ function adoptedMark(
     ...(quads.length > 0 ? { quads, rect: rectFromQuads(quads) } : {}),
     ...(m.fill ? { interiorColor: fillHex(m.fill, imported) } : {}),
   }
-  const parsed = AnnotationSchema.safeParse(candidate)
-  if (!parsed.success) return undefined
+  const parse = (c: object) => {
+    const parsed = AnnotationSchema.safeParse(c)
+    return parsed.success ? parsed.data : undefined
+  }
+  // Overlay text the schema does not take is left out, and the mark adopted without it.
+  const annotation =
+    (m.overlayText !== undefined &&
+      parse({ ...candidate, overlayText: m.overlayText })) ||
+    parse(candidate)
+  if (!annotation) return undefined
   return {
-    annotation: parsed.data,
+    annotation,
     pdfjsId,
     embeddedId,
     ...(m.popup ? { popupId: pdfjsIdOfRef(m.popup) } : {}),

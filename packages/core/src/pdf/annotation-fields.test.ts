@@ -465,6 +465,7 @@ describe('readSavedAnnotations marks', () => {
         fill: [1, 0, 0],
         popup: undefined,
         popupListed: false,
+        overlayText: undefined,
       },
     ])
     expect(places).toEqual([])
@@ -545,6 +546,18 @@ describe('readSavedAnnotations marks', () => {
   it('gives no fill for two numbers', async () => {
     const objs = await markFile(redact('/IC [1 0]'))
     expect((await readSavedAnnotations(objs)).marks[0]!.fill).toBeUndefined()
+  })
+
+  it('reads the overlay text when it is a text string with something in it', async () => {
+    const overlayOf = async (entry: string) =>
+      (await readSavedAnnotations(await markFile(redact(entry)))).marks[0]!.overlayText
+    expect(await overlayOf('/OverlayText (EXEMPT)')).toBe('EXEMPT')
+    // UTF-16 with its byte order mark.
+    expect(await overlayOf('/OverlayText <FEFF00C9>')).toBe('É')
+    expect(await overlayOf('')).toBeUndefined()
+    expect(await overlayOf('/OverlayText ()')).toBeUndefined()
+    expect(await overlayOf('/OverlayText /EXEMPT')).toBeUndefined()
+    expect(await overlayOf('/OverlayText 12')).toBeUndefined()
   })
 
   it('leaves out a mark written inline in /Annots', async () => {

@@ -246,6 +246,8 @@ export interface ForeignMarkPlace {
    * that belongs to another.
    */
   popupListed: boolean
+  /** `/OverlayText`; undefined when absent, empty or not a text string. */
+  overlayText: string | undefined
 }
 
 /** What a file's pages hold that lifting reads. */
@@ -322,6 +324,9 @@ export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnot
               fill,
               popup: isRef(popup) ? popup : undefined,
               popupListed: isRef(popup) && (await popupOf(popup, ref)),
+              overlayText:
+                textString(await objs.resolve(dictGet(annot, 'OverlayText'))) ||
+                undefined,
             })
           }
           continue

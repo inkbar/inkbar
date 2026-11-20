@@ -388,6 +388,12 @@ describe('readLifted', () => {
           p4: { x: 215, y: 190 },
         },
       ])
+      expect(a).not.toHaveProperty('overlayText')
+    })
+
+    it('keeps its overlay text', async () => {
+      const [one] = await lift(markFile(`${QUADS} /OverlayText (EXEMPT)`), marks())
+      expect(one!.annotation).toMatchObject({ type: 'redact', overlayText: 'EXEMPT' })
     })
 
     it('carries a listed pop-up', async () => {
