@@ -36,6 +36,8 @@ export interface PageInfo {
    * coordinate plane. Its origin is the corner of the crop box, so it is not always (0, 0).
    */
   box: Rect
+  /** The page's `/UserUnit`: the size of one user-space unit in points. 1 when the page has none. */
+  userUnit: number
 }
 
 /** Options for `EngineDocument.renderPage`. */
@@ -51,7 +53,7 @@ export interface RenderOptions {
    */
   signal?: AbortSignal
   /**
-   * Draw the page's annotations. Default true. With false only the page's own content is drawn,
+   * Draw the page's annotations, form widgets included. Default true. With false only the page's own content is drawn,
    * so a caller that paints annotations itself does not draw them twice.
    */
   annotations?: boolean

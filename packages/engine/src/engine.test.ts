@@ -39,6 +39,7 @@ test('opens, inspects, renders, saves and closes', async () => {
     height: 792,
     rotation: 0,
     box: { x: 0, y: 0, width: 612, height: 792 },
+    userUnit: 1,
   })
   expect(await doc.renderPage(0, { scale: 2 })).toMatchObject({
     width: 1224,
@@ -334,4 +335,10 @@ test('rendering without annotations changes only the annotation', async () => {
   expect(inside).toBeGreaterThan(0)
   expect(outside).toBe(0)
   await cropped.close()
+})
+
+test('pageInfo reports the page user unit', async () => {
+  const scaled = await engine.open(await fixtureBytes('userunit-2'))
+  expect((await scaled.pageInfo(0)).userUnit).toBe(2)
+  await scaled.close()
 })

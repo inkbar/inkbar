@@ -36,12 +36,19 @@ afterEach(() => {
 test('page boxes are reported before rotation', () => {
   // text-simple and text-rotated-90 are the same Letter page
   const box = { x: 0, y: 0, width: 612, height: 792 }
-  expect(core.pageInfo(simple, 0)).toEqual({ width: 612, height: 792, rotation: 0, box })
+  expect(core.pageInfo(simple, 0)).toEqual({
+    width: 612,
+    height: 792,
+    rotation: 0,
+    box,
+    userUnit: 1,
+  })
   expect(core.pageInfo(rotated, 0)).toEqual({
     width: 612,
     height: 792,
     rotation: 90,
     box,
+    userUnit: 1,
   })
 })
 
