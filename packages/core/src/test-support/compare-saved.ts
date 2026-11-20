@@ -508,15 +508,15 @@ export function inkOutside(
   return n
 }
 
-/** Whether a pixel is within 100 of `hex` in every channel. */
-const nearColor = (hex: string) => {
+/** Whether a pixel is within `limit` of `hex` in every channel. */
+const nearColor = (hex: string, limit = 100) => {
   const [r, g, b] = rgbOf(hex)
   return (p: Pixels, i: number) =>
     Math.max(
       Math.abs(p.data[i]! - r),
       Math.abs(p.data[i + 1]! - g),
       Math.abs(p.data[i + 2]! - b)
-    ) < 100
+    ) < limit
 }
 
 const rgbOf = (hex: string): [number, number, number] => {
@@ -527,33 +527,22 @@ const rgbOf = (hex: string): [number, number, number] => {
 
 /**
  * Where a reader inks a line of text: the box of the pixels in `band` near the text's colour that
- * were not so on the page as opened (the page's own text is not the line's). A pixel with no
- * such pixel beside it in the band does not count: one faint pixel at the foot of the line above
- * sits a single colour level from the limit, and would move the box by a whole line gap.
+ * were not so on the page as opened (the page's own text is not the line's). `limit` is how far
+ * from the colour, in each channel, still counts as near.
  */
-export function lineInk(reading: Reading, line: TextBand): PixelRect | undefined {
-  const near = nearColor(line.color)
+export function lineInk(
+  reading: Reading,
+  line: TextBand,
+  limit = 100
+): PixelRect | undefined {
+  const near = nearColor(line.color, limit)
   const { page, base } = reading
-  const { band } = line
-  const top = Math.max(0, band.top)
-  const bottom = Math.min(page.height, band.bottom)
-  const left = Math.max(0, band.left)
-  const right = Math.min(page.width, band.right)
-  const ink = (x: number, y: number): boolean => {
-    if (x < left || x >= right || y < top || y >= bottom) return false
-    const i = (y * page.width + x) * 4
-    return near(page, i) && !near(base, i)
-  }
-  const beside = (x: number, y: number): boolean => {
-    for (let dy = -1; dy <= 1; dy++)
-      for (let dx = -1; dx <= 1; dx++)
-        if ((dx !== 0 || dy !== 0) && ink(x + dx, y + dy)) return true
-    return false
-  }
   let box: PixelRect | undefined
-  for (let y = top; y < bottom; y++)
-    for (let x = left; x < right; x++) {
-      if (!ink(x, y) || !beside(x, y)) continue
+  const { band } = line
+  for (let y = Math.max(0, band.top); y < Math.min(page.height, band.bottom); y++)
+    for (let x = Math.max(0, band.left); x < Math.min(page.width, band.right); x++) {
+      const i = (y * page.width + x) * 4
+      if (!near(page, i) || near(base, i)) continue
       if (!box) box = { left: x, top: y, right: x + 1, bottom: y + 1 }
       else {
         box.left = Math.min(box.left, x)
