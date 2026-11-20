@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { holdsText } from './pdf-bytes'
 import { qpdfQdf } from './qpdf'
+import { fixtureFileForUrl } from './vite-serve'
 
 import {
   FIXTURE_NAMES,
@@ -125,7 +126,11 @@ describe('fixtures corpus', () => {
   it('manifest lists exactly the known fixture names', () => {
     expect([...names].sort()).toEqual([...FIXTURE_NAMES].sort())
     for (const name of names) {
-      expect(manifest[name].file).toBe(`${name}.pdf`)
+      const { file } = manifest[name]
+      // A corpus file keeps the name it has upstream, with underscores for hyphens.
+      if (name.startsWith('corpus-'))
+        expect(file.replaceAll('_', '-')).toBe(`${name.slice('corpus-'.length)}.pdf`)
+      else expect(file).toBe(`${name}.pdf`)
       expect(fixtureUrl(name)).toBe(`/fixtures/${name}.pdf`)
     }
   })
@@ -275,5 +280,108 @@ describe('redaction fixtures', () => {
     const plain = Buffer.from(await fixtureBytes('bad-appended')).toString('latin1')
     expect(plain.match(/%%EOF/g)).toHaveLength(2)
     expect(plain).toMatch(/\/Prev \d+/)
+  })
+})
+
+const unembedded = FIXTURE_NAMES.filter((name) => name.startsWith('unembedded-'))
+const corpus = FIXTURE_NAMES.filter((name) => name.startsWith('corpus-'))
+
+const FONT_FILE_KEYS = /\/FontFile[23]?(?![A-Za-z0-9])/
+
+const EXPECTED_UNEMBEDDED = {
+  'unembedded-japanese': ['japanese'],
+  'unembedded-simplified-chinese': ['simplified-chinese'],
+  'unembedded-traditional-chinese': ['traditional-chinese'],
+  'unembedded-korean': ['korean'],
+  'unembedded-cyrillic': ['default'],
+  'unembedded-greek': ['default'],
+  'unembedded-arial': [],
+} as const
+
+/** The features every corpus file is in the suite for, at least one file each. */
+const CORPUS_FEATURES = [
+  'axial-shading',
+  'radial-shading',
+  'mesh-shading',
+  'tiling-pattern',
+  'blend-mode',
+  'soft-mask',
+  'type3-font',
+  'jpeg2000',
+  'jbig2',
+  'ccitt',
+  'icc-colour',
+  'clip',
+  'rotated-page',
+  'cropped-page',
+  'dash',
+  'text-render-mode',
+]
+
+describe('unembedded-font fixtures', () => {
+  it('are exactly the expected set, with the fallback fonts they need', () => {
+    expect([...unembedded].sort()).toEqual(Object.keys(EXPECTED_UNEMBEDDED).sort())
+    for (const name of unembedded)
+      expect(manifest[name].unembedded, name).toEqual(
+        EXPECTED_UNEMBEDDED[name as keyof typeof EXPECTED_UNEMBEDDED]
+      )
+  })
+
+  it.each(unembedded)(
+    '%s opens with its page count and embeds no font file',
+    async (name) => {
+      expect(existsSync(fixturePath(name))).toBe(true)
+      const task = await open(name)
+      const doc = await task.promise
+      expect(doc.numPages).toBe(manifest[name].pages)
+      await task.destroy()
+      // The objects are written as plain text, so a font file would show as a key.
+      const plain = Buffer.from(await fixtureBytes(name)).toString('latin1')
+      expect(FONT_FILE_KEYS.test(plain), name).toBe(false)
+      expect(plain).toContain('/FontDescriptor')
+    }
+  )
+})
+
+describe('corpus fixtures', () => {
+  it('has between 30 and 50 entries', () => {
+    expect(corpus.length).toBeGreaterThanOrEqual(30)
+    expect(corpus.length).toBeLessThanOrEqual(50)
+  })
+
+  it.each(corpus)('%s names its source and features, and has a file', (name) => {
+    const { source, features } = manifest[name]
+    expect(source, name).toMatch(/^pdfium testing\/resources\//)
+    expect(features?.length, name).toBeGreaterThan(0)
+    expect(existsSync(fixturePath(name)), name).toBe(true)
+  })
+
+  it('covers every drawing feature', () => {
+    const covered = new Set(corpus.flatMap((name) => manifest[name].features ?? []))
+    for (const feature of CORPUS_FEATURES)
+      expect(covered.has(feature), feature).toBe(true)
+  })
+
+  it('claims only the features it lists', () => {
+    const covered = new Set(corpus.flatMap((name) => manifest[name].features ?? []))
+    for (const feature of covered) expect(CORPUS_FEATURES, feature).toContain(feature)
+  })
+})
+
+describe('fixture URLs', () => {
+  it('map to the file the server streams, for every fixture', () => {
+    for (const name of FIXTURE_NAMES)
+      expect(fixtureFileForUrl(`${fixtureUrl(name)}?v=1`), name).toBe(fixturePath(name))
+  })
+
+  it('send a corpus name to the corpus directory', () => {
+    expect(fixtureFileForUrl(fixtureUrl('corpus-bug-1883'))).toMatch(
+      /[\\/]fixtures[\\/]corpus[\\/]bug_1883\.pdf$/
+    )
+  })
+
+  it('leave other URLs, and unknown corpus names, to the next handler', () => {
+    expect(fixtureFileForUrl('/pdfjs/build/pdf.mjs')).toBeUndefined()
+    expect(fixtureFileForUrl('/fixtures/corpus-nothing-here.pdf')).toBeUndefined()
   })
 })

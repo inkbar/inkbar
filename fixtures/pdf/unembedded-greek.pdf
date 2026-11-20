@@ -1,0 +1,47 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 203 >>
+stream
+BT /F2 24 Tf 72 760 Td <c2dce0d820e9e6eb20e1e6e9e3dc> Tj ET
+BT /F2 24 Tf 72 700 Td <c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7> Tj ET
+BT /F1 24 Tf 72 640 Td (Latin control line in Helvetica) Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /TrueType /BaseFont /PTSans /FirstChar 32 /LastChar 239 /Widths [250 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560] /FontDescriptor 8 0 R /Encoding << /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [192 /Alpha /Beta /Gamma /Deltagreek /Epsilon /Zeta /Eta /Theta /Iota /Kappa /Lambda /Mu /Nu /Xi /Omicron /Pi /Rho /Sigma /Tau /Upsilon /Phi /Chi /Psi /Omegagreek /alpha /beta /gamma /delta /epsilon /zeta /eta /theta /iota /kappa /lambda /mugreek /nu /xi /omicron /pi /rho /sigma /tau /upsilon /phi /chi /psi /omega] >> >>
+endobj
+7 0 obj
+<< /Title (Unembedded font fixture) /Producer (Inkbar fixtures) >>
+endobj
+8 0 obj
+<< /Type /FontDescriptor /FontName /PTSans /Flags 32 /FontBBox [-200 -250 1100 950] /ItalicAngle 0 /Ascent 900 /Descent -250 /CapHeight 700 /StemV 80 >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000505 00000 n 
+0000000602 00000 n 
+0000001957 00000 n 
+0000002039 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 7 0 R >>
+startxref
+2207
+%%EOF

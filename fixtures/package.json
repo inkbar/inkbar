@@ -16,6 +16,7 @@
   "scripts": {
     "generate": "tsx generate.ts",
     "generate:redaction": "tsx generate-redaction.ts",
+    "generate:unembedded": "tsx generate-unembedded.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint ."

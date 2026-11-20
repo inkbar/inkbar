@@ -1,0 +1,51 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 171 >>
+stream
+BT /F2 24 Tf 72 760 Td <7e419ad44e2d658765875b57> Tj ET
+BT /F2 24 Tf 72 700 Td <4f60597dff0c4e16754c> Tj ET
+BT /F1 24 Tf 72 640 Td (Latin control line in Helvetica) Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /MSung-Light /Encoding /UniCNS-UTF16-H /DescendantFonts [8 0 R] >>
+endobj
+7 0 obj
+<< /Title (Unembedded font fixture) /Producer (Inkbar fixtures) >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /CIDFontType0 /BaseFont /MSung-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (CNS1) /Supplement 6 >> /FontDescriptor 9 0 R /DW 1000 >>
+endobj
+9 0 obj
+<< /Type /FontDescriptor /FontName /MSung-Light /Flags 6 /FontBBox [-200 -250 1200 900] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 700 /StemV 80 >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000473 00000 n 
+0000000570 00000 n 
+0000000693 00000 n 
+0000000775 00000 n 
+0000000955 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R /Info 7 0 R >>
+startxref
+1127
+%%EOF

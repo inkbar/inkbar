@@ -1,0 +1,47 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 193 >>
+stream
+BT /F2 24 Tf 72 760 Td <cff0e8e2e5f220ece8f0> Tj ET
+BT /F2 24 Tf 72 700 Td <c1fbf1f2f0e0ff20eaeef0e8f7ede5e2e0ff20ebe8f1e0> Tj ET
+BT /F1 24 Tf 72 640 Td (Latin control line in Helvetica) Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /TrueType /BaseFont /PTSans /FirstChar 32 /LastChar 255 /Widths [250 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560 560] /FontDescriptor 8 0 R /Encoding << /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [192 /afii10017 /afii10018 /afii10019 /afii10020 /afii10021 /afii10022 /afii10024 /afii10025 /afii10026 /afii10027 /afii10028 /afii10029 /afii10030 /afii10031 /afii10032 /afii10033 /afii10034 /afii10035 /afii10036 /afii10037 /afii10038 /afii10039 /afii10040 /afii10041 /afii10042 /afii10043 /afii10044 /afii10045 /afii10046 /afii10047 /afii10048 /afii10049 /afii10065 /afii10066 /afii10067 /afii10068 /afii10069 /afii10070 /afii10072 /afii10073 /afii10074 /afii10075 /afii10076 /afii10077 /afii10078 /afii10079 /afii10080 /afii10081 /afii10082 /afii10083 /afii10084 /afii10085 /afii10086 /afii10087 /afii10088 /afii10089 /afii10090 /afii10091 /afii10092 /afii10093 /afii10094 /afii10095 /afii10096 /afii10097] >> >>
+endobj
+7 0 obj
+<< /Title (Unembedded font fixture) /Producer (Inkbar fixtures) >>
+endobj
+8 0 obj
+<< /Type /FontDescriptor /FontName /PTSans /Flags 32 /FontBBox [-200 -250 1100 950] /ItalicAngle 0 /Ascent 900 /Descent -250 /CapHeight 700 /StemV 80 >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000495 00000 n 
+0000000592 00000 n 
+0000002404 00000 n 
+0000002486 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 7 0 R >>
+startxref
+2654
+%%EOF
