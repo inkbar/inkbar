@@ -344,7 +344,7 @@ Install `@inkbar/engine` and pass a loader for it as the `engine` prop of `InkRo
 
 Without the prop nothing changes: Download and Print give the file as it was opened, and the engine is not bundled.
 
-Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file until you apply it (see [Redaction](#redaction)). A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and `onError` hears a `SaveFailed` error.
+Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. An unapplied redaction mark from another program opens as an editable mark; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#opening-a-saved-file) says when it stays locked. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file until you apply it (see [Redaction](#redaction)). A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and `onError` hears a `SaveFailed` error.
 
 The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#saving-into-the-pdf) has the details, including where the saved file differs from the screen.
 
