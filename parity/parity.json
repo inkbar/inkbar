@@ -196,6 +196,9 @@
     "accepted": false,
     "pages": [2]
   },
+  "redact-foreign-popup": {
+    "state": "same"
+  },
   "redact-hidden-layer": {
     "state": "same"
   },
@@ -378,6 +381,11 @@
   },
   "redact-file-encrypted": {
     "state": "same"
+  },
+  "redact-foreign-encrypted": {
+    "state": "different",
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
+    "accepted": false
   },
   "redact-file-signed": {
     "state": "same"

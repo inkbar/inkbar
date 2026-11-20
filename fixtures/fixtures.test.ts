@@ -206,6 +206,11 @@ const redaction = FIXTURE_NAMES.filter(
   (name) => name.startsWith('redact-') || name.startsWith('check-')
 )
 const badlyRedacted = FIXTURE_NAMES.filter((name) => name.startsWith('bad-'))
+/** Redaction fixtures with no regions: their marks are another program's, in the file. */
+const MARKED_BY_ANOTHER_PROGRAM: readonly FixtureName[] = [
+  'redact-foreign-popup',
+  'redact-foreign-encrypted',
+]
 
 describe('redaction fixtures', () => {
   /** The text PDF.js reads from every page of a fixture, page by page. */
@@ -222,8 +227,12 @@ describe('redaction fixtures', () => {
   }
 
   it.each(redaction)('%s holds its secrets and the text it keeps', async (name) => {
-    const { secrets, keeps, regions, gone, password } = manifest[name]
-    expect(regions?.length).toBeGreaterThan(0)
+    const { secrets, keeps, regions, gone, password, annotations } = manifest[name]
+    // The marks of these are the Redact annotations another program left in them.
+    if (MARKED_BY_ANOTHER_PROGRAM.includes(name)) {
+      expect(regions).toBeUndefined()
+      expect(annotations?.['Redact']).toBeGreaterThan(0)
+    } else expect(regions?.length).toBeGreaterThan(0)
     const text = (await pageTexts(name)).join('\n')
     const bytes = await fixtureBytes(name)
     for (const word of keeps ?? []) expect(text, word).toContain(word)

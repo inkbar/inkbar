@@ -24,7 +24,9 @@ afterEach(() =>
     .forEach((f) => f())
 )
 
-async function open(name: 'saved-annotations' | 'text-simple'): Promise<InkDocument> {
+async function open(
+  name: 'saved-annotations' | 'text-simple' | 'redact-foreign-popup'
+): Promise<InkDocument> {
   const doc = await openFixtureInBrowser(name)
   cleanup.push(() => doc.destroy())
   return doc
@@ -466,5 +468,34 @@ describe('annotations lifted from a file Inkbar saved', () => {
       for (const a of shownOn0(saved))
         expect(paints(page.mount.overlay.elementFor(a.id)), a.type).toBe(true)
     })
+  })
+})
+
+describe("another program's redaction mark", () => {
+  it('an adopted mark leaves the page canvas, and the overlay draws it once', async () => {
+    const doc = await open('redact-foreign-popup')
+    const page = mountPage(doc)
+    await doc._liftSettled
+    await page.renderer.rendered
+    // The mark's appearance strokes pure red along its edge, at x 46 from y 191 to 224.
+    const edge = (c: HTMLCanvasElement) => {
+      const t = createPageTransform(doc.pages[0]!, 1)
+      const ctx = c.getContext('2d')!
+      return [195, 200, 207, 215, 220].map((y) => {
+        const at = t.toCss({ x: 46, y })
+        return [...ctx.getImageData(Math.round(at.x), Math.round(at.y), 1, 1).data]
+      })
+    }
+    const red = ([r, g, b]: number[]) => r! > 200 && g! < 60 && b! < 60
+    // The file draws it, so a page that still did would be red there.
+    expect(edge(await plainRender(doc)).every(red)).toBe(true)
+    expect(edge(page.canvas()).some(red)).toBe(false)
+
+    const [mark] = doc.annotations.list.get()
+    expect(mark).toMatchObject({ type: 'redact', source: 'session' })
+    const drawn = [...page.overlay.element.querySelectorAll('[data-annotation]')].map(
+      (e) => e.getAttribute('data-annotation')
+    )
+    expect(drawn).toEqual([mark!.id])
   })
 })

@@ -271,6 +271,40 @@ function redactForeignMark() {
 }
 
 /**
+ * SECRET-GAMMA under a Redact annotation another program left unapplied, and KEEP-BETA beside
+ * it. The mark has a pop-up listed in the page's /Annots and an appearance stroking a red
+ * rectangle along its edge.
+ */
+function redactForeignPopup() {
+  const [l, b, r, t] = OVER_WORD
+  write(
+    'redact-foreign-popup',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '', '/Annots [6 0 R 7 0 R] '),
+      stream('', line(50, 200, 'SECRET-GAMMA') + line(300, 200, 'KEEP-BETA')),
+      HELVETICA,
+      `<< /Type /Annot /Subtype /Redact /Rect [${l} ${b} ${r} ${t}] /QuadPoints [${l} ${t} ${r} ${t} ${l} ${b} ${r} ${b}] /IC [0 0 0] /C [1 0 0] /F 4 /NM (other-mark) /T (Another program) /Popup 7 0 R /AP << /N 8 0 R >> /P 3 0 R >>`,
+      '<< /Type /Annot /Subtype /Popup /Rect [220 40 380 100] /Parent 6 0 R /Open false >>',
+      stream(
+        `/Type /XObject /Subtype /Form /BBox [0 0 ${r - l} ${t - b}]`,
+        `1 0 0 RG 2 w 1 1 ${r - l - 2} ${t - b - 2} re S`
+      ),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        "SECRET-GAMMA under an unapplied Redact annotation from another program, with no /INKB_Gloss, and KEEP-BETA beside it. The mark's pop-up is listed in /Annots and its appearance strokes a red rectangle along its edge",
+      annotations: { Redact: 1, Popup: 1 },
+      secrets: [],
+      keeps: ['SECRET-GAMMA', 'KEEP-BETA'],
+    }
+  )
+}
+
+/**
  * redact-text with an optional content group that the default configuration turns off, holding
  * the words LAYER-TEXT below the line.
  */
@@ -2095,6 +2129,29 @@ function redactFiles() {
     )
   )
 
+  const [l, b, r, t] = OVER_WORD
+  const m = new Objects()
+  const mFont = m.add(HELVETICA)
+  const mContents = m.add(stream('', line(50, 200, 'SECRET-GAMMA')))
+  const mPage = m.reserve()
+  const mark = m.add(
+    `<< /Type /Annot /Subtype /Redact /Rect [${l} ${b} ${r} ${t}] /QuadPoints [${l} ${t} ${r} ${t} ${l} ${b} ${r} ${b}] /IC [0 0 0] /F 4 /NM (other-mark) /T (Another program) /P ${mPage} 0 R >>`
+  )
+  m.set(
+    mPage,
+    plainPage(mContents, `/Font << /F1 ${mFont} 0 R >>`, `/Annots [${mark} 0 R] `)
+  )
+  writeEncrypted('redact-foreign-encrypted', m.pdf([mPage]), {
+    pages: 1,
+    opens: true,
+    password: 'inkbar',
+    describes:
+      'The second page of redact-foreign-mark as a one-page file, encrypted with AES-128; the user password is "inkbar". SECRET-GAMMA lies under an unapplied Redact annotation from another program',
+    annotations: { Redact: 1 },
+    secrets: [],
+    keeps: ['SECRET-GAMMA'],
+  })
+
   const s = new Objects()
   const sFont = s.add(HELVETICA)
   const sContents = s.add(stream('', SECRET_LINE))
@@ -2234,6 +2291,7 @@ redactImageFlate()
 redactPath()
 redactAnnotations()
 redactForeignMark()
+redactForeignPopup()
 redactHiddenLayer()
 checkImage()
 checkFormText()

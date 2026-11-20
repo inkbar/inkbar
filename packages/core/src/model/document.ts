@@ -207,8 +207,11 @@ export interface InkDocument {
    * Annotations Inkbar saved into the file, and that nothing has changed since, are read back
    * after `ready` too: their file copies leave the list and they join it as they were saved,
    * session annotations with their own ids, unlocked, as one `{ kind: 'replace', reason:
-   * 'file' }` change that is not an undo step. In controlled mode they are proposed to the host
-   * once, with that reason. An encrypted file lifts nothing.
+   * 'file' }` change that is not an undo step. Redaction marks another program left unapplied
+   * join with them, as session marks: a save or an apply removes their file copies and pop-ups.
+   * One stays in the file, locked, when its pop-up is not listed on its page or an annotation
+   * staying in the file replies to it. In controlled mode they are proposed to the host once,
+   * with that reason. An encrypted file lifts nothing.
    */
   readonly annotations: AnnotationStore
   /**
@@ -228,9 +231,9 @@ export interface InkDocument {
   outline(): Promise<readonly OutlineItem[]>
   /**
    * What the file contains, by PDF subtype, including subtypes Inkbar does not show. Once the
-   * annotations Inkbar saved have been lifted (see `annotations`) they are no longer counted:
-   * the summary is then the file's annotations less the lifted ones, and reading `embedded`
-   * again gives the new array.
+   * annotations Inkbar saved and other programs' marks have been lifted (see `annotations`) they
+   * are no longer counted, nor are the marks' pop-ups: the summary is then the file's
+   * annotations less the lifted ones, and reading `embedded` again gives the new array.
    */
   readonly embedded: readonly EmbeddedSummary[]
   readonly history: History
@@ -316,7 +319,10 @@ export interface InkDocument {
    * then hand over `save()`, else `getData()`.
    */
   readonly _saves: boolean
-  /** @internal PDF.js ids of file annotations lifted into the session. */
+  /**
+   * @internal PDF.js ids of file annotations lifted into the session, and of the pop-ups of
+   * other programs' marks lifted with them: the renders leave each out.
+   */
   readonly _lifted: Readable<ReadonlySet<string>>
   /** @internal `embedded` as a readable, for a binding to follow when lifting changes it. */
   readonly _embedded: Readable<readonly EmbeddedSummary[]>
@@ -377,10 +383,19 @@ export async function openDocument(
   let fileCounts: Record<string, number>[] = []
   /** The PDF subtype of each file annotation other than a widget or a link, by PDF.js id. */
   const fileSubtypes = new Map<string, string>()
-  /** PDF.js ids of the file annotations lifted into the session; set once, when they land. */
+  /**
+   * PDF.js ids of the file annotations lifted into the session, and of adopted marks' pop-ups;
+   * set once, when they land.
+   */
   const lifted = writable<ReadonlySet<string>>(new Set())
-  /** Each lifted annotation as it was lifted, and its file copy's PDF.js id, by id. */
-  const liftedFrom = new Map<string, { annotation: Annotation; pdfjsId: string }>()
+  /**
+   * Each lifted annotation as it was lifted, its file copy's PDF.js id and, for another
+   * program's mark, its pop-up's, by id.
+   */
+  const liftedFrom = new Map<
+    string,
+    { annotation: Annotation; pdfjsId: string; popupId?: string }
+  >()
   /** Signature links lifting restored: field name to the lifted annotation that signs it. */
   const restoredLinks = new Map<string, string>()
   /**
@@ -610,9 +625,10 @@ export async function openDocument(
   // Signature fields and the annotations that sign them change together from here.
   form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 
-  // Fills in fields PDF.js leaves out, and lifts the annotations Inkbar saved, read from the
-  // file's own bytes. It runs after `ready` so it never delays it, and a failure leaves the
-  // annotations as PDF.js imported them. Both read one copy of the file's objects.
+  // Fills in fields PDF.js leaves out, and lifts the annotations Inkbar saved and other
+  // programs' redaction marks, read from the file's own bytes. It runs after `ready` so it
+  // never delays it, and a failure leaves the annotations as PDF.js imported them. Both read
+  // one copy of the file's objects.
   const liftSettled = ready.then(
     async () => {
       if (destroyed || !handles) return
@@ -637,21 +653,33 @@ export async function openDocument(
           .filter((a) => a.source === 'pdf' && isThreadRoot(a))
           .map((a) => a.id)
       )
+      // Another program's Redact annotations, as imported, are adopted as session marks.
+      const marks = new Map(
+        store.list
+          .get()
+          .filter((a) => a.source === 'pdf' && a.type === 'redact')
+          .map((a) => [a.id, a])
+      )
       const lift = (
-        mayHaveSaved ? readLifted(objects, inFile) : Promise.resolve([])
+        mayHaveSaved ? readLifted(objects, inFile, marks) : Promise.resolve([])
       ).then((found) => {
         if (destroyed || found.length === 0) return
         for (const f of found)
           liftedFrom.set(f.annotation.id, {
             annotation: f.annotation,
             pdfjsId: f.pdfjsId,
+            ...(f.popupId !== undefined ? { popupId: f.popupId } : {}),
           })
-        // The renders leave the file copies out in the same turn as they leave the list.
-        lifted.set(new Set(found.map((f) => f.pdfjsId)))
+        // The renders leave the file copies, and the pop-ups of adopted marks, out in the same
+        // turn as they leave the list.
+        const copies = found.flatMap((f) =>
+          f.popupId !== undefined ? [f.pdfjsId, f.popupId] : [f.pdfjsId]
+        )
+        lifted.set(new Set(copies))
         // The summary of the file no longer counts them.
         const gone: Record<string, number> = {}
-        for (const f of found) {
-          const subtype = fileSubtypes.get(f.pdfjsId)
+        for (const id of copies) {
+          const subtype = fileSubtypes.get(id)
           if (subtype !== undefined) gone[subtype] = (gone[subtype] ?? 0) - 1
         }
         embedded.set(summarise([...fileCounts, gone]))
@@ -801,22 +829,28 @@ export async function openDocument(
       })
     )
   /**
-   * The file copies of the lifted annotations, which a save removes. One with no object to
-   * remove fails the save: writing it again beside its file copy would leave two.
+   * The file copies of the lifted annotations, which a save removes, each followed by its
+   * pop-up when it has one. One with no object to remove fails the save: writing it again
+   * beside its file copy would leave two.
    */
   const liftedRefs = (
     code: 'SaveFailed' | 'RedactionFailed' = 'SaveFailed'
   ): AnnotationRef[] =>
-    [...liftedFrom.values()].map(({ annotation, pdfjsId }) => {
-      const ref = refOfPdfjsId(pdfjsId)
-      if (!ref)
-        throw new InkError(
-          code,
-          `The file's copy of the annotation ${annotation.id} cannot be found to replace`,
-          { stage: code === 'SaveFailed' ? 'write' : 'apply', annotation: annotation.id }
-        )
-      return { page: annotation.page, objectNumber: ref.num }
-    })
+    [...liftedFrom.values()].flatMap(({ annotation, pdfjsId, popupId }) =>
+      (popupId === undefined ? [pdfjsId] : [pdfjsId, popupId]).map((id) => {
+        const ref = refOfPdfjsId(id)
+        if (!ref)
+          throw new InkError(
+            code,
+            `The file's copy of the annotation ${annotation.id} cannot be found to replace`,
+            {
+              stage: code === 'SaveFailed' ? 'write' : 'apply',
+              annotation: annotation.id,
+            }
+          )
+        return { page: annotation.page, objectNumber: ref.num }
+      })
+    )
 
   /** The session as applying redactions reads it. */
   const redactionState = (): RedactionState => ({
@@ -824,7 +858,8 @@ export async function openDocument(
     formFields: form.fields.get(),
     values: form.values.get(),
     fieldChanges: fieldChanges(),
-    // The fact lifting rests on: an encrypted file lifts nothing, so Inkbar's marks stay locked.
+    // The fact lifting rests on: an encrypted file lifts nothing, so Inkbar's marks and other
+    // programs' stay locked.
     encrypted: info.isEncrypted,
   })
   /** The apply running, which a second call shares. */
