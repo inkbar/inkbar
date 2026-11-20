@@ -65,7 +65,7 @@ test('a trap is an engine-failure with the trap as its cause', async () => {
 
 test.each([
   ['open', 'FPDF_GetPageCount'],
-  ['pageInfo', 'FPDF_GetPageWidthF'],
+  ['pageInfo', 'INK_Page_Facts'],
   ['render', 'INK_Render_Continue'],
   ['save', 'INK_WriterSize'],
 ] as const)(
@@ -179,7 +179,7 @@ test('after a trap every call fails and nothing reaches the module', async () =>
 })
 
 test('in the calling thread a trap rejects with a typed error and stops the engine', async () => {
-  const { native } = await trapping('FPDF_GetPageWidthF')
+  const { native } = await trapping('INK_Page_Facts')
   const engine = engineOver(new InThreadTransport(new EngineCore(native)))
   const doc = await engine.open(bytes)
   await expect(doc.pageInfo(0)).rejects.toMatchObject({

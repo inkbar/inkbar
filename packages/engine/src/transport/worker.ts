@@ -2,7 +2,9 @@ import { EngineError } from '../errors.ts'
 
 import { CallQueue } from './queue.ts'
 
+import type { FontSources } from '../fonts.ts'
 import type { FromWorker, Request, ToWorker, Transport, WireError } from '../protocol.ts'
+import type { FontKey } from '../types.ts'
 
 const failure = (message: string, cause?: unknown) =>
   new EngineError('engine-failure', message, { cause })
@@ -22,7 +24,10 @@ export function fromWire(error: WireError): Error {
 interface Pending {
   resolve: (value: unknown) => void
   reject: (reason: Error) => void
-  /** Asks the worker to stop the call; set for a render, the one call that can stop part way. */
+  /**
+   * Asks the worker to stop the call; set for the calls that can stop part way: a render, and a
+   * write or redact while it waits for a fallback font.
+   */
   abort?: () => void
 }
 
@@ -66,6 +71,7 @@ class WorkerTransport implements Transport {
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
         const render = request.op === 'renderPage'
+        const stoppable = render || request.op === 'write' || request.op === 'redact'
         const abort = () => {
           // Only while the call is unanswered: once the reply has arrived it stands.
           if (!this.#pending.has(id)) return
@@ -86,7 +92,7 @@ class WorkerTransport implements Transport {
             settled()
             reject(reason)
           },
-          ...(render && { abort }),
+          ...(stoppable && { abort }),
         })
         let sent = request
         const transfer: Transferable[] = []
@@ -117,9 +123,9 @@ class WorkerTransport implements Transport {
   }
 
   /**
-   * Rejects queued calls, stops a running render, waits up to the bound for the running call,
-   * then terminates the worker. A running call that has not answered by then rejects with
-   * `aborted`.
+   * Rejects queued calls, stops a running render, or a write or redact waiting for a font, waits
+   * up to the bound for the running call, then terminates the worker. A running call that has not
+   * answered by then rejects with `aborted`.
    */
   destroy(): Promise<void> {
     this.#destroying ??= this.#destroy()
@@ -153,6 +159,36 @@ class WorkerTransport implements Transport {
   }
 }
 
+/**
+ * The font sources with each URL made absolute against the page, since the worker's base URL can
+ * differ from the page's. Bytes pass through.
+ */
+function absoluteSources(
+  sources: FontSources | undefined
+): Partial<Record<FontKey, string | Uint8Array>> | undefined {
+  if (!sources) return undefined
+  const out: Partial<Record<FontKey, string | Uint8Array>> = {}
+  for (const [key, source] of Object.entries(sources) as [
+    FontKey,
+    FontSources[FontKey],
+  ][]) {
+    if (source === undefined) continue
+    if (source instanceof Uint8Array) {
+      out[key] = source
+      continue
+    }
+    try {
+      out[key] = new URL(source, globalThis.location?.href).href
+    } catch (cause) {
+      throw failure(
+        `The fallback font URL ${String(source)} for ${key} is not valid.`,
+        cause
+      )
+    }
+  }
+  return out
+}
+
 /** Longest the worker may take to answer its first message. */
 const START_TIMEOUT_MS = 60_000
 /** Longest `destroy()` waits for the running call before it terminates the worker. */
@@ -166,6 +202,7 @@ export async function createWorkerTransport(
     url?: string | undefined
     startTimeout?: number
     destroyTimeout?: number
+    fallbackFonts?: FontSources | undefined
   } = {}
 ): Promise<Transport> {
   const transport = new WorkerTransport(
@@ -181,6 +218,13 @@ export async function createWorkerTransport(
   } catch (cause) {
     worker.terminate()
     throw failure(`The engine's wasm URL ${String(wasm)} is not valid.`, cause)
+  }
+  let fallbackFonts: Partial<Record<FontKey, string | Uint8Array>> | undefined
+  try {
+    fallbackFonts = absoluteSources(options.fallbackFonts)
+  } catch (error) {
+    worker.terminate()
+    throw error
   }
   const where = wasm instanceof Uint8Array ? 'the supplied bytes' : source.toString()
   let started = false
@@ -224,7 +268,11 @@ export async function createWorkerTransport(
     worker.addEventListener('messageerror', () => {
       fail(failure('The engine worker sent a message that could not be read.'))
     })
-    const init: ToWorker = { type: 'init', wasm: source }
+    const init: ToWorker = {
+      type: 'init',
+      wasm: source,
+      ...(fallbackFonts && { fallbackFonts }),
+    }
     try {
       worker.postMessage(init)
     } catch (cause) {

@@ -290,6 +290,7 @@ const FONT_FILE_KEYS = /\/FontFile[23]?(?![A-Za-z0-9])/
 
 const EXPECTED_UNEMBEDDED = {
   'unembedded-japanese': ['japanese'],
+  'unembedded-japanese-field': ['japanese'],
   'unembedded-simplified-chinese': ['simplified-chinese'],
   'unembedded-traditional-chinese': ['traditional-chinese'],
   'unembedded-korean': ['korean'],

@@ -1,8 +1,10 @@
 import { ArgumentError, EngineError, fromPdfiumError } from '../errors.ts'
+import { createFontLoader, keysOf, type FontSources } from '../fonts.ts'
 
 import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
 import { hasSignature, writeFields } from './fields.ts'
+import { pageNeeds, registerFont } from './fonts.ts'
 import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
 import { applyRedactions } from './redact.ts'
@@ -10,6 +12,7 @@ import { hiddenObjects, renderGeometry } from './render.ts'
 
 import type { RenderRequestOptions } from '../protocol.ts'
 import type {
+  FontKey,
   OpenOptions,
   PageInfo,
   Rect,
@@ -91,7 +94,18 @@ interface OpenDocument {
   redacted: boolean
   /** Whether the file is encrypted. */
   encrypted: boolean
+  /** The fallback fonts each page needs, by page index, as read so far from `doc`. */
+  needs: Map<number, readonly FontKey[]>
 }
+
+/** Options for `EngineCore`. */
+export interface CoreOptions {
+  /** Where each fallback font comes from; with none, nothing is fetched. */
+  fallbackFonts?: FontSources | undefined
+}
+
+/** A drawn page, before the fonts it missed are added. */
+type Drawn = Omit<RenderedPage, 'missingFonts'>
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -189,8 +203,11 @@ export class EngineCore {
   #rendering = false
   /** Set by `destroy()` during a sliced render, which then stops and destroys the engine. */
   #destroyAfterRender = false
+  /** Aborted by `destroy()` during a sliced render, to stop a font fetch it is waiting on. */
+  readonly #ending = new AbortController()
+  readonly #fonts: ReturnType<typeof createFontLoader>
 
-  constructor(native: NativeModule) {
+  constructor(native: NativeModule, options: CoreOptions = {}) {
     this.#native = native
     const fn: Record<string, (...args: number[]) => unknown> = {}
     for (const name of Object.keys(FUNCTIONS) as (keyof Native)[])
@@ -217,6 +234,9 @@ export class EngineCore {
     } catch (error) {
       throw internalError(error)
     }
+    this.#fonts = createFontLoader(options.fallbackFonts, (key, bytes) =>
+      this.#guard(() => registerFont(this.#heap, key, bytes))
+    )
   }
 
   /** True once a call into the module has failed; every later call is refused. */
@@ -264,6 +284,7 @@ export class EngineCore {
         written: false,
         redacted: false,
         encrypted: loaded.encrypted,
+        needs: new Map(),
       })
       return { id, pageCount }
     } catch (error) {
@@ -301,7 +322,38 @@ export class EngineCore {
   pageInfo(id: number, index: number): PageInfo {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
-    return this.#guard(() => this.#withPage(entry, index, (page) => this.#info(page)))
+    return this.#guard(() => this.#facts(entry, index))
+  }
+
+  /**
+   * A page's size, rotation, box and user unit, read from its dictionary without loading the
+   * page: loading it would load its fonts, and a document keeps the fonts it loaded first.
+   */
+  #facts(entry: OpenDocument, index: number): PageInfo {
+    const fn = this.#fn
+    const out = fn.malloc(24)
+    if (out === 0) throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+    try {
+      if (!fn.INK_Page_Facts(entry.doc, index, out))
+        throw new EngineError('engine-failure', `Page ${index} could not be loaded.`, {
+          pdfiumError: fn.FPDF_GetLastError(),
+        })
+      const at = out / 4
+      const heap = this.#native.HEAPF32
+      const [left, bottom, right, top, rotation, userUnit] = Array.from(
+        heap.subarray(at, at + 6)
+      ) as [number, number, number, number, number, number]
+      return {
+        // As the loaded page reports them: computed in 32-bit floats.
+        width: Math.fround(right - left),
+        height: Math.fround(top - bottom),
+        rotation: rotation as PageInfo['rotation'],
+        box: { x: left, y: bottom, width: right - left, height: top - bottom },
+        userUnit,
+      }
+    } finally {
+      if (!this.#stopped) fn.free(out)
+    }
   }
 
   #info(page: number): PageInfo {
@@ -341,17 +393,21 @@ export class EngineCore {
     }
   }
 
-  /** Draws a page in one go. */
+  /**
+   * Draws a page in one go, with the fallback fonts already registered: it fetches none. Its
+   * `missingFonts` lists every font the page needs that is not registered.
+   */
   renderPage(
     id: number,
     index: number,
     options: RenderRequestOptions = {}
   ): RenderedPage {
-    const steps = this.#renderSteps(id, index, options)
+    const { entry, steps } = this.#renderSteps(id, index, options)
     return this.#guard(() => {
+      const missingFonts = this.#fonts.missing(this.#needs(entry, index))
       let step = steps.next()
       while (!step.done) step = steps.next()
-      return step.value
+      return { ...step.value, missingFonts }
     })
   }
 
@@ -359,21 +415,27 @@ export class EngineCore {
    * Draws a page in slices of `SLICE_MS`, returning to the event loop between them. Before each
    * slice it asks `aborted`; once that says true, or `destroy()` has been called, the render
    * ends, frees what it took and rejects with `aborted`.
+   *
+   * Before the first slice it fetches and registers the fallback fonts the page needs and has
+   * not had yet, so the page's first draw has every font it will ever get. `signal` stops that
+   * fetch; it should abort whenever `aborted` turns true.
    */
   async renderPageSliced(
     id: number,
     index: number,
     options: RenderRequestOptions,
-    aborted: () => boolean
+    aborted: () => boolean,
+    signal?: AbortSignal
   ): Promise<RenderedPage> {
-    const steps = this.#renderSteps(id, index, options)
+    const { entry, steps } = this.#renderSteps(id, index, options)
     this.#rendering = true
+    const stop = () => aborted() || this.#destroyAfterRender
     try {
+      const missingFonts = await this.#ensureFonts(entry, [index], signal)
       for (;;) {
-        if (aborted() || this.#destroyAfterRender)
-          throw new EngineError('aborted', 'The call was aborted.')
+        if (stop()) throw new EngineError('aborted', 'The call was aborted.')
         const step = this.#guard(() => steps.next())
-        if (step.done) return step.value
+        if (step.done) return { ...step.value, missingFonts }
         await nextTask()
       }
     } finally {
@@ -399,12 +461,68 @@ export class EngineCore {
     id: number,
     index: number,
     options: RenderRequestOptions
-  ): Generator<undefined, RenderedPage> {
+  ): { entry: OpenDocument; steps: Generator<undefined, Drawn> } {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     if (!isRecord(options)) throw new ArgumentError('the options must be an object')
     const hide = hiddenObjects(options.hide)
-    return this.#render(entry, index, options, hide)
+    return { entry, steps: this.#render(entry, index, options, hide) }
+  }
+
+  /**
+   * Fetches and registers the fallback fonts `pages` need and have not had, and resolves with
+   * those still missing. With no needs it returns at once. Called while the core is busy, so no
+   * other call runs meanwhile. Rejects with `aborted` when `signal` aborts or `destroy()` is
+   * called.
+   */
+  async #ensureFonts(
+    entry: OpenDocument,
+    pages: Iterable<number>,
+    signal: AbortSignal | undefined
+  ): Promise<FontKey[]> {
+    const needs = new Set<FontKey>()
+    this.#guard(() => {
+      for (const index of pages)
+        for (const key of this.#needs(entry, index)) needs.add(key)
+    })
+    if (needs.size === 0) return []
+    const stop = signal
+      ? AbortSignal.any([signal, this.#ending.signal])
+      : this.#ending.signal
+    return this.#fonts.ensure([...needs], stop)
+  }
+
+  /**
+   * Runs `work` once the fonts of `pages` are fetched. Like a sliced render, the core refuses
+   * other calls during the fetch, and a `destroy()` meanwhile stops it and rejects with
+   * `aborted`.
+   */
+  async #afterFonts<T>(
+    entry: OpenDocument,
+    pages: Iterable<number>,
+    signal: AbortSignal | undefined,
+    work: () => T
+  ): Promise<T> {
+    this.#rendering = true
+    try {
+      await this.#ensureFonts(entry, pages, signal)
+      if (this.#destroyAfterRender)
+        throw new EngineError('aborted', 'The call was aborted.')
+    } finally {
+      this.#rendering = false
+      if (this.#destroyAfterRender) this.destroy()
+    }
+    return work()
+  }
+
+  /** The fallback fonts a page needs, read once per document and page. */
+  #needs(entry: OpenDocument, index: number): readonly FontKey[] {
+    let keys = entry.needs.get(index)
+    if (keys === undefined) {
+      keys = keysOf(pageNeeds(this.#heap, entry.doc, index))
+      entry.needs.set(index, keys)
+    }
+    return keys
   }
 
   /**
@@ -416,7 +534,7 @@ export class EngineCore {
     index: number,
     options: RenderRequestOptions,
     hide: readonly number[]
-  ): Generator<undefined, RenderedPage> {
+  ): Generator<undefined, Drawn> {
     const fn = this.#fn
     const page = this.#loadPage(entry, index)
     try {
@@ -475,7 +593,7 @@ export class EngineCore {
   }
 
   /** The bitmap's pixels as tightly packed rows, in memory the caller owns. */
-  #copyBitmap(bitmap: number, width: number, height: number): RenderedPage {
+  #copyBitmap(bitmap: number, width: number, height: number): Drawn {
     const fn = this.#fn
     const stride = fn.FPDFBitmap_GetStride(bitmap)
     const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
@@ -546,6 +664,47 @@ export class EngineCore {
     })
   }
 
+  /**
+   * `write`, after fetching the fallback fonts of the pages it loads: those it removes from,
+   * appends to, and that hold an annotation replied to. With form values, every page: redrawing
+   * a field loads the font its /DA names, and the text the appearance holds depends on it.
+   */
+  async writeAfterFonts(
+    id: number,
+    input: WriteInput,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const entry = this.#get(id)
+    if (entry.redacted) return this.write(id, input)
+    this.#checkWrite(entry, input)
+    const pages = new Set<number>()
+    if (Object.keys(input.fields ?? {}).length > 0)
+      for (let i = 0; i < entry.pageCount; i++) pages.add(i)
+    for (const ref of input.remove ?? []) pages.add(ref.page)
+    for (const item of input.annotations ?? []) {
+      pages.add(item.page)
+      if (item.replyTo) pages.add(item.replyTo.page)
+    }
+    await this.#afterFonts(entry, pages, signal, () => {
+      this.write(id, input)
+    })
+  }
+
+  /**
+   * `redact`, after fetching the fallback fonts of every page: the apply visits each page, not
+   * only those with marks.
+   */
+  async redactAfterFonts(
+    id: number,
+    input: RedactInput,
+    signal?: AbortSignal
+  ): Promise<RedactResult> {
+    const entry = this.#get(id)
+    checkRedactInput(input)
+    const pages = Array.from({ length: entry.pageCount }, (_, i) => i)
+    return this.#afterFonts(entry, pages, signal, () => this.redact(id, input))
+  }
+
   #checkWrite(entry: OpenDocument, input: WriteInput): void {
     for (const ref of input.remove ?? []) {
       this.#checkIndex(entry, ref.page)
@@ -613,6 +772,7 @@ export class EngineCore {
     }
     fn.FPDF_CloseDocument(entry.doc)
     entry.doc = fresh
+    entry.needs.clear()
     entry.written = true
     entry.redacted = redacted
     return result
@@ -706,6 +866,7 @@ export class EngineCore {
     }
     this.#fn.FPDF_CloseDocument(entry.doc)
     entry.doc = doc
+    entry.needs.clear()
     entry.written = false
     entry.redacted = false
   }
@@ -807,6 +968,7 @@ export class EngineCore {
     if (this.#rendering) {
       // The render's page and bitmap are still in use: stop it, then destroy once it has ended.
       this.#destroyAfterRender = true
+      this.#ending.abort()
       return
     }
     if (!this.#stopped && !this.#destroyed) {
@@ -861,15 +1023,6 @@ export class EngineCore {
         pdfiumError: fn.FPDF_GetLastError(),
       })
     return page
-  }
-
-  #withPage<T>(entry: OpenDocument, index: number, use: (page: number) => T): T {
-    const page = this.#loadPage(entry, index)
-    try {
-      return use(page)
-    } finally {
-      if (!this.#stopped) this.#fn.FPDF_ClosePage(page)
-    }
   }
 
   #allocString(text: string): number {

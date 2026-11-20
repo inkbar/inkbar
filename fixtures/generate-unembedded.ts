@@ -151,6 +151,38 @@ function withDescendant(contents: string, font: string, c: Cjk): Buffer {
   ])
 }
 
+/**
+ * The Japanese page with a text field, `f`, whose /DA names the same unembedded font through the
+ * form's /DR, so filling the field draws with it. The field has no value and no appearance.
+ */
+function writeJapaneseField() {
+  const c = CJK[0] as Cjk
+  const font = `<< /Type /Font /Subtype /Type0 /BaseFont /${c.base} /Encoding /${c.cmap} /DescendantFonts [8 0 R] >>`
+  const contents =
+    line('F2', 760, utf16(c.lines[0])) +
+    line('F2', 700, utf16(c.lines[1])) +
+    line('F1', 640, `(${CONTROL})`)
+  const bytesOut = buildPdf([
+    '<< /Type /Catalog /Pages 2 0 R /AcroForm 10 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Annots [11 0 R] >>',
+    stream(contents),
+    HELVETICA,
+    font,
+    '<< /Title (Unembedded font fixture) /Producer (Inkbar fixtures) >>',
+    `<< /Type /Font /Subtype /CIDFontType0 /BaseFont /${c.base} /CIDSystemInfo << /Registry (Adobe) /Ordering (${c.registry}) /Supplement 6 >> /FontDescriptor 9 0 R /DW 1000 >>`,
+    `<< /Type /FontDescriptor /FontName /${c.base} /Flags 6 /FontBBox [-200 -250 1200 900] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 700 /StemV 80 >>`,
+    '<< /Fields [11 0 R] /DR << /Font << /Helv 5 0 R /F2 6 0 R >> >> /DA (/Helv 0 Tf 0 g) >>',
+    '<< /Type /Annot /Subtype /Widget /FT /Tx /T (f) /Rect [72 500 400 540] /F 4 /P 3 0 R /DA (/F2 18 Tf 0 g) /MK << /BC [0 0 0] >> >>',
+  ])
+  write('unembedded-japanese-field', bytesOut, {
+    pages: 1,
+    opens: true,
+    describes: `The unembedded-japanese page with a text field f, empty and without an appearance, whose /DA names the same unembedded Type 0 font ${c.base} through the form's /DR`,
+    unembedded: ['japanese'],
+  })
+}
+
 /** A simple font's alphabet: Adobe Glyph List names and the codes the font gives them. */
 interface Alphabet {
   name: FixtureName
@@ -326,6 +358,7 @@ function writeArial() {
 }
 
 for (const c of CJK) writeCjk(c)
+writeJapaneseField()
 for (const a of ALPHABETS) writeAlphabet(a)
 writeArial()
 

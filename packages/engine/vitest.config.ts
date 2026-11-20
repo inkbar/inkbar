@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { basename, dirname, join } from 'node:path'
 
 import { serveFixtures } from '@inkbar/fixtures/vite-serve'
 import { playwright } from '@vitest/browser-playwright'
@@ -42,6 +44,44 @@ function serveHtmlAsWasm(): Plugin {
   }
 }
 
+/**
+ * Serves the `@inkbar/fonts` files at any path holding `/inkbar-fonts/`, so a test can show which
+ * base a relative URL was resolved against, and logs each request's path at
+ * `/inkbar-fonts-log`. A path holding `/inkbar-fonts/hang/` is never answered.
+ */
+function serveFonts(): Plugin {
+  const dir = dirname(
+    createRequire(import.meta.url).resolve('@inkbar/fonts/files/NotoSans-Regular.ttf')
+  )
+  const log: string[] = []
+  return {
+    name: 'inkbar-serve-fonts',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = req.url?.split('?')[0] ?? ''
+        if (path === '/inkbar-fonts-log') {
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Cache-Control', 'no-store')
+          res.end(JSON.stringify(log))
+          return
+        }
+        if (!path.includes('/inkbar-fonts/')) return next()
+        log.push(path)
+        if (path.includes('/inkbar-fonts/hang/')) return
+        const file = join(dir, basename(decodeURIComponent(path)))
+        res.setHeader('Cache-Control', 'no-store')
+        if (!existsSync(file)) {
+          res.statusCode = 404
+          res.end()
+          return
+        }
+        res.setHeader('Content-Type', 'font/otf')
+        res.end(readFileSync(file))
+      })
+    },
+  }
+}
+
 const browsers = (process.env.ENGINE_BROWSERS ?? 'chromium')
   .split(',')
   .map((name) => name.trim())
@@ -60,9 +100,9 @@ export default defineConfig({
         },
       },
       {
-        plugins: [serveFixtures(), serveBuiltPackage(), serveHtmlAsWasm()],
+        plugins: [serveFixtures(), serveBuiltPackage(), serveHtmlAsWasm(), serveFonts()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
-        optimizeDeps: { include: ['@inkbar/fixtures > pdf-lib'] },
+        optimizeDeps: { include: ['@inkbar/fixtures > pdf-lib', '@inkbar/fonts'] },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],

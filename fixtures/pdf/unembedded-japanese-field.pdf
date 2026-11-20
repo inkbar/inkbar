@@ -1,0 +1,59 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /AcroForm 10 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Annots [11 0 R] >>
+endobj
+4 0 obj
+<< /Length 187 >>
+stream
+BT /F2 24 Tf 72 760 Td <65e5672c8a9e306e30c630ad30b930c8> Tj ET
+BT /F2 24 Tf 72 700 Td <30533093306b3061306f4e16754c> Tj ET
+BT /F1 24 Tf 72 640 Td (Latin control line in Helvetica) Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /KozMinPr6N-Regular /Encoding /UniJIS-UTF16-H /DescendantFonts [8 0 R] >>
+endobj
+7 0 obj
+<< /Title (Unembedded font fixture) /Producer (Inkbar fixtures) >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /CIDFontType0 /BaseFont /KozMinPr6N-Regular /CIDSystemInfo << /Registry (Adobe) /Ordering (Japan1) /Supplement 6 >> /FontDescriptor 9 0 R /DW 1000 >>
+endobj
+9 0 obj
+<< /Type /FontDescriptor /FontName /KozMinPr6N-Regular /Flags 6 /FontBBox [-200 -250 1200 900] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 700 /StemV 80 >>
+endobj
+10 0 obj
+<< /Fields [11 0 R] /DR << /Font << /Helv 5 0 R /F2 6 0 R >> >> /DA (/Helv 0 Tf 0 g) >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (f) /Rect [72 500 400 540] /F 4 /P 3 0 R /DA (/F2 18 Tf 0 g) /MK << /BC [0 0 0] >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000075 00000 n 
+0000000132 00000 n 
+0000000285 00000 n 
+0000000523 00000 n 
+0000000620 00000 n 
+0000000750 00000 n 
+0000000832 00000 n 
+0000001021 00000 n 
+0000001200 00000 n 
+0000001304 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R /Info 7 0 R >>
+startxref
+1450
+%%EOF

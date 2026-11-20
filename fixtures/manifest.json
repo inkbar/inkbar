@@ -2090,5 +2090,12 @@
     "engine": {
       "render": "PDF.js draws the masked form (about 5,000 non-white pixels); the engine draws a blank page"
     }
+  },
+  "unembedded-japanese-field": {
+    "file": "unembedded-japanese-field.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The unembedded-japanese page with a text field f, empty and without an appearance, whose /DA names the same unembedded Type 0 font KozMinPr6N-Regular through the form's /DR",
+    "unembedded": ["japanese"]
   }
 }

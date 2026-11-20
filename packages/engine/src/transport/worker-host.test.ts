@@ -169,3 +169,17 @@ test('only an array that spans its whole buffer is handed over', () => {
   expect(transferables(new Uint8Array(memory, 8))).toEqual([])
   expect(transferables(undefined)).toEqual([])
 })
+
+test('the worker host gives the core the fallback fonts from the start-up message', async () => {
+  const fake = fakeScope()
+  const fonts = { japanese: 'https://fonts.test/jp.otf', default: new Uint8Array([1]) }
+  let given: unknown
+  serve(fake.scope, async (source, options) => {
+    given = options
+    return new EngineCore(await loadNative({ wasm: source }), options)
+  })
+  fake.send({ type: 'init', wasm, fallbackFonts: fonts })
+  await fake.until(1)
+  expect(fake.posted[0]).toEqual({ type: 'ready' })
+  expect(given).toEqual({ fallbackFonts: fonts })
+})
