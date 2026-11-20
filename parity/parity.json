@@ -479,9 +479,7 @@
     "state": "same"
   },
   "corpus-alpha-composite": {
-    "state": "different",
-    "reason": "Screen and Normal blends at partial alpha: PDF.js draws the cyan square and its overlap; the engine draws only the two pink squares",
-    "accepted": false
+    "state": "same"
   },
   "corpus-matte": {
     "state": "different",
@@ -584,13 +582,11 @@
     "pages": [1]
   },
   "corpus-bug-1302355": {
-    "state": "different",
-    "reason": "PDF.js draws the SoftLight-blended form (a black rectangle); the engine draws a blank page; cause not yet investigated",
-    "accepted": false
+    "state": "same"
   },
   "corpus-smask-blend": {
     "state": "different",
-    "reason": "PDF.js draws the form under the alpha soft mask and Screen blend (a grey and a black square); the engine draws a blank page; cause not yet investigated",
+    "reason": "A form under an alpha soft mask and the Screen blend: PDF.js draws a grey and a black square, the engine one grey bar, as Poppler does; Ghostscript and Quartz draw the page blank, so no reader is the reference",
     "accepted": false
   }
 }

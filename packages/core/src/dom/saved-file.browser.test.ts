@@ -678,7 +678,18 @@ function compares(label: string, renders: () => Promise<SavedRenders>, c: Case):
   })
 }
 
-/** Asserts `line` inks within a point of the screen on each of `sides`, where the screen inks it. */
+/**
+ * How far from the text's colour a pixel may be and still count as the line's ink. A faint pixel
+ * at the foot of the line above can sit one colour level either side of a single limit, and
+ * counting it moves the box by a whole line gap; a line that is truly elsewhere is elsewhere at
+ * every limit.
+ */
+const INK_LIMITS = [100, 90, 110] as const
+
+/**
+ * Asserts `line` inks within a point of the screen on each of `sides`, where the screen inks it,
+ * at one of `INK_LIMITS` at least.
+ */
 function samePlace(
   reader: Reader,
   screen: Reading,
@@ -686,18 +697,24 @@ function samePlace(
   line: TextBand,
   sides: readonly (keyof PixelRect)[]
 ): void {
-  const want = lineInk(screen, line)
-  if (!want) return
-  const got = lineInk(reading, line)
-  expect.soft(got, `${reader}: ${JSON.stringify(line.text)}`).toBeDefined()
-  if (!got) return
-  for (const side of sides)
+  if (!lineInk(screen, line)) return
+  expect
+    .soft(lineInk(reading, line), `${reader}: ${JSON.stringify(line.text)}`)
+    .toBeDefined()
+  for (const side of sides) {
+    const apart = INK_LIMITS.flatMap((limit) => {
+      const want = lineInk(screen, line, limit)
+      const got = lineInk(reading, line, limit)
+      return want && got ? [Math.abs(got[side] - want[side]) / PIXELS_PER_POINT] : []
+    })
+    if (apart.length === 0) continue
     expect
       .soft(
-        Math.abs(got[side] - want[side]) / PIXELS_PER_POINT,
+        Math.min(...apart),
         `${reader}: the ${side} of ${JSON.stringify(line.text)}, in points`
       )
       .toBeLessThanOrEqual(1)
+  }
 }
 
 /** Writes the case's crops of each render, for looking at with `VITE_INKBAR_SAVED_REPORT=1`. */

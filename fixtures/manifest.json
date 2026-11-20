@@ -2064,10 +2064,7 @@
     "opens": true,
     "describes": "A form drawn with the SoftLight blend mode",
     "source": "pdfium testing/resources/bug_1302355.pdf",
-    "features": ["blend-mode"],
-    "engine": {
-      "render": "PDF.js draws the SoftLight form (about 1,700 non-white pixels); the engine draws a blank page; cause not yet investigated"
-    }
+    "features": ["blend-mode"]
   },
   "corpus-smask-blend": {
     "file": "smask_blend.pdf",
@@ -2075,10 +2072,7 @@
     "opens": true,
     "describes": "A form drawn with an alpha soft mask (a graphics state /SMask) and the Screen blend mode at partial opacity",
     "source": "pdfium testing/resources/pixel/smask_blend.in (expanded)",
-    "features": ["blend-mode", "soft-mask"],
-    "engine": {
-      "render": "PDF.js draws the masked form (about 5,000 non-white pixels); the engine draws a blank page; cause not yet investigated"
-    }
+    "features": ["blend-mode", "soft-mask"]
   },
   "unembedded-japanese-field": {
     "file": "unembedded-japanese-field.pdf",

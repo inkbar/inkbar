@@ -508,15 +508,15 @@ export function inkOutside(
   return n
 }
 
-/** Whether a pixel is within 100 of `hex` in every channel. */
-const nearColor = (hex: string) => {
+/** Whether a pixel is within `limit` of `hex` in every channel. */
+const nearColor = (hex: string, limit = 100) => {
   const [r, g, b] = rgbOf(hex)
   return (p: Pixels, i: number) =>
     Math.max(
       Math.abs(p.data[i]! - r),
       Math.abs(p.data[i + 1]! - g),
       Math.abs(p.data[i + 2]! - b)
-    ) < 100
+    ) < limit
 }
 
 const rgbOf = (hex: string): [number, number, number] => {
@@ -527,10 +527,15 @@ const rgbOf = (hex: string): [number, number, number] => {
 
 /**
  * Where a reader inks a line of text: the box of the pixels in `band` near the text's colour that
- * were not so on the page as opened (the page's own text is not the line's).
+ * were not so on the page as opened (the page's own text is not the line's). `limit` is how far
+ * from the colour, in each channel, still counts as near.
  */
-export function lineInk(reading: Reading, line: TextBand): PixelRect | undefined {
-  const near = nearColor(line.color)
+export function lineInk(
+  reading: Reading,
+  line: TextBand,
+  limit = 100
+): PixelRect | undefined {
+  const near = nearColor(line.color, limit)
   const { page, base } = reading
   let box: PixelRect | undefined
   const { band } = line
