@@ -210,8 +210,9 @@ export interface InkDocument {
    * 'file' }` change that is not an undo step. Redaction marks another program left unapplied
    * join with them, as session marks: a save or an apply removes their file copies and pop-ups.
    * One stays in the file, locked, when its pop-up is not listed on its page or is not a pop-up
-   * whose parent is the mark, or when an annotation staying in the file replies to it. In controlled mode they are proposed to the host once,
-   * with that reason. An encrypted file lifts nothing.
+   * whose parent is the mark, or when an annotation staying in the file replies to it. In
+   * controlled mode they are proposed to the host once, with that reason. An encrypted file
+   * lifts nothing.
    */
   readonly annotations: AnnotationStore
   /**
