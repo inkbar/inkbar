@@ -129,6 +129,7 @@ jobs:
             apps/*/test-results
             packages/*/src/**/__screenshots__
             parity/.vitest/attachments
+            parity/.report
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7

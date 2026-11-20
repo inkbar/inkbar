@@ -4,8 +4,9 @@
 import { createPageTransform, normalizeRotation } from '@inkbar/core/dom'
 import { describe, expect, it } from 'vitest'
 
-import { compare, type Comparison } from './compare'
+import { compare, differenceImage, type Comparison } from './compare'
 import { geometryDifference, openWith, PIXELS_PER_POINT } from './draw'
+import { writePng } from './report'
 
 import type { InkDocument, PageInfo, Rect } from '@inkbar/core'
 import type { FixtureName } from '@inkbar/fixtures/urls'
@@ -126,6 +127,13 @@ describe.each(FIXTURES)('%s', (name) => {
     const b = await draw(engine, placement)
     expect(inked(a), `${what}: PDF.js draws it blank`).toBeGreaterThan(0.001)
     const measured = compare(a, b)
+    if (!measured.same) {
+      // Both drawings and their difference, for whoever reads the failure.
+      const file = `.report/placement/${name}-${what.replaceAll(' ', '-')}`
+      await writePng(`${file}-pdfjs.png`, a)
+      await writePng(`${file}-engine.png`, b)
+      await writePng(`${file}-difference.png`, differenceImage(a, b))
+    }
     expect(measured.same, `${what} differs: ${describeNumbers(measured)}`).toBe(true)
   }
 
