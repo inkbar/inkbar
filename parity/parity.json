@@ -1,0 +1,596 @@
+{
+  "text-simple": {
+    "state": "same"
+  },
+  "text-search": {
+    "state": "same"
+  },
+  "text-rotated-90": {
+    "state": "same"
+  },
+  "text-rotated-180": {
+    "state": "same"
+  },
+  "text-rotated-270": {
+    "state": "same"
+  },
+  "text-cjk": {
+    "state": "same"
+  },
+  "cropbox-offset": {
+    "state": "same"
+  },
+  "userunit-2": {
+    "state": "different",
+    "reason": "Text in Helvetica, not embedded, at /UserUnit 2 (4 px per point): the readers substitute different Helvetica outlines, and glyph tops and curves differ by a pixel or two",
+    "accepted": false,
+    "pages": [1, 2, 3]
+  },
+  "mixed-page-sizes": {
+    "state": "same"
+  },
+  "annotated-markup": {
+    "state": "same"
+  },
+  "annotated-notes-threaded": {
+    "state": "different",
+    "reason": "Text notes with no /AP: the engine generates an appearance for them (note icons); PDF.js draws nothing",
+    "accepted": false
+  },
+  "annotated-redact": {
+    "state": "different",
+    "reason": "Two unapplied Redact annotations with no /AP: the engine generates an appearance for them (red outlines); PDF.js draws nothing",
+    "accepted": false
+  },
+  "annotated-shapes": {
+    "state": "different",
+    "reason": "Annotations with no /AP, each reader generating its own: the engine closes the polygon, draws the ink as smooth curves and boxes the FreeText; PDF.js leaves the polygon open, draws the ink as straight segments and the FreeText unboxed",
+    "accepted": false
+  },
+  "standard-callout": {
+    "state": "same"
+  },
+  "callout-xref-stream": {
+    "state": "same"
+  },
+  "callout-incremental": {
+    "state": "same"
+  },
+  "callout-encrypted": {
+    "state": "same"
+  },
+  "callout-bad-xref": {
+    "state": "same"
+  },
+  "note-icon-ap": {
+    "state": "same"
+  },
+  "freetext-fonts": {
+    "state": "different",
+    "reason": "FreeText annotations with no /AP: the engine generates an appearance for each with a border; PDF.js draws the text alone",
+    "accepted": false
+  },
+  "annotated-unsupported": {
+    "state": "different",
+    "reason": "A Link and a FileAttachment with no /AP: the engine generates an appearance for them (a blue link border, a pushpin icon); PDF.js draws nothing",
+    "accepted": false
+  },
+  "acroform-basic": {
+    "state": "same"
+  },
+  "form-fields": {
+    "state": "same"
+  },
+  "form-scripted": {
+    "state": "same"
+  },
+  "form-signed": {
+    "state": "same"
+  },
+  "form-fieldmdp": {
+    "state": "same"
+  },
+  "signed": {
+    "state": "same"
+  },
+  "certified": {
+    "state": "same"
+  },
+  "signed-encrypted": {
+    "state": "same"
+  },
+  "form-restricted": {
+    "state": "same"
+  },
+  "form-format": {
+    "state": "same"
+  },
+  "form-choices": {
+    "state": "same"
+  },
+  "form-timer": {
+    "state": "same"
+  },
+  "form-uppercase": {
+    "state": "same"
+  },
+  "form-shared-scripted": {
+    "state": "same"
+  },
+  "form-bare-appearances": {
+    "state": "different",
+    "reason": "A text field with no /AP: the engine generates an appearance for it (a bordered box); PDF.js draws nothing",
+    "accepted": false
+  },
+  "form-goto": {
+    "state": "same"
+  },
+  "form-range": {
+    "state": "same"
+  },
+  "form-structure": {
+    "state": "same"
+  },
+  "outline": {
+    "state": "same"
+  },
+  "links": {
+    "state": "same"
+  },
+  "incremental-saved": {
+    "state": "same"
+  },
+  "object-streams": {
+    "state": "same"
+  },
+  "encrypted-aes": {
+    "state": "same"
+  },
+  "encrypted-rc4": {
+    "state": "same"
+  },
+  "malformed-missing-xref": {
+    "state": "same"
+  },
+  "scanned-no-text": {
+    "state": "same"
+  },
+  "saved-annotations": {
+    "state": "same"
+  },
+  "saved-incremental": {
+    "state": "same"
+  },
+  "saved-tampered": {
+    "state": "same"
+  },
+  "saved-encrypted": {
+    "state": "same"
+  },
+  "saved-signed": {
+    "state": "same"
+  },
+  "saved-replied": {
+    "state": "different",
+    "reason": "A reply note written as another program would, with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
+    "accepted": false,
+    "pages": [1]
+  },
+  "redact-text": {
+    "state": "same"
+  },
+  "redact-image-flate": {
+    "state": "same"
+  },
+  "redact-path": {
+    "state": "same"
+  },
+  "redact-annotations": {
+    "state": "different",
+    "reason": "A Text note with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
+    "accepted": false
+  },
+  "redact-foreign-mark": {
+    "state": "different",
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
+    "accepted": false,
+    "pages": [2]
+  },
+  "redact-hidden-layer": {
+    "state": "same"
+  },
+  "redact-text-composite": {
+    "state": "same"
+  },
+  "redact-text-type3": {
+    "state": "same"
+  },
+  "redact-text-nested-form": {
+    "state": "same"
+  },
+  "redact-text-shared-form": {
+    "state": "same"
+  },
+  "redact-text-clip": {
+    "state": "different",
+    "reason": "Text in render mode 7 (clip) under a magenta fill: the engine shows the clipped text in magenta, PDF.js draws nothing there",
+    "accepted": false
+  },
+  "redact-text-pattern": {
+    "state": "same"
+  },
+  "redact-text-rotated": {
+    "state": "same"
+  },
+  "redact-text-vertical": {
+    "state": "same"
+  },
+  "redact-text-half-word": {
+    "state": "same"
+  },
+  "redact-image-jpeg": {
+    "state": "same"
+  },
+  "redact-image-jpx": {
+    "state": "same"
+  },
+  "redact-image-ccitt": {
+    "state": "same"
+  },
+  "redact-image-jbig2": {
+    "state": "same"
+  },
+  "redact-image-1bit": {
+    "state": "same"
+  },
+  "redact-image-stencil": {
+    "state": "same"
+  },
+  "redact-image-smask": {
+    "state": "same"
+  },
+  "redact-image-mask": {
+    "state": "same"
+  },
+  "redact-image-shared": {
+    "state": "same"
+  },
+  "redact-image-rotated": {
+    "state": "same"
+  },
+  "redact-image-skewed": {
+    "state": "same"
+  },
+  "redact-drawing-fill": {
+    "state": "same"
+  },
+  "redact-drawing-stroke": {
+    "state": "same"
+  },
+  "redact-drawing-shading": {
+    "state": "same"
+  },
+  "redact-drawing-pattern": {
+    "state": "same"
+  },
+  "redact-drawing-pattern-past-mark": {
+    "state": "same"
+  },
+  "redact-drawing-pattern-side": {
+    "state": "same"
+  },
+  "redact-drawing-hatch": {
+    "state": "same"
+  },
+  "redact-drawing-hatch-under-mark": {
+    "state": "same"
+  },
+  "redact-drawing-mesh-under-mark": {
+    "state": "same"
+  },
+  "redact-drawing-function-under-mark": {
+    "state": "same"
+  },
+  "redact-drawing-sampled-axial": {
+    "state": "same"
+  },
+  "redact-text-fade": {
+    "state": "same"
+  },
+  "redact-text-shaped-fade": {
+    "state": "same"
+  },
+  "redact-drawing-pattern-colour-kept": {
+    "state": "same"
+  },
+  "redact-drawing-pattern-miter": {
+    "state": "same"
+  },
+  "redact-text-beside-carriers": {
+    "state": "same"
+  },
+  "redact-drawing-mesh": {
+    "state": "same"
+  },
+  "redact-drawing-function-shading": {
+    "state": "same"
+  },
+  "redact-drawing-mesh-pattern": {
+    "state": "same"
+  },
+  "redact-mask-group-past-mark": {
+    "state": "same"
+  },
+  "redact-mask-group-under-mark": {
+    "state": "same"
+  },
+  "redact-image-under-mark": {
+    "state": "same"
+  },
+  "redact-text-form-under-mark": {
+    "state": "same"
+  },
+  "redact-page-rotate-90": {
+    "state": "same"
+  },
+  "redact-page-rotate-270": {
+    "state": "same"
+  },
+  "redact-page-userunit": {
+    "state": "different",
+    "reason": "Text in Helvetica, not embedded, at /UserUnit 2 (4 px per point): the readers substitute different Helvetica outlines, and glyph tops and curves differ by a pixel or two",
+    "accepted": false
+  },
+  "redact-page-cropbox": {
+    "state": "same"
+  },
+  "redact-page-no-contents": {
+    "state": "same"
+  },
+  "redact-copy-thumbnail": {
+    "state": "same"
+  },
+  "redact-copy-pieceinfo": {
+    "state": "same"
+  },
+  "redact-copy-xmp": {
+    "state": "same"
+  },
+  "redact-annotation-loupe": {
+    "state": "different",
+    "reason": "The loupe square draws a page copy at twice its size: glyph edges of the substituted Helvetica (not embedded) differ at that size, as on userunit-2",
+    "accepted": false
+  },
+  "redact-annotation-loupe-drawing": {
+    "state": "same"
+  },
+  "redact-annotation-loupe-elsewhere": {
+    "state": "same"
+  },
+  "redact-annotation-loupe-rewritten": {
+    "state": "same"
+  },
+  "redact-drawing-negative-width": {
+    "state": "same"
+  },
+  "redact-drawing-miter-reach": {
+    "state": "same"
+  },
+  "redact-file-encrypted": {
+    "state": "same"
+  },
+  "redact-file-signed": {
+    "state": "same"
+  },
+  "redact-file-revisions": {
+    "state": "same"
+  },
+  "redact-file-hidden-layer": {
+    "state": "same"
+  },
+  "redact-file-attachment": {
+    "state": "different",
+    "reason": "A FileAttachment with no /AP: the engine generates an appearance for it (a paperclip icon); PDF.js draws nothing",
+    "accepted": false
+  },
+  "redact-file-script": {
+    "state": "same"
+  },
+  "check-image": {
+    "state": "same"
+  },
+  "check-form-text": {
+    "state": "same"
+  },
+  "check-inline-image": {
+    "state": "same"
+  },
+  "check-pattern-text": {
+    "state": "same"
+  },
+  "bad-black-box": {
+    "state": "same"
+  },
+  "bad-unapplied": {
+    "state": "different",
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
+    "accepted": false
+  },
+  "bad-appended": {
+    "state": "same"
+  },
+  "unembedded-japanese": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-japanese-field": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-simplified-chinese": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-traditional-chinese": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-korean": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-cyrillic": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-greek": {
+    "state": "baseline",
+    "reason": "Text in a font the file does not embed: PDF.js draws it with whatever fonts the machine has, so the engine, drawing it with the fallback fonts, is compared with its own committed output"
+  },
+  "unembedded-arial": {
+    "state": "same"
+  },
+  "corpus-shade": {
+    "state": "different",
+    "reason": "Mesh shadings (rows four to eight, first two columns): the engine blends through olive and brown where PDF.js blends magenta to cyan; function-based, axial and radial shadings agree",
+    "accepted": false
+  },
+  "corpus-shade-tensor": {
+    "state": "different",
+    "reason": "Coons and tensor patch meshes: in four clipped squares the engine draws different patch outlines (petals and stars) from PDF.js (diamonds and wedges)",
+    "accepted": false
+  },
+  "corpus-radial-shading-point-at-center": {
+    "state": "same"
+  },
+  "corpus-gradient-pattern-stroke-order": {
+    "state": "same"
+  },
+  "corpus-bug-1258968": {
+    "state": "same"
+  },
+  "corpus-pattern-fill": {
+    "state": "same"
+  },
+  "corpus-pattern-stroke-uncolored": {
+    "state": "same"
+  },
+  "corpus-embedpdf-tiling-patterns": {
+    "state": "same"
+  },
+  "corpus-alpha-composite": {
+    "state": "different",
+    "reason": "Screen and Normal blends at partial alpha: PDF.js draws the cyan square and its overlap; the engine draws only the two pink squares",
+    "accepted": false
+  },
+  "corpus-matte": {
+    "state": "different",
+    "reason": "Images whose soft mask carries a /Matte: the colours differ, most in the top band of the first images (PDF.js pink, the engine brownish); cause not yet investigated",
+    "accepted": false
+  },
+  "corpus-bug-1845": {
+    "state": "same"
+  },
+  "corpus-type3": {
+    "state": "same"
+  },
+  "corpus-embedpdf-chrome-type3-text": {
+    "state": "same"
+  },
+  "corpus-jpxdecode": {
+    "state": "different",
+    "reason": "JPEG 2000: PDF.js leaves two of the four images blank (one shows only a black square) and draws the SMaskInData overlay darker; the engine draws all four",
+    "accepted": false
+  },
+  "corpus-bug-1469": {
+    "state": "same"
+  },
+  "corpus-bug-1396264": {
+    "state": "different",
+    "reason": "JPEG 2000 image: PDF.js draws narrow vertical colour stripes, the engine two flat bands (red over blue); cause not yet investigated",
+    "accepted": false
+  },
+  "corpus-bug-1236": {
+    "state": "same"
+  },
+  "corpus-bug-631912": {
+    "state": "same"
+  },
+  "corpus-transfer-function": {
+    "state": "same"
+  },
+  "corpus-bug-1746": {
+    "state": "different",
+    "reason": "Type 3 glyphs over a CCITT image at half opacity: the engine draws both glyphs much paler than PDF.js; cause not yet investigated",
+    "accepted": false
+  },
+  "corpus-bug-1087": {
+    "state": "same"
+  },
+  "corpus-bug-42270471": {
+    "state": "same"
+  },
+  "corpus-bug-1479436": {
+    "state": "same"
+  },
+  "corpus-bug-1768": {
+    "state": "same"
+  },
+  "corpus-bug-1558": {
+    "state": "same"
+  },
+  "corpus-bug-1883": {
+    "state": "different",
+    "reason": "A NoRotate (/F 16) annotation on the pages with /Rotate 90 and 180: the engine keeps its arrow upright, PDF.js turns it with the page",
+    "accepted": false,
+    "pages": [2, 3]
+  },
+  "corpus-rectangles-multi-pages": {
+    "state": "same"
+  },
+  "corpus-dashed-lines": {
+    "state": "same"
+  },
+  "corpus-long-dashed-line": {
+    "state": "same"
+  },
+  "corpus-bug-1822": {
+    "state": "same"
+  },
+  "corpus-text-render-mode": {
+    "state": "same"
+  },
+  "corpus-bug-1388": {
+    "state": "different",
+    "reason": "Text in render mode 2 (fill and stroke): the engine draws the glyph, a black square; PDF.js draws nothing",
+    "accepted": false
+  },
+  "corpus-bug-842": {
+    "state": "same"
+  },
+  "corpus-bug-557320961": {
+    "state": "same"
+  },
+  "corpus-bug-1976": {
+    "state": "same"
+  },
+  "corpus-bug-1399": {
+    "state": "same"
+  },
+  "corpus-annots": {
+    "state": "different",
+    "reason": "A combo box widget with no /AP: the engine generates an appearance for it (a drop-down arrow); PDF.js draws nothing",
+    "accepted": false,
+    "pages": [1]
+  },
+  "corpus-bug-1302355": {
+    "state": "different",
+    "reason": "PDF.js draws the SoftLight-blended form (a black rectangle); the engine draws a blank page",
+    "accepted": false
+  },
+  "corpus-smask-blend": {
+    "state": "different",
+    "reason": "PDF.js draws the form under the alpha soft mask and Screen blend (a grey and a black square); the engine draws a blank page",
+    "accepted": false
+  }
+}

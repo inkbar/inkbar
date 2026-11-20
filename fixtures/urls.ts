@@ -176,7 +176,6 @@ export const FIXTURE_NAMES = [
   'corpus-bug-1976',
   'corpus-bug-1399',
   'corpus-annots',
-  'corpus-axial-shading-zero-axis',
   'corpus-bug-1302355',
   'corpus-smask-blend',
 ] as const

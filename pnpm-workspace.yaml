@@ -2,6 +2,7 @@ packages:
   - packages/*
   - apps/*
   - fixtures
+  - parity
 allowBuilds:
   esbuild: true
   unrs-resolver: true
