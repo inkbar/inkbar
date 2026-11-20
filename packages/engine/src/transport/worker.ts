@@ -70,8 +70,8 @@ class WorkerTransport implements Transport {
       if (this.#dead) throw this.#dead
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
-        const render = request.op === 'renderPage'
-        const stoppable = render || request.op === 'write' || request.op === 'redact'
+        const stoppable =
+          request.op === 'renderPage' || request.op === 'write' || request.op === 'redact'
         const abort = () => {
           // Only while the call is unanswered: once the reply has arrived it stands.
           if (!this.#pending.has(id)) return
@@ -113,8 +113,9 @@ class WorkerTransport implements Transport {
           reject(failure('The request could not be sent to the engine worker.', error))
           return
         }
-        // A running render stops when its signal aborts; the worker then answers `aborted`.
-        if (render && signal) {
+        // A call that can stop part way does so when its signal aborts; the worker then answers
+        // `aborted`.
+        if (stoppable && signal) {
           if (signal.aborted) abort()
           else signal.addEventListener('abort', abort, { once: true })
         }

@@ -4,7 +4,7 @@ import { engineOver } from '../engine.ts'
 
 import { createWorkerTransport } from './worker.ts'
 
-import type { FromWorker, ToWorker } from '../protocol.ts'
+import type { FromWorker, Request, ToWorker } from '../protocol.ts'
 
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
 
@@ -278,6 +278,27 @@ test('without fallback fonts the start-up message carries none', async () => {
   await createWorkerTransport(worker as unknown as Worker, new Uint8Array(0))
   expect(worker.posted[0]).not.toHaveProperty('fallbackFonts')
 })
+
+test.each(['write', 'redact'] as const)(
+  'aborting a running %s tells the worker which call to stop',
+  async (op) => {
+    const worker = new ManualWorker()
+    const transport = await createWorkerTransport(
+      worker as unknown as Worker,
+      new Uint8Array(0)
+    )
+    const c = new AbortController()
+    const input = op === 'write' ? {} : { marks: [] }
+    const running = transport.call({ op, doc: 1, input } as Request, c.signal)
+    await vi.waitUntil(() => worker.waiting.length === 1)
+    const id = worker.waiting[0]!
+    c.abort()
+    expect(worker.aborts).toEqual([{ type: 'abort', id }])
+    worker.refuse(id)
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+    await transport.destroy()
+  }
+)
 
 test.each(['write', 'redact'] as const)(
   'destroy during a %s tells the worker to stop it, so a font fetch ends at once',
