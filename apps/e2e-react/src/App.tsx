@@ -1,3 +1,4 @@
+import { engineReaderRoute } from '@inkbar/e2e-shared/engine-reader'
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
 import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -6,6 +7,7 @@ import {
   redactionPageOptions,
 } from '@inkbar/e2e-shared/redaction-page'
 
+import { EngineReaderPage } from './EngineReaderPage'
 import { FormPage } from './FormPage'
 import { LinksPage } from './LinksPage'
 import { RedactPage } from './RedactPage'
@@ -15,12 +17,16 @@ const params = new URLSearchParams(location.search)
 const doc = params.get('doc') ?? 'text-simple'
 const large = clampPageCount(params.get('large'))
 const redaction = redactionPageOptions(params)
+// Before any viewer mounts: the switch is read as a document opens.
+const engineReader = engineReaderRoute(params)
 
 export function App() {
   return (
     <main className="sandbox">
       <h1 className="sandbox-title">Inkbar review app</h1>
-      {isFormFixture(doc) ? (
+      {engineReader ? (
+        <EngineReaderPage fixture={doc} />
+      ) : isFormFixture(doc) ? (
         <FormPage fixture={doc} />
       ) : isLinksFixture(doc) ? (
         <LinksPage fixture={doc} />

@@ -112,6 +112,12 @@ jobs:
           else
             pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE"
           fi
+      # The engine-reader scenario again, against the app's production build (vite preview).
+      - if: startsWith(matrix.package, 'e2e-')
+        env:
+          PACKAGE: ${{ matrix.package }}
+          E2E_PREVIEW: '1'
+        run: pnpm --filter "@inkbar/$PACKAGE" exec playwright test
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

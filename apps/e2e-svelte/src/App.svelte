@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { engineReaderRoute } from '@inkbar/e2e-shared/engine-reader'
   import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
   import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
   import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -7,6 +8,7 @@
     redactionPageOptions,
   } from '@inkbar/e2e-shared/redaction-page'
 
+  import EngineReaderPage from './EngineReaderPage.svelte'
   import FormPage from './FormPage.svelte'
   import LinksPage from './LinksPage.svelte'
   import RedactPage from './RedactPage.svelte'
@@ -16,11 +18,15 @@
   const doc = params.get('doc') ?? 'text-simple'
   const large = clampPageCount(params.get('large'))
   const redaction = redactionPageOptions(params)
+  // Before any viewer mounts: the switch is read as a document opens.
+  const engineReader = engineReaderRoute(params)
 </script>
 
 <main class="sandbox">
   <h1 class="sandbox-title">Inkbar review app</h1>
-  {#if isFormFixture(doc)}
+  {#if engineReader}
+    <EngineReaderPage fixture={doc} />
+  {:else if isFormFixture(doc)}
     <FormPage fixture={doc} />
   {:else if isLinksFixture(doc)}
     <LinksPage fixture={doc} />

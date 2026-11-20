@@ -8,6 +8,7 @@ import '../styles/app.css'
 
 import { mountScenario } from '../frameworks/index.ts'
 import { SCENARIOS } from '../scenarios/registry.ts'
+import { setEngineReader } from '../shared/reader.ts'
 
 import { loadSources, type SourceFile } from './code.ts'
 import { documentSource } from './documents.ts'
@@ -21,6 +22,7 @@ import {
   formatSearch,
   LANGUAGES,
   parseRoute,
+  withEngine,
   withLang,
   type LangId,
   type Route,
@@ -56,6 +58,7 @@ app.innerHTML = `
         <h1 data-scenario-title></h1>
         <p data-scenario-blurb></p>
         <p data-scenario-note hidden></p>
+        <label class="engine-toggle"><input type="checkbox" data-engine-toggle /> Draw pages with the engine (preview)</label>
       </div>
       <div class="stage-bar">
         <div class="view-tabs" role="tablist" aria-label="View">
@@ -103,6 +106,8 @@ languagePicker.innerHTML = '<label for="language-select">Language</label>'
 languagePicker.append(languageSelect)
 $('.app-links').prepend(languagePicker)
 const sideTabs = $('.side-tabs')
+/** Reopens the current document with its pages drawn by the engine, or as usual. */
+const engineToggle = $<HTMLInputElement>('[data-engine-toggle]')
 /** The scenarios' Open a PDF buttons pick a file through this one input. */
 const fileInput = $<HTMLInputElement>('[data-file-input]')
 const openFile = (): void => fileInput.click()
@@ -133,20 +138,35 @@ let mounted: MountedScenario | null = null
 let mounting = false
 /** A PDF dropped while the scenario was loading; the mount receives it once it lands. */
 let queued: DocumentSource | null = null
+/** A copy of the PDF opened from this computer into the current scenario, for a reopen. */
+let ownFile: { data: Uint8Array; key: string } | null = null
 
 const drops = handleDrops({
   target: viewer,
   input: fileInput,
   status: $('[data-file-status]'),
   open(source) {
+    // The copy kept for a reopen is taken first: opening may hand the bytes to a worker.
+    const copy =
+      typeof source === 'object' && 'data' in source
+        ? { data: new Uint8Array(source.data).slice(), key: source.key }
+        : null
     if (mounted) mounted.update(source)
     else if (mounting) queued = source
     else return false
+    ownFile = copy
     return true
   },
 })
 
-async function select(next: Route): Promise<void> {
+/**
+ * Mounts the route's scenario with its own document, or with `file`, a PDF from this computer
+ * the scenario had open before, when the route stays and only how the pages are drawn changed.
+ */
+async function select(
+  next: Route,
+  file: { data: Uint8Array; key: string } | null = null
+): Promise<void> {
   route = next
   const gen = ++generation
   const scenario = SCENARIOS.find((s) => s.id === next.scenario)!
@@ -161,6 +181,9 @@ async function select(next: Route): Promise<void> {
   $('[data-scenario-note]').hidden = !note
   sidebar.select(next)
   languageSelect.value = next.lang
+  engineToggle.checked = next.engine
+  // Read when the document opens, so it is set before the mount.
+  setEngineReader(next.engine)
 
   const hasValues = scenario.panels.includes('values')
   sideTabs.hidden = !hasValues
@@ -185,6 +208,7 @@ async function select(next: Route): Promise<void> {
   mounting = true
   queued = null
   drops.reset()
+  ownFile = file
   events.clear()
   values.show(null)
   if (viewTabs.selected === 1) void showCode()
@@ -218,7 +242,9 @@ async function select(next: Route): Promise<void> {
   let m: MountedScenario
   try {
     m = await mountScenario(next.framework, next.scenario, host, {
-      source: documentSource(scenario.document),
+      source: file
+        ? { data: file.data.slice(), key: file.key }
+        : documentSource(scenario.document),
       messages: language.messages,
       locale: language.locale,
       log,
@@ -332,8 +358,8 @@ function followHash(): void {
 }
 window.addEventListener('hashchange', followHash)
 
-/** Writes the route's language to the address, so a reload keeps it. */
-function showLanguageInUrl(): void {
+/** Writes the route's language and reader to the address, so a reload keeps them. */
+function showSearchInUrl(): void {
   const search = formatSearch(route, location.search)
   if (search !== location.search)
     history.replaceState(null, '', `${location.pathname}${search}${location.hash}`)
@@ -343,7 +369,7 @@ function showLanguageInUrl(): void {
 async function changeLanguage(lang: LangId): Promise<void> {
   const previous = route.lang
   route = withLang(route, lang)
-  showLanguageInUrl()
+  showSearchInUrl()
   const chosen = route
   let language: Language
   try {
@@ -353,7 +379,7 @@ async function changeLanguage(lang: LangId): Promise<void> {
     // Nothing changed the route since, so put the previous language back.
     if (route === chosen) {
       route = withLang(route, previous)
-      showLanguageInUrl()
+      showSearchInUrl()
       languageSelect.value = previous
     }
     return
@@ -364,6 +390,14 @@ async function changeLanguage(lang: LangId): Promise<void> {
 }
 languageSelect.addEventListener('change', () => {
   void changeLanguage(languageSelect.value as LangId)
+})
+
+// The reader is chosen as a document opens, so a change reopens the scenario's document, or
+// the PDF opened from this computer.
+engineToggle.addEventListener('change', () => {
+  route = withEngine(route, engineToggle.checked)
+  showSearchInUrl()
+  void select(route, ownFile)
 })
 
 if (location.hash !== formatRoute(route))

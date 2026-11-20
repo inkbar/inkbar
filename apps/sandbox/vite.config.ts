@@ -9,6 +9,7 @@ import { defineConfig } from 'vite'
 
 import { highlightSource } from './vite/highlight.ts'
 import { generatedPdfs } from './vite/sample.ts'
+import { staticFiles } from './vite/static-files.ts'
 
 const entry = (path: string): string => fileURLToPath(new URL(path, import.meta.url))
 
@@ -23,8 +24,12 @@ export default defineConfig({
     inkbar(),
     prebundlePdfEngine(),
     generatedPdfs(),
+    staticFiles(),
     highlightSource(),
   ],
+  // Found late, these would make Vite reload the page under a check: the measure page builds a
+  // long file with pdf-lib, and the engine's loader reads the font list.
+  optimizeDeps: { include: ['@inkbar/fixtures > pdf-lib', '@inkbar/fonts'] },
   build: {
     rollupOptions: {
       input: {
@@ -36,6 +41,8 @@ export default defineConfig({
         plugin: entry('./plugin/index.html'),
         // The in-browser smoke check that real browsers and devices run (src/smoke/).
         smoke: entry('./smoke/index.html'),
+        // Draw times and bytes fetched for each reader, for maintainers; linked from nowhere.
+        measure: entry('./measure/index.html'),
       },
     },
   },
