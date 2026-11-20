@@ -323,4 +323,161 @@ describe('readLifted', () => {
     expect(await readLifted(() => Promise.resolve(undefined))).toEqual([])
     expect(await readLifted(() => Promise.reject(new Error('gone')))).toEqual([])
   })
+
+  describe("another program's redaction mark", () => {
+    const mark = (extra: Partial<Annotation> = {}): Annotation =>
+      ({
+        id: 'pdf:0:8R',
+        type: 'redact',
+        source: 'pdf',
+        locked: true,
+        page: 0,
+        rect: { x: 45, y: 190, width: 170, height: 35 },
+        color: '#FF0000',
+        interiorColor: '#000000',
+        opacity: 1,
+        createdAt: NOW,
+        modifiedAt: NOW,
+        ...extra,
+      }) as Annotation
+    const marks = (m: Annotation = mark()) => new Map([[m.id, m]])
+    const QUADS = '/QuadPoints [45 225 215 225 45 190 215 190]'
+
+    /** A one-page file whose object 8 is a Redact annotation with `entries`; `more` are extra objects 9 onwards. */
+    const markFile = (entries: string, more: string[] = [], annots = '8 0 R') =>
+      buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        `<< /Type /Page /Parent 2 0 R /Annots [${annots}] >>`,
+        '<< >>',
+        '<< >>',
+        '<< >>',
+        '<< >>',
+        `<< /Type /Annot /Subtype /Redact /Rect [45 190 215 225] ${entries} >>`,
+        ...more,
+      ])
+    const lift = (bytes: Uint8Array, m?: ReadonlyMap<string, Annotation>) =>
+      readLifted(
+        objectsOf(() => Promise.resolve(bytes)),
+        undefined,
+        m
+      )
+
+    it('adopts it', async () => {
+      const lifted = await lift(markFile(`${QUADS} /IC [1 0 0]`), marks())
+      expect(lifted).toHaveLength(1)
+      const [one] = lifted
+      expect(one).toMatchObject({ pdfjsId: '8R', embeddedId: 'pdf:0:8R' })
+      expect(one!.popupId).toBeUndefined()
+      const a = one!.annotation
+      expect(a).toMatchObject({
+        id: 'redact-8R',
+        type: 'redact',
+        source: 'session',
+        interiorColor: '#FF0000',
+      })
+      expect(a.locked).toBeUndefined()
+      expect(a).not.toHaveProperty('hasAppearance')
+      const quads = (a as { quads?: { p1: { x: number; y: number } }[] }).quads!
+      expect(quads).toHaveLength(1)
+      const xs = Object.values(quads[0]!).map((p) => (p as { x: number }).x)
+      const ys = Object.values(quads[0]!).map((p) => (p as { y: number }).y)
+      expect([Math.min(...xs), Math.max(...xs)]).toEqual([45, 215])
+      expect([Math.min(...ys), Math.max(...ys)]).toEqual([190, 225])
+    })
+
+    it('carries a listed pop-up', async () => {
+      const lifted = await lift(
+        markFile(
+          `${QUADS} /Popup 9 0 R`,
+          ['<< /Type /Annot /Subtype /Popup /Parent 8 0 R >>'],
+          '8 0 R 9 0 R'
+        ),
+        marks()
+      )
+      expect(lifted.map((l) => l.popupId)).toEqual(['9R'])
+    })
+
+    it('leaves a mark whose pop-up is not listed', async () => {
+      const lifted = await lift(
+        markFile(`${QUADS} /Popup 9 0 R`, [
+          '<< /Type /Annot /Subtype /Popup /Parent 8 0 R >>',
+        ]),
+        marks()
+      )
+      expect(lifted).toEqual([])
+    })
+
+    it('adopts a mark with bad quad points as an area mark', async () => {
+      for (const bad of [
+        '/QuadPoints []',
+        '/QuadPoints [1 2 3]',
+        '/QuadPoints [45 190 45 190 45 190 45 190]',
+      ]) {
+        const lifted = await lift(markFile(bad), marks())
+        expect(lifted).toHaveLength(1)
+        const a = lifted[0]!.annotation
+        expect(a).not.toHaveProperty('quads')
+        expect(a.rect).toEqual(mark().rect)
+      }
+    })
+
+    it('keeps the imported fill when /IC is absent', async () => {
+      const lifted = await lift(
+        markFile(QUADS),
+        marks(mark({ interiorColor: '#123456' }))
+      )
+      expect((lifted[0]!.annotation as { interiorColor: string }).interiorColor).toBe(
+        '#123456'
+      )
+    })
+
+    it('reads grey and CMYK fills', async () => {
+      const grey = await lift(markFile('/IC [0.5]'), marks())
+      expect((grey[0]!.annotation as { interiorColor: string }).interiorColor).toBe(
+        '#808080'
+      )
+      const cmyk = await lift(markFile('/IC [0 0 0 1]'), marks())
+      expect((cmyk[0]!.annotation as { interiorColor: string }).interiorColor).toBe(
+        '#000000'
+      )
+    })
+
+    it('leaves a mark another program replied to', async () => {
+      const lifted = await lift(
+        markFile(
+          QUADS,
+          ['<< /Type /Annot /Subtype /Text /Rect [0 0 1 1] /IRT 8 0 R >>'],
+          '8 0 R 9 0 R'
+        ),
+        marks()
+      )
+      expect(lifted).toEqual([])
+    })
+
+    it('adopts nothing without the imported annotation', async () => {
+      expect(await lift(markFile(QUADS))).toEqual([])
+    })
+
+    it('adopts nothing when objects are unavailable', async () => {
+      expect(
+        await readLifted(() => Promise.resolve(undefined), undefined, marks())
+      ).toEqual([])
+    })
+
+    it('lifts a saved annotation and an adopted mark together, saved first', async () => {
+      const json = saved(note('a'))
+      const bytes = buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        '<< /Type /Page /Parent 2 0 R /Annots [4 0 R 5 0 R] >>',
+        '<< /Type /Annot /Subtype /Redact /Rect [45 190 215 225] >>',
+        '<< /Type /Annot /Subtype /Text /Rect [10 10 30 30] /M (D:20261020000000Z) /INKB_Gloss 6 0 R >>',
+        `<< /Length ${json.length} >>\nstream\n${json}\nendstream`,
+      ])
+      // The mark is first in the file; the saved annotation is object 5, after it.
+      const lifted = await lift(bytes, marks(mark({ id: 'pdf:0:4R' })))
+      expect(lifted.map((l) => l.annotation.id)).toEqual(['a', 'redact-4R'])
+    })
+  })
 })
