@@ -427,3 +427,95 @@ describe('readSavedAnnotationPlaces', () => {
     expect(await readSavedAnnotationPlaces(objs)).toEqual([])
   })
 })
+
+describe('readSavedAnnotations marks', () => {
+  const QUADS = '[45 225 215 225 45 190 215 190]'
+
+  /** One page whose `/Annots` is `annots`; object 8 is `redact`, and 9 is `nine`. */
+  async function markFile(
+    redact: string,
+    annots = '[8 0 R]',
+    nine: string | Uint8Array[] = '<< >>'
+  ) {
+    return (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        `<< /Type /Page /Parent 2 0 R /Annots ${annots} >>`,
+        '<< >>',
+        '<< >>',
+        '<< >>',
+        '<< >>',
+        redact,
+        nine,
+      ])
+    ))!
+  }
+  const redact = (extra: string) =>
+    `<< /Type /Annot /Subtype /Redact /Rect [45 190 215 225] ${extra} >>`
+
+  it('reads a Redact annotation with no Inkbar data as a mark', async () => {
+    const objs = await markFile(redact(`/QuadPoints ${QUADS} /IC [1 0 0]`))
+    const { marks, places } = await readSavedAnnotations(objs)
+    expect(marks).toEqual([
+      {
+        page: 0,
+        ref: ref(8),
+        quadPoints: [[45, 225, 215, 225, 45, 190, 215, 190]],
+        fill: [1, 0, 0],
+        popup: undefined,
+        popupListed: false,
+      },
+    ])
+    expect(places).toEqual([])
+  })
+
+  it('leaves a Redact annotation with Inkbar data to places', async () => {
+    const objs = await markFile(
+      redact(`/QuadPoints ${QUADS} /INKB_Gloss 9 0 R`),
+      '[8 0 R]',
+      streamBody('', latin1('{}'))
+    )
+    const { marks, places } = await readSavedAnnotations(objs)
+    expect(marks).toEqual([])
+    expect(places).toHaveLength(1)
+  })
+
+  it('says whether the pop-up is listed', async () => {
+    const popup = '<< /Type /Annot /Subtype /Popup /Parent 8 0 R >>'
+    const withIt = await markFile(redact('/Popup 9 0 R'), '[8 0 R 9 0 R]', popup)
+    expect((await readSavedAnnotations(withIt)).marks[0]).toMatchObject({
+      popup: ref(9),
+      popupListed: true,
+    })
+    const without = await markFile(redact('/Popup 9 0 R'), '[8 0 R]', popup)
+    expect((await readSavedAnnotations(without)).marks[0]).toMatchObject({
+      popup: ref(9),
+      popupListed: false,
+    })
+  })
+
+  it('gives no quad points for seven numbers, an empty array or a name among them', async () => {
+    for (const quads of [
+      '[45 225 215 225 45 190 215]',
+      '[]',
+      '[45 225 215 225 45 190 215 /Nope]',
+    ]) {
+      const objs = await markFile(redact(`/QuadPoints ${quads}`))
+      expect((await readSavedAnnotations(objs)).marks[0]!.quadPoints).toBeUndefined()
+    }
+  })
+
+  it('gives no fill for two numbers', async () => {
+    const objs = await markFile(redact('/IC [1 0]'))
+    expect((await readSavedAnnotations(objs)).marks[0]!.fill).toBeUndefined()
+  })
+
+  it('leaves out a mark written inline in /Annots', async () => {
+    const objs = await markFile(
+      redact(''),
+      `[<< /Type /Annot /Subtype /Redact /Rect [0 0 1 1] >> 8 0 R]`
+    )
+    expect((await readSavedAnnotations(objs)).marks.map((m) => m.ref)).toEqual([ref(8)])
+  })
+})
