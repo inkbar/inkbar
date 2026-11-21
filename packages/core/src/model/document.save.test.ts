@@ -62,6 +62,9 @@ function realEngine() {
           pageInfo: (i) => d.pageInfo(i),
           renderPage: (i, o) => d.renderPage(i, o),
           pageText: (i) => d.pageText(i),
+          pageLinks: (i) => d.pageLinks(i),
+          outline: () => d.outline(),
+          namedDestination: (n) => d.namedDestination(n),
           write(input) {
             writes.push(input)
             if (fail) {

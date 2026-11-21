@@ -16,6 +16,9 @@ export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
   | { op: 'pageInfo'; doc: number; index: number }
   | { op: 'pageText'; doc: number; index: number }
+  | { op: 'pageLinks'; doc: number; index: number }
+  | { op: 'outline'; doc: number }
+  | { op: 'namedDestination'; doc: number; name: Uint8Array }
   | { op: 'renderPage'; doc: number; index: number; options: RenderRequestOptions }
   | { op: 'write'; doc: number; input: WriteInput }
   | { op: 'redact'; doc: number; input: RedactInput }

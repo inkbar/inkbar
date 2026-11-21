@@ -5,9 +5,12 @@ import { createWorkerTransport } from './transport/worker.ts'
 import type { Request, Transport } from './protocol.ts'
 import type {
   CheckRedactionOptions,
+  FileDestination,
   FontKey,
   OpenOptions,
+  Outline,
   PageInfo,
+  PageLinks,
   PageText,
   PageTextOptions,
   RedactInput,
@@ -61,6 +64,24 @@ export interface EngineDocument {
    * that are not an object reject with a `RangeError`.
    */
   pageText(index: number, options?: PageTextOptions): Promise<PageText>
+  /**
+   * What the file says about a page's annotations and links: one entry for every annotation
+   * dictionary, and the facts of each Link, with the destination and actions as the file gives
+   * them. `index` counts from 0. An index that is not a whole number from 0 to `pageCount - 1`
+   * rejects with a `RangeError`. A JavaScript action's source comes back as text and is never run.
+   */
+  pageLinks(index: number): Promise<PageLinks>
+  /**
+   * The document outline, nested, with each item's destination and actions as the file gives
+   * them. A file with no outline gives no items. `truncated` is true when a loop, a nesting
+   * depth past 64 or more than 100,000 items cut it short.
+   */
+  outline(): Promise<Outline>
+  /**
+   * The destination the file's name tree or catalog gives `name`, a name's bytes as the file
+   * has them. Resolves `undefined` when the file has no such name. Names are not decoded.
+   */
+  namedDestination(name: Uint8Array): Promise<FileDestination | undefined>
   /**
    * Renders a page, or the `region` of it, to an RGBA bitmap in displayed orientation, after
    * /Rotate and `rotation`. The bitmap is `size`, or else `ceil(width × scale)` by
@@ -215,6 +236,21 @@ class Document implements EngineDocument {
     if (typeof options !== 'object' || options === null)
       throw new ArgumentError('text options must be an object')
     return this.#call({ op: 'pageText', doc: this.id, index }, options.signal)
+  }
+
+  pageLinks(index: number): Promise<PageLinks> {
+    return this.#call({ op: 'pageLinks', doc: this.id, index })
+  }
+
+  outline(): Promise<Outline> {
+    return this.#call({ op: 'outline', doc: this.id })
+  }
+
+  async namedDestination(name: Uint8Array): Promise<FileDestination | undefined> {
+    if (!(name instanceof Uint8Array))
+      throw new ArgumentError('name must be a Uint8Array')
+    // A copy taken now: the call may wait in the queue, and the caller may reuse the array.
+    return this.#call({ op: 'namedDestination', doc: this.id, name: name.slice() })
   }
 
   async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {

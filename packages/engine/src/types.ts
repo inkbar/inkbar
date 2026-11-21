@@ -83,6 +83,77 @@ export interface PageTextOptions {
   signal?: AbortSignal
 }
 
+/** A destination as the file gives it. */
+export type FileDestination =
+  /**
+   * `page` is 0-based, or -1 when it names no page of this file. `args` are the numbers after
+   * the fit, and always four of them: `null` where the file has `null` or has no number.
+   */
+  | { page: number; fit: string; args: (number | null)[] }
+  /** A named destination: the name's bytes. */
+  | { name: Uint8Array }
+
+/** An action as the file gives it. Nothing is decoded, completed or filtered. */
+export interface FileAction {
+  /** The action's `/S`: `'URI'`, `'GoTo'`, `'GoToR'`, `'Launch'`, `'Named'`, `'JavaScript'` or another name. */
+  kind: string
+  uri?: Uint8Array
+  destination?: FileDestination
+  file?: Uint8Array
+  newWindow?: boolean
+  name?: string
+  /** A JavaScript action's source. The engine never runs it. */
+  script?: string
+}
+
+/** Where a link or an outline item goes, as the file gives it. Any of the three may be present together. */
+export interface FileTarget {
+  destination?: FileDestination
+  action?: FileAction
+  /** The additional-actions entry for a mouse press, else for a release. */
+  additionalAction?: FileAction
+}
+
+/** One entry of a page's annotation array, whatever its kind. */
+export interface PageAnnotationEntry {
+  index: number
+  subtype: string
+  flags: number
+  /** Absent for an annotation stored as a direct object. */
+  objectNumber?: number
+  rectOk: boolean
+  quadsOk: boolean
+}
+
+export interface PageLinkFacts extends FileTarget {
+  /** Index in the page's annotation array, as in `PageAnnotationEntry`. */
+  index: number
+  /** The link's rectangle, normalised; all zero when the file's `/Rect` is not well formed. */
+  rect: Rect
+  /** 8 numbers per quad, as the file has them. */
+  quads?: number[]
+}
+
+export interface PageLinks {
+  annotations: PageAnnotationEntry[]
+  links: PageLinkFacts[]
+}
+
+export interface OutlineEntry extends FileTarget {
+  title: string
+  bold: boolean
+  italic: boolean
+  /** The file's `/Count`: positive when the item starts expanded. 0 when absent. */
+  count: number
+  children: OutlineEntry[]
+}
+
+export interface Outline {
+  items: OutlineEntry[]
+  /** The outline was cut short: it loops, nests past 64 levels or has more than 100,000 items. */
+  truncated: boolean
+}
+
 /** Options for `EngineDocument.renderPage`. */
 export interface RenderOptions {
   /**

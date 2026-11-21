@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { fixtureBytes } from '@inkbar/fixtures'
+import { fixtureBytes, manifest } from '@inkbar/fixtures'
 import { generateSlowPage } from '@inkbar/fixtures/generate-large'
 import { fontFiles, fontUrls } from '@inkbar/fonts'
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -14,6 +14,7 @@ import { FONT_FETCH_TIMEOUT_MS, keysOf } from './fonts.ts'
 import {
   createEngine,
   EngineError,
+  TEXT_GEOMETRY_STRIDE,
   type Engine,
   type EngineDocument,
   type EngineOptions,
@@ -21,7 +22,6 @@ import {
   type RenderedPage,
   type WriteInput,
 } from './index.ts'
-import { TEXT_GEOMETRY_STRIDE } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
@@ -384,6 +384,128 @@ describe('pageText', () => {
   test('options that are not an object reject with a RangeError', async () => {
     await expect(doc.pageText(0, null as never)).rejects.toBeInstanceOf(RangeError)
     await expect(doc.pageText(0, 1 as never)).rejects.toBeInstanceOf(RangeError)
+  })
+})
+
+describe('links, outline and named destinations', () => {
+  const utf8 = (text: string) => new TextEncoder().encode(text)
+
+  test("pageLinks gives every annotation and the links with the file's facts", async () => {
+    const linked = await engine.open(await fixtureBytes('links'))
+    const { annotations, links } = await linked.pageLinks(0)
+    // The manifest gives only the file's total, so the pages' counts must add up to it.
+    const total = manifest.links.annotations?.Link
+    expect(total).toBeDefined()
+    const rest = await Promise.all(
+      Array.from({ length: manifest.links.pages - 1 }, (_, i) => linked.pageLinks(i + 1))
+    )
+    expect(links.length + rest.reduce((sum, page) => sum + page.links.length, 0)).toBe(
+      total
+    )
+    expect(annotations.every((a) => a.subtype === 'Link')).toBe(true)
+    expect(links).toHaveLength(annotations.length)
+    expect(links[0]).toMatchObject({
+      index: 0,
+      rect: { x: 68, y: 696, width: 70, height: 18 },
+      destination: { page: 1, fit: 'XYZ', args: [72, 600, null, null] },
+    })
+    const uri = links.find((l) => l.action?.uri !== undefined && l.quads === undefined)
+    expect(uri?.action).toEqual({ kind: 'URI', uri: utf8('https://example.com/a') })
+    const wrapped = links.find((l) => l.quads !== undefined)
+    expect(wrapped?.quads).toHaveLength(16)
+    expect(wrapped?.action?.uri).toEqual(utf8('https://example.com/wrapped'))
+  })
+
+  test('a javascript: link is a URI the engine passes on as bytes', async () => {
+    const linked = await engine.open(await fixtureBytes('links'))
+    const { links } = await linked.pageLinks(0)
+    expect(links.map((l) => l.action?.kind)).toEqual(
+      expect.arrayContaining(['URI', 'Named', 'GoToR', 'Launch'])
+    )
+    expect(links.map((l) => l.action?.uri)).toContainEqual(utf8('javascript:alert(1)'))
+  })
+
+  test('a page index outside the document rejects with a RangeError', async () => {
+    await expect(doc.pageLinks(99)).rejects.toBeInstanceOf(RangeError)
+    await expect(doc.pageLinks(-1)).rejects.toBeInstanceOf(RangeError)
+    await expect(doc.pageLinks(0.5)).rejects.toBeInstanceOf(RangeError)
+  })
+
+  test('a page with no annotations gives two empty arrays', async () => {
+    expect(await doc.pageLinks(0)).toEqual({ annotations: [], links: [] })
+  })
+
+  test('outline nests the items and keeps the flags, counts and actions', async () => {
+    const outlined = await engine.open(await fixtureBytes('outline'))
+    const { items, truncated } = await outlined.outline()
+    expect(truncated).toBe(false)
+    const shape = (list: typeof items): unknown[] =>
+      list.map((i) => (i.children.length ? [i.title, shape(i.children)] : i.title))
+    expect(shape(items)).toEqual([
+      'Cover',
+      ['Part One', ['Chapter 1', 'Chapter 2']],
+      ['Part Two', ['Section A', 'Section B']],
+      'Appendix',
+      'Website',
+      'Next page',
+      'Broken',
+    ])
+    const part = items.find((i) => i.title === 'Part One')
+    expect(part).toMatchObject({ bold: true, italic: false, count: -2 })
+    const website = items.find((i) => i.title === 'Website')
+    expect(website?.action).toEqual({
+      kind: 'URI',
+      uri: utf8('https://example.com/outline'),
+    })
+    expect(items.find((i) => i.title === 'Next page')?.action).toEqual({
+      kind: 'Named',
+      name: 'NextPage',
+    })
+    // A destination to the catalog names no page of the file: the page comes through as -1.
+    expect(items.find((i) => i.title === 'Broken')?.destination).toMatchObject({
+      page: -1,
+    })
+    const sectionB = items[2]?.children[1]
+    expect(sectionB).toMatchObject({ italic: true, bold: false })
+    expect(items[0]?.destination).toEqual({
+      page: 0,
+      fit: 'XYZ',
+      args: [null, 700, null, null],
+    })
+  })
+
+  test('a document with no outline gives no items', async () => {
+    expect(await doc.outline()).toEqual({ items: [], truncated: false })
+  })
+
+  test('namedDestination resolves a name and gives undefined for one the file lacks', async () => {
+    const outlined = await engine.open(await fixtureBytes('outline'))
+    expect(await outlined.namedDestination(utf8('chapter-2'))).toEqual({
+      page: 1,
+      fit: 'XYZ',
+      args: [72, 500, null, null],
+    })
+    expect(await outlined.namedDestination(utf8('appendix'))).toMatchObject({
+      page: 4,
+      fit: 'Fit',
+    })
+    expect(await outlined.namedDestination(utf8('nope'))).toBeUndefined()
+    expect(await outlined.namedDestination(new Uint8Array(0))).toBeUndefined()
+  })
+
+  test('a name that is not bytes rejects with a RangeError', async () => {
+    await expect(
+      doc.namedDestination('x' as unknown as Uint8Array)
+    ).rejects.toBeInstanceOf(RangeError)
+  })
+
+  test('a closed document rejects', async () => {
+    await doc.close()
+    await expect(doc.pageLinks(0)).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(doc.outline()).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(doc.namedDestination(utf8('x'))).rejects.toMatchObject({
+      code: 'engine-failure',
+    })
   })
 })
 
@@ -1246,6 +1368,21 @@ describe('fallback fonts', () => {
     await waiting
     await expect(slowFonts.destroy()).resolves.toBeUndefined()
     await expect(reading).rejects.toMatchObject({ code: 'aborted' })
+  })
+
+  test('links, the outline and named destinations load no font', async () => {
+    const { engine: fonts, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    await opened.pageLinks(0)
+    await opened.outline()
+    await opened.namedDestination(new TextEncoder().encode('nowhere'))
+    // Nothing fetched, and the font mapper was not asked for the page's font.
+    expect(requests).toEqual([])
+    expect(misses()).toEqual([])
+    // So nothing stands in for it when the page is drawn.
+    const page = await opened.renderPage(0)
+    expect(inked(page)).toBeGreaterThan(500)
+    await fonts.destroy()
   })
 
   test('a render that fetches a font does not change what save writes', async () => {

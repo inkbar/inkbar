@@ -8,15 +8,19 @@ import { hasSignature, writeFields } from './fields.ts'
 import { pageNeeds, registerFont } from './fonts.ts'
 import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
+import { readNamedDestination, readOutline, readPageLinks } from './links.ts'
 import { applyRedactions } from './redact.ts'
 import { hiddenObjects, renderGeometry } from './render.ts'
 import { readPageText } from './text.ts'
 
 import type { RenderRequestOptions } from '../protocol.ts'
 import type {
+  FileDestination,
   FontKey,
   OpenOptions,
+  Outline,
   PageInfo,
+  PageLinks,
   PageText,
   Rect,
   RedactInput,
@@ -344,6 +348,22 @@ export class EngineCore {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     return this.#guard(() => readPageText(this.#heap, entry.doc, index))
+  }
+
+  pageLinks(id: number, index: number): PageLinks {
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    return this.#guard(() => readPageLinks(this.#heap, entry.doc, index))
+  }
+
+  outline(id: number): Outline {
+    const entry = this.#get(id)
+    return this.#guard(() => readOutline(this.#heap, entry.doc))
+  }
+
+  namedDestination(id: number, name: Uint8Array): FileDestination | undefined {
+    const entry = this.#get(id)
+    return this.#guard(() => readNamedDestination(this.#heap, entry.doc, name))
   }
 
   /**
