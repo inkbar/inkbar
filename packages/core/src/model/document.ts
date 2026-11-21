@@ -453,8 +453,8 @@ export async function openDocument(
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
   /**
-   * With the internal switch on, pages are drawn by an engine reader over the file PDF.js
-   * opened; PDF.js still reads text, links and forms. Its module loads only then.
+   * With the internal switch on, pages are drawn and their text read by an engine reader over
+   * the file PDF.js opened; PDF.js still reads links and forms. Its module loads only then.
    */
   const engineReader =
     readerKind() === 'engine'

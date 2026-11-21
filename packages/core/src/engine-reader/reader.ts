@@ -1,11 +1,14 @@
-// The document reader over @inkbar/engine: page facts and pixels from an engine of its own,
-// loaded through the host's loader, with the file open in it. Nothing here imports the engine:
-// its shapes are declared in ./types and checked when the file is opened.
+// The document reader over @inkbar/engine: page facts, pixels and text from an engine of its
+// own, loaded through the host's loader, with the file open in it. Nothing here imports the
+// engine: its shapes are declared in ./types and checked when the file is opened.
 import { InkError, isInkError } from '../model/errors'
+
+import { runsFromChars, type GenericFamily } from './runs'
 
 import type { ReaderEngine, ReaderEngineDocument } from './types'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { EngineLoader } from '../model/save/saver'
+import type { TextContent } from '../model/text'
 import type { DocumentReader, DrawRequest } from '../reader/types'
 
 /**
@@ -13,6 +16,9 @@ import type { DocumentReader, DrawRequest } from '../reader/types'
  * largest size with its shape under this and stretched to fill.
  */
 export const MAX_PIXELS = 268_435_456
+
+/** How many pages' text the reader keeps, the last ones read. */
+const TEXT_PAGES = 8
 
 /** @internal */
 export interface EngineReaderOptions {
@@ -24,26 +30,34 @@ export interface EngineReaderOptions {
   /** Where a missing fallback font is reported. Default `console.warn`. */
   warn?: (message: string) => void
   /**
-   * The reader this one hands text, links, the outline and destinations to. Absent: those
-   * reject with EngineUnavailable.
+   * The reader this one hands links, the outline and destinations to. Absent: those reject
+   * with EngineUnavailable.
    */
   delegate?: Delegated
 }
 
+/** @internal The engine reader: a `DocumentReader` that also gives the families its text is in. */
+export interface EngineDocumentReader extends DocumentReader {
+  /**
+   * The CSS generic family of each of the page's text items, read with them. Once `signal`
+   * aborts it rejects with `signal.reason`, as `text` does.
+   */
+  textFamilies(page: number, signal?: AbortSignal): Promise<readonly GenericFamily[]>
+}
+
 /** What the engine reader hands to another reader. */
-type Delegated = Pick<DocumentReader, 'text' | 'links' | 'outline' | 'resolveDestination'>
+type Delegated = Pick<DocumentReader, 'links' | 'outline' | 'resolveDestination'>
 
 const cannotRead = (): Promise<never> =>
   Promise.reject(
     new InkError(
       'EngineUnavailable',
-      'The engine reader was given no reader for text, links, the outline or destinations'
+      'The engine reader was given no reader for links, the outline or destinations'
     )
   )
 
 /** Stands in for `delegate` when none is given. */
 const noDelegate: Delegated = {
-  text: cannotRead,
   links: cannotRead,
   outline: cannotRead,
   resolveDestination: cannotRead,
@@ -107,7 +121,7 @@ const free = (s: Session): Promise<void> =>
  */
 export async function createEngineReader(
   options: EngineReaderOptions
-): Promise<DocumentReader> {
+): Promise<EngineDocumentReader> {
   const warn = options.warn ?? ((message: string) => console.warn(message))
   const delegate = options.delegate ?? noDelegate
   const passwordOption =
@@ -245,13 +259,16 @@ export async function createEngineReader(
 
   /** The engine's facts for each page, asked once: they do not change. */
   const facts = new Map<number, Promise<EnginePageInfo>>()
-  const pageInfo = async (index: number): Promise<PageInfo> => {
-    if (destroyed) throw destroyedError()
+  const checkPage = (index: number): void => {
     if (!Number.isInteger(index) || index < 0 || index >= pageCount)
       throw new InkError('PageOutOfRange', `Page ${index} does not exist`, {
         index,
         pageCount,
       })
+  }
+  const pageInfo = async (index: number): Promise<PageInfo> => {
+    if (destroyed) throw destroyedError()
+    checkPage(index)
     let asked = facts.get(index)
     if (!asked) {
       const made = run((doc) => doc.pageInfo(index))
@@ -331,13 +348,109 @@ export async function createEngineReader(
     }
   }
 
+  type Runs = ReturnType<typeof runsFromChars>
+  /**
+   * A page's text read, shared by every caller that asks for it. `waiting` counts the callers
+   * still waiting on a read not yet settled, less those whose signal has aborted; a caller with
+   * no signal never stops waiting.
+   */
+  interface TextRead {
+    runs: Promise<Runs>
+    waiting: number
+    cancel: AbortController
+  }
+  /** The text of the last `TEXT_PAGES` pages read, the one read longest ago first. */
+  const texts = new Map<number, TextRead>()
+  const readOf = (page: number): TextRead => {
+    const kept = texts.get(page)
+    if (kept) {
+      texts.delete(page)
+      texts.set(page, kept)
+      return kept
+    }
+    const cancel = new AbortController()
+    const made: TextRead = {
+      runs: run(
+        (doc) => doc.pageText(page, { signal: cancel.signal }),
+        cancel.signal
+      ).then((chars) => runsFromChars(page, chars)),
+      waiting: 0,
+      cancel,
+    }
+    texts.set(page, made)
+    if (texts.size > TEXT_PAGES) texts.delete(texts.keys().next().value!)
+    // A failed or cancelled read is not kept: the next one asks again.
+    made.runs.catch(() => {
+      if (texts.get(page) === made) texts.delete(page)
+    })
+    return made
+  }
+  /**
+   * The page's runs, for one caller. An abort of `signal` rejects this caller with its reason
+   * and leaves the shared read to the others. The shared read is cancelled, in the engine
+   * too, only once every caller waiting on it has aborted; it is then dropped at once, so a
+   * caller that comes later starts a read of its own.
+   */
+  const runsOf = async (page: number, signal: AbortSignal | undefined): Promise<Runs> => {
+    signal?.throwIfAborted()
+    const read = readOf(page)
+    if (!signal) {
+      read.waiting = Infinity
+      return read.runs
+    }
+    read.waiting++
+    let onAbort!: () => void
+    const aborted = new Promise<undefined>((resolve) => {
+      onAbort = () => resolve(undefined)
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+    try {
+      const runs = await Promise.race([read.runs, aborted])
+      if (runs) return runs
+      if (--read.waiting <= 0) {
+        if (texts.get(page) === read) texts.delete(page)
+        read.cancel.abort()
+      }
+      signal.throwIfAborted()
+      throw new Error('unreachable: the signal has aborted')
+    } finally {
+      signal.removeEventListener('abort', onAbort)
+    }
+  }
+  /** `pick` of the page's text, read once for both its items and their families. */
+  const readText = async <T>(
+    page: number,
+    pick: (runs: Runs) => T,
+    signal: AbortSignal | undefined
+  ): Promise<T> => {
+    try {
+      if (destroyed) throw destroyedError()
+      checkPage(page)
+      const runs = await runsOf(page, signal)
+      if (destroyed) throw destroyedError()
+      signal?.throwIfAborted()
+      return pick(runs)
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+  }
+
   let destroying: Promise<void> | undefined
   return {
     kind: 'engine',
     pageCount,
     pageInfo,
     draw,
-    text: (page, textOptions) => delegate.text(page, textOptions),
+    // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
+    // gets an object and list of its own, as the PDF.js reader gives: one that sorts or edits
+    // them leaves the kept text as it was.
+    text: (page, options): Promise<TextContent> =>
+      readText(
+        page,
+        ({ content }) => ({ page: content.page, items: [...content.items] }),
+        options?.signal
+      ),
+    textFamilies: (page, signal) => readText(page, (runs) => runs.families, signal),
     links: (page) => delegate.links(page),
     outline: () => delegate.outline(),
     resolveDestination: (raw) => delegate.resolveDestination(raw),
@@ -345,6 +458,7 @@ export async function createEngineReader(
       if (destroying) return destroying
       destroyed = true
       stopped.abort(destroyedError())
+      texts.clear()
       const last = current
       current = undefined
       // A session still starting frees itself when it finds the reader destroyed.

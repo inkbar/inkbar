@@ -10,6 +10,7 @@ import { createPageTransform } from '../dom/transform'
 import { createViewer } from '../dom/viewer/create-viewer'
 import { openDocument, type EngineLoader, type InkDocument } from '../model/document'
 import { writable } from '../model/readable'
+import { searchableText } from '../model/search-text'
 
 import type { Rect } from '../model/geometry'
 
@@ -182,6 +183,184 @@ describe('the engine reader, behind the switch', () => {
         'Inkbar: no fallback font for "japanese" text; some text on this page is drawn with a substitute.',
       ],
     ])
+  })
+})
+
+/** A page's text joined as search joins it, with its whitespace collapsed. */
+async function joinedText(doc: InkDocument, page: number): Promise<string> {
+  const content = await doc._reader.text(page, { glyphs: false })
+  return searchableText(content).raw.replace(/\s+/gu, ' ').trim()
+}
+
+describe("the engine reader's text", () => {
+  it.each([
+    ['text-simple', 0],
+    ['text-simple', 1],
+    ['text-simple', 2],
+    ['text-search', 0],
+  ] as const)('reads the same words as PDF.js, on %s page %i', async (name, page) => {
+    const doc = await open(name)
+    expect(doc._reader.kind).toBe('engine')
+    delete flag.__INKBAR_READER__
+    const plain = await open(name)
+    expect(plain._reader.kind).toBe('pdfjs')
+    const text = await joinedText(doc, page)
+    expect(text).not.toBe('')
+    expect(text).toBe(await joinedText(plain, page))
+  })
+
+  it.each([0, 1, 2])(
+    'places each item of text-simple page %i where PDF.js places it',
+    async (page) => {
+      const doc = await open('text-simple')
+      delete flag.__INKBAR_READER__
+      const plain = await open('text-simple')
+      const engine = (await doc._reader.text(page, { glyphs: true })).items
+      const pdfjs = (await plain._reader.text(page, { glyphs: true })).items
+      expect(engine.length).toBeGreaterThan(0)
+      expect(engine.map((i) => i.str)).toEqual(pdfjs.map((i) => i.str))
+      const edges = (r: Rect) => [r.x, r.y, r.x + r.width, r.y + r.height]
+      engine.forEach((item, k) => {
+        const other = pdfjs[k]!
+        const a = edges(item.rect)
+        const b = edges(other.rect)
+        // Left, bottom and right agree within a point. The top does not: the engine's loose box
+        // reaches the font's bounding box, 13.23 pt above the baseline at 14 pt, where PDF.js
+        // stops at Helvetica's ascent, 10.05 pt. The difference is pinned here.
+        expect(Math.abs(a[0]! - b[0]!)).toBeLessThanOrEqual(1)
+        expect(Math.abs(a[1]! - b[1]!)).toBeLessThanOrEqual(1)
+        expect(Math.abs(a[2]! - b[2]!)).toBeLessThanOrEqual(1)
+        expect(a[3]! - b[3]!).toBeCloseTo(3.18, 2)
+        if (other.advances) {
+          expect(item.advances).toHaveLength(other.advances.length)
+          item.advances!.forEach((t, i) => expect(t).toBeCloseTo(other.advances![i]!, 2))
+        }
+      })
+      // PDF.js gives page glyph boundaries for these lines, so the advances were compared.
+      expect(pdfjs.every((i) => i.advances)).toBe(true)
+    }
+  )
+
+  it('stops a text read whose signal aborts, and reads the page in full after', async () => {
+    const doc = await open('text-simple')
+    const reason = new Error('moved on')
+    const c = new AbortController()
+    const reading = doc._reader.text(0, { glyphs: false, signal: c.signal })
+    c.abort(reason)
+    await expect(reading).rejects.toBe(reason)
+    const { items } = await doc._reader.text(0, { glyphs: false })
+    expect(items.map((i) => i.str).join(' ')).toContain('Page 1')
+  })
+
+  it('finds a word hyphenated over a line break on text-search, as PDF.js does', async () => {
+    const hitsOf = async (doc: InkDocument) => {
+      const hits = []
+      for await (const hit of doc.search('document')) hits.push(hit)
+      return hits
+    }
+    const engine = await hitsOf(await open('text-search'))
+    delete flag.__INKBAR_READER__
+    const pdfjs = await hitsOf(await open('text-search'))
+    expect(pdfjs).toHaveLength(1)
+    expect(engine).toHaveLength(pdfjs.length)
+    const [a, b] = [engine[0]!, pdfjs[0]!]
+    expect(a.text).toBe(b.text)
+    expect(a.quads).toHaveLength(b.quads.length)
+    // The tolerance of the item comparison above: within a point, but for the top, which stands
+    // 3.18 pt higher on the engine's boxes.
+    a.quads.forEach((quad, q) => {
+      const other = b.quads[q]!
+      for (const corner of ['p1', 'p2', 'p3', 'p4'] as const)
+        expect(Math.abs(quad[corner].x - other[corner].x)).toBeLessThanOrEqual(1)
+      for (const corner of ['p3', 'p4'] as const)
+        expect(Math.abs(quad[corner].y - other[corner].y)).toBeLessThanOrEqual(1)
+      for (const corner of ['p1', 'p2'] as const)
+        expect(quad[corner].y - other[corner].y).toBeCloseTo(3.18, 2)
+    })
+  })
+
+  // The text layer puts one span per item and nothing between them, so each line's strings
+  // joined as they stand must keep their spaces: across a font change, a gap and two columns.
+  it('keeps the space between items on one line, as PDF.js does, on text-search', async () => {
+    const lines = async (doc: InkDocument) => {
+      const { items } = await doc._reader.text(0, { glyphs: false })
+      const byLine = new Map<number, string>()
+      for (const item of items) {
+        const y = Math.round(item.quad.p3.y / 4)
+        byLine.set(y, (byLine.get(y) ?? '') + item.str)
+      }
+      return [...byLine.values()].map((line) => line.trimEnd())
+    }
+    const engine = await lines(await open('text-search'))
+    delete flag.__INKBAR_READER__
+    const pdfjs = await lines(await open('text-search'))
+    expect(engine).toEqual(pdfjs)
+    expect(engine).toContain('Invoice')
+    expect(engine).toContain('Hello World')
+    expect(engine).toContain('left column right column')
+  })
+
+  // On a page turned 90 degrees the engine reads its lines in the order they stand on screen,
+  // left to right, which puts the last line of the file first. PDF.js reads them in the order the
+  // file writes them. Each line is the same; their order is what the engine gives.
+  it('reads the lines of text-rotated-90 in the order they stand on screen', async () => {
+    const doc = await open('text-rotated-90')
+    await expect(joinedText(doc, 0)).resolves.toBe(
+      'The quick brown fox jumps over the lazy dog. Email: sam.hargreaves@hargreaves-mott.example National Insurance number QQ123456C appears here. Hello Inkbar. This document exercises text selection. Rotated 90'
+    )
+    delete flag.__INKBAR_READER__
+    const plain = await open('text-rotated-90')
+    expect(await joinedText(plain, 0)).toBe(
+      'Rotated 90 Hello Inkbar. This document exercises text selection. National Insurance number QQ123456C appears here. Email: sam.hargreaves@hargreaves-mott.example The quick brown fox jumps over the lazy dog.'
+    )
+  })
+
+  // The engine reads the Hebrew in reading order, though the file draws it last letter first.
+  it.each([
+    ['text-rtl', 'שלום עולם abc שלום 123 Latin line in Helvetica'],
+    ['text-vertical', '日本語のテキスト Horizontal line beside the column'],
+  ] as const)('reads %s in reading order', async (name, expected) => {
+    const doc = await open(name)
+    await expect(joinedText(doc, 0)).resolves.toBe(expected)
+  })
+
+  it('reads right-to-left and vertical runs with their directions', async () => {
+    const rtl = await open('text-rtl')
+    const rtlItems = (await rtl._reader.text(0, { glyphs: false })).items
+    expect(rtlItems.map((i) => [i.str, i.dir])).toEqual([
+      ['שלום עולם', 'rtl'],
+      ['abc ', 'ltr'],
+      ['שלום', 'rtl'],
+      [' 123', 'ltr'],
+      ['Latin line in Helvetica', 'ltr'],
+    ])
+    const vertical = await open('text-vertical')
+    const verticalItems = (await vertical._reader.text(0, { glyphs: false })).items
+    expect(verticalItems.map((i) => [i.str, i.dir])).toEqual([
+      ['日本語のテキスト', 'ttb'],
+      ['Horizontal line beside the column', 'ltr'],
+    ])
+  })
+
+  it.each([
+    'text-simple',
+    'text-search',
+    'text-rotated-90',
+    'text-rtl',
+    'text-vertical',
+  ] as const)('keeps every item inside the page box, on %s', async (name) => {
+    const doc = await open(name)
+    for (const info of doc.pages) {
+      const { items } = await doc._reader.text(info.index, { glyphs: false })
+      expect(items.length).toBeGreaterThan(0)
+      const { box } = info
+      for (const { rect } of items) {
+        expect(rect.x).toBeGreaterThanOrEqual(box.x)
+        expect(rect.y).toBeGreaterThanOrEqual(box.y)
+        expect(rect.x + rect.width).toBeLessThanOrEqual(box.x + box.width)
+        expect(rect.y + rect.height).toBeLessThanOrEqual(box.y + box.height)
+      }
+    }
   })
 })
 

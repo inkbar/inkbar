@@ -101,15 +101,31 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
  * The part of an item's quad from character `a` to `b`, cut along its baseline at the item's
  * `advances`, or at an equal share per character when it has none. With advances it spans every
  * boundary from `a` to `b` and the end of every glyph in between, so glyphs the pen drew out of
- * order, or that kerning overlaps with the next one, stay inside it.
+ * order, or that kerning overlaps with the next one, stay inside it. A right-to-left item's
+ * boundaries fall along its quad, so a glyph's end can lie before the first boundary as well as
+ * past the last.
  */
 function cutQuad(it: TextItem, a: number, b: number): Quad {
   const q = it.quad
   const len = it.str.length
-  const span = it.advances?.slice(a, b + 1)
-  const ends = it.glyphEnds?.slice(a, b) ?? []
-  const t0 = span ? Math.min(...span) : a / len
-  const t1 = span ? Math.max(...span, ...ends) : b / len
+  let t0 = a / len
+  let t1 = b / len
+  const advances = it.advances
+  if (advances) {
+    // A loop, not a spread: a hit across a very long item has more boundaries than a call takes.
+    t0 = Infinity
+    t1 = -Infinity
+    for (let k = a; k <= b && k < advances.length; k++) {
+      t0 = Math.min(t0, advances[k]!)
+      t1 = Math.max(t1, advances[k]!)
+    }
+    const ends = it.glyphEnds ?? []
+    for (let k = a; k < b && k < ends.length; k++) {
+      // Only right to left can a glyph end before the first boundary.
+      if (it.dir === 'rtl') t0 = Math.min(t0, ends[k]!)
+      t1 = Math.max(t1, ends[k]!)
+    }
+  }
   return {
     p1: lerp(q.p1, q.p2, t0),
     p2: lerp(q.p1, q.p2, t1),

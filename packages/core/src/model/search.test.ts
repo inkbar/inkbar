@@ -114,6 +114,52 @@ describe('matchPage', () => {
     expect(hit!.quads[0]!.p4.x).toBeCloseTo(6, 5)
   })
 
+  it('cuts rising boundaries as before: the glyph ends lie inside or past the span', () => {
+    // Kerned, overlapping and spaced glyphs on a left-to-right run, every hit checked.
+    const it = {
+      ...item('Toad', 0, 40),
+      advances: [0, 0.2, 0.45, 0.7, 1],
+      glyphEnds: [0.3, 0.45, 0.65, 1],
+    }
+    const st = page(it)
+    for (const [query, from, to] of [
+      ['t', 0, 12],
+      ['o', 8, 18],
+      ['oa', 8, 28],
+      ['a', 18, 28],
+      ['ad', 18, 40],
+      ['toad', 0, 40],
+    ] as const) {
+      const [hit] = matchPage(st, query, OPTS)
+      expect(hit!.quads[0]!.p3.x).toBeCloseTo(from, 5)
+      expect(hit!.quads[0]!.p4.x).toBeCloseTo(to, 5)
+    }
+  })
+
+  it('covers a right-to-left glyph whose end lies before the first boundary', () => {
+    // Boundaries fall from 1 to 0 along the quad; the second glyph reaches past the third's start.
+    const it = {
+      ...item('שלו', 0, 30, { dir: 'rtl' }),
+      advances: [1, 2 / 3, 1 / 3, 0],
+      glyphEnds: [2 / 3, 0.25, 0],
+    }
+    const [hit] = matchPage(page(it), 'של', OPTS)
+    expect(hit!.quads[0]!.p3.x).toBeCloseTo(7.5, 5)
+    expect(hit!.quads[0]!.p4.x).toBeCloseTo(30, 5)
+  })
+
+  it('cuts a quad for a hit across a single item of 200,000 characters', () => {
+    const n = 200_000
+    const it = {
+      ...item('x'.repeat(n), 0, n),
+      advances: Array.from({ length: n + 1 }, (_, i) => i / n),
+      glyphEnds: Array.from({ length: n }, (_, i) => (i + 1) / n),
+    }
+    const [hit] = matchPage(page(it), 'x'.repeat(n), OPTS)
+    expect(hit!.quads[0]!.p3.x).toBeCloseTo(0, 5)
+    expect(hit!.quads[0]!.p4.x).toBeCloseTo(n, 5)
+  })
+
   it('cuts along a rotated baseline', () => {
     const it = item('abcd', 0, 40)
     it.quad = {
