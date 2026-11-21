@@ -197,14 +197,19 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await expect(page.locator('[data-annotation][data-type="text"]')).toHaveCount(0)
 })
 
-test('the banner counts annotations embedded in the file', async ({ page }) => {
+test("another program's redaction marks open as marks, and the banner leaves them out", async ({
+  page,
+}) => {
   await page.goto('/?doc=annotated-redact')
   // PDF.js draws Redact annotations itself but logs that it has no dedicated renderer for them.
   const pdfjsRedact = /^Warning: Unimplemented annotation type "Redact"/
   await waitForFirstPage(page)
-  const banner = page.getByTestId('embedded-banner')
-  await expect(banner).toContainText('2 annotations')
-  await expect(banner).toContainText('2 Redact')
+  const marks = page.locator(
+    '[data-annotation][data-type="redact"][data-source="session"]'
+  )
+  await expect(marks).toHaveCount(2)
+  // The file holds nothing else, so there is no banner.
+  await expect(page.getByTestId('embedded-banner')).toHaveCount(0)
   expect(consoleGuard.take(pdfjsRedact)).toHaveLength(2)
 })
 

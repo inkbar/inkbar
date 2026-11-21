@@ -2080,5 +2080,29 @@
     "opens": true,
     "describes": "The unembedded-japanese page with a text field f, empty and without an appearance, whose /DA names the same unembedded Type 0 font KozMinPr6N-Regular through the form's /DR",
     "unembedded": ["japanese"]
+  },
+  "redact-foreign-popup": {
+    "file": "redact-foreign-popup.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-GAMMA under an unapplied Redact annotation from another program, with no /INKB_Gloss, and KEEP-BETA beside it. The mark's pop-up is listed in /Annots and its appearance strokes a red rectangle along its edge",
+    "annotations": {
+      "Redact": 1,
+      "Popup": 1
+    },
+    "secrets": [],
+    "keeps": ["SECRET-GAMMA", "KEEP-BETA"]
+  },
+  "redact-foreign-encrypted": {
+    "file": "redact-foreign-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "password": "inkbar",
+    "describes": "The second page of redact-foreign-mark as a one-page file, encrypted with AES-128; the user password is \"inkbar\". SECRET-GAMMA lies under an unapplied Redact annotation from another program",
+    "annotations": {
+      "Redact": 1
+    },
+    "secrets": [],
+    "keeps": ["SECRET-GAMMA"]
   }
 }

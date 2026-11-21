@@ -541,11 +541,45 @@ describe('applyRedactions', () => {
     expect(fake.loader).not.toHaveBeenCalled()
   })
 
-  it("rejects NothingToRedact for another program's marks alone, without loading the engine", async () => {
+  it("applies another program's marks alone, each adopted as a mark of the session", async () => {
     const fake = fakeEngine()
     const doc = await open('annotated-redact', { engine: fake.loader })
-    await expect(doc.applyRedactions()).rejects.toMatchObject({ code: 'NothingToRedact' })
-    expect(fake.loader).not.toHaveBeenCalled()
+    const { result } = await doc.applyRedactions()
+    expect(result.marks).toBe(2)
+    const [input] = fake.redactions
+    expect(input!.marks.map((m) => m.annotation.id)).toEqual(
+      session(doc).map((a) => a.id)
+    )
+    expect(input!.remove).toHaveLength(2)
+  })
+
+  it('applies an adopted mark', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-foreign-mark', { engine: fake.loader })
+    expect(doc.redactionPreview().marks).toBe(1)
+    await doc.applyRedactions()
+    const [input] = fake.redactions
+    expect(input!.marks).toHaveLength(1)
+    const [mark] = input!.marks
+    expect(mark!.page).toBe(1)
+    // The fixture's mark lies over SECRET-GAMMA: x 45..215, y 190..225.
+    expect((mark!.annotation as { quads?: unknown }).quads).toEqual([
+      quad(45, 190, 170, 35),
+    ])
+    expect(input!.remove).toEqual([{ page: 1, objectNumber: 8 }])
+  })
+
+  it('removes the pop-up with the file copy', async () => {
+    const fake = fakeEngine()
+    const doc = await open('redact-foreign-popup', { engine: fake.loader })
+    await doc.applyRedactions()
+    const [input] = fake.redactions
+    expect(input!.marks).toHaveLength(1)
+    // The mark is object 6 and its pop-up object 7.
+    expect(input!.remove).toEqual([
+      { page: 0, objectNumber: 6 },
+      { page: 0, objectNumber: 7 },
+    ])
   })
 
   it('rejects EngineUnavailable without a loader', async () => {
@@ -733,10 +767,18 @@ describe('redactionPreview', () => {
 
   it('counts no locked marks in a file that is not encrypted', async () => {
     const doc = await open('annotated-redact')
+    // Another program's marks are adopted as session marks, and counted as marks.
     expect(
-      doc.annotations.list.get().filter((a) => a.type === 'redact' && a.source === 'pdf')
+      doc.annotations.list
+        .get()
+        .filter((a) => a.type === 'redact' && a.source === 'session')
     ).toHaveLength(2)
-    expect(doc.redactionPreview().lockedMarks).toBe(0)
+    expect(doc.redactionPreview()).toMatchObject({ marks: 2, lockedMarks: 0 })
+  })
+
+  it("counts another program's marks in an encrypted file as locked", async () => {
+    const doc = await open('redact-foreign-encrypted')
+    expect(doc.redactionPreview()).toMatchObject({ marks: 0, lockedMarks: 1 })
   })
 
   it('says when the file is signed', async () => {

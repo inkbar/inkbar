@@ -17,9 +17,12 @@
 //   resamples to the render's two; the screen draws the glyphs themselves.
 // A pixel left uncounted for the page's own sake is still in the region, and a case fails when
 // more than MAX_EXCLUDED of its region is left out so.
+import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { translated } from '../model/annotations/edit'
+import { openDocument, type InkDocument } from '../model/document'
 import {
   beyondClip,
   destroyRenderEngine,
@@ -836,3 +839,126 @@ for (const fixture of [
   'userunit-2',
 ] as const)
   scene(`on ${fixture}`, () => turned(fixture))
+
+describe("another program's redaction marks, adopted", () => {
+  const opened: InkDocument[] = []
+  afterEach(() => opened.splice(0).forEach((d) => d.destroy()))
+
+  /** `source` opened as a viewer opens it, with the real engine, once lifting has settled. */
+  async function open(source: FixtureName | Uint8Array): Promise<InkDocument> {
+    const doc = await openDocument(
+      typeof source === 'string' ? fixtureUrl(source) : source.slice(),
+      {
+        assets: browserAssets(),
+        engine: () => import('@inkbar/engine'),
+        pictures: savePictures(document),
+      }
+    )
+    opened.push(doc)
+    await doc.ready
+    await doc._liftSettled
+    return doc
+  }
+
+  /** The text of every page of `bytes`, as PDF.js reads it. */
+  async function textOf(bytes: Uint8Array): Promise<string> {
+    const doc = await open(bytes)
+    const pages = await Promise.all(doc.pages.map((_, i) => doc.pageText(i)))
+    return pages.join('\n')
+  }
+
+  /** How many annotations page 0 of `doc` lists in its `/Annots`, as PDF.js reads them. */
+  const annotsOn = async (doc: InkDocument) =>
+    (await (await doc._pdfjs.getPage(0)).getAnnotations()).length
+
+  /**
+   * One page with SECRET-GAMMA and REPLIED-OMEGA under two Redact annotations another program
+   * left, KEEP-BETA beside them, and a note that replies to the second mark.
+   */
+  function repliedTo(): Uint8Array {
+    const content = [
+      'BT /F1 20 Tf 50 200 Td (SECRET-GAMMA) Tj ET',
+      'BT /F1 20 Tf 50 100 Td (REPLIED-OMEGA) Tj ET',
+      'BT /F1 20 Tf 300 200 Td (KEEP-BETA) Tj ET',
+    ].join('\n')
+    const mark = (nm: string, [l, b, r, t]: number[]) =>
+      `<< /Type /Annot /Subtype /Redact /Rect [${l} ${b} ${r} ${t}] /QuadPoints [${l} ${t} ${r} ${t} ${l} ${b} ${r} ${b}] /IC [0 0 0] /F 4 /NM (${nm}) /T (Another program) /P 3 0 R >>`
+    const bodies = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 300] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [6 0 R 7 0 R 8 0 R] >>',
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+      mark('first', [45, 190, 215, 225]),
+      mark('second', [45, 90, 245, 125]),
+      '<< /Type /Annot /Subtype /Text /Rect [340 20 360 40] /F 4 /NM (reply) /T (Another program) /Contents (A reply from another program) /IRT 7 0 R /P 3 0 R >>',
+    ]
+    let file = '%PDF-1.7\n'
+    const offsets: number[] = []
+    bodies.forEach((body, i) => {
+      offsets.push(file.length)
+      file += `${i + 1} 0 obj\n${body}\nendobj\n`
+    })
+    const xref = file.length
+    file += `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n`
+    for (const offset of offsets) file += `${String(offset).padStart(10, '0')} 00000 n \n`
+    file += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+    return new TextEncoder().encode(file)
+  }
+
+  it('applying an adopted mark removes what lies under it', async () => {
+    const doc = await open('redact-foreign-mark')
+    expect(doc.annotations.list.get()).toEqual([
+      expect.objectContaining({ type: 'redact', source: 'session', page: 1 }),
+    ])
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.foreignMarks).toBe(0)
+    const text = await textOf(bytes)
+    expect(text).toContain('KEEP-BETA')
+    expect(text).not.toContain('SECRET')
+    expect(text).not.toContain('GAMMA')
+  })
+
+  it('leaves the mark another program replied to', async () => {
+    const doc = await open(repliedTo())
+    const marks = doc.annotations.list.get().filter((a) => a.type === 'redact')
+    // By where each lies: the first is adopted, the one replied to stays in the file.
+    expect(Object.fromEntries(marks.map((a) => [a.rect.y, a.source]))).toEqual({
+      190: 'session',
+      90: 'pdf',
+    })
+    const { bytes, result } = await doc.applyRedactions()
+    expect(result.marks).toBe(1)
+    expect(result.foreignMarks).toBe(1)
+    const text = await textOf(bytes)
+    expect(text).toContain('REPLIED-OMEGA')
+    expect(text).toContain('KEEP-BETA')
+    expect(text).not.toContain('GAMMA')
+  })
+
+  it('a save writes one mark and drops the pop-up', async () => {
+    const doc = await open('redact-foreign-popup')
+    expect(await annotsOn(doc)).toBe(2)
+    const [mark] = doc.annotations.list.get()
+    doc.annotations.update(mark!.id, translated(mark!, 1, 0))
+    const moved = doc.annotations.get(mark!.id)!
+    expect(moved.rect.x).toBe(mark!.rect.x + 1)
+
+    const back = await open(await doc.save())
+    // Lifted by the data Inkbar saved with it: the mark as it was moved.
+    expect(back.annotations.list.get()).toEqual([moved])
+    expect(back._lifted.get().size).toBe(1)
+    expect(await annotsOn(back)).toBe(1)
+  })
+
+  it('deleting an adopted mark removes it from the file', async () => {
+    const doc = await open('redact-foreign-popup')
+    const [mark] = doc.annotations.list.get()
+    doc.annotations.remove(mark!.id)
+    expect(doc.changed.get()).toBe(true)
+
+    const back = await open(await doc.save())
+    expect(back.annotations.list.get()).toEqual([])
+    expect(await annotsOn(back)).toBe(0)
+  })
+})
