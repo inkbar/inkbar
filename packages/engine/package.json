@@ -31,6 +31,7 @@
   },
   "scripts": {
     "fetch": "node scripts/fetch-pdfium.ts",
+    "pin": "node scripts/pin-pdfium.ts",
     "build": "node scripts/fetch-pdfium.ts && tsdown",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src scripts",

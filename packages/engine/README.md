@@ -367,6 +367,8 @@ It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or `uns
 
 The build downloads a prebuilt PDFium archive and checks it against the SHA-256 in `pdfium.lock.json`. For offline builds, set `INKBAR_PDFIUM_ARCHIVE` to a local copy of that archive.
 
+To pin a newer release of the fork, run `pnpm run pin v<chromium branch>.<n>` in this package. It reads the release from GitHub and rewrites `pdfium.lock.json` with its version, URL and SHA-256; set `GITHUB_TOKEN` if you hit the API rate limit.
+
 ## Licence
 
 [MIT](https://github.com/inkbar/inkbar/blob/main/LICENSE). The WebAssembly binary is PDFium and the libraries linked into it, such as FreeType, libjpeg-turbo, OpenJPEG and zlib, each under its own licence. `dist/THIRD-PARTY-NOTICES` in the package carries all of them. From the team behind [Redactr](https://redactr.io).
