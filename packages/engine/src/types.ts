@@ -41,6 +41,48 @@ export interface PageInfo {
   userUnit: number
 }
 
+/** A font a page's text uses. */
+export interface TextFont {
+  /** The font's base name, without a subset prefix. `''` when the file gives none. */
+  name: string
+  fixedPitch: boolean
+  serif: boolean
+  italic: boolean
+  bold: boolean
+  /** Written top to bottom. */
+  vertical: boolean
+}
+
+/** The numbers per character in `PageText.geometry`. */
+export const TEXT_GEOMETRY_STRIDE = 15
+
+/** A page's characters in the order the page's text is read, one entry of each array per character. */
+export interface PageText {
+  count: number
+  /** Unicode code points. 0 for a character the font cannot map; `flags` marks it. */
+  codes: Uint32Array
+  /**
+   * 15 numbers per character, in user space: box left, bottom, right, top; loose box left,
+   * bottom, right, top; origin x, y; font size; the text matrix's a, b, c, d.
+   */
+  geometry: Float32Array
+  /** Bit 1: inferred by the engine (a space or line break the page does not draw). 2: hyphen. 4: no Unicode mapping. */
+  flags: Uint8Array
+  /** Index into `fontTable`. */
+  fonts: Uint16Array
+  fontTable: TextFont[]
+}
+
+/** Options for `EngineDocument.pageText`. */
+export interface PageTextOptions {
+  /**
+   * Cancels the read while it waits in the queue, and while it waits for a fallback font: it
+   * then rejects with `aborted`, as a cancelled render does. A read that has started on the
+   * page's characters runs to the end.
+   */
+  signal?: AbortSignal
+}
+
 /** Options for `EngineDocument.renderPage`. */
 export interface RenderOptions {
   /**

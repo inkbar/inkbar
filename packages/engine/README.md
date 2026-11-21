@@ -85,14 +85,14 @@ import { fontUrls } from '@inkbar/fonts'
 const engine = await createEngine({ fallbackFonts: fontUrls('/fonts/') })
 ```
 
-- The engine fetches a font the first time a page needs it, before it draws, writes to or redacts that page. It fetches each font once per engine. A `write` that sets form values, and every `redact`, first checks the fonts of every page.
+- The engine fetches a font the first time a page needs it, before it draws, reads the text of, writes to or redacts that page. It fetches each font once per engine. A `write` that sets form values, and every `redact`, first checks the fonts of every page.
 - A field whose font is named only in the form's `/DR`, and used by no page, is not covered: the engine does not fetch that font before it redraws the field.
 - A file that embeds its fonts, or names only the standard Latin fonts, fetches nothing. With no `fallbackFonts`, the engine fetches nothing.
 - Besides its wasm and worker, these fonts are the only files the engine requests, and only from the URLs you give. In a worker the engine fetches them itself, after resolving relative URLs against the page.
 - `renderPage` returns `missingFonts`: the keys the page needed and did not get, because you gave none, the fetch failed or it ran out of time. The engine still draws the page.
 - `write` and `redact` do not say which fonts were missing. A host that redacts should run `checkRedaction` on the saved bytes; Inkbar's own `applyRedactions` does.
 - The engine does not retry a failed fetch while it runs. A fetch fails on a network error, a status other than 2xx, or a file that is not a font.
-- Each font is given 60 seconds. A fetch still going after that is stopped, and the call goes on without the font: the page is drawn, written or redacted with what there is, and `renderPage` lists the key in `missingFonts`. That font is not failed: the next call that needs it fetches it again.
+- Each font is given 60 seconds. A fetch still going after that is stopped, and the call goes on without the font: the page is drawn, its text read, written or redacted with what there is, and `renderPage` lists the key in `missingFonts`. `pageText` does not report missing fonts. That font is not marked as failed, so the engine fetches it again the next time a page needs it. The document that went on without it keeps the substitute it loaded; other documents get the font.
 - Every other call on the engine waits while a font is being fetched, as it waits behind any running call.
 - Bytes you pass are read when a page first needs them, so leave them unchanged.
 
@@ -149,6 +149,24 @@ const tile = await doc.renderPage(0, {
 })
 ```
 
+Reading text:
+
+- `pageText(index)` gives a page's characters in the order PDFium reads them, with their boxes and fonts, all in user space before /Rotate. Text inside form XObjects is included. Text in annotation appearances is not. A page with no text gives `count` 0 and four empty arrays. Reading text does not change what a later `save` writes. It first fetches the fallback fonts the page needs, as `renderPage` does, so the characters' boxes come from the font the page is drawn with; a font that cannot be fetched leaves the text read with what there is. `pageText(index, { signal })` takes a signal: an abort while the read waits in the queue or for a fallback font rejects with `aborted`, as a cancelled render does.
+- The result has one entry per character in each of four arrays, so the arrays all have length `count`, and `geometry` has `count * TEXT_GEOMETRY_STRIDE` numbers. `codes` holds Unicode code points. `flags` holds bits: 1 for a character the engine inferred (a space or line break the page does not draw), 2 for a hyphen, 4 for a character with no Unicode mapping, whose code is 0. `fonts` holds an index into `fontTable`. A character the engine inferred takes the font and size of the character before it, or of the first one after it when none comes before.
+- `geometry` holds 15 numbers per character, `TEXT_GEOMETRY_STRIDE` of them: the character box (left, bottom, right, top), the loose box (left, bottom, right, top), the origin (x, y), the font size, and the text matrix (a, b, c, d).
+- Each `fontTable` entry has the font's base name without a subset prefix, and `fixedPitch`, `serif`, `italic`, `bold` and `vertical` flags.
+- The arrays belong to you: they are copies, not views of engine memory.
+
+```ts
+const text = await doc.pageText(0)
+const stride = TEXT_GEOMETRY_STRIDE
+for (let i = 0; i < text.count; i++) {
+  const left = text.geometry[i * stride] // box left
+  const bottom = text.geometry[i * stride + 1] // box bottom
+  console.log(String.fromCodePoint(text.codes[i]), left, bottom)
+}
+```
+
 Writing:
 
 - `write({ remove, annotations, fields })` sets each form value in `fields` and redraws its widgets, removes the annotations in `remove`, by page and object number, then appends each annotation to its page in the order given.
@@ -170,7 +188,7 @@ Ownership and lifetimes:
 - `open` and `checkRedaction` copy the bytes when they are called. The caller keeps its array. `write` copies its input the same way, and `renderPage` its options. Input that `structuredClone` cannot copy, such as a function, rejects with a `DataCloneError`.
 - `renderPage` and `save` return buffers that belong to the caller. In a worker, the engine moves the pixels to your thread without copying them.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
-- `destroy()` rejects queued calls with `aborted`, stops a running render, and a `write` or `redact` waiting on a fallback font, each of which rejects with `aborted`, and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for any other running call to finish. A `close()` after `destroy()` resolves.
+- `destroy()` rejects queued calls with `aborted`, stops a running render, and a `pageText`, `write` or `redact` waiting on a fallback font, each of which rejects with `aborted`, and closes every document. In a worker it waits up to two seconds for any other running call, then stops the worker; a call still running then rejects with `aborted`. In the calling thread it waits for any other running call to finish. A `close()` after `destroy()` resolves.
 - A `signal` cancels a call while it waits in the queue. On `renderPage` it also stops a render that has started. The engine draws in steps of about 8 ms and checks the signal between them, so the render rejects with `aborted` a few milliseconds after you abort, and you get no pixels. Some pages take longer steps. A page of many plain paths, or a large image, can take tens of milliseconds to stop at a viewer's zooms, and longer at very high scales. A render that finishes before the engine sees the abort still resolves. An abort while the render waits for a fallback font also rejects with `aborted`; the font is fetched again next time. Other calls that have started run to the end and may still reject.
 
 Errors:

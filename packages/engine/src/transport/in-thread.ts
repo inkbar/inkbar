@@ -7,10 +7,10 @@ import { CallQueue } from './queue.ts'
 import type { Request, Transport } from '../protocol.ts'
 
 /**
- * Runs a request on the core. A render, write or redact first fetches the fallback fonts of the
- * pages it loads; that fetch, and a render's slices, stop once `signal` aborts. Every other call
- * runs to the end. With no font sources a write or redact runs at once, as it did before the
- * engine had fonts.
+ * Runs a request on the core. A render, text read, write or redact first fetches the fallback
+ * fonts of the pages it loads; that fetch, and a render's slices, stop once `signal` aborts.
+ * Every other call runs to the end. With no font sources a text read, write or redact runs at
+ * once, as it did before the engine had fonts.
  */
 export function dispatch(
   core: EngineCore,
@@ -22,6 +22,9 @@ export function dispatch(
       return core.open(request.bytes, request.options)
     case 'pageInfo':
       return core.pageInfo(request.doc, request.index)
+    case 'pageText':
+      if (!core.fetchesFonts) return core.pageText(request.doc, request.index)
+      return core.pageTextAfterFonts(request.doc, request.index, signal)
     case 'renderPage':
       return core.renderPageSliced(
         request.doc,
@@ -71,7 +74,10 @@ export class InThreadTransport implements Transport {
       // Only a call that can stop part way listens to the caller's signal once it runs.
       const stoppable =
         request.op === 'renderPage' ||
-        (this.#core.fetchesFonts && (request.op === 'write' || request.op === 'redact'))
+        (this.#core.fetchesFonts &&
+          (request.op === 'pageText' ||
+            request.op === 'write' ||
+            request.op === 'redact'))
       if (!stoppable || !signal)
         return dispatch(this.#core, request, this.#ending.signal) as T
       const stop = anySignal([signal, this.#ending.signal])

@@ -21,6 +21,7 @@ import {
   type RenderedPage,
   type WriteInput,
 } from './index.ts'
+import { TEXT_GEOMETRY_STRIDE } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
@@ -310,6 +311,80 @@ test('the caller keeps its bytes', async () => {
   expect(mine.byteLength).toBeGreaterThan(0)
   mine.fill(0)
   expect((await copy.pageInfo(0)).width).toBe(612)
+})
+
+describe('pageText', () => {
+  test('gives a page its characters, boxes and fonts', async () => {
+    const text = await doc.pageText(0)
+    expect(text.count).toBeGreaterThan(0)
+    expect(String.fromCodePoint(...text.codes)).toContain('Page 1')
+    expect(text.codes.length).toBe(text.count)
+    expect(text.geometry.length).toBe(text.count * TEXT_GEOMETRY_STRIDE)
+    expect(TEXT_GEOMETRY_STRIDE).toBe(15)
+    expect(text.flags.length).toBe(text.count)
+    expect(text.fonts.length).toBe(text.count)
+    for (const font of text.fonts) expect(font).toBeLessThan(text.fontTable.length)
+    expect(text.fontTable[0]?.name).toContain('Helvetica')
+    expect(text.fontTable[0]).toMatchObject({
+      fixedPitch: false,
+      serif: false,
+      italic: false,
+      bold: false,
+      vertical: false,
+    })
+  })
+
+  test('a page index outside the document rejects with a RangeError', async () => {
+    await expect(doc.pageText(99)).rejects.toBeInstanceOf(RangeError)
+    await expect(doc.pageText(-1)).rejects.toBeInstanceOf(RangeError)
+    await expect(doc.pageText(0.5)).rejects.toBeInstanceOf(RangeError)
+  })
+
+  test('a page with no text gives four empty arrays', async () => {
+    const blank = await engine.open(await fixtureBytes('scanned-no-text'))
+    const text = await blank.pageText(0)
+    expect(text.count).toBe(0)
+    expect(text.codes).toHaveLength(0)
+    expect(text.geometry).toHaveLength(0)
+    expect(text.flags).toHaveLength(0)
+    expect(text.fonts).toHaveLength(0)
+  })
+
+  test('a closed document rejects', async () => {
+    await doc.close()
+    await expect(doc.pageText(0)).rejects.toMatchObject({ code: 'engine-failure' })
+  })
+
+  test('a signal aborted before the call, or while the read waits, rejects as a render does', async () => {
+    const read = vi.spyOn(EngineCore.prototype, 'pageText')
+    try {
+      const render = await doc
+        .renderPage(0, { signal: AbortSignal.abort() })
+        .catch((error: unknown) => error)
+      await expect(doc.pageText(0, { signal: AbortSignal.abort() })).rejects.toEqual(
+        render
+      )
+      const c = new AbortController()
+      const first = doc.renderPage(0, { scale: 4 })
+      const queued = doc.pageText(0, { signal: c.signal })
+      c.abort()
+      await expect(queued).rejects.toEqual(render)
+      await expect(first).resolves.toMatchObject({ width: 2448 })
+      // Neither read ran.
+      expect(read).not.toHaveBeenCalled()
+      // A signal that is not aborted changes nothing.
+      expect(await doc.pageText(0, { signal: new AbortController().signal })).toEqual(
+        await doc.pageText(0)
+      )
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  test('options that are not an object reject with a RangeError', async () => {
+    await expect(doc.pageText(0, null as never)).rejects.toBeInstanceOf(RangeError)
+    await expect(doc.pageText(0, 1 as never)).rejects.toBeInstanceOf(RangeError)
+  })
 })
 
 /** Silences Emscripten's own report of a failed load, which the rejection already carries. */
@@ -1050,6 +1125,127 @@ describe('fallback fonts', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  test('a text read fetches the font its page needs first, so a later render draws it', async () => {
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+    // Drawn first, as the engine draws a page with its fonts.
+    const reference = await fontEngine({ japanese: ALL.japanese })
+    const expected = await (await reference.engine.open(japaneseFile)).renderPage(0)
+    await reference.engine.destroy()
+    requests = []
+
+    const { engine: fonts, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(japaneseFile)
+    const text = await opened.pageText(0)
+    expect(text.count).toBeGreaterThan(0)
+    expect(requests).toEqual([ALL.japanese])
+    expect(misses()).toEqual([])
+    const page = await opened.renderPage(0)
+    expect(page.missingFonts).toEqual([])
+    expect(inked(page)).toBeGreaterThan(500)
+    expect(Buffer.from(page.data).equals(Buffer.from(expected.data))).toBe(true)
+    expect(requests).toHaveLength(1)
+    await fonts.destroy()
+  })
+
+  test('a text read and a render started together fetch the font once and draw it', async () => {
+    const { engine: fonts, misses } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    const [text, page] = await Promise.all([opened.pageText(0), opened.renderPage(0)])
+    expect(text.count).toBeGreaterThan(0)
+    expect(page.missingFonts).toEqual([])
+    expect(inked(page)).toBeGreaterThan(500)
+    expect(misses()).toEqual([])
+    expect(requests).toEqual([ALL.japanese])
+    await fonts.destroy()
+  })
+
+  test('a text read reads the same characters as one with the font given up front', async () => {
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+    const upFront = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: new Uint8Array(await readFile(fontPath('japanese'))) },
+    })
+    await (await upFront.open(japaneseFile)).renderPage(0)
+    const expected = await (await upFront.open(japaneseFile)).pageText(0)
+    await upFront.destroy()
+
+    const { engine: lazy } = await fontEngine({ japanese: ALL.japanese })
+    const actual = await (await lazy.open(japaneseFile)).pageText(0)
+    expect(actual).toEqual(expected)
+    await lazy.destroy()
+  })
+
+  test('a text read whose font cannot be fetched still gives the text, as a render still draws', async () => {
+    const japaneseFile = await fixtureBytes('unembedded-japanese')
+    const bare = await fontEngine()
+    const without = await (await bare.engine.open(japaneseFile)).pageText(0)
+    await bare.engine.destroy()
+
+    const { engine: fonts, misses } = await fontEngine({
+      japanese: `${FONT_HOST}nothing-here.otf`,
+    })
+    const opened = await fonts.open(japaneseFile)
+    expect(await opened.pageText(0)).toEqual(without)
+    // The read itself asked for the font, before anything was drawn.
+    expect(requests).toEqual([`${FONT_HOST}nothing-here.otf`])
+    expect(misses()).toEqual(['japanese'])
+    expect((await opened.renderPage(0)).missingFonts).toEqual(['japanese'])
+    misses()
+    expect(requests).toHaveLength(1)
+    await fonts.destroy()
+  })
+
+  test('an abort during the font fetch of a text read rejects it, and a later read fetches the font', async () => {
+    let arrived: (() => void) | undefined
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    beforeAnswer = (_url, signal) =>
+      new Promise((_resolve, reject) => {
+        arrived?.()
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('The fetch was aborted.', 'AbortError'))
+        })
+      })
+    const { engine: fonts, registered } = await fontEngine({ japanese: ALL.japanese })
+    const opened = await fonts.open(await fixtureBytes('unembedded-japanese'))
+    const controller = new AbortController()
+    const running = opened.pageText(0, { signal: controller.signal })
+    await waiting
+    controller.abort()
+    // The fetch answers only by rejecting on abort, so a rejection shows the abort reached it.
+    await expect(running).rejects.toMatchObject({ code: 'aborted' })
+    expect(registered.size).toBe(0)
+
+    beforeAnswer = () => Promise.resolve()
+    expect((await opened.pageText(0)).count).toBeGreaterThan(0)
+    expect(registered.has('japanese')).toBe(true)
+    expect(requests).toEqual([ALL.japanese, ALL.japanese])
+    await fonts.destroy()
+  })
+
+  test('destroy during the font fetch of a text read resolves and rejects the read', async () => {
+    let arrived: (() => void) | undefined
+    const waiting = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    beforeAnswer = () =>
+      new Promise(() => {
+        arrived?.()
+      })
+    const slowFonts = await createEngine({
+      wasm,
+      worker: false,
+      fallbackFonts: { japanese: ALL.japanese },
+    })
+    const opened = await slowFonts.open(await fixtureBytes('unembedded-japanese'))
+    const reading = opened.pageText(0)
+    await waiting
+    await expect(slowFonts.destroy()).resolves.toBeUndefined()
+    await expect(reading).rejects.toMatchObject({ code: 'aborted' })
   })
 
   test('a render that fetches a font does not change what save writes', async () => {

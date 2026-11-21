@@ -93,6 +93,25 @@ test('writes an annotation through the worker and leaves the caller its arrays',
   await again.close()
 })
 
+test('page text crosses from the worker in buffers of its own', async () => {
+  const engine = await start()
+  const doc = await engine.open(await fixture('text-simple'))
+  const text = await doc.pageText(0)
+  expect(text.count).toBeGreaterThan(0)
+  expect(String.fromCodePoint(...text.codes)).toContain('Page 1')
+  expect(text.geometry.length).toBe(text.count * 15)
+  expect(text.flags.length).toBe(text.count)
+  expect(text.fonts.length).toBe(text.count)
+  for (const font of text.fonts) expect(font).toBeLessThan(text.fontTable.length)
+  // Not views on the module's memory: each buffer holds exactly its array.
+  expect(text.codes.buffer.byteLength).toBe(text.count * 4)
+  expect(text.geometry.buffer.byteLength).toBe(text.count * 15 * 4)
+  expect(text.flags.buffer.byteLength).toBe(text.count)
+  expect(text.fonts.buffer.byteLength).toBe(text.count * 2)
+  await expect(doc.pageText(99)).rejects.toBeInstanceOf(RangeError)
+  await engine.destroy()
+})
+
 test('render options cross to the worker', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))
@@ -268,6 +287,27 @@ test('aborting a queued call rejects it and lets the running one finish', async 
   await expect(doc.renderPage(0, { signal: AbortSignal.abort() })).rejects.toMatchObject({
     code: 'aborted',
   })
+})
+
+test('a text read aborted while it waits in the worker queue rejects as a render does', async () => {
+  const engine = await start()
+  const doc = await engine.open(await fixture('text-simple'))
+  const c = new AbortController()
+  const first = doc.renderPage(0, { scale: 4 })
+  const queued = doc.pageText(0, { signal: c.signal })
+  c.abort()
+  await expect(queued).rejects.toMatchObject({
+    code: 'aborted',
+    message: 'The call was aborted.',
+  })
+  await expect(first).resolves.toMatchObject({ width: 2448 })
+  await expect(doc.pageText(0, { signal: AbortSignal.abort() })).rejects.toMatchObject({
+    code: 'aborted',
+  })
+  expect((await doc.pageText(0, { signal: new AbortController().signal })).count).toBe(
+    (await doc.pageText(0)).count
+  )
+  await engine.destroy()
 })
 
 /**
@@ -678,6 +718,26 @@ describe('fallback fonts', () => {
     expect(korean).toEqual([`${base}${fontFiles.korean}`])
   })
 
+  test('in a worker, a text read fetches the font its page needs before a render, once', async () => {
+    const engine = await start({ worker, wasm, fallbackFonts: fontUrls(base) })
+    const bytes = await fixture('unembedded-japanese')
+    let page: Awaited<ReturnType<EngineDocument['renderPage']>> | undefined
+    const requested = await fontRequests(async () => {
+      const doc = await engine.open(bytes)
+      const other = await engine.open(bytes)
+      expect((await doc.pageText(0)).count).toBeGreaterThan(0)
+      page = await doc.renderPage(0)
+      // Started together, as a viewer's text layer and page do.
+      const [text, together] = await Promise.all([other.pageText(0), other.renderPage(0)])
+      expect(text.count).toBeGreaterThan(0)
+      expect(together.missingFonts).toEqual([])
+      expect(inked(together)).toBeGreaterThan(500)
+    })
+    expect(requested).toEqual([`${base}${fontFiles.japanese}`])
+    expect(page!.missingFonts).toEqual([])
+    expect(inked(page!)).toBeGreaterThan(500)
+  })
+
   test('a font that 404s is listed as missing and not requested again', async () => {
     const engine = await start({
       worker,
@@ -717,6 +777,47 @@ describe('fallback fonts', () => {
     await engine.destroy()
     // The worker's own answer, not the one destroy gives a call still running at its bound.
     await expect(again).rejects.toMatchObject({
+      code: 'aborted',
+      message: 'The call was aborted.',
+    })
+  })
+
+  test('aborting a text read during its font fetch in the worker rejects it', async () => {
+    const engine = await start({
+      worker,
+      wasm,
+      fallbackFonts: { japanese: `${base}hang/${fontFiles.japanese}` },
+    })
+    const doc = await engine.open(await fixture('unembedded-japanese'))
+    const before = (await fontLog()).length
+    const controller = new AbortController()
+    const reading = doc.pageText(0, { signal: controller.signal })
+    await expect
+      .poll(async () => (await fontLog()).length, { timeout: 10_000 })
+      .toBeGreaterThan(before)
+    controller.abort()
+    // The server never answers, so a rejection shows the abort reached the fetch.
+    await expect(reading).rejects.toMatchObject({
+      code: 'aborted',
+      message: 'The call was aborted.',
+    })
+    await engine.destroy()
+  })
+
+  test('destroy during the font fetch of a text read in the worker stops the fetch', async () => {
+    const engine = await start({
+      worker,
+      wasm,
+      fallbackFonts: { japanese: `${base}hang/${fontFiles.japanese}` },
+    })
+    const doc = await engine.open(await fixture('unembedded-japanese'))
+    const before = (await fontLog()).length
+    const reading = doc.pageText(0)
+    await expect
+      .poll(async () => (await fontLog()).length, { timeout: 10_000 })
+      .toBeGreaterThan(before)
+    await engine.destroy()
+    await expect(reading).rejects.toMatchObject({
       code: 'aborted',
       message: 'The call was aborted.',
     })

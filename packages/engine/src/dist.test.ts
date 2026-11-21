@@ -13,13 +13,17 @@ test('the built package finds its own wasm and opens a document', async () => {
   await access(built).catch(() => {
     throw new Error('dist/index.mjs is missing: build the package first (pnpm build)')
   })
-  const { createEngine } = (await import(built.href)) as {
+  const { createEngine, TEXT_GEOMETRY_STRIDE } = (await import(built.href)) as {
     createEngine: typeof CreateEngine
+    TEXT_GEOMETRY_STRIDE: number
   }
   const engine = await createEngine({ worker: false })
   try {
     const doc = await engine.open(await fixtureBytes('text-simple'))
     expect(doc.pageCount).toBe(3)
+    const text = await doc.pageText(0)
+    expect(text.count).toBeGreaterThan(0)
+    expect(text.geometry.length).toBe(text.count * TEXT_GEOMETRY_STRIDE)
   } finally {
     await engine.destroy()
   }
