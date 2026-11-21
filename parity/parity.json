@@ -44,8 +44,8 @@
   },
   "annotated-shapes": {
     "state": "different",
-    "reason": "Annotations with no /AP, each reader generating its own: the engine closes the polygon, draws the ink as smooth curves and boxes the FreeText; PDF.js leaves the polygon open, draws the ink as straight segments and the FreeText unboxed. The closed polygon and the boxed FreeText match Poppler and Ghostscript; the smooth ink is a known engine fault, as those readers draw straight segments",
-    "accepted": false
+    "reason": "Annotations with no /AP, each reader generating its own: the engine closes the polygon, draws the ink as smooth curves and boxes the FreeText; PDF.js leaves the polygon open, draws the ink as straight segments and the FreeText unboxed. The closed polygon and the boxed FreeText match Poppler and Ghostscript. The engine fits curves to the ink's points as Acrobat does; Poppler and Ghostscript draw straight segments",
+    "accepted": true
   },
   "standard-callout": {
     "state": "same"
