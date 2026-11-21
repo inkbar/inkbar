@@ -2,11 +2,16 @@
 // (`position:absolute; inset:0`) and its text must stay selectable whatever the page around it
 // sets (`user-select:text`). PDF.js sets the layer's width/height from `--total-scale-factor`.
 // Span styling (transparent colour, absolute positioning, font sizing, rotation transforms)
-// is the theme's job.
+// is the theme's job. When the engine reads the file, core lays the spans out itself from the
+// reader's text, in the same DOM.
 import { mountPdfjsTextLayer, type MountedTextLayer } from '../pdfjs/text-layer'
 
+import { mountTextSpans } from './text-spans'
+
 import type { PageTransform } from './transform'
+import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { InkDocument } from '../model/document'
+import type { DocumentReader } from '../reader/types'
 
 export interface TextLayerOptions {
   document: InkDocument
@@ -42,6 +47,34 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
 
   const abort = new AbortController()
   let mounted: MountedTextLayer | undefined
+  /** The spans built from the engine reader's text, once mounted. */
+  let spans: ReturnType<typeof mountTextSpans> | undefined
+
+  /** The engine reader, when it reads this document. A destroyed document takes PDF.js's path. */
+  const engineReader = (): EngineDocumentReader | undefined => {
+    let reader: DocumentReader
+    try {
+      reader = doc._reader
+    } catch {
+      return undefined
+    }
+    return reader.kind === 'engine' ? (reader as EngineDocumentReader) : undefined
+  }
+
+  const mountSpans = async (
+    reader: EngineDocumentReader,
+    transform: PageTransform
+  ): Promise<void> => {
+    // Destroying the layer cancels its read, so a page scrolled past does not hold up the next.
+    const [content, families, info] = await Promise.all([
+      reader.text(page, { glyphs: false, signal: abort.signal }),
+      reader.textFamilies(page, abort.signal),
+      reader.pageInfo(page),
+    ])
+    if (abort.signal.aborted) return
+    spans = mountTextSpans({ content, families, info, container: el, transform })
+    opts.onRendered?.()
+  }
 
   const viewportFor = async (transform: PageTransform) => {
     const pdfPage = await doc._pdfjs.getPage(page)
@@ -68,6 +101,8 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
   }
 
   const mount = async (transform: PageTransform): Promise<void> => {
+    const engine = engineReader()
+    if (engine) return mountSpans(engine, transform)
     const { pdfPage, viewport } = await viewportFor(transform)
     if (abort.signal.aborted) return
     mounted = await mountPdfjsTextLayer({
@@ -92,6 +127,11 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
       ready = ready
         .then(async () => {
           if (abort.signal.aborted) return
+          if (spans) {
+            spans.update(transform)
+            opts.onRendered?.()
+            return
+          }
           // A mount that failed is tried again, so the layer can recover with the page.
           if (!mounted) {
             el.replaceChildren()

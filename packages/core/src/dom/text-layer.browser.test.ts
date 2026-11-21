@@ -1,9 +1,21 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { cssRectsToUserRects, getSelectionQuads } from './selection'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
-import { createTextLayer } from './text-layer'
+import { createTextLayer, type TextLayerOptions } from './text-layer'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
+
+import type { EngineDocumentReader } from '../engine-reader/reader'
+import type { EngineLoader } from '../model/document'
 
 let style: HTMLStyleElement
 beforeAll(() => {
@@ -248,5 +260,157 @@ describe('text layer', () => {
     selectAllIn(layerEl)
     const [result] = getSelectionQuads(host, () => ({ page: 0, transform: t }))
     expect(result!.text).toMatch(/^Hello[^\n]*\n\nNational Insurance number QQ123456C/)
+  })
+})
+
+describe('text layer, when the engine reads the file', () => {
+  const flag = globalThis as { __INKBAR_READER__?: unknown }
+  const engine: EngineLoader = () => import('@inkbar/engine')
+  beforeEach(() => {
+    flag.__INKBAR_READER__ = 'engine'
+  })
+  afterEach(() => {
+    delete flag.__INKBAR_READER__
+  })
+
+  async function engineLayer(opts: Partial<TextLayerOptions> = {}) {
+    const doc = await openFixtureInBrowser('text-simple', { engine })
+    expect(doc._reader.kind).toBe('engine')
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    host.dataset.page = '0'
+    sizeHost(host, t)
+    cleanup.push(() => (doc.destroy(), host.remove()))
+    const start = () => {
+      const tl = createTextLayer({ document: doc, page: 0, host, transform: t, ...opts })
+      cleanup.unshift(() => tl.destroy())
+      return tl
+    }
+    return { doc, host, t, start }
+  }
+
+  it('mounts the spans and calls onRendered', async () => {
+    const onRendered = vi.fn()
+    const onError = vi.fn()
+    const { host, t, start } = await engineLayer({ onRendered, onError })
+    const tl = start()
+    await tl.ready
+    expect(onError).not.toHaveBeenCalled()
+    expect(onRendered).toHaveBeenCalledTimes(1)
+    expect(tl.element.querySelectorAll('span').length).toBeGreaterThan(0)
+    expectNiLine(niQuad(host, t))
+  })
+
+  it('leaves nothing behind when destroyed before the text arrives', async () => {
+    const onRendered = vi.fn()
+    const onError = vi.fn()
+    const { doc, start } = await engineLayer({ onRendered, onError })
+    const real = doc._reader.text.bind(doc._reader)
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    vi.spyOn(doc._reader, 'text').mockImplementation(async (page, options) => {
+      await held
+      return real(page, options)
+    })
+    const tl = start()
+    tl.destroy()
+    release()
+    await tl.ready
+    await new Promise((r) => setTimeout(r, 0))
+    expect(tl.element.childNodes).toHaveLength(0)
+    expect(tl.element.isConnected).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+    expect(onRendered).not.toHaveBeenCalled()
+  })
+
+  it('cancels its text read when destroyed, and reports nothing', async () => {
+    const onRendered = vi.fn()
+    const onError = vi.fn()
+    const { doc, start } = await engineLayer({ onRendered, onError })
+    const reader = doc._reader as EngineDocumentReader
+    const text = vi.spyOn(reader, 'text')
+    const families = vi.spyOn(reader, 'textFamilies')
+    const tl = start()
+    const textSignal = text.mock.calls[0]![1].signal!
+    const familiesSignal = families.mock.calls[0]![1]!
+    expect([textSignal.aborted, familiesSignal.aborted]).toEqual([false, false])
+    tl.destroy()
+    expect([textSignal.aborted, familiesSignal.aborted]).toEqual([true, true])
+    await tl.ready
+    await expect(text.mock.results[0]!.value).rejects.toBeDefined()
+    expect(onError).not.toHaveBeenCalled()
+    expect(onRendered).not.toHaveBeenCalled()
+    // The read was the layer's alone, so the page reads again in full for the next one.
+    const again = start()
+    await again.ready
+    expect(again.element.querySelectorAll('span').length).toBeGreaterThan(0)
+  })
+
+  it('reports a failed read once and mounts on the next update', async () => {
+    const onRendered = vi.fn()
+    const onError = vi.fn()
+    const { doc, t, start } = await engineLayer({ onRendered, onError })
+    const boom = new Error('no text')
+    vi.spyOn(doc._reader, 'text').mockRejectedValueOnce(boom)
+    const tl = start()
+    await tl.ready
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith(boom)
+    expect(tl.element.childNodes).toHaveLength(0)
+    tl.update(t)
+    await tl.ready
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onRendered).toHaveBeenCalledTimes(1)
+    expect(tl.element.querySelectorAll('span').length).toBeGreaterThan(0)
+  })
+
+  it('applies an update without rebuilding the spans', async () => {
+    const onRendered = vi.fn()
+    const { doc, host, start } = await engineLayer({ onRendered })
+    const tl = start()
+    await tl.ready
+    const before = [...tl.element.childNodes]
+    const zoomed = createPageTransform(doc.pages[0]!, 2, 0)
+    sizeHost(host, zoomed)
+    tl.update(zoomed)
+    await tl.ready
+    expect(onRendered).toHaveBeenCalledTimes(2)
+    expect([...tl.element.childNodes]).toEqual(before)
+    tl.element.childNodes.forEach((node, i) => expect(node).toBe(before[i]))
+    expectNiLine(niQuad(host, zoomed))
+  })
+
+  it('builds the spans from a module graph without PDF.js', async () => {
+    const sources = import.meta.glob<string>('/src/**/*.ts', {
+      query: '?raw',
+      import: 'default',
+    })
+    const seen = new Set<string>()
+    const bare: string[] = []
+    const visit = async (path: string): Promise<void> => {
+      if (seen.has(path)) return
+      seen.add(path)
+      const load = sources[path]
+      expect(load, path).toBeDefined()
+      const source = await load!()
+      const specifiers = [
+        ...source.matchAll(/(?:^|\n)\s*(?:import|export)\b[^'"]*?['"]([^'"]+)['"]/g),
+        ...source.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g),
+      ].map((m) => m[1]!)
+      for (const spec of specifiers) {
+        if (!spec.startsWith('.')) {
+          bare.push(spec)
+          continue
+        }
+        const base = new URL(spec, `http://source${path}`).pathname
+        const next = [`${base}.ts`, `${base}/index.ts`, base].find((p) => p in sources)
+        expect(next, `${spec} from ${path}`).toBeDefined()
+        await visit(next!)
+      }
+    }
+    await visit('/src/dom/text-spans.ts')
+    expect([...seen].filter((p) => p.includes('/pdfjs/'))).toEqual([])
+    expect(bare.filter((spec) => spec.includes('pdfjs'))).toEqual([])
+    expect(seen.size).toBeGreaterThan(1)
   })
 })
