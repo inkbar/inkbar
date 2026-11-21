@@ -264,8 +264,9 @@ async function readQuadPoints(objs: PdfObjects, v: PdfValue | undefined) {
 /**
  * Every annotation in a page's `/Annots` that has an `/INKB_Gloss` entry, in page order and then
  * `/Annots` order, with its `/Rect`, its `/M` and whether it has a `/Popup`; every `/IRT`
- * among the pages' annotations; and every Redact annotation without that entry, as a mark. An annotation written inline in `/Annots` has no id to hide it
- * by and is left out. Never throws: what cannot be read is left out.
+ * among the pages' annotations; and every Redact annotation without that entry, as a mark. An
+ * annotation written inline in `/Annots` has no id to hide it by and is left out. Never throws:
+ * what cannot be read is left out.
  */
 export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnotations> {
   const out: SavedAnnotationPlace[] = []

@@ -36,6 +36,17 @@ export function rectFromPoints(a: Point, b: Point): Rect {
   return { x, y, width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
 }
 
+/**
+ * Whether a quad has an area: one whose corners span no width or no height covers nothing and
+ * cannot be looked under. Any other quad counts, whatever order its corners are stored in, and
+ * so does one with a number that is not finite, so writing it reports the fault.
+ */
+export function hasArea(q: Quad): boolean {
+  const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
+  const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]
+  return Math.max(...xs) !== Math.min(...xs) && Math.max(...ys) !== Math.min(...ys)
+}
+
 export function rectFromQuad(q: Quad): Rect {
   const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
   const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]

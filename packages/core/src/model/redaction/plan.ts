@@ -1,5 +1,5 @@
 import { isThreadRoot, threadOf } from '../annotations/threads'
-import { quadsFromRect, rectFromQuad, rectsIntersect } from '../geometry'
+import { hasArea, quadsFromRect, rectFromQuad, rectsIntersect } from '../geometry'
 
 import type { Annotation, RedactAnnotation } from '../annotations/types'
 import type { Quad, Rect } from '../geometry'
@@ -30,17 +30,6 @@ export interface RedactionOptions {
    * signature is drawn.
    */
   fieldRects?: ReadonlyMap<string, readonly { page: number; rect: Rect }[]>
-}
-
-/**
- * Whether a quad has an area: one whose corners span no width or no height covers nothing and
- * cannot be looked under. Any other quad counts, whatever order its corners are stored in, and
- * so does one with a number that is not finite, so writing it reports the fault.
- */
-function hasArea(q: Quad): boolean {
-  const xs = [q.p1.x, q.p2.x, q.p3.x, q.p4.x]
-  const ys = [q.p1.y, q.p2.y, q.p3.y, q.p4.y]
-  return Math.max(...xs) !== Math.min(...xs) && Math.max(...ys) !== Math.min(...ys)
 }
 
 const boundsOf = (points: readonly { x: number; y: number }[]): Rect => {
