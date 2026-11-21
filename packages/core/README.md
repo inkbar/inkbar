@@ -211,7 +211,9 @@ Annotations Inkbar saved come back as session annotations, with the same ids, re
 
 In controlled mode `onChange` proposes them once, with `reason: 'file'`: your list with the saved annotations added. Apply that proposal as you apply any other, by pushing the list back. Until you push a list, the viewer does not show the saved annotations, and every save still keeps them in the file. The framework packages' undo history takes your answer as its starting point, so undo does not remove them.
 
-Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited, replied to, or given a pop-up window. Inkbar's own replies to a note that stays locked stay locked with it. In an encrypted file, Inkbar's own annotations come back locked too.
+Annotations made by other programs stay locked, except unapplied Redact annotations. Those open as editable redaction marks that look like Inkbar's own and count in the apply confirmation. A mark keeps its area and fill colour and loses any overlay text. A save with changes, or an apply, removes the other program's copy and its pop-up window from the file and writes Inkbar's mark. A Redact annotation stays locked in an encrypted file, when another program's annotation replies to it, and when its pop-up window is not listed on the same page. A locked mark is drawn by the page, skipped by the apply and counted in `foreignMarks`.
+
+An annotation Inkbar saved also stays locked if another program has since moved, edited or replied to it, or given it a pop-up window. Inkbar's own replies to a note that stays locked stay locked with it. In an encrypted file, Inkbar's own annotations come back locked too.
 
 ### Where the saved file differs from the screen
 
@@ -234,12 +236,12 @@ When the engine cannot be loaded or cannot write the file, `doc.save()` rejects 
 `doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`: the redacted file and what was done. It needs the `engine` option. The engine works on the file as it was opened:
 
 1. It removes the text, image samples and drawing under each mark, and leaves an opaque box in the mark's fill colour in its place, with the mark's overlay text if it has one.
-2. It removes every annotation a mark overlaps, Inkbar's and the file's own, except masks and other programs' redaction marks, which stay. Then it writes the other annotations and the changed form values.
+2. It removes every annotation a mark overlaps, Inkbar's and the file's own, except masks and redaction marks from other programs that stayed locked. Then it writes the other annotations and the changed form values.
 3. It removes the file's metadata, attached files, scripts, page thumbnails and private application data.
 4. It rewrites the whole file, so no earlier version stays inside it.
 5. It checks the saved bytes under each mark. The check reads the file's objects, so content hidden under an opaque box counts. When it finds anything, the apply fails and hands nothing over.
 
-The apply covers every mark of the session. Marks Inkbar saved earlier count as marks, and in an encrypted file, where they come back locked, the engine applies them too. Redact annotations from other programs stay in the file, unapplied, and are counted. Download, Print and `doc.save()` never apply a mark.
+The apply covers every mark of the session. Marks Inkbar saved earlier count as marks, and in an encrypted file, where they come back locked, the engine applies them too. Redact annotations from other programs open as marks and are applied with the rest. Those that stayed locked stay in the file, unapplied, and are counted. Download, Print and `doc.save()` never apply a mark.
 
 The open document does not change: its annotations, `doc.changed`, `doc.save()` and `doc.getData()` stay as they were. To show the redacted file, open the bytes. From the model, with a confirmation of your own:
 
@@ -301,7 +303,7 @@ After a successful apply, `onRedacted({ bytes, result })` hears the redacted fil
 
 - `marks` and `pages`: the marks applied and the pages they were on. A mark with no area or wholly off its page is skipped, and a mark drawn in several pieces applies without its pieces that have no area.
 - `removed.session`: the ids of the session annotations removed with the content. `removed.file`: how many of the file's own annotations went, pop-up windows included.
-- `foreignMarks`: other programs' Redact annotations, left unapplied. `ownLockedMarks`: Inkbar's earlier marks applied in an encrypted file.
+- `foreignMarks`: other programs' Redact annotations that stayed locked and were left unapplied. `ownLockedMarks`: Inkbar's earlier marks applied in an encrypted file.
 - `fieldsSkipped`: the names of the changed form fields not written, because a mark removed their widgets.
 - `sanitised`: what was removed from the file. `hiddenLayers` and `signed`: whether the file has hidden layers, and whether it held a digital signature.
 - `findings`: what the check found under each mark: places and verdicts, never the file's text.
