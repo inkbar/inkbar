@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /*
- * A fixture whose pages, thumbnails and loupes the engine draws: the route turned core's switch
- * on before this mounted. The status names the reader that drew them, for the tests.
+ * A fixture whose pages, thumbnails and loupes the engine draws, and whose text, links and
+ * outline it reads: the route turned core's switch on before this mounted. The status names the
+ * reader, for the tests.
  */
 import { allTools } from '@inkbar/core/dom'
 import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkFindBar,
   InkOutline,
   InkPanel,
   InkRoot,
@@ -66,6 +68,7 @@ function onReady(doc: InkDocument): void {
       </InkSidebar>
       <div class="sandbox-editor" style="flex: 1 1 auto; min-width: 0">
         <InkViewport />
+        <InkFindBar />
       </div>
     </div>
     <p class="sandbox-status" role="status" data-testid="status" :data-reader="reader">

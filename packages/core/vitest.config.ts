@@ -35,6 +35,41 @@ function serveFonts(): Plugin {
   }
 }
 
+/**
+ * The settings both browser projects share: Chromium, the fixtures and the fallback fonts. Made
+ * afresh for each project, as Vitest names each browser instance after its project.
+ */
+const browserProject = (
+  name: string,
+  test: { include: string[]; setupFiles?: string[] }
+) => ({
+  define,
+  plugins: [serveFixtures(), serveFonts()],
+  // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
+  optimizeDeps: {
+    include: [
+      'pdfjs-dist',
+      'pdfjs-dist/build/pdf.sandbox.mjs',
+      '@inkbar/fixtures > pdf-lib',
+      '@inkbar/fonts',
+    ],
+  },
+  test: {
+    name,
+    ...test,
+    testTimeout: 30_000,
+    browser: {
+      enabled: true,
+      headless: true,
+      provider: playwright(),
+      instances: [
+        { browser: 'chromium' as const, viewport: { width: 1280, height: 900 } },
+      ],
+      screenshotFailures: true,
+    },
+  },
+})
+
 export default defineConfig({
   test: {
     projects: [
@@ -48,31 +83,26 @@ export default defineConfig({
           testTimeout: 20_000,
         },
       },
-      {
-        define,
-        plugins: [serveFixtures(), serveFonts()],
-        // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
-        optimizeDeps: {
-          include: [
-            'pdfjs-dist',
-            'pdfjs-dist/build/pdf.sandbox.mjs',
-            '@inkbar/fixtures > pdf-lib',
-            '@inkbar/fonts',
-          ],
-        },
-        test: {
-          name: 'browser',
-          include: ['src/**/*.browser.test.ts'],
-          testTimeout: 30_000,
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            instances: [{ browser: 'chromium', viewport: { width: 1280, height: 900 } }],
-            screenshotFailures: true,
-          },
-        },
-      },
+      browserProject('browser', { include: ['src/**/*.browser.test.ts'] }),
+      // The tests that read text, search, links and the outline, with the engine reading the
+      // file: the setup file switches the reader and passes every document the engine.
+      browserProject('browser-engine', {
+        include: [
+          'src/dom/text-layer.browser.test.ts',
+          'src/dom/text-spans.browser.test.ts',
+          'src/dom/search/*.browser.test.ts',
+          'src/model/search.browser.test.ts',
+          'src/model/text-stream.browser.test.ts',
+          'src/dom/link-layer.browser.test.ts',
+          'src/dom/links-press.browser.test.ts',
+          'src/dom/outline/*.browser.test.ts',
+          'src/dom/tools.browser.test.ts',
+          'src/dom/overlay.browser.test.ts',
+          'src/dom/form-layer.browser.test.ts',
+          'src/dom/viewer/create-viewer.browser.test.ts',
+        ],
+        setupFiles: ['src/test-support/engine-reader-setup.ts'],
+      }),
     ],
   },
 })

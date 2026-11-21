@@ -112,6 +112,9 @@ jobs:
           else
             pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE"
           fi
+      # Core's text, search, link and outline tests again, with the engine reading the file.
+      - if: matrix.package == 'core'
+        run: pnpm exec turbo run test:browser:engine --filter=@inkbar/core
       # The engine-reader scenario again, against the app's production build (vite preview).
       - if: startsWith(matrix.package, 'e2e-')
         env:

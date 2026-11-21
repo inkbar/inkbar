@@ -60,7 +60,9 @@ async function dragOverText(page: Page): Promise<void> {
   await page.mouse.up()
 }
 
-test('the engine draws the pages, the thumbnails and a loupe', async ({ page }) => {
+test('the engine draws the pages, the thumbnails and a loupe, and search paints a hit', async ({
+  page,
+}) => {
   const binary: string[] = []
   page.on('request', (r) => {
     if (ENGINE_BINARY.test(r.url())) binary.push(r.url())
@@ -93,4 +95,34 @@ test('the engine draws the pages, the thumbnails and a loupe', async ({ page }) 
   )
   await expect(lens).toHaveCount(1)
   await expect.poll(() => inked(lens)).toBeGreaterThan(10)
+
+  // The find bar searches the engine's text and paints the hit over page 1.
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('Control+f')
+  const field = page.getByRole('textbox', { name: 'Find in document' })
+  await expect(field).toBeFocused()
+  await page.keyboard.type('QQ123456C')
+  await expect(page.locator('[data-ink-find-count]')).toHaveText('1 of 3')
+  await expect(
+    page.locator('.ink-page[data-page="0"] [data-search-hit]').first()
+  ).toBeVisible()
+})
+
+test('a link the engine reads takes the reader to its page', async ({ page }) => {
+  await page.goto('/?doc=links&reader=engine')
+  await waitForFirstPage(page)
+  await expect(page.getByTestId('status')).toHaveAttribute('data-reader', 'engine')
+  // The thumbnails mark the page in view: the page input is not on this page.
+  await page.getByRole('tab', { name: 'Thumbnails' }).click()
+  const current = page.locator('[data-ink-thumbnails] [aria-current="page"]')
+  await expect(current).toHaveAttribute('data-ink-thumbnail-item', '0')
+  // The first link on page 1 goes to page 2. Link elements never take the pointer, so the
+  // page is clicked at the link's middle.
+  const link = page
+    .locator('.ink-page[data-page="0"] [data-ink-link-layer] [data-ink-link]')
+    .first()
+  await link.scrollIntoViewIfNeeded()
+  const box = (await link.boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await expect(current).toHaveAttribute('data-ink-thumbnail-item', '1')
 })

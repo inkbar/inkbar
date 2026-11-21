@@ -15,12 +15,16 @@ const TYPES: Record<string, string> = {
 /**
  * The fixtures the smoke page and the measure page open, by name. `corpus-transfer-function`
  * stands in for a scan: two pages of JBIG2 and CCITT images and no text, the largest images of
- * the image-only fixtures.
+ * the image-only fixtures. `text-search`, `links` and `outline` are for the checks of text,
+ * search, links and the outline with the engine reading the file.
  */
 export const SANDBOX_FIXTURES = [
   'text-simple',
   'unembedded-japanese',
   'corpus-transfer-function',
+  'text-search',
+  'links',
+  'outline',
 ] as const
 
 /** Every fallback font `@inkbar/fonts` ships, by the path the build serves it at. */
