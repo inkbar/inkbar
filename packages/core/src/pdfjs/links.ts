@@ -1,24 +1,11 @@
 // Links and outline targets as PDF.js reads them, turned into Inkbar's shapes.
 import { importedId } from '../model/annotations/embedded'
 import { isNamedAction, type LinkTarget } from '../model/destination'
-import { safeUrl } from '../model/form/url'
+import { safeUrl, unsafeUrlReason } from '../model/form/url'
 import { quadsFromFlat, rectFromPoints } from '../model/geometry'
 
 import type { PdfjsAnnotationData } from './types'
 import type { PageLink } from '../model/links'
-
-/** A URL with a scheme of its own, as opposed to a file name or relative path. */
-const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
-
-/**
- * Why PDF.js's `unsafeUrl` was not passed on. PDF.js reads a GoToR's file and destination into
- * `file#dest`, and a Launch's file as a bare name, so those two are told apart by the `#`; a
- * scheme `safeUrl` refuses (`javascript:`, `file:`, `data:`) is unsafe whatever follows it.
- */
-function unsafeReason(unsafeUrl: string): 'remote' | 'launch' | 'unsafe-url' {
-  if (HAS_SCHEME.test(unsafeUrl)) return 'unsafe-url'
-  return unsafeUrl.includes('#') ? 'remote' : 'launch'
-}
 
 /** The fields PDF.js gives a link, and an outline item, for where it goes. */
 export type PdfjsTargetFields = Pick<
@@ -42,7 +29,7 @@ export function targetOf(data: PdfjsTargetFields): LinkTarget {
     // PDF.js may repeat a safe `url` here; only what `safeUrl` refuses is unsafe.
     return safeUrl(data.unsafeUrl)
       ? { kind: 'unsupported', reason: 'unknown' }
-      : { kind: 'unsupported', reason: unsafeReason(data.unsafeUrl) }
+      : { kind: 'unsupported', reason: unsafeUrlReason(data.unsafeUrl) }
   }
   return { kind: 'unsupported', reason: 'unknown' }
 }

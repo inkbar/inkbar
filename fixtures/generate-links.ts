@@ -178,9 +178,17 @@ const CASES: Case[] = [
 /** The catalog's name tree: `résumé`, written as `UTF16_RESUME`, goes to the page. */
 const NAMED_DESTS = `/Names << /Dests << /Names [${hex(UTF16_RESUME)} [3 0 R /Fit]] >> >> `
 
-/** A one-page document with `annots` as objects 7 on, and `catalog` entries in the catalog. */
-function onePage(contents: string, annots: string[], catalog = ''): Buffer {
-  const refs = annots.map((_, i) => `${FIRST_ANNOT + i} 0 R`).join(' ')
+/**
+ * A one-page document with `annots` as objects 7 on, then `direct` written into /Annots itself,
+ * and `catalog` entries in the catalog.
+ */
+function onePage(
+  contents: string,
+  annots: string[],
+  catalog = '',
+  direct: string[] = []
+): Buffer {
+  const refs = [...annots.map((_, i) => `${FIRST_ANNOT + i} 0 R`), ...direct].join(' ')
   return buildPdf([
     `<< /Type /Catalog /Pages 2 0 R ${catalog}>>`,
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -232,7 +240,10 @@ function linkOrder() {
     link(4, 'link-two'),
     widget(5, 'field-two'),
     link(6, 'link-bad-quads', 4, '/QuadPoints [72 100 272 100 72 80] '),
+    link(7, 'link-hidden', 2),
   ]
+  // A Link stored as a direct object in /Annots: it has no object number of its own.
+  const direct = [link(8, 'link-direct')]
   const ids = [
     'square-hidden',
     'link-one',
@@ -241,6 +252,8 @@ function linkOrder() {
     'link-two',
     'field-two',
     'link-bad-quads',
+    'link-hidden',
+    'link-direct',
   ]
   const contents = ids.map((id, n) => label(300, 708 - n * 60, id)).join('')
   write(
@@ -248,14 +261,15 @@ function linkOrder() {
     onePage(
       contents,
       annots,
-      `/AcroForm << /Fields [9 0 R 12 0 R] /DR << /Font << /Helv 5 0 R >> >> /DA (/Helv 0 Tf 0 g) >> `
+      `/AcroForm << /Fields [9 0 R 12 0 R] /DR << /Font << /Helv 5 0 R >> >> /DA (/Helv 0 Tf 0 g) >> `,
+      direct
     ),
     {
       pages: 1,
       opens: true,
       describes:
-        'One page whose /Annots holds seven annotations in this order, each named by /NM and labelled beside its box: square-hidden (a Square with the Hidden flag), link-one (a Link), field-one (a text Widget), link-no-view (a Link with the NoView flag), link-two (a Link), field-two (a text Widget) and link-bad-quads (a Link whose /QuadPoints holds six numbers, not a multiple of eight)',
-      annotations: { Square: 1, Link: 4, Widget: 2 },
+        'One page whose /Annots holds nine annotations in this order, each named by /NM and labelled beside its box: square-hidden (a Square with the Hidden flag), link-one (a Link), field-one (a text Widget), link-no-view (a Link with the NoView flag), link-two (a Link), field-two (a text Widget), link-bad-quads (a Link whose /QuadPoints holds six numbers, not a multiple of eight), link-hidden (a Link with the Hidden flag) and link-direct (a Link written as a direct object in /Annots)',
+      annotations: { Square: 1, Link: 6, Widget: 2 },
     }
   )
 }

@@ -6,10 +6,10 @@ endobj
 << /Type /Pages /Kids [3 0 R] /Count 1 >>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R] >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R << /Type /Annot /Subtype /Link /Rect [72 220 272 250] /F 4 /NM (link-direct) /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/link-direct) >> >>] >>
 endobj
 4 0 obj
-<< /Length 304 >>
+<< /Length 392 >>
 stream
 BT /F1 14 Tf 300 708 Td (square-hidden) Tj ET
 BT /F1 14 Tf 300 648 Td (link-one) Tj ET
@@ -18,6 +18,8 @@ BT /F1 14 Tf 300 528 Td (link-no-view) Tj ET
 BT /F1 14 Tf 300 468 Td (link-two) Tj ET
 BT /F1 14 Tf 300 408 Td (field-two) Tj ET
 BT /F1 14 Tf 300 348 Td (link-bad-quads) Tj ET
+BT /F1 14 Tf 300 288 Td (link-hidden) Tj ET
+BT /F1 14 Tf 300 228 Td (link-direct) Tj ET
 
 endstream
 endobj
@@ -48,24 +50,28 @@ endobj
 13 0 obj
 << /Type /Annot /Subtype /Link /Rect [72 340 272 370] /F 4 /NM (link-bad-quads) /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/link-bad-quads) >> /QuadPoints [72 100 272 100 72 80] >>
 endobj
+14 0 obj
+<< /Type /Annot /Subtype /Link /Rect [72 280 272 310] /F 2 /NM (link-hidden) /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/link-hidden) >> >>
+endobj
 xref
-0 14
+0 15
 0000000000 65535 f 
 0000000009 00000 n 
 0000000152 00000 n 
 0000000209 00000 n 
-0000000391 00000 n 
-0000000746 00000 n 
-0000000843 00000 n 
-0000000914 00000 n 
-0000001033 00000 n 
-0000001203 00000 n 
-0000001330 00000 n 
-0000001510 00000 n 
-0000001681 00000 n 
-0000001809 00000 n 
+0000000559 00000 n 
+0000001002 00000 n 
+0000001099 00000 n 
+0000001170 00000 n 
+0000001289 00000 n 
+0000001459 00000 n 
+0000001586 00000 n 
+0000001766 00000 n 
+0000001937 00000 n 
+0000002065 00000 n 
+0000002283 00000 n 
 trailer
-<< /Size 14 /Root 1 0 R /Info 6 0 R >>
+<< /Size 15 /Root 1 0 R /Info 6 0 R >>
 startxref
-2027
+2460
 %%EOF

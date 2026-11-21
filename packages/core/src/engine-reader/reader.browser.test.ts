@@ -1,5 +1,6 @@
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { fontUrls } from '@inkbar/fonts'
+import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createLoupeLayer } from '../dom/loupe-layer'
@@ -8,11 +9,14 @@ import { mountContainer, openFixtureInBrowser, until } from '../dom/test-utils'
 import { createThumbnailPainter } from '../dom/thumbnails/thumbnail'
 import { createPageTransform } from '../dom/transform'
 import { createViewer } from '../dom/viewer/create-viewer'
+import { mountViewer } from '../dom/viewer-engine'
 import { openDocument, type EngineLoader, type InkDocument } from '../model/document'
 import { writable } from '../model/readable'
 import { searchableText } from '../model/search-text'
 
-import type { Rect } from '../model/geometry'
+import { expectSameLinks, linksAsSeen } from './test-utils'
+
+import type { Point, Rect } from '../model/geometry'
 
 const flag = globalThis as { __INKBAR_READER__?: unknown }
 
@@ -424,5 +428,154 @@ describe('reopening after applying redactions', () => {
     const after = darkPixels(await drawMark(next), 0, 0, 340, 70)
     expect(after).toBeGreaterThan(before)
     expect(after).toBeGreaterThan(340 * 70 * 0.9)
+  })
+})
+
+describe("the engine reader's links and outline", () => {
+  /** Every page's links as a host sees them, and the outline, read by the reader selected now. */
+  async function read(name: FixtureName) {
+    const doc = await open(name)
+    const links = []
+    for (let page = 0; page < doc.pages.length; page++)
+      links.push(await linksAsSeen(doc, page))
+    return { kind: doc._reader.kind, links, outline: await doc.outline() }
+  }
+
+  it.each(['links', 'link-targets', 'link-order', 'outline', 'corpus-annots'] as const)(
+    'gives the same links and outline as PDF.js, on %s',
+    async (name) => {
+      const engine = await read(name)
+      delete flag.__INKBAR_READER__
+      const pdfjs = await read(name)
+      expect([engine.kind, pdfjs.kind]).toEqual(['engine', 'pdfjs'])
+      expect(engine.links.map((l) => l.length)).toEqual(pdfjs.links.map((l) => l.length))
+      engine.links.forEach((links, page) => expectSameLinks(links, pdfjs.links[page]!))
+      expect(engine.outline).toEqual(pdfjs.outline)
+    }
+  )
+
+  it("reads link-targets' twenty cases as the manifest records them", async () => {
+    const { links } = await read('link-targets')
+    const url = (address: string, newWindow = false) => ({
+      kind: 'url',
+      url: address,
+      newWindow,
+    })
+    const unsupported = (reason: string) => ({ kind: 'unsupported', reason })
+    expect(links[0]!.map((l) => l.target)).toEqual([
+      url('https://example.com/a'),
+      url('https://example.com/doc.pdf', true),
+      unsupported('remote'),
+      url('https://example.com/run'),
+      unsupported('launch'),
+      url('https://example.com/js', true),
+      url('https://example.com/open'),
+      unsupported('unknown'),
+      url('https://example.com/aa'),
+      url('http://www.example.com/path'),
+      url('https://example.com/%C3%A9'),
+      unsupported('unsafe-url'),
+      unsupported('unsafe-url'),
+      unsupported('unsafe-url'),
+      // PDF.js reports a URI it cannot parse, with no scheme and no #, as launch.
+      unsupported('launch'),
+      unsupported('unsafe-url'),
+      { kind: 'named', action: 'NextPage' },
+      unsupported('unknown'),
+      // The catalog is not a page: the destination goes nowhere.
+      { kind: 'dest', name: undefined, resolved: undefined },
+      // A name the file writes in UTF-16BE, found in its name tree.
+      { kind: 'dest', name: 'résumé', resolved: { page: 0, fit: 'fit' } },
+    ])
+  })
+
+  it('resolves the name résumé, written in UTF-16BE, to page 0 through the engine', async () => {
+    const doc = await open('link-targets')
+    expect(doc._reader.kind).toBe('engine')
+    const link = doc.links(0).at(-1)!
+    expect(link.target).toEqual({ kind: 'dest', raw: 'résumé' })
+    await expect(doc._reader.resolveDestination('résumé')).resolves.toEqual({
+      page: 0,
+      fit: 'fit',
+    })
+  })
+
+  it('gives a destination as the page index and the fit with its arguments, on links page 0', async () => {
+    // The shape a host sees in `raw`: PDF.js gives the page as an object reference instead.
+    const doc = await open('links')
+    expect(
+      doc
+        .links(0)
+        .slice(0, 2)
+        .map((l) => l.target)
+    ).toEqual([
+      { kind: 'dest', raw: [1, { name: 'XYZ' }, 72, 600, null] },
+      { kind: 'dest', raw: 'chapter-3' },
+    ])
+  })
+
+  it("orders link-order's links as PDF.js does, with the ids it gives", async () => {
+    const { links } = await read('link-order')
+    expect(links[0]!.map((l) => [l.id, l.order])).toEqual([
+      ['pdf:0:8R', 1],
+      ['pdf:0:11R', 2],
+      ['pdf:0:13R', 3],
+      // A Link with the Hidden flag: PDF.js keeps it.
+      ['pdf:0:14R', 4],
+      // A Link written as a direct object in /Annots.
+      ['pdf:0:annot_p0_1', 5],
+    ])
+  })
+
+  /** Where the viewer goes when `at`, in user space on page 0 of `links`, is pressed. */
+  async function pressOnLinks(at: Point): Promise<unknown> {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    const doc = await open('links')
+    const container = mountContainer(800, 900)
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 0 })
+    try {
+      await until(() => engine.pages.size > 0)
+      await engine.pages.get(0)!.textLayer.ready
+      const scrolled = vi.spyOn(engine.viewport, 'scrollToDestination')
+      engine.tools.set('select')
+      const box = engine.viewport.hostFor(0)!.getBoundingClientRect()
+      const css = engine.viewport.transformFor(0).toCss(at)
+      const client = { clientX: box.left + css.x, clientY: box.top + css.y }
+      const target = document.elementFromPoint(client.clientX, client.clientY)!
+      for (const type of ['pointerdown', 'pointerup'] as const)
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            ...client,
+            bubbles: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            buttons: type === 'pointerdown' ? 1 : 0,
+            isPrimary: true,
+          })
+        )
+      await until(() => scrolled.mock.calls.length > 0)
+      return scrolled.mock.calls[0]![0]
+    } finally {
+      engine.destroy()
+      container.remove()
+      style.remove()
+    }
+  }
+
+  it('a press on a link on page 0 of links goes to the same place with either reader', async () => {
+    // The first link is an explicit destination, the second a named one.
+    const explicit = { x: 103, y: 705 }
+    const named = { x: 103, y: 675 }
+    const engine = [await pressOnLinks(explicit), await pressOnLinks(named)]
+    delete flag.__INKBAR_READER__
+    const pdfjs = [await pressOnLinks(explicit), await pressOnLinks(named)]
+    expect(engine).toEqual(pdfjs)
+    expect(engine).toEqual([
+      { page: 1, fit: 'xyz', left: 72, top: 600, zoom: undefined },
+      { page: 2, fit: 'fit' },
+    ])
   })
 })

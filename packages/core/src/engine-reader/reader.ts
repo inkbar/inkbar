@@ -1,11 +1,21 @@
-// The document reader over @inkbar/engine: page facts, pixels and text from an engine of its
-// own, loaded through the host's loader, with the file open in it. Nothing here imports the
-// engine: its shapes are declared in ./types and checked when the file is opened.
+// The document reader over @inkbar/engine: page facts, pixels, text, links, the outline and
+// destinations from an engine of its own, loaded through the host's loader, with the file open
+// in it. Nothing here imports the engine: its shapes are declared in ./types and checked when
+// the file is opened.
+import {
+  destinationFromArray,
+  type Destination,
+  type RawDestination,
+} from '../model/destination'
 import { InkError, isInkError } from '../model/errors'
 
+import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
+import { nameBytes, rawDestination } from './targets'
 
 import type { ReaderEngine, ReaderEngineDocument } from './types'
+import type { PageLink } from '../model/links'
+import type { OutlineItem } from '../model/outline'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { EngineLoader } from '../model/save/saver'
 import type { TextContent } from '../model/text'
@@ -20,6 +30,15 @@ export const MAX_PIXELS = 268_435_456
 /** How many pages' text the reader keeps, the last ones read. */
 const TEXT_PAGES = 8
 
+/**
+ * How many engines link reads, or the name lookups of one outline read, may stop in a row, with
+ * none of them succeeding in between, before the reader stops asking: each stop costs a new
+ * engine, which reads the whole file again. One item that stops the engine stops at most two:
+ * the one it was read on, and the one its retry stops, which the next read then finds stopped.
+ * So three in a row take more than one bad item.
+ */
+const STOPS_IN_A_ROW = 3
+
 /** @internal */
 export interface EngineReaderOptions {
   loader: EngineLoader
@@ -29,11 +48,6 @@ export interface EngineReaderOptions {
   password: string | undefined
   /** Where a missing fallback font is reported. Default `console.warn`. */
   warn?: (message: string) => void
-  /**
-   * The reader this one hands links, the outline and destinations to. Absent: those reject
-   * with EngineUnavailable.
-   */
-  delegate?: Delegated
 }
 
 /** @internal The engine reader: a `DocumentReader` that also gives the families its text is in. */
@@ -43,24 +57,6 @@ export interface EngineDocumentReader extends DocumentReader {
    * aborts it rejects with `signal.reason`, as `text` does.
    */
   textFamilies(page: number, signal?: AbortSignal): Promise<readonly GenericFamily[]>
-}
-
-/** What the engine reader hands to another reader. */
-type Delegated = Pick<DocumentReader, 'links' | 'outline' | 'resolveDestination'>
-
-const cannotRead = (): Promise<never> =>
-  Promise.reject(
-    new InkError(
-      'EngineUnavailable',
-      'The engine reader was given no reader for links, the outline or destinations'
-    )
-  )
-
-/** Stands in for `delegate` when none is given. */
-const noDelegate: Delegated = {
-  links: cannotRead,
-  outline: cannotRead,
-  resolveDestination: cannotRead,
 }
 
 /** An engine and the file open in it. */
@@ -123,7 +119,6 @@ export async function createEngineReader(
   options: EngineReaderOptions
 ): Promise<EngineDocumentReader> {
   const warn = options.warn ?? ((message: string) => console.warn(message))
-  const delegate = options.delegate ?? noDelegate
   const passwordOption =
     options.password !== undefined ? { password: options.password } : {}
   let destroyed = false
@@ -183,12 +178,16 @@ export async function createEngineReader(
     return made
   }
 
-  /** Frees a session whose engine stopped. The next call starts another, unless one has already. */
-  const drop = (dead: Promise<Session>, s: Session): void => {
-    if (current !== dead) return
+  /**
+   * Frees a session whose engine stopped. The next call starts another, unless one has already.
+   * True for the one call that dropped it; calls that failed with it at the same time get false.
+   */
+  const drop = (dead: Promise<Session>, s: Session): boolean => {
+    if (current !== dead) return false
     current = undefined
     s.dropped = true
     void free(s)
+    return true
   }
 
   /** A page whose facts the engine has given: asking for them again is a cheap, sure call. */
@@ -226,11 +225,13 @@ export async function createEngineReader(
    * really stopped, the engine is replaced and `work` runs once more on the new one. When the
    * engine still works the error is the call's own and goes to the caller. A call the engine
    * rejected with `aborted` because the reader dropped its session runs once more too. Never
-   * for a call that was aborted or a reader that was destroyed.
+   * for a call that was aborted or a reader that was destroyed. `onDrop` is called when this
+   * call is the one that dropped the engine, so each drop is told to one caller only.
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onDrop?: () => void
   ): Promise<T> => {
     let retried = false
     for (;;) {
@@ -252,7 +253,7 @@ export async function createEngineReader(
         if (code !== 'engine-failure') throw error
         if (await stillWorks(s)) throw error
         retried = true
-        drop(used, s)
+        if (drop(used, s)) onDrop?.()
       }
     }
   }
@@ -435,6 +436,108 @@ export async function createEngineReader(
     }
   }
 
+  /**
+   * Engines that link reads dropped since a link read last succeeded. Each drop counts once,
+   * however many reads failed with it: reads run several at a time on the engine's one queue,
+   * and every read queued behind the one that stopped it fails too.
+   */
+  let linkStops = 0
+  /**
+   * A page's links. A page whose links the engine cannot read has none, as a page whose
+   * annotations PDF.js cannot parse has none with the PDF.js reader. Once link reads have
+   * dropped `STOPS_IN_A_ROW` engines with none succeeding in between, the rest of the pages have
+   * none without asking: a file whose link reads stop the engine would otherwise start a new
+   * engine for every page.
+   */
+  const links = async (page: number): Promise<PageLink[]> => {
+    if (destroyed) throw destroyedError()
+    checkPage(page)
+    if (linkStops >= STOPS_IN_A_ROW) return []
+    const facts = await run(
+      (doc) => doc.pageLinks(page),
+      undefined,
+      () => {
+        linkStops++
+      }
+    ).catch(() => undefined)
+    if (destroyed) throw destroyedError()
+    if (facts) linkStops = 0
+    return facts ? linksFromFacts(page, facts) : []
+  }
+
+  /** Named destinations looked up, by name. A failed lookup is not kept. */
+  const named = new Map<string, Promise<Destination | undefined>>()
+  /** `onDrop` is told when the lookup this call starts drops the engine. */
+  const lookUp = (
+    name: string,
+    onDrop?: () => void
+  ): Promise<Destination | undefined> => {
+    let found = named.get(name)
+    if (!found) {
+      const made = run(
+        (doc) => doc.namedDestination(nameBytes(name)),
+        undefined,
+        onDrop
+      ).then((dest) => {
+        const raw = dest && rawDestination(dest)
+        return Array.isArray(raw) ? destinationFromArray(raw, pageCount) : undefined
+      })
+      named.set(name, made)
+      made.catch(() => {
+        if (named.get(name) === made) named.delete(name)
+      })
+      found = made
+    }
+    return found
+  }
+  /**
+   * Where `raw` goes. An explicit destination is read here; a name is looked up in the engine
+   * by the bytes it decodes from. As with the PDF.js reader, one that cannot be read resolves to
+   * nothing.
+   */
+  const resolveDestination = async (
+    raw: RawDestination
+  ): Promise<Destination | undefined> => {
+    if (destroyed) throw destroyedError()
+    const dest =
+      typeof raw === 'string'
+        ? await lookUp(raw).catch(() => undefined)
+        : destinationFromArray(raw, pageCount)
+    if (destroyed) throw destroyedError()
+    return dest
+  }
+
+  /**
+   * The outline, `[]` when the engine cannot read it, as the PDF.js reader gives it then. Once
+   * this read's lookups have dropped `STOPS_IN_A_ROW` engines with none succeeding in between,
+   * counting each drop once, the rest of its names resolve to nothing without asking: a file
+   * whose lookups stop the engine would otherwise restart it for every batch of names.
+   */
+  const outline = async (): Promise<OutlineItem[]> => {
+    if (destroyed) throw destroyedError()
+    const facts = await run((doc) => doc.outline()).catch(() => undefined)
+    if (destroyed) throw destroyedError()
+    if (!facts) return []
+    let stops = 0
+    const resolve = async (raw: RawDestination): Promise<Destination | undefined> => {
+      if (typeof raw !== 'string') return resolveDestination(raw)
+      if (destroyed) throw destroyedError()
+      if (stops >= STOPS_IN_A_ROW) return undefined
+      const dest = await lookUp(raw, () => {
+        stops++
+      }).then(
+        (found) => {
+          stops = 0
+          return found
+        },
+        () => undefined
+      )
+      if (destroyed) throw destroyedError()
+      return dest
+    }
+    return outlineFromFacts(facts.items, resolve)
+  }
+
   let destroying: Promise<void> | undefined
   return {
     kind: 'engine',
@@ -451,14 +554,15 @@ export async function createEngineReader(
         options?.signal
       ),
     textFamilies: (page, signal) => readText(page, (runs) => runs.families, signal),
-    links: (page) => delegate.links(page),
-    outline: () => delegate.outline(),
-    resolveDestination: (raw) => delegate.resolveDestination(raw),
+    links,
+    outline,
+    resolveDestination,
     destroy() {
       if (destroying) return destroying
       destroyed = true
       stopped.abort(destroyedError())
       texts.clear()
+      named.clear()
       const last = current
       current = undefined
       // A session still starting frees itself when it finds the reader destroyed.

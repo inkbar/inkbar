@@ -453,21 +453,18 @@ export async function openDocument(
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
   /**
-   * With the internal switch on, pages are drawn and their text read by an engine reader over
-   * the file PDF.js opened; PDF.js still reads links and forms. Its module loads only then.
+   * With the internal switch on, pages are drawn and their text, links, outline and destinations
+   * read by an engine reader over the file PDF.js opened; PDF.js still reads annotations and
+   * forms. Its module loads only then.
    */
   const engineReader =
     readerKind() === 'engine'
-      ? async (
-          proxy: PdfjsDocument,
-          pdfjsReader: DocumentReader
-        ): Promise<DocumentReader> => {
+      ? async (proxy: PdfjsDocument): Promise<DocumentReader> => {
           const { createEngineReader } = await import('../engine-reader/reader')
           return createEngineReader({
             loader: options.engine!,
             bytes: () => proxy.getData(),
             password: options.password,
-            delegate: pdfjsReader,
           })
         }
       : undefined
@@ -522,7 +519,7 @@ export async function openDocument(
       measure,
       annotations: annotationsOf,
     })
-    reader = engineReader ? await engineReader(proxy, pdfjsReader) : pdfjsReader
+    reader = engineReader ? await engineReader(proxy) : pdfjsReader
     const meta = await proxy.getMetadata().catch(() => {
       // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
       // title/author are nice-to-have. The document itself has opened, so carry on without it.
