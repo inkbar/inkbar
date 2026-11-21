@@ -2,9 +2,9 @@ import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../pdfjs/node-assets'
+import { textContentFromPdfjs } from '../pdfjs/text-items'
 
 import { openDocument } from './document'
-import { textContentFromPdfjs } from './text'
 
 describe('text content', () => {
   it('converts PDF.js items into user-space quads', async () => {

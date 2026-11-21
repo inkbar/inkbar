@@ -23,6 +23,30 @@ export interface EngineReaderOptions {
   password: string | undefined
   /** Where a missing fallback font is reported. Default `console.warn`. */
   warn?: (message: string) => void
+  /**
+   * The reader this one hands text, links, the outline and destinations to. Absent: those
+   * reject with EngineUnavailable.
+   */
+  delegate?: Delegated
+}
+
+/** What the engine reader hands to another reader. */
+type Delegated = Pick<DocumentReader, 'text' | 'links' | 'outline' | 'resolveDestination'>
+
+const cannotRead = (): Promise<never> =>
+  Promise.reject(
+    new InkError(
+      'EngineUnavailable',
+      'The engine reader was given no reader for text, links, the outline or destinations'
+    )
+  )
+
+/** Stands in for `delegate` when none is given. */
+const noDelegate: Delegated = {
+  text: cannotRead,
+  links: cannotRead,
+  outline: cannotRead,
+  resolveDestination: cannotRead,
 }
 
 /** An engine and the file open in it. */
@@ -85,6 +109,7 @@ export async function createEngineReader(
   options: EngineReaderOptions
 ): Promise<DocumentReader> {
   const warn = options.warn ?? ((message: string) => console.warn(message))
+  const delegate = options.delegate ?? noDelegate
   const passwordOption =
     options.password !== undefined ? { password: options.password } : {}
   let destroyed = false
@@ -312,6 +337,10 @@ export async function createEngineReader(
     pageCount,
     pageInfo,
     draw,
+    text: (page, textOptions) => delegate.text(page, textOptions),
+    links: (page) => delegate.links(page),
+    outline: () => delegate.outline(),
+    resolveDestination: (raw) => delegate.resolveDestination(raw),
     destroy() {
       if (destroying) return destroying
       destroyed = true

@@ -51,4 +51,33 @@ describe('the reader a document opens with', () => {
     expect(doc.pages).toHaveLength(3)
     doc.destroy()
   })
+
+  it('with the switch on: text, links, the outline and destinations read as with it off', async () => {
+    const read = async (name: 'links' | 'outline') => {
+      const doc = await openDocument(await fixtureBytes(name), {
+        assets: nodeAssets(),
+        engine: () => import('@inkbar/engine'),
+      })
+      await doc.ready
+      const out = {
+        kind: doc._reader.kind,
+        // PDF.js numbers font names per document, so they are left out.
+        text: (await doc.text(0)).items.map(({ fontName: _, ...item }) => item),
+        links: doc.links(0),
+        outline: await doc.outline(),
+        dest: await doc.resolveDestination('chapter-2'),
+      }
+      doc.destroy()
+      return out
+    }
+    for (const name of ['links', 'outline'] as const) {
+      const off = await read(name)
+      flag.__INKBAR_READER__ = 'engine'
+      const on = await read(name)
+      delete flag.__INKBAR_READER__
+      expect(off.kind).toBe('pdfjs')
+      expect(on.kind).toBe('engine')
+      expect(on).toEqual({ ...off, kind: 'engine' })
+    }
+  })
 })

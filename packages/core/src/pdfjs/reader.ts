@@ -1,15 +1,29 @@
-// The document reader over PDF.js: page facts from each page proxy, and pixels from
-// `PDFPageProxy.render`.
+// The document reader over PDF.js: page facts from each page proxy, pixels from
+// `PDFPageProxy.render`, and text, links, the outline and destinations as PDF.js reads them.
+import { resolveDestination } from './destinations'
+import { pageGlyphs } from './glyphs'
+import { linkFromPdfjs } from './links'
+import { readOutline } from './outline'
+import { readTextContent } from './text-content'
+import { textContentFromPdfjs } from './text-items'
 import { omitAppearances } from './widget-appearance'
 
-import type { PdfjsPage } from './types'
+import type { PdfjsAnnotationData, PdfjsPage } from './types'
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
 import type { PageInfo, PageRotation } from '../model/pages'
+import type { MeasureChar, TextContent } from '../model/text'
 import type { DocumentReader, DrawRequest } from '../reader/types'
 
 const isCancellation = (error: unknown): boolean =>
   (error as { name?: unknown } | null)?.name === 'RenderingCancelledException'
+
+/** @internal What the PDF.js reader takes from the document besides its handles. */
+export interface PdfjsReaderDeps {
+  measure: MeasureChar | undefined
+  /** The page's annotations as PDF.js gives them. The document reads each page once and shares it. */
+  annotations(page: number): Promise<readonly PdfjsAnnotationData[]>
+}
 
 /**
  * A reader over the document's PDF.js handles. It owns nothing: the document destroys the
@@ -17,7 +31,10 @@ const isCancellation = (error: unknown): boolean =>
  *
  * @internal
  */
-export function createPdfjsReader(handles: InkDocument['_pdfjs']): DocumentReader {
+export function createPdfjsReader(
+  handles: InkDocument['_pdfjs'],
+  deps: PdfjsReaderDeps
+): DocumentReader {
   return {
     kind: 'pdfjs',
     pageCount: handles.proxy.numPages,
@@ -25,8 +42,41 @@ export function createPdfjsReader(handles: InkDocument['_pdfjs']): DocumentReade
       return pageInfoFromProxy(await handles.getPage(index), index)
     },
     draw: (request, canvas, signal) => draw(handles, request, canvas, signal),
+    text: (page, { glyphs, signal }) => text(handles, deps.measure, page, glyphs, signal),
+    async links(page) {
+      const annotations = await deps.annotations(page)
+      return annotations.flatMap((data, at) => linkFromPdfjs(page, data, at) ?? [])
+    },
+    outline: () => readOutline(handles.proxy),
+    resolveDestination: (raw) => resolveDestination(handles.proxy, raw),
     destroy: () => Promise.resolve(),
   }
+}
+
+/**
+ * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
+ * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
+ * decodes its images. Once `signal` aborts the read rejects with its reason: the text stream is
+ * cancelled, and a read of the drawing commands already asked for is left to finish unused.
+ */
+async function text(
+  handles: InkDocument['_pdfjs'],
+  measure: MeasureChar | undefined,
+  page: number,
+  glyphs: boolean,
+  signal: AbortSignal | undefined
+): Promise<TextContent> {
+  signal?.throwIfAborted()
+  const p = await handles.getPage(page)
+  signal?.throwIfAborted()
+  const tc = await readTextContent(p, signal)
+  // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
+  const placed =
+    glyphs && tc.items.length > 0
+      ? await pageGlyphs(p, handles.module).catch(() => undefined)
+      : undefined
+  signal?.throwIfAborted()
+  return textContentFromPdfjs(page, tc, measure, placed)
 }
 
 /**
