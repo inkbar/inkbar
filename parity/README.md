@@ -1,6 +1,6 @@
 # @inkbar/parity
 
-Draws the first three pages of every fixture that opens with both of core's readers, PDF.js and the engine, and checks each fixture against the verdict `parity.json` records for it. Private: never published.
+Draws the first three pages of every fixture that opens with both of core's readers, PDF.js and the engine, reads their text, links and outline, and checks each fixture against the verdicts `parity.json` records for it. Private: never published.
 
 It opens each fixture twice with `openDocument`, once with `globalThis.__INKBAR_READER__ = 'engine'` set first and once without, and draws through `doc._reader.draw` at 2 pixels per point, pixel ratio 1, the page's own `/Rotate`, nothing hidden. That switch and `_reader` are internal to core. This package is the one place outside core that uses them.
 
@@ -40,6 +40,34 @@ A drawing that leaves out any of these still passes as `same`:
 - a flat tint within 8 levels of the other image;
 - a small glyph part such as a dot: about 8% of glyph parts of 40 px or more are missed, and most smaller ones.
 
+## Text, links and outline
+
+Three more checks read what each reader gives besides pixels, for every fixture that opens. Each holds its own verdict in `parity.json`.
+
+- **Text** (`src/text.browser.test.ts`). For each compared page, the check reads both readers' text with exact character boundaries and joins it the way search joins it (core's `searchableText`), with whitespace runs collapsed to one space and the ends trimmed. The two strings must be equal. Then the check pairs the characters that are not whitespace and measures how far apart the readers put them, as a fraction of the font size:
+  - Where both items holding a character carry `advances`, the check compares the character's centre: the middle of its share of its item's box, cut at the item's `advances`, which rise along the box for left-to-right and vertical text and fall for right-to-left text.
+  - Where either item has none, the check compares stretches of the same characters instead. A stretch is a run of consecutive characters in one item without `advances`, or in one on each side when both lack them. On each side the stretch runs from its first character's start to its last character's end, cut at equal shares in an item without `advances` and at the `advances` of an item that has them, and the check compares the two sides' starts, ends and centres. Only those three points of a stretch are compared, so a character moved in the middle of a stretch of three or more, with the stretch's ends in place, is not seen. `TextItem.advances` documents that an item without them gives each character an equal share, and core's PDF.js reader gives right-to-left and vertical items no `advances`, so a per-character centre there would measure that estimate against the engine's glyphs.
+
+  Every distance must be within `TEXT_TOLERANCE`. A box, boundary or font size that is not a finite number counts as a difference. The check pairs characters, so the readers may split a line into runs at different places.
+
+- **Links** (`src/links.browser.test.ts`). On every page of the file, both readers must give the same links in the same order: the same count, and for each link the same id, `order`, target and quads, and a rect within 0.01 pt. The check compares a destination by where it goes, as each reader resolves it, since the two readers write an explicit destination's page differently. Two explicit destinations that go nowhere count as equal.
+- **Outline** (same file). The same tree: for each item its title, bold, italic, open, resolved destination and number of children.
+
+A failure names each difference: the character where the two strings first differ, or the worst character and its distance; the link or outline item and the field, with both readers' values.
+
+`src/search.browser.test.ts` runs the queries core's own search tests run, on the same fixtures, with each reader. Both readers must find the same number of hits, on the same pages, with the same text, and the centre of each hit's quads must lie within `TEXT_TOLERANCE` of the other reader's. It has no verdicts: any difference fails.
+
+### How the tolerance was chosen
+
+`TEXT_TOLERANCE` is 0.25 of the font size. We measured every fixture with text, as for the pixel constants. A report run writes the numbers to `.report/text-measures.json`: per page, `charOffset` for characters compared by their own boundaries, `itemOffset` for stretches compared as wholes, and `heightRatio`, the lowest and highest ratio of the engine's box height to PDF.js's.
+
+- The engine's boxes are taller than PDF.js's: 1.264 times as tall on upright Helvetica, where the top is 3.18 pt higher and the bottom 0.24 pt lower at 14 pt, and 1.252 times on Times. Comparing centres absorbs most of this: every centre in Helvetica sits 0.105 of the font size higher.
+- Characters compared by their own boundaries: the noise ceiling is 0.123 (`redact-text-rotated`, unembedded Helvetica on a baseline turned 30 degrees), and the other fixtures in unembedded Helvetica measure 0.105 to 0.112. Characters in embedded fonts measure at most 0.025 (`corpus-embedpdf-chrome-type3-text`).
+- Stretches compared as wholes: the noise ceiling is 0.000001 (the Hebrew line of `text-rtl`).
+- The smallest real difference is 8.39 (`text-vertical`, a stretch compared whole). The other real differences change the text itself.
+
+The limit sits at twice the noise ceiling and still catches a character moved by 0.3 of the font size, which the unit tests pin. To get a fixture past it, record the difference in `parity.json`; leave the constant alone.
+
 ## parity.json
 
 One entry per fixture that opens:
@@ -49,6 +77,8 @@ One entry per fixture that opens:
 - `{ "state": "different", "reason": "...", "accepted": false }`: every compared page must differ. With `"pages": [2, 3]` (counting from 1), the listed pages must differ and every other compared page must be the same, so a new difference on a page that matches today still fails. The reason says what differs and, where known, which drawing feature causes it. Only the project owner sets `accepted` to `true`. When a recorded difference goes away, the test fails with "page N is now the same: update parity.json".
 - `{ "state": "baseline", "reason": "..." }`: PDF.js cannot be the reference (it draws text in fonts the file does not embed with whatever fonts the machine has), so the test compares the engine's drawing with `baselines/<fixture>-<page>.png`, the engine's own committed output, and skips PDF.js.
 - `{ "state": "skipped", "reason": "..." }`: one reader does not open the file, or the readers count its pages differently. The test checks that this still holds.
+
+An entry that is not `skipped` may also hold `text`, `links` and `outline`, each `{ "state": "same" }` or `{ "state": "different", "reason": "...", "accepted": false }` with the same rules, `pages` included (the outline takes no `pages`). A missing key means `same`. Links are compared on every page, so a `links` verdict's `pages` may list any page of the file.
 
 Whatever the verdict, both readers must agree on each page's box (within 0.01 pt), rotation and user unit, and on the page count. A fixture with no entry fails with "no verdict recorded". The unit tests check the file's shape: a known `state`, a non-empty `reason` where the state needs one, a boolean `accepted`, valid `pages`, no unknown keys, and an entry for every fixture that opens and nothing else.
 
@@ -61,6 +91,6 @@ pnpm --filter @inkbar/parity test --maxWorkers=4           # unit tests: compare
 pnpm --filter @inkbar/parity test:browser --maxWorkers=4   # the suite, in headless Chromium
 ```
 
-The report: `PARITY_REPORT=1 pnpm --filter @inkbar/parity test:browser` writes `parity/.report/index.html` with every page that is not the same, most different first: the PDF.js (or baseline) image, the engine image, a difference image (over a faded copy of the page: red where the blurred images differ, blue for unmatched pixels, orange for differing flat areas), the numbers and the recorded reason. `PARITY_REPORT=all` lists every page. Both also write `parity/.report/measures.json` with every page's numbers. A report run empties the folder first. Git ignores it.
+The report: `PARITY_REPORT=1 pnpm --filter @inkbar/parity test:browser` writes `parity/.report/index.html` with every page that is not the same, most different first: the PDF.js (or baseline) image, the engine image, a difference image (over a faded copy of the page: red where the blurred images differ, blue for unmatched pixels, orange for differing flat areas), the numbers and the recorded reason. `PARITY_REPORT=all` lists every page. Both also write `parity/.report/measures.json` with every page's numbers. The text check writes `parity/.report/text.html` in the same way: for each page listed, the two strings with the first difference (or the worst character) marked, and the engine's drawing with both readers' item boxes and character centres over it, PDF.js's in blue and the engine's in red. Beside each page's image is a JSON file of both readers' text, and `text-measures.json` holds every page's worst offset. The link check writes `parity/.report/links.html` with each page's link differences and the outline's. A report run empties the folder first. Git ignores it.
 
 Baselines: `PARITY_BASELINE=unembedded-japanese pnpm --filter @inkbar/parity test:browser -t unembedded-japanese` writes that fixture's PNGs under `parity/baselines/`. Several fixtures can be given, separated by commas. Look at the images before committing them.
