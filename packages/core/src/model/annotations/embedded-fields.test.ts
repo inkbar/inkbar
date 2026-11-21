@@ -6,11 +6,12 @@ import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
 import sample from './__fixtures__/standard-callout.json'
+import { describeRedact } from './drawing/markup'
 import { importEmbeddedPage, type EmbeddedTarget } from './embedded'
 import { readEmbeddedFields, readLifted, withEmbeddedFields } from './embedded-fields'
 import { savedDataFor } from './saved-data'
 
-import type { Annotation } from './types'
+import type { Annotation, RedactAnnotation } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 const NOW = '2026-10-20T00:00:00.000Z'
@@ -387,6 +388,12 @@ describe('readLifted', () => {
           p4: { x: 215, y: 190 },
         },
       ])
+      expect(a).not.toHaveProperty('overlayText')
+    })
+
+    it('keeps its overlay text', async () => {
+      const [one] = await lift(markFile(`${QUADS} /OverlayText (EXEMPT)`), marks())
+      expect(one!.annotation).toMatchObject({ type: 'redact', overlayText: 'EXEMPT' })
     })
 
     it('carries a listed pop-up', async () => {
@@ -444,6 +451,91 @@ describe('readLifted', () => {
       expect((cmyk[0]!.annotation as { interiorColor: string }).interiorColor).toBe(
         '#000000'
       )
+    })
+
+    it('takes a fill component outside 0..1 as the nearer end', async () => {
+      for (const ic of ['/IC [255 0 0]', '/IC [2 -1 0]']) {
+        const lifted = await lift(markFile(ic), marks())
+        expect((lifted[0]!.annotation as { interiorColor: string }).interiorColor).toBe(
+          '#FF0000'
+        )
+      }
+    })
+
+    describe('corner order', () => {
+      const upright = [
+        {
+          p1: { x: 45, y: 225 },
+          p2: { x: 215, y: 225 },
+          p3: { x: 45, y: 190 },
+          p4: { x: 215, y: 190 },
+        },
+      ]
+      const quadsOf = async (quadPoints: string) =>
+        (
+          (await lift(markFile(`/QuadPoints ${quadPoints}`), marks()))[0]!.annotation as {
+            quads?: unknown
+          }
+        ).quads
+
+      it("puts the specification's order, round the edge, in reading order", async () => {
+        expect(await quadsOf('[45 190 215 190 215 225 45 225]')).toEqual(upright)
+      })
+
+      it('puts bottom-left, bottom-right, top-left, top-right in reading order', async () => {
+        expect(await quadsOf('[45 190 215 190 45 225 215 225]')).toEqual(upright)
+      })
+
+      it("draws the specification's order as the box, not crossed", async () => {
+        const [one] = await lift(
+          markFile('/QuadPoints [45 190 215 190 215 225 45 225]'),
+          marks()
+        )
+        const drawn = describeRedact(one!.annotation as RedactAnnotation)
+        const group = drawn.items[0]!
+        const polygon = group.kind === 'group' ? group.items[0]! : group
+        expect(polygon.kind).toBe('polygon')
+        // Round the box: top-left, top-right, bottom-right, bottom-left.
+        expect(polygon.kind === 'polygon' && polygon.points).toEqual([
+          { x: 45, y: 225 },
+          { x: 215, y: 225 },
+          { x: 215, y: 190 },
+          { x: 45, y: 190 },
+        ])
+      })
+    })
+
+    it('gives a mark with quads their bounding box as its rect', async () => {
+      // The file's /Rect reaches 5 points past the quads on every side.
+      const wide = mark({ rect: { x: 40, y: 185, width: 180, height: 45 } })
+      const lifted = await lift(markFile(QUADS), marks(wide))
+      expect(lifted[0]!.annotation.rect).toEqual({
+        x: 45,
+        y: 190,
+        width: 170,
+        height: 35,
+      })
+    })
+
+    it('adopts nothing when the adopted mark fails the schema', async () => {
+      // The imported annotation it starts from has an opacity past 1.
+      expect(await lift(markFile(QUADS), marks(mark({ opacity: 2 })))).toEqual([])
+    })
+
+    it('leaves the mark out when a saved annotation has its id', async () => {
+      const json = saved(note('redact-4R'))
+      const bytes = buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        '<< /Type /Page /Parent 2 0 R /Annots [4 0 R 5 0 R] >>',
+        `<< /Type /Annot /Subtype /Redact /Rect [45 190 215 225] ${QUADS} >>`,
+        '<< /Type /Annot /Subtype /Text /Rect [10 10 30 30] /M (D:20261020000000Z) /INKB_Gloss 6 0 R >>',
+        `<< /Length ${json.length} >>\nstream\n${json}\nendstream`,
+      ])
+      const lifted = await lift(bytes, marks(mark({ id: 'pdf:0:4R' })))
+      expect(lifted.map((l) => [l.annotation.id, l.annotation.type, l.pdfjsId])).toEqual([
+        ['redact-4R', 'text', '5R'],
+      ])
     })
 
     it('leaves a mark another program replied to', async () => {

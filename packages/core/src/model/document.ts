@@ -209,9 +209,10 @@ export interface InkDocument {
    * session annotations with their own ids, unlocked, as one `{ kind: 'replace', reason:
    * 'file' }` change that is not an undo step. Redaction marks another program left unapplied
    * join with them, as session marks: a save or an apply removes their file copies and pop-ups.
-   * One stays in the file, locked, when its pop-up is not listed on its page or an annotation
-   * staying in the file replies to it. In controlled mode they are proposed to the host once,
-   * with that reason. An encrypted file lifts nothing.
+   * One stays in the file, locked, when its pop-up is not listed on its page or is not a pop-up
+   * whose parent is the mark, or when an annotation staying in the file replies to it. In
+   * controlled mode they are proposed to the host once, with that reason. An encrypted file
+   * lifts nothing.
    */
   readonly annotations: AnnotationStore
   /**
@@ -352,6 +353,10 @@ interface PdfjsInfoDict {
   Author?: unknown
   EncryptFilterName?: unknown
 }
+
+/** The PDF.js ids of a lifted annotation's file copies: its own, and its pop-up's if it has one. */
+const fileCopies = (f: { pdfjsId: string; popupId?: string }): string[] =>
+  f.popupId === undefined ? [f.pdfjsId] : [f.pdfjsId, f.popupId]
 
 /**
  * Opens a document. Resolves once loading has finished, whether it succeeded or not:
@@ -672,11 +677,9 @@ export async function openDocument(
           })
         // The renders leave the file copies, and the pop-ups of adopted marks, out in the same
         // turn as they leave the list.
-        const copies = found.flatMap((f) =>
-          f.popupId !== undefined ? [f.pdfjsId, f.popupId] : [f.pdfjsId]
-        )
-        lifted.set(new Set(copies))
-        // The summary of the file no longer counts them.
+        const copies = new Set(found.flatMap(fileCopies))
+        lifted.set(copies)
+        // The summary of the file no longer counts them, each once.
         const gone: Record<string, number> = {}
         for (const id of copies) {
           const subtype = fileSubtypes.get(id)
@@ -830,27 +833,31 @@ export async function openDocument(
     )
   /**
    * The file copies of the lifted annotations, which a save removes, each followed by its
-   * pop-up when it has one. One with no object to remove fails the save: writing it again
-   * beside its file copy would leave two.
+   * pop-up when it has one, and each object once. One with no object to remove fails the save:
+   * writing it again beside its file copy would leave two.
    */
   const liftedRefs = (
     code: 'SaveFailed' | 'RedactionFailed' = 'SaveFailed'
-  ): AnnotationRef[] =>
-    [...liftedFrom.values()].flatMap(({ annotation, pdfjsId, popupId }) =>
-      (popupId === undefined ? [pdfjsId] : [pdfjsId, popupId]).map((id) => {
+  ): AnnotationRef[] => {
+    const seen = new Set<string>()
+    return [...liftedFrom.values()].flatMap((from) =>
+      fileCopies(from).flatMap((id) => {
+        if (seen.has(id)) return []
+        seen.add(id)
         const ref = refOfPdfjsId(id)
         if (!ref)
           throw new InkError(
             code,
-            `The file's copy of the annotation ${annotation.id} cannot be found to replace`,
+            `The file's copy of the annotation ${from.annotation.id} cannot be found to replace`,
             {
               stage: code === 'SaveFailed' ? 'write' : 'apply',
-              annotation: annotation.id,
+              annotation: from.annotation.id,
             }
           )
-        return { page: annotation.page, objectNumber: ref.num }
+        return [{ page: from.annotation.page, objectNumber: ref.num }]
       })
     )
+  }
 
   /** The session as applying redactions reads it. */
   const redactionState = (): RedactionState => ({

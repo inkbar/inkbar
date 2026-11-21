@@ -240,6 +240,21 @@ describe("another program's redaction marks", () => {
     expect(await doc.save()).toEqual(await fixtureBytes('redact-foreign-popup'))
   })
 
+  it('come back on undo after a delete', async () => {
+    const doc = await open('redact-foreign-popup')
+    await doc._liftSettled
+    const [mark] = doc.annotations.list.get()
+    const copies = doc._lifted.get()
+    doc.annotations.remove(mark!.id)
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(doc.changed.get()).toBe(true)
+    doc.history.undo()
+    expect(doc.annotations.list.get()).toEqual([mark])
+    expect(doc._lifted.get()).toEqual(copies)
+    expect(doc._lifted.get().has('6R')).toBe(true)
+    expect(doc.changed.get()).toBe(false)
+  })
+
   it('stay locked in an encrypted file', async () => {
     const doc = await open('redact-foreign-encrypted')
     await doc._liftSettled

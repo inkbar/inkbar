@@ -96,14 +96,14 @@ describe('createRedactionDialog', () => {
     // Earlier marks in an encrypted file only: their line stands first.
     dialog.open(preview({ marks: 0, pages: 0, lockedMarks: 2 }))
     expect(lines()).toEqual([
-      '2 marks saved in this file earlier will be applied too.',
+      '2 marks saved in this file earlier will be applied too, unless another program made them.',
       'It cannot be undone.',
     ])
     dialog.close()
     dialog.open(preview({ lockedMarks: 1 }))
     expect(lines()).toEqual([
       'This removes the content under 1 mark on 1 page.',
-      '1 mark saved in this file earlier will be applied too.',
+      '1 mark saved in this file earlier will be applied too, unless another program made it.',
       'It cannot be undone.',
     ])
     // New words relabel the open dialog in place.

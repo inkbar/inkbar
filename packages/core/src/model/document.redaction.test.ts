@@ -582,6 +582,45 @@ describe('applyRedactions', () => {
     ])
   })
 
+  it('removes a pop-up two marks name once, with the mark that is its parent', async () => {
+    // Objects 6 and 7 are marks that both name the pop-up 8, whose parent is 7.
+    const mark = (nm: string) =>
+      `<< /Type /Annot /Subtype /Redact /Rect [45 190 215 225] /QuadPoints [45 225 215 225 45 190 215 190] /IC [0 0 0] /F 4 /NM (${nm}) /Popup 8 0 R /P 3 0 R >>`
+    const bodies = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 300] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [6 0 R 7 0 R 8 0 R] >>',
+      '<< /Length 0 >>\nstream\n\nendstream',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+      mark('first'),
+      mark('second'),
+      '<< /Type /Annot /Subtype /Popup /Rect [220 40 380 100] /Parent 7 0 R >>',
+    ]
+    let file = '%PDF-1.7\n'
+    const offsets = bodies.map((body, i) => {
+      const at = file.length
+      file += `${i + 1} 0 obj\n${body}\nendobj\n`
+      return at
+    })
+    const xref = file.length
+    file += `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n`
+    for (const o of offsets) file += `${String(o).padStart(10, '0')} 00000 n \n`
+    file += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+
+    const fake = fakeEngine()
+    const doc = await openBytes(new TextEncoder().encode(file), { engine: fake.loader })
+    expect(doc.annotations.list.get().map((a) => [a.id, a.source])).toEqual([
+      ['pdf:0:6R', 'pdf'],
+      ['redact-7R', 'session'],
+    ])
+    await doc.applyRedactions()
+    const [input] = fake.redactions
+    expect(input!.remove).toEqual([
+      { page: 0, objectNumber: 7 },
+      { page: 0, objectNumber: 8 },
+    ])
+  })
+
   it('rejects EngineUnavailable without a loader', async () => {
     const doc = await open('redact-text')
     markOver(doc)

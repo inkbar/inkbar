@@ -230,14 +230,24 @@ export interface ForeignMarkPlace {
   /** Zero-based page index. */
   page: number
   ref: PdfRef
-  /** `/QuadPoints` in groups of eight numbers; undefined when absent, empty, not a multiple of eight, or not all finite. */
+  /**
+   * `/QuadPoints` in groups of eight numbers, as stored; undefined when absent, empty, not a
+   * multiple of eight, or not all finite.
+   */
   quadPoints: number[][] | undefined
   /** `/IC` as its 1, 3 or 4 numbers; undefined otherwise. */
   fill: number[] | undefined
   /** The `/Popup` reference, when it has one. */
   popup: PdfRef | undefined
-  /** Whether that pop-up is a reference in the same page's `/Annots`. False when there is no pop-up. */
+  /**
+   * Whether that pop-up can go with the mark: a reference in the same page's `/Annots` to a
+   * dictionary with `/Subtype /Popup` whose `/Parent` is a reference to this mark. False when
+   * there is no pop-up, or when it is anything else, such as another annotation or a pop-up
+   * that belongs to another.
+   */
   popupListed: boolean
+  /** `/OverlayText`; undefined when absent, empty or not a text string. */
+  overlayText: string | undefined
 }
 
 /** What a file's pages hold that lifting reads. */
@@ -250,7 +260,10 @@ export interface SavedAnnotations {
   marks: ForeignMarkPlace[]
 }
 
-/** `/QuadPoints` as groups of eight numbers; undefined unless the array is a non-empty multiple of eight. */
+/**
+ * `/QuadPoints` as groups of eight numbers; undefined unless the array is a non-empty multiple
+ * of eight, all finite.
+ */
 async function readQuadPoints(objs: PdfObjects, v: PdfValue | undefined) {
   const arr = await objs.resolve(v)
   if (!Array.isArray(arr) || arr.length === 0 || arr.length % 8 !== 0) return undefined
@@ -279,8 +292,20 @@ export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnot
     for (const [page, dict] of dicts.entries()) {
       const annots = await objs.resolve(dictGet(dict, 'Annots'))
       if (!Array.isArray(annots)) continue
-      const listed = (r: PdfRef) =>
-        annots.some((a) => isRef(a) && a.num === r.num && a.gen === r.gen)
+      const same = (a: PdfValue | undefined, r: PdfRef) =>
+        isRef(a) && a.num === r.num && a.gen === r.gen
+      /** Whether `popup` is listed here and is the pop-up of the annotation `parent`. */
+      const popupOf = async (popup: PdfRef, parent: PdfRef) => {
+        if (!annots.some((a) => same(a, popup))) return false
+        const dict = await objs.get(popup)
+        if (!isDict(dict)) return false
+        const subtype = await objs.resolve(dictGet(dict, 'Subtype'))
+        return (
+          isName(subtype) &&
+          subtype.name === 'Popup' &&
+          same(dictGet(dict, 'Parent'), parent)
+        )
+      }
       for (const ref of annots) {
         if (!isRef(ref)) continue
         const annot = await objs.get(ref)
@@ -298,7 +323,10 @@ export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnot
               quadPoints: await readQuadPoints(objs, dictGet(annot, 'QuadPoints')),
               fill,
               popup: isRef(popup) ? popup : undefined,
-              popupListed: isRef(popup) && listed(popup),
+              popupListed: isRef(popup) && (await popupOf(popup, ref)),
+              overlayText:
+                textString(await objs.resolve(dictGet(annot, 'OverlayText'))) ||
+                undefined,
             })
           }
           continue
