@@ -53,7 +53,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 | Notes       | Notes with reply threads                                                                                                                                                           |
 | Redaction   | Text and area redaction marks; applying them removes the content, metadata, attachments and scripts, and checks the result ([limits](packages/core/README.md#applying-redactions)) |
 | Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                                                                  |
-| Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                                                              |
+| Annotations | JSON export and import, and the PDF's own annotations shown as locked. Other programs' unapplied redaction marks open as editable marks                                            |
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                                                                 |
 | Files       | Download and print the open PDF, and a password prompt for locked files                                                                                                            |
 | Saving      | Annotations and form values written into the PDF with `@inkbar/engine`, and editable again when the file is reopened                                                               |
