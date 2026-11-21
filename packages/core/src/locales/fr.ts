@@ -28,10 +28,10 @@ export const fr: InkMessages = {
       pages: { one: '{pages} page', many: '{pages} de pages', other: '{pages} pages' },
     }),
     redactLocked: plural('fr', 'count', {
-      one: '{count} marque enregistrée plus tôt dans ce fichier sera aussi appliquée.',
-      many: '{count} de marques enregistrées plus tôt dans ce fichier seront aussi appliquées.',
+      one: '{count} marque enregistrée plus tôt dans ce fichier sera aussi appliquée, sauf si elle provient d’un autre programme.',
+      many: '{count} de marques enregistrées plus tôt dans ce fichier seront aussi appliquées, sauf si elles proviennent d’un autre programme.',
       other:
-        '{count} marques enregistrées plus tôt dans ce fichier seront aussi appliquées.',
+        '{count} marques enregistrées plus tôt dans ce fichier seront aussi appliquées, sauf si elles proviennent d’un autre programme.',
     }),
     redactPermanent: 'Cette action est irréversible.',
     redactOverlapped: plural('fr', 'count', {

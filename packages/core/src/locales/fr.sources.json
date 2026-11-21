@@ -193,7 +193,7 @@
   "viewer.redactFailed": "The redactions could not be applied. Nothing was changed.",
   "viewer.redactForeign": "{\"one\":\"{count} redaction mark from another program was left in place.\",\"other\":\"{count} redaction marks from another program were left in place.\"}",
   "viewer.redactHiddenLayers": "This file has hidden layers. Their content was not removed.",
-  "viewer.redactLocked": "{\"one\":\"{count} mark saved in this file earlier will be applied too.\",\"other\":\"{count} marks saved in this file earlier will be applied too.\"}",
+  "viewer.redactLocked": "{\"one\":\"{count} mark saved in this file earlier will be applied too, unless another program made it.\",\"other\":\"{count} marks saved in this file earlier will be applied too, unless another program made them.\"}",
   "viewer.redactOverlapped": "{\"one\":\"{count} other annotation under the marks will be removed too.\",\"other\":\"{count} other annotations under the marks will be removed too.\"}",
   "viewer.redactPermanent": "It cannot be undone.",
   "viewer.redactSigned": "This file is signed. Its signature will stop verifying.",

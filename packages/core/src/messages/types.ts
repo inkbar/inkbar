@@ -28,7 +28,7 @@ export interface InkMessages {
     redactTitle: string
     /** The confirmation's first line: the marks and the pages they are on. */
     redactSummary: MessageFn<{ marks: number; pages: number }>
-    /** Locked marks in an encrypted file, which Inkbar may have saved there earlier. */
+    /** Locked marks in an encrypted file. Inkbar's are applied; other programs' are left. */
     redactLocked: MessageFn<{ count: number }>
     redactPermanent: string
     /** Other annotations a mark overlaps, which go with the content under it. */

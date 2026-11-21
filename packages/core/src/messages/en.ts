@@ -21,8 +21,9 @@ export const en: InkMessages = {
       pages: { one: '{pages} page', other: '{pages} pages' },
     }),
     redactLocked: plural('en', 'count', {
-      one: '{count} mark saved in this file earlier will be applied too.',
-      other: '{count} marks saved in this file earlier will be applied too.',
+      one: '{count} mark saved in this file earlier will be applied too, unless another program made it.',
+      other:
+        '{count} marks saved in this file earlier will be applied too, unless another program made them.',
     }),
     redactPermanent: 'It cannot be undone.',
     redactOverlapped: plural('en', 'count', {

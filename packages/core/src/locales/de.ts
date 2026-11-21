@@ -27,9 +27,9 @@ export const de: InkMessages = {
       }
     ),
     redactLocked: plural('de', 'count', {
-      one: '{count} früher in dieser Datei gespeicherte Markierung wird ebenfalls angewendet.',
+      one: '{count} früher in dieser Datei gespeicherte Markierung wird ebenfalls angewendet, sofern sie nicht aus einem anderen Programm stammt.',
       other:
-        '{count} früher in dieser Datei gespeicherte Markierungen werden ebenfalls angewendet.',
+        '{count} früher in dieser Datei gespeicherte Markierungen werden ebenfalls angewendet, sofern sie nicht aus einem anderen Programm stammen.',
     }),
     redactPermanent: 'Dies kann nicht rückgängig gemacht werden.',
     redactOverlapped: plural('de', 'count', {
