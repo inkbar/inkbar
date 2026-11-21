@@ -2104,5 +2104,37 @@
     },
     "secrets": [],
     "keeps": ["SECRET-GAMMA"]
+  },
+  "link-targets": {
+    "file": "link-targets.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One page with 20 Link annotations, each beside a label of its case name. For each case, in /Annots order, the target the PDF.js reader reports in doc.links(0): a-and-dest: url https://example.com/a, newWindow false; gotor-absolute: url https://example.com/doc.pdf, newWindow true; gotor-file: unsupported, reason remote; launch-absolute: url https://example.com/run, newWindow false; launch-file: unsupported, reason launch; js-launch-url: url https://example.com/js, newWindow true; js-window-open: url https://example.com/open, newWindow false; js-other: unsupported, reason unknown; aa-only: url https://example.com/aa, newWindow false; uri-www: url http://www.example.com/path, newWindow false; uri-utf8: url https://example.com/%C3%A9, newWindow false; uri-javascript: unsupported, reason unsafe-url; uri-file: unsupported, reason unsafe-url; uri-data: unsupported, reason unsafe-url; uri-bytes: unsupported, reason launch; js-launch-javascript: unsupported, reason unsafe-url; named-next: named, action NextPage; named-other: unsupported, reason unknown; dest-catalog: dest, raw [ref 1 0, name Fit]; dest-named-utf16: dest, raw résumé.",
+    "annotations": {
+      "Link": 20
+    }
+  },
+  "link-order": {
+    "file": "link-order.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One page whose /Annots holds seven annotations in this order, each named by /NM and labelled beside its box: square-hidden (a Square with the Hidden flag), link-one (a Link), field-one (a text Widget), link-no-view (a Link with the NoView flag), link-two (a Link), field-two (a text Widget) and link-bad-quads (a Link whose /QuadPoints holds six numbers, not a multiple of eight)",
+    "annotations": {
+      "Square": 1,
+      "Link": 4,
+      "Widget": 2
+    }
+  },
+  "text-rtl": {
+    "file": "text-rtl.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page, three lines at 32 pt. A Hebrew line (שלום עולם) in embedded Noto Sans Hebrew Regular (Type 0, Identity-H, a ToUnicode CMap), a mixed line (abc שלום 123) with abc and 123 in Helvetica and the Hebrew word in Noto Sans Hebrew, and a Latin line in Helvetica. The Hebrew glyphs are written in visual order, the last letter first, as a producer lays out a right-to-left line, so the codes run opposite to reading order"
+  },
+  "text-vertical": {
+    "file": "text-vertical.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (the Ahem subset the redaction fixtures use, every character drawn as a square one em wide, with a ToUnicode CMap giving the Japanese text), beside one horizontal Helvetica line at 20 pt"
   }
 }

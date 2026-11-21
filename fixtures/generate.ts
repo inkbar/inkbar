@@ -2233,6 +2233,9 @@ async function main() {
   await userUnit2()
   writeFileSync(join(here, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
   console.log(`wrote ${Object.keys(manifest).length} fixtures`)
+  // These two merge their entries into the manifest just written, as the other generators do.
+  await import('./generate-links')
+  await import('./generate-scripts')
 }
 
 await main()
