@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Inkbar measure</title>
+    <style>body{color:#111;background:#fff;margin:0;padding:12px;font:14px/1.4 system-ui,sans-serif}h1{margin:0 0 8px;font-size:16px}form{flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0 0 12px;display:flex}select,button,input{min-height:36px;font:inherit}[data-measure-results]{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 12px;font:12px/1.4 ui-monospace,monospace}[data-measure-page]{border:1px solid #ccc;height:320px;position:relative;overflow:auto}[data-measure-page]>div{position:relative}</style>
+    <script type="module" crossorigin src="/pr-preview/pr-473/assets/measure-7bYmIsMD.js"></script>
+    <link rel="modulepreload" crossorigin href="/pr-preview/pr-473/assets/reader-CKby_cSa.js">
+    <link rel="modulepreload" crossorigin href="/pr-preview/pr-473/assets/format-MPTH5W_k-C0uTfSCt.js">
+    <link rel="modulepreload" crossorigin href="/pr-preview/pr-473/assets/dom-BZ2MOPrU.js">
+    <link rel="modulepreload" crossorigin href="/pr-preview/pr-473/assets/requests-DVkwqFId.js">
+    <link rel="modulepreload" crossorigin href="/pr-preview/pr-473/assets/engine-BjPLQk5r.js">
+  </head>
+  <body>
+    <h1>Inkbar measure</h1>
+    <form data-measure-form>
+      <label
+        >File
+        <select name="file"></select
+      ></label>
+      <label
+        >Reader
+        <select name="reader">
+          <option value="pdfjs">pdfjs</option>
+          <option value="engine">engine</option>
+        </select>
+      </label>
+      <button type="submit">Measure</button>
+      <label
+        >Or your own PDF <input type="file" accept="application/pdf,.pdf" name="own"
+      /></label>
+    </form>
+    <pre data-measure-results aria-live="polite"></pre>
+    <div data-measure-page></div>
+  </body>
+</html>
