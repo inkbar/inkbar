@@ -225,37 +225,83 @@ export interface ReplyLink {
   to: PdfRef
 }
 
+/** A Redact annotation with no Inkbar data: another program's unapplied mark. */
+export interface ForeignMarkPlace {
+  /** Zero-based page index. */
+  page: number
+  ref: PdfRef
+  /** `/QuadPoints` in groups of eight numbers; undefined when absent, empty, not a multiple of eight, or not all finite. */
+  quadPoints: number[][] | undefined
+  /** `/IC` as its 1, 3 or 4 numbers; undefined otherwise. */
+  fill: number[] | undefined
+  /** The `/Popup` reference, when it has one. */
+  popup: PdfRef | undefined
+  /** Whether that pop-up is a reference in the same page's `/Annots`. False when there is no pop-up. */
+  popupListed: boolean
+}
+
 /** What a file's pages hold that lifting reads. */
 export interface SavedAnnotations {
   /** The annotations that carry Inkbar's data, in page order and then `/Annots` order. */
   places: SavedAnnotationPlace[]
   /** Every `/IRT` among the pages' annotations, whoever wrote the reply. */
   replies: ReplyLink[]
+  /** In page order and then `/Annots` order. */
+  marks: ForeignMarkPlace[]
+}
+
+/** `/QuadPoints` as groups of eight numbers; undefined unless the array is a non-empty multiple of eight. */
+async function readQuadPoints(objs: PdfObjects, v: PdfValue | undefined) {
+  const arr = await objs.resolve(v)
+  if (!Array.isArray(arr) || arr.length === 0 || arr.length % 8 !== 0) return undefined
+  const all = await numbers(objs, arr, [arr.length])
+  if (!all) return undefined
+  const groups: number[][] = []
+  for (let i = 0; i < all.length; i += 8) groups.push(all.slice(i, i + 8))
+  return groups
 }
 
 /**
  * Every annotation in a page's `/Annots` that has an `/INKB_Gloss` entry, in page order and then
- * `/Annots` order, with its `/Rect`, its `/M` and whether it has a `/Popup`; and every `/IRT`
- * among the pages' annotations. An annotation written inline in `/Annots` has no id to hide it
+ * `/Annots` order, with its `/Rect`, its `/M` and whether it has a `/Popup`; every `/IRT`
+ * among the pages' annotations; and every Redact annotation without that entry, as a mark. An annotation written inline in `/Annots` has no id to hide it
  * by and is left out. Never throws: what cannot be read is left out.
  */
 export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnotations> {
   const out: SavedAnnotationPlace[] = []
   const replies: ReplyLink[] = []
+  const marks: ForeignMarkPlace[] = []
   try {
     const root = await dictOf(objs, dictGet(objs.trailer, 'Root'))
-    if (!root) return { places: out, replies }
+    if (!root) return { places: out, replies, marks }
     const { dicts } = await walkPages(objs, root)
     for (const [page, dict] of dicts.entries()) {
       const annots = await objs.resolve(dictGet(dict, 'Annots'))
       if (!Array.isArray(annots)) continue
+      const listed = (r: PdfRef) =>
+        annots.some((a) => isRef(a) && a.num === r.num && a.gen === r.gen)
       for (const ref of annots) {
         if (!isRef(ref)) continue
         const annot = await objs.get(ref)
         if (!isDict(annot)) continue
         const irt = dictGet(annot, 'IRT')
         if (isRef(irt)) replies.push({ from: ref, to: irt })
-        if (dictGet(annot, INKBAR_DATA) === undefined) continue
+        if (dictGet(annot, INKBAR_DATA) === undefined) {
+          const subtype = await objs.resolve(dictGet(annot, 'Subtype'))
+          if (isName(subtype) && subtype.name === 'Redact') {
+            const popup = dictGet(annot, 'Popup')
+            const fill = await numbers(objs, dictGet(annot, 'IC'), [1, 3, 4])
+            marks.push({
+              page,
+              ref,
+              quadPoints: await readQuadPoints(objs, dictGet(annot, 'QuadPoints')),
+              fill,
+              popup: isRef(popup) ? popup : undefined,
+              popupListed: isRef(popup) && listed(popup),
+            })
+          }
+          continue
+        }
         const r = await numbers(objs, dictGet(annot, 'Rect'), [4])
         const modified = textString(await objs.resolve(dictGet(annot, 'M')))
         out.push({
@@ -275,7 +321,7 @@ export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnot
   } catch {
     // What was read before the failure stands.
   }
-  return { places: out, replies }
+  return { places: out, replies, marks }
 }
 
 /** The `places` of `readSavedAnnotations`. */
