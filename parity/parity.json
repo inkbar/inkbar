@@ -384,8 +384,8 @@
   },
   "redact-foreign-encrypted": {
     "state": "different",
-    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing",
-    "accepted": false
+    "reason": "An unapplied Redact annotation with no /AP: the engine generates an appearance for it (a red outline); PDF.js draws nothing; the mark stays locked because the file is encrypted",
+    "accepted": true
   },
   "redact-file-signed": {
     "state": "same"
