@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.18.0](https://github.com/inkbar/inkbar/compare/v0.17.0...v0.18.0) (2026-11-21)
+
+
+### Features
+
+* **core:** lift other programs' redaction marks as session marks ([#467](https://github.com/inkbar/inkbar/issues/467)) ([a4030bb](https://github.com/inkbar/inkbar/commit/a4030bb0f7ebdd980ba57fe5d80f2e240f272e15))
+* **core:** open other programs' redaction marks as editable marks ([#468](https://github.com/inkbar/inkbar/issues/468)) ([f966e4a](https://github.com/inkbar/inkbar/commit/f966e4a7f2e421f67a8de8b470cccf5ec9283e35))
+* **core:** read other programs' redaction marks from the file's objects ([#466](https://github.com/inkbar/inkbar/issues/466)) ([6a8050a](https://github.com/inkbar/inkbar/commit/6a8050a846bacd58fb8f8e7f52d26529136bbea4))
+* **engine:** draw unembedded text with fallback fonts fetched on demand ([#456](https://github.com/inkbar/inkbar/issues/456)) ([77d986c](https://github.com/inkbar/inkbar/commit/77d986c66f460211a2248aa3d511577296df31fd))
+* **engine:** render a region at an exact size, turned, without listed annotations ([#454](https://github.com/inkbar/inkbar/issues/454)) ([2798302](https://github.com/inkbar/inkbar/commit/27983022c603af1ce1d85b48a331d2ab73315e82))
+* **engine:** report a page's user unit and draw form widgets ([#453](https://github.com/inkbar/inkbar/issues/453)) ([82a9b21](https://github.com/inkbar/inkbar/commit/82a9b21d7039c607ba8174f256d056e31086b9b7))
+* **engine:** stop a running render when its signal aborts ([#455](https://github.com/inkbar/inkbar/issues/455)) ([abe942e](https://github.com/inkbar/inkbar/commit/abe942e60fcc0204fb23af7a81fac5e0e5bd2044))
+
+
+### Bug Fixes
+
+* **core:** check a redaction mark's corners and pop-up before taking it over ([#470](https://github.com/inkbar/inkbar/issues/470)) ([c5eca63](https://github.com/inkbar/inkbar/commit/c5eca63975b11c772299573a15f22740aec1bcff))
+* **engine:** blend a page's content against an empty page, not white paper ([#464](https://github.com/inkbar/inkbar/issues/464)) ([2b202f1](https://github.com/inkbar/inkbar/commit/2b202f141e1d9b8099f80176a779e39150fb7de4))
+* tighten engine rendering checks and failure handling ([#461](https://github.com/inkbar/inkbar/issues/461)) ([3bd72c2](https://github.com/inkbar/inkbar/commit/3bd72c2765b9d4e7d7f41777d5fd0c0e843b7c43))
+
 ## [0.17.0](https://github.com/inkbar/inkbar/compare/v0.16.0...v0.17.0) (2026-11-19)
 
 
