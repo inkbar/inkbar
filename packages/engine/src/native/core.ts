@@ -10,12 +10,14 @@ import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
 import { applyRedactions } from './redact.ts'
 import { hiddenObjects, renderGeometry } from './render.ts'
+import { readPageText } from './text.ts'
 
 import type { RenderRequestOptions } from '../protocol.ts'
 import type {
   FontKey,
   OpenOptions,
   PageInfo,
+  PageText,
   Rect,
   RedactInput,
   RedactionFindings,
@@ -331,6 +333,33 @@ export class EngineCore {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     return this.#guard(() => this.#facts(entry, index))
+  }
+
+  /**
+   * Reads the page's characters with the fallback fonts as they stand: it fetches none. Text read
+   * before a page's fallback fonts are registered keeps PDFium's substitute in the document, which
+   * a later render then draws, so the engine reads text through `pageTextAfterFonts`.
+   */
+  pageText(id: number, index: number): PageText {
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    return this.#guard(() => readPageText(this.#heap, entry.doc, index))
+  }
+
+  /**
+   * `pageText`, after fetching and registering the fallback fonts the page needs, as a render
+   * does before its first slice: the characters' fonts are the ones the page will be drawn with.
+   * With no font sources it is `pageText`, with nothing read or awaited first.
+   */
+  async pageTextAfterFonts(
+    id: number,
+    index: number,
+    signal?: AbortSignal
+  ): Promise<PageText> {
+    if (!this.#fonts.fetches) return this.pageText(id, index)
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    return this.#afterFonts(entry, [index], signal, () => this.pageText(id, index))
   }
 
   /**

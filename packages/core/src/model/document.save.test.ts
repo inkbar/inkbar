@@ -61,6 +61,7 @@ function realEngine() {
           },
           pageInfo: (i) => d.pageInfo(i),
           renderPage: (i, o) => d.renderPage(i, o),
+          pageText: (i) => d.pageText(i),
           write(input) {
             writes.push(input)
             if (fail) {

@@ -41,6 +41,7 @@ function fakeEngine() {
       pageCount: 1,
       pageInfo: () => Promise.reject(new Error('unused')),
       renderPage: () => Promise.reject(new Error('unused')),
+      pageText: () => Promise.reject(new Error('unused')),
       write: (input: WriteInput) =>
         queued(async () => {
           calls.push(`write ${n} ${input.annotations?.length ?? 0}`)

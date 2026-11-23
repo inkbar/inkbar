@@ -1,5 +1,6 @@
 export { createEngine } from './engine.ts'
 export { EngineError } from './errors.ts'
+export { TEXT_GEOMETRY_STRIDE } from './types.ts'
 
 export type { Engine, EngineDocument, EngineOptions } from './engine.ts'
 export type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
@@ -10,6 +11,8 @@ export type {
   FontKey,
   OpenOptions,
   PageInfo,
+  PageText,
+  PageTextOptions,
   Rect,
   RedactInput,
   RedactionCandidate,
@@ -21,6 +24,7 @@ export type {
   SaveMode,
   SaveOptions,
   StandardFont,
+  TextFont,
   WriteAnnotation,
   WriteField,
   WriteInput,

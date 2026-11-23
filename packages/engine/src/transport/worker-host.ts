@@ -48,6 +48,17 @@ export function transferables(value: unknown): Transferable[] {
     const whole = value.byteOffset === 0 && value.byteLength === value.buffer.byteLength
     return whole ? [value.buffer as ArrayBuffer] : []
   }
+  // Page text: four typed arrays beside a table of plain objects.
+  if (typeof value === 'object' && value !== null && 'fontTable' in value) {
+    const { codes, geometry, flags, fonts } = value as Record<string, unknown>
+    return [codes, geometry, flags, fonts].flatMap((array) =>
+      ArrayBuffer.isView(array) &&
+      array.byteOffset === 0 &&
+      array.byteLength === array.buffer.byteLength
+        ? [array.buffer as ArrayBuffer]
+        : []
+    )
+  }
   if (typeof value === 'object' && value !== null && 'data' in value)
     return transferables(value.data)
   return []

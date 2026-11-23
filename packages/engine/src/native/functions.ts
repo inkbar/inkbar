@@ -196,6 +196,28 @@ export const FUNCTIONS = {
   // (FPDF_DOCUMENT doc, int page_index)
   INK_Fonts_PageNeeds: { args: ['ptr', 'i32'], ret: 'i32' },
   INK_Fonts_TakeMisses: { args: [], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, int page_index) -> InkText*; NULL when the page cannot be read
+  INK_Text_Page: { args: ['ptr', 'i32'], ret: 'ptr' },
+  // (const InkText* t) -> the number of characters
+  INK_Text_Count: { args: ['ptr'], ret: 'i32' },
+  // Count unsigned ints, owned by the InkText
+  INK_Text_Codes: { args: ['ptr'], ret: 'ptr' },
+  // Count x 15 floats, owned by the InkText
+  INK_Text_Geometry: { args: ['ptr'], ret: 'ptr' },
+  // Count bytes, owned by the InkText
+  INK_Text_Flags: { args: ['ptr'], ret: 'ptr' },
+  // Count unsigned shorts, owned by the InkText
+  INK_Text_Fonts: { args: ['ptr'], ret: 'ptr' },
+  // NUL-terminated UTF-8 JSON, owned by the InkText
+  INK_Text_FontTable: { args: ['ptr'], ret: 'ptr' },
+  INK_Text_Free: { args: ['ptr'], ret: 'void' },
+  // (FPDF_DOCUMENT doc, int page_index) -> char* JSON, freed with INK_Json_Free; NULL on failure
+  INK_Links_Page: { args: ['ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc) -> char* JSON, freed with INK_Json_Free
+  INK_Outline: { args: ['ptr'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc, const unsigned char* name, int len) -> char* JSON, freed with INK_Json_Free
+  INK_Dest_Named: { args: ['ptr', 'ptr', 'i32'], ret: 'ptr' },
+  INK_Json_Free: { args: ['ptr'], ret: 'void' },
 } as const satisfies Record<string, { args: readonly Kind[]; ret: Kind }>
 
 type Returned<R extends Kind> = R extends 'void' ? void : number

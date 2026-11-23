@@ -8,6 +8,8 @@ import type {
   FontKey,
   OpenOptions,
   PageInfo,
+  PageText,
+  PageTextOptions,
   RedactInput,
   RedactionFindings,
   RedactResult,
@@ -49,6 +51,16 @@ export interface EngineDocument {
    * from 0 to `pageCount - 1` rejects with a `RangeError`.
    */
   pageInfo(index: number): Promise<PageInfo>
+  /**
+   * The characters of a page, in the order the page's text is read, with their boxes, origins,
+   * sizes, matrices and fonts, in user space before /Rotate. `index` counts from 0. A page with
+   * no text gives `count` 0 and empty arrays. An index that is not a whole number from 0 to
+   * `pageCount - 1` rejects with a `RangeError`. The arrays belong to the caller. Reading text
+   * does not change what `save` writes. It first fetches the fallback fonts the page needs, as
+   * `renderPage` does, so the characters come from the fonts the page is drawn with. Options
+   * that are not an object reject with a `RangeError`.
+   */
+  pageText(index: number, options?: PageTextOptions): Promise<PageText>
   /**
    * Renders a page, or the `region` of it, to an RGBA bitmap in displayed orientation, after
    * /Rotate and `rotation`. The bitmap is `size`, or else `ceil(width × scale)` by
@@ -164,12 +176,12 @@ export interface Engine {
     options?: CheckRedactionOptions
   ): Promise<RedactionFindings>
   /**
-   * Rejects queued calls with `aborted`, stops a running render, and a `write` or `redact` waiting
-   * on a fallback font, each of which rejects with `aborted`, then closes every document and frees
-   * the engine. Any other running call is waited for: in a worker for up to two seconds, then the
-   * worker is terminated and the call rejects with `aborted`; in the calling thread until it
-   * finishes. Later calls reject with `engine-failure`; a later `destroy()` or document `close()`
-   * resolves.
+   * Rejects queued calls with `aborted`, stops a running render, and a `pageText`, `write` or
+   * `redact` waiting on a fallback font, each of which rejects with `aborted`, then closes every
+   * document and frees the engine. Any other running call is waited for: in a worker for up to
+   * two seconds, then the worker is terminated and the call rejects with `aborted`; in the calling
+   * thread until it finishes. Later calls reject with `engine-failure`; a later `destroy()` or
+   * document `close()` resolves.
    */
   destroy(): Promise<void>
 }
@@ -197,6 +209,12 @@ class Document implements EngineDocument {
 
   pageInfo(index: number): Promise<PageInfo> {
     return this.#call({ op: 'pageInfo', doc: this.id, index })
+  }
+
+  async pageText(index: number, options: PageTextOptions = {}): Promise<PageText> {
+    if (typeof options !== 'object' || options === null)
+      throw new ArgumentError('text options must be an object')
+    return this.#call({ op: 'pageText', doc: this.id, index }, options.signal)
   }
 
   async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {

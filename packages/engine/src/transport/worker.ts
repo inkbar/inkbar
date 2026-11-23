@@ -26,7 +26,7 @@ interface Pending {
   reject: (reason: Error) => void
   /**
    * Asks the worker to stop the call; set for the calls that can stop part way: a render, and a
-   * write or redact while it waits for a fallback font.
+   * text read, write or redact while it waits for a fallback font.
    */
   abort?: () => void
 }
@@ -71,7 +71,10 @@ class WorkerTransport implements Transport {
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
         const stoppable =
-          request.op === 'renderPage' || request.op === 'write' || request.op === 'redact'
+          request.op === 'renderPage' ||
+          request.op === 'pageText' ||
+          request.op === 'write' ||
+          request.op === 'redact'
         const abort = () => {
           // Only while the call is unanswered: once the reply has arrived it stands.
           if (!this.#pending.has(id)) return
@@ -124,9 +127,9 @@ class WorkerTransport implements Transport {
   }
 
   /**
-   * Rejects queued calls, stops a running render, or a write or redact waiting for a font, waits
-   * up to the bound for the running call, then terminates the worker. A running call that has not
-   * answered by then rejects with `aborted`.
+   * Rejects queued calls, stops a running render, or a text read, write or redact waiting for a
+   * font, waits up to the bound for the running call, then terminates the worker. A running call
+   * that has not answered by then rejects with `aborted`.
    */
   destroy(): Promise<void> {
     this.#destroying ??= this.#destroy()

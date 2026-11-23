@@ -15,6 +15,7 @@ export type RenderRequestOptions = Omit<RenderOptions, 'signal'>
 export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
   | { op: 'pageInfo'; doc: number; index: number }
+  | { op: 'pageText'; doc: number; index: number }
   | { op: 'renderPage'; doc: number; index: number; options: RenderRequestOptions }
   | { op: 'write'; doc: number; input: WriteInput }
   | { op: 'redact'; doc: number; input: RedactInput }
