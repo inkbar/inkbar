@@ -2118,10 +2118,10 @@
     "file": "link-order.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "One page whose /Annots holds seven annotations in this order, each named by /NM and labelled beside its box: square-hidden (a Square with the Hidden flag), link-one (a Link), field-one (a text Widget), link-no-view (a Link with the NoView flag), link-two (a Link), field-two (a text Widget) and link-bad-quads (a Link whose /QuadPoints holds six numbers, not a multiple of eight)",
+    "describes": "One page whose /Annots holds nine annotations in this order, each named by /NM and labelled beside its box: square-hidden (a Square with the Hidden flag), link-one (a Link), field-one (a text Widget), link-no-view (a Link with the NoView flag), link-two (a Link), field-two (a text Widget), link-bad-quads (a Link whose /QuadPoints holds six numbers, not a multiple of eight), link-hidden (a Link with the Hidden flag) and link-direct (a Link written as a direct object in /Annots)",
     "annotations": {
       "Square": 1,
-      "Link": 4,
+      "Link": 6,
       "Widget": 2
     }
   },

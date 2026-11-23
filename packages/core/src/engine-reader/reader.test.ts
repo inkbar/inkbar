@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
+import { mapInOrder } from '../model/map-in-order'
+
 import { createEngineReader, MAX_PIXELS } from './reader'
 
 import type { ReaderEngine, ReaderEngineDocument } from './types'
@@ -10,6 +12,9 @@ import type * as EngineModule from '@inkbar/engine'
 type RenderOptions = Parameters<ReaderEngineDocument['renderPage']>[1]
 type Rendered = Awaited<ReturnType<ReaderEngineDocument['renderPage']>>
 type PageTextResult = Awaited<ReturnType<ReaderEngineDocument['pageText']>>
+type PageLinksResult = Awaited<ReturnType<ReaderEngineDocument['pageLinks']>>
+type OutlineResult = Awaited<ReturnType<ReaderEngineDocument['outline']>>
+type NamedResult = Awaited<ReturnType<ReaderEngineDocument['namedDestination']>>
 
 /** The engine's characters for one Courier word, `Hi`, on the baseline at (72, 700). */
 function hiText(): PageTextResult {
@@ -107,10 +112,16 @@ const hasCode = (error: unknown, code: string): boolean =>
 interface FakeEngine extends ReaderEngine {
   open: ReturnType<typeof vi.fn<ReaderEngine['open']>>
   destroy: ReturnType<typeof vi.fn<ReaderEngine['destroy']>>
-  doc: Omit<ReaderEngineDocument, 'close' | 'pageInfo' | 'pageText'> & {
+  doc: Omit<
+    ReaderEngineDocument,
+    'close' | 'pageInfo' | 'pageText' | 'pageLinks' | 'outline' | 'namedDestination'
+  > & {
     close: ReturnType<typeof vi.fn<ReaderEngineDocument['close']>>
     pageInfo: ReturnType<typeof vi.fn<ReaderEngineDocument['pageInfo']>>
     pageText: ReturnType<typeof vi.fn<ReaderEngineDocument['pageText']>>
+    pageLinks: ReturnType<typeof vi.fn<ReaderEngineDocument['pageLinks']>>
+    outline: ReturnType<typeof vi.fn<ReaderEngineDocument['outline']>>
+    namedDestination: ReturnType<typeof vi.fn<ReaderEngineDocument['namedDestination']>>
   }
 }
 
@@ -128,6 +139,12 @@ function setup(
     traps?: boolean
     /** What `pageText` answers; by default the word `Hi`. A rejection stops the engine as a render's does. */
     pageText?: (index: number, engine: EngineState) => Promise<PageTextResult>
+    /** What `pageLinks` answers; by default no annotations. A rejection stops the engine. */
+    pageLinks?: (index: number, engine: EngineState) => Promise<PageLinksResult>
+    /** What `outline` answers; by default no items. */
+    outline?: (engine: EngineState) => Promise<OutlineResult>
+    /** What `namedDestination` answers; by default nothing. */
+    namedDestination?: (name: Uint8Array, engine: EngineState) => Promise<NamedResult>
   } = {}
 ) {
   const engines: FakeEngine[] = []
@@ -187,6 +204,33 @@ function setup(
           reading.then(resolve, reject)
         })
       }),
+      pageLinks: vi.fn<ReaderEngineDocument['pageLinks']>((index) =>
+        live()
+          .then(() =>
+            opts.pageLinks ? opts.pageLinks(index, state) : { annotations: [], links: [] }
+          )
+          .catch((error: unknown) => {
+            if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
+              state.stopped = true
+            throw error
+          })
+      ),
+      outline: vi.fn<ReaderEngineDocument['outline']>(() =>
+        live().then(() =>
+          opts.outline ? opts.outline(state) : { items: [], truncated: false }
+        )
+      ),
+      namedDestination: vi.fn<ReaderEngineDocument['namedDestination']>((name) =>
+        live()
+          .then(() =>
+            opts.namedDestination ? opts.namedDestination(name, state) : undefined
+          )
+          .catch((error: unknown) => {
+            if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
+              state.stopped = true
+            throw error
+          })
+      ),
       close: vi.fn(() => Promise.resolve()),
     }
     const engine: FakeEngine = {
@@ -210,6 +254,34 @@ function setup(
       warn,
     })
   return { engines, states, renders, createEngine, loader, warn, open }
+}
+
+/**
+ * Calls answered one at a time on each engine, in the order asked, as the engine's one queue
+ * answers them. A call for which `traps` is true stops the engine: it and every call still
+ * queued or asked later on that engine reject with `engine-failure`.
+ */
+function oneQueue<A, T>(traps: (arg: A) => boolean, answer: (arg: A) => Promise<T>) {
+  const tails = new Map<number, Promise<unknown>>()
+  return (arg: A, engine: EngineState): Promise<T> => {
+    const turn = (tails.get(engine.index) ?? Promise.resolve()).then(async () => {
+      // Once the engine has stopped, every call queued on it fails at once.
+      if (engine.stopped) throw engineError('engine-failure')
+      // A call takes a while, so the calls asked meanwhile queue behind it.
+      await new Promise((resolve) => setTimeout(resolve))
+      if (engine.stopped) throw engineError('engine-failure')
+      if (traps(arg)) {
+        engine.stopped = true
+        throw engineError('engine-failure')
+      }
+      return answer(arg)
+    })
+    tails.set(
+      engine.index,
+      turn.catch(() => undefined)
+    )
+    return turn
+  }
 }
 
 /** A canvas with a stubbed 2D context: its bitmap is never allocated. */
@@ -980,26 +1052,339 @@ describe('text', () => {
     await expect(reading).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await destroying
   })
+})
 
-  it('still hands links, the outline and destinations to the delegate', async () => {
-    const t = setup()
-    const delegate = {
-      links: vi.fn(() => Promise.resolve([])),
-      outline: vi.fn(() => Promise.resolve([])),
-      resolveDestination: vi.fn(() => Promise.resolve(undefined)),
-    }
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1])),
-      password: undefined,
-      delegate,
+describe('links, the outline and destinations', () => {
+  const ascii = (text: string) => new TextEncoder().encode(text)
+  const oneLink = (): Promise<PageLinksResult> =>
+    Promise.resolve({
+      annotations: [
+        {
+          index: 0,
+          subtype: 'Link',
+          flags: 4,
+          objectNumber: 9,
+          rectOk: true,
+          quadsOk: true,
+        },
+      ],
+      links: [
+        {
+          index: 0,
+          rect: { x: 72, y: 700, width: 100, height: 20 },
+          destination: { page: 0, fit: 'XYZ', args: [72, 600, null, null] },
+        },
+      ],
     })
-    await reader.links(0)
+
+  it("reads a page's links from the engine", async () => {
+    const t = setup({ pageLinks: oneLink })
+    const reader = await t.open()
+    await expect(reader.links(0)).resolves.toEqual([
+      {
+        id: 'pdf:0:9R',
+        page: 0,
+        rect: { x: 72, y: 700, width: 100, height: 20 },
+        order: 0,
+        target: { kind: 'dest', raw: [0, { name: 'XYZ' }, 72, 600, null] },
+      },
+    ])
+    expect(t.engines[0]!.doc.pageLinks).toHaveBeenCalledWith(0)
+  })
+
+  it('replaces an engine that stops and reads the links once more', async () => {
+    const t = setup({
+      pageLinks: (_, engine) =>
+        engine.index === 0 ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await expect(reader.links(0)).resolves.toHaveLength(1)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.engines[1]!.doc.pageLinks).toHaveBeenCalledWith(0)
+  })
+
+  it('gives no links for a page whose links cannot be read, as the PDF.js reader does', async () => {
+    const t = setup({ pageLinks: () => Promise.reject(engineError('engine-failure')) })
+    const reader = await t.open()
+    await expect(reader.links(0)).resolves.toEqual([])
+  })
+
+  /** Every page's link count, read 8 at a time as the document reads them at open. */
+  const linksAtOpen = async (pageCount: number, trapping: (page: number) => boolean) => {
+    const t = setup({ pageCount, pageLinks: oneQueue(trapping, oneLink) })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const found = await mapInOrder(
+      pageCount,
+      8,
+      async (page) => (await reader.links(page)).length
+    )
+    return { t, found }
+  }
+
+  it('reads every other page of a file in which one page stops the engine, 8 at a time', async () => {
+    const { t, found } = await linksAtOpen(40, (page) => page === 3)
+    // Pages 0 to 2 are read before page 3 stops the engine. Pages 3 to 10 have none: page 3,
+    // and the seven read at the same time, queued behind it when it stops the first engine and
+    // again on the second, which its retry stops. Pages from 11 on find the second engine
+    // stopped, drop it and read on a third.
+    expect(found).toEqual([
+      1,
+      1,
+      1,
+      ...Array<number>(8).fill(0),
+      ...Array<number>(29).fill(1),
+    ])
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops asking for links once link reads have stopped three engines in a row', async () => {
+    const { t, found } = await linksAtOpen(40, () => true)
+    expect(found).toEqual(Array<number>(40).fill(0))
+    // The engine the file opened in, then one for each of the three it dropped; then no more.
+    expect(t.createEngine).toHaveBeenCalledTimes(4)
+  })
+
+  it('reads the links of the pages after one whose read stopped the engine', async () => {
+    const t = setup({
+      pageCount: 50,
+      pageLinks: (index) =>
+        index === 0 ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    await expect(reader.links(0)).resolves.toEqual([])
+    for (let page = 1; page < 50; page++)
+      await expect(reader.links(page)).resolves.toHaveLength(1)
+  })
+
+  it('counts only reads in a row: one that succeeds starts the count again', async () => {
+    const trapping = new Set([0, 2, 4, 6])
+    const t = setup({
+      pageCount: 8,
+      pageLinks: (index) =>
+        trapping.has(index) ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const found = []
+    for (let page = 0; page < 8; page++) found.push((await reader.links(page)).length)
+    expect(found).toEqual([0, 1, 0, 1, 0, 1, 0, 1])
+  })
+
+  it('rejects with PageOutOfRange, and after destroy with DocumentDestroyed', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await expect(reader.links(1)).rejects.toMatchObject({ code: 'PageOutOfRange' })
+    await reader.destroy()
+    await expect(reader.links(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.outline()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.resolveDestination('a')).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    expect(t.engines[0]!.doc.pageLinks).not.toHaveBeenCalled()
+  })
+
+  it('resolves an explicit destination without the engine; one naming no page to nothing', async () => {
+    const t = setup({ pageCount: 3 })
+    const reader = await t.open()
+    await expect(
+      reader.resolveDestination([2, { name: 'XYZ' }, 72, 600, null])
+    ).resolves.toEqual({ page: 2, fit: 'xyz', left: 72, top: 600, zoom: undefined })
+    await expect(
+      reader.resolveDestination([-1, { name: 'Fit' }])
+    ).resolves.toBeUndefined()
+    await expect(reader.resolveDestination([3, { name: 'Fit' }])).resolves.toBeUndefined()
+    expect(t.engines[0]!.doc.namedDestination).not.toHaveBeenCalled()
+  })
+
+  it('looks a name up in the engine by the bytes it was read from, once per name', async () => {
+    const t = setup({
+      pageCount: 2,
+      namedDestination: (name) =>
+        Promise.resolve(
+          new TextDecoder().decode(name) === 'chapter-2'
+            ? { page: 1, fit: 'FitH', args: [500, null, null, null] }
+            : undefined
+        ),
+    })
+    const reader = await t.open()
+    const named = t.engines[0]!.doc.namedDestination
+    await expect(reader.resolveDestination('chapter-2')).resolves.toEqual({
+      page: 1,
+      fit: 'fith',
+      top: 500,
+    })
+    await expect(reader.resolveDestination('chapter-2')).resolves.toEqual({
+      page: 1,
+      fit: 'fith',
+      top: 500,
+    })
+    await expect(reader.resolveDestination('missing')).resolves.toBeUndefined()
+    expect(named).toHaveBeenCalledTimes(2)
+    expect(named.mock.calls[0]![0]).toEqual(ascii('chapter-2'))
+    // A name outside PDFDocEncoding goes as UTF-16BE, as the file would hold it.
+    await reader.resolveDestination('章')
+    expect([...named.mock.calls[2]![0]]).toEqual([0xfe, 0xff, 0x7a, 0xe0])
+  })
+
+  it('a name whose destination names no page, or is malformed, resolves to nothing', async () => {
+    const t = setup({
+      namedDestination: (name) =>
+        Promise.resolve(
+          new TextDecoder().decode(name) === 'nowhere'
+            ? { page: -1, fit: 'Fit', args: [null, null, null, null] }
+            : { page: 0, fit: 'Unknown', args: [null, null, null, null] }
+        ),
+    })
+    const reader = await t.open()
+    await expect(reader.resolveDestination('nowhere')).resolves.toBeUndefined()
+    await expect(reader.resolveDestination('odd')).resolves.toBeUndefined()
+  })
+
+  it('a lookup that fails resolves to nothing and is asked again next time', async () => {
+    let calls = 0
+    const t = setup({
+      traps: false,
+      namedDestination: () =>
+        ++calls === 1
+          ? Promise.reject(new Error('cannot read'))
+          : Promise.resolve({ page: 0, fit: 'Fit', args: [null, null, null, null] }),
+    })
+    const reader = await t.open()
+    await expect(reader.resolveDestination('a')).resolves.toBeUndefined()
+    await expect(reader.resolveDestination('a')).resolves.toEqual({ page: 0, fit: 'fit' })
+  })
+
+  it('reads the outline from the engine, each destination resolved', async () => {
+    const t = setup({
+      pageCount: 2,
+      outline: () =>
+        Promise.resolve({
+          items: [
+            {
+              title: 'Cover',
+              bold: false,
+              italic: false,
+              count: 0,
+              children: [],
+              destination: { page: 0, fit: 'Fit', args: [null, null, null, null] },
+            },
+            {
+              title: 'Chapter 2',
+              bold: true,
+              italic: false,
+              count: 0,
+              children: [],
+              action: { kind: 'GoTo', destination: { name: ascii('chapter-2') } },
+            },
+          ],
+          // A cut-short outline is given as far as it goes.
+          truncated: true,
+        }),
+      namedDestination: () =>
+        Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] }),
+    })
+    const reader = await t.open()
+    const outline = await reader.outline()
+    expect(outline.map((o) => [o.id, o.title, o.target])).toEqual([
+      ['0', 'Cover', { kind: 'resolved', dest: { page: 0, fit: 'fit' } }],
+      ['1', 'Chapter 2', { kind: 'resolved', dest: { page: 1, fit: 'fit' } }],
+    ])
+  })
+
+  /**
+   * An outline of 40 items, each going to the name `name-<i>`, whose lookups the engine answers
+   * one at a time; the lookup of a name `trapping` picks stops the engine.
+   */
+  const namedOutline = async (trapping: (i: number) => boolean) => {
+    const index = (name: Uint8Array) => Number(new TextDecoder().decode(name).slice(5))
+    const t = setup({
+      pageCount: 2,
+      outline: () =>
+        Promise.resolve({
+          items: Array.from({ length: 40 }, (_, i) => ({
+            title: `Item ${i}`,
+            bold: false,
+            italic: false,
+            count: 0,
+            children: [],
+            destination: { name: ascii(`name-${i}`) },
+          })),
+          truncated: false,
+        }),
+      namedDestination: oneQueue(
+        (name: Uint8Array) => trapping(index(name)),
+        () => Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] })
+      ),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    return { t, reader }
+  }
+
+  it('resolves every other name of an outline in which one name stops the engine', async () => {
+    const { t, reader } = await namedOutline((i) => i === 3)
+    const outline = await reader.outline()
+    // As for links read 8 at a time: names 3 to 10 resolve to nothing, name 3 and the seven
+    // looked up with it on the engine it stopped and on the one its retry stopped.
+    expect(outline.map((o) => o.target.kind)).toEqual([
+      ...Array<string>(3).fill('resolved'),
+      ...Array<string>(8).fill('unsupported'),
+      ...Array<string>(29).fill('resolved'),
+    ])
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops looking names up once lookups have stopped three engines in a row, within one outline read', async () => {
+    const { t, reader } = await namedOutline(() => true)
+    const outline = await reader.outline()
+    expect(outline).toHaveLength(40)
+    expect(outline.every((o) => o.target.kind === 'unsupported')).toBe(true)
+    // The engine the file opened in, then one for each of the three the lookups dropped.
+    // Asking every name would start a new engine for each batch of lookups that run at once.
+    expect(t.createEngine).toHaveBeenCalledTimes(4)
+    // A later read asks again.
+    const asked = t.createEngine.mock.calls.length
     await reader.outline()
-    await reader.resolveDestination({ page: 0, fit: 'Fit', args: [] } as never)
-    expect(delegate.links).toHaveBeenCalledWith(0)
-    expect(delegate.outline).toHaveBeenCalledTimes(1)
-    expect(delegate.resolveDestination).toHaveBeenCalledTimes(1)
+    expect(t.createEngine.mock.calls.length).toBeGreaterThan(asked)
+  })
+
+  it('keeps looking names up when one fails while the engine still works', async () => {
+    const t = setup({
+      traps: false,
+      pageCount: 2,
+      outline: () =>
+        Promise.resolve({
+          items: ['bad', 'good'].map((name) => ({
+            title: name,
+            bold: false,
+            italic: false,
+            count: 0,
+            children: [],
+            destination: { name: ascii(name) },
+          })),
+          truncated: false,
+        }),
+      namedDestination: (name) =>
+        new TextDecoder().decode(name) === 'bad'
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] }),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const outline = await reader.outline()
+    expect(outline.map((o) => o.target)).toEqual([
+      { kind: 'unsupported', reason: 'unknown' },
+      { kind: 'resolved', dest: { page: 1, fit: 'fit' } },
+    ])
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+
+  it('an outline that cannot be read is empty, as the PDF.js reader gives it', async () => {
+    const t = setup({ outline: () => Promise.reject(new Error('cannot read')) })
+    const reader = await t.open()
+    await expect(reader.outline()).resolves.toEqual([])
   })
 })
 

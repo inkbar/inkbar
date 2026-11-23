@@ -25,3 +25,17 @@ export function safeAddress(address: string): string | undefined {
     return address
   }
 }
+
+/** A URL with a scheme of its own, as opposed to a file name or relative path. */
+const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
+
+/**
+ * Why an address from a link or outline item that `safeUrl` refused is not followed, told as the
+ * PDF.js reader tells it. PDF.js reads a GoToR's file and destination into `file#dest`, and a
+ * Launch's file as a bare name, so those two are told apart by the `#`; a scheme `safeUrl`
+ * refuses (`javascript:`, `file:`, `data:`) is unsafe whatever follows it.
+ */
+export function unsafeUrlReason(unsafeUrl: string): 'remote' | 'launch' | 'unsafe-url' {
+  if (HAS_SCHEME.test(unsafeUrl)) return 'unsafe-url'
+  return unsafeUrl.includes('#') ? 'remote' : 'launch'
+}

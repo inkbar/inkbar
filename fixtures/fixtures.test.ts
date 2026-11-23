@@ -399,7 +399,7 @@ describe('link and script fixtures', () => {
     expect(name.decodeText()).toBe('résumé')
   })
 
-  it('link-order has its seven annotations in the stated order', async () => {
+  it('link-order has its nine annotations in the stated order, the last a direct object', async () => {
     expect(await subtypes('link-order')).toEqual([
       'Square',
       'Link',
@@ -408,6 +408,14 @@ describe('link and script fixtures', () => {
       'Link',
       'Widget',
       'Link',
+      'Link',
+      'Link',
+    ])
+    const doc = await PDFDocument.load(await fixtureBytes('link-order'))
+    const annots = doc.getPage(0).node.lookup(PDFName.of('Annots'), PDFArray).asArray()
+    expect(annots.map((entry) => entry instanceof PDFDict)).toEqual([
+      ...Array<boolean>(8).fill(false),
+      true,
     ])
   })
 })

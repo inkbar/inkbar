@@ -1,6 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { expectSameLinks, linksAsSeen } from '../engine-reader/test-utils'
 import { nodeAssets } from '../pdfjs/node-assets'
 
 import { openDocument } from './document'
@@ -68,7 +69,8 @@ describe('the reader a document opens with', () => {
           dir,
           fontSize,
         })),
-        links: doc.links(0),
+        // Explicit destinations are compared by where they go: see linksAsSeen.
+        links: await linksAsSeen(doc, 0),
         outline: await doc.outline(),
         dest: await doc.resolveDestination('chapter-2'),
       }
@@ -82,7 +84,8 @@ describe('the reader a document opens with', () => {
       delete flag.__INKBAR_READER__
       expect(off.kind).toBe('pdfjs')
       expect(on.kind).toBe('engine')
-      expect(on).toEqual({ ...off, kind: 'engine' })
+      expectSameLinks(on.links, off.links)
+      expect({ ...on, links: [] }).toEqual({ ...off, kind: 'engine', links: [] })
     }
   })
 })
