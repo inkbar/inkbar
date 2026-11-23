@@ -8,7 +8,8 @@ import { searchableText } from '../../packages/core/src/model/search-text'
 import type { TextContent, TextItem } from '@inkbar/core'
 
 /**
- * How far apart, as a fraction of the font size, the two readers may place a character's centre.
+ * How far apart, as a fraction of the font size, the two readers may place a character's centre,
+ * or an item boundary in a stretch.
  * Set from the measured noise: see the README.
  */
 export const TEXT_TOLERANCE = 0.25
@@ -115,9 +116,9 @@ export interface TextComparison {
   /** The largest distance between the centres of characters both readers give boundaries for. */
   charOffset: number
   /**
-   * The largest offset between stretches of characters compared as wholes, because one reader
-   * gives no boundaries for them: the largest distance between the stretch's starts, ends or
-   * centres on the two sides.
+   * The largest offset between stretches of characters compared at their item boundaries,
+   * because one reader gives no boundaries for each character: the largest distance between the
+   * two sides' starts or ends of a character at an item boundary on either side.
    */
   itemOffset: number
   /**
@@ -131,7 +132,6 @@ const height = (it: TextItem) =>
   Math.hypot(it.quad.p1.x - it.quad.p3.x, it.quad.p1.y - it.quad.p3.y)
 
 const distance = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y)
-const middle = (p: Point, q: Point): Point => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 })
 
 /**
  * Compares page text read by two readers: the joined strings, then where each character sits.
@@ -140,9 +140,13 @@ const middle = (p: Point, q: Point): Point => ({ x: (p.x + q.x) / 2, y: (p.y + q
  * either reader's item holds no `advances`, that item lays its characters out at equal shares,
  * which is what `TextItem.advances` documents, so those characters are compared as stretches
  * instead: each stretch is a run of consecutive paired characters in one such item (in one on
- * each side when both lack them). On each side the stretch runs from its first character's start
- * to its last character's end, whichever items hold them, and the two sides' starts, ends and
- * centres are compared. So the readers may split a line into items at different places.
+ * each side when both lack them). Inside a stretch, the item boundaries of both sides are
+ * compared: where a character is the first of the stretch, or the first in its item on either
+ * side, the two sides' starts of that character are compared, and where it is the last of the
+ * stretch, or the last in its item on either side, their ends. Each side places a character's
+ * start and end at the item's `advances`, or at equal shares when the item has none. So every
+ * item's place on either side is checked against where the other side puts the same characters,
+ * and the readers may split a line into items at different places.
  */
 export function compareText(a: TextContent, b: TextContent): TextComparison {
   const ja = joinedText(a)
@@ -220,16 +224,23 @@ export function compareText(a: TextContent, b: TextContent): TextComparison {
       ...pa.slice(n, last + 1).map((c) => c.fontSize),
       ...pb.slice(n, last + 1).map((c) => c.fontSize)
     )
-    const [sa, ea] = [pa[n]!.start, pa[last]!.end]
-    const [sb, eb] = [pb[n]!.start, pb[last]!.end]
-    const offset = Math.max(
-      ...[
-        distance(sa, sb),
-        distance(ea, eb),
-        distance(middle(sa, ea), middle(sb, eb)),
-      ].map((d) => scale(d, size))
-    )
-    itemOffset = Math.max(itemOffset, note(offset, index[n]!))
+    // Every item boundary on either side: where a character is the first of the stretch, or the
+    // first in its item on either side, both sides' starts of it; where it is the last of the
+    // stretch, or the last in its item on either side, both sides' ends.
+    for (let m = n; m <= last; m++) {
+      const first =
+        m === n || pa[m]!.item !== pa[m - 1]!.item || pb[m]!.item !== pb[m - 1]!.item
+      const final =
+        m === last || pa[m]!.item !== pa[m + 1]!.item || pb[m]!.item !== pb[m + 1]!.item
+      if (first) {
+        const d = scale(distance(pa[m]!.start, pb[m]!.start), size)
+        itemOffset = Math.max(itemOffset, note(d, index[m]!))
+      }
+      if (final) {
+        const d = scale(distance(pa[m]!.end, pb[m]!.end), size)
+        itemOffset = Math.max(itemOffset, note(d, index[m]!))
+      }
+    }
     // The height ratio of every character in the stretch.
     for (let m = n + 1; m <= last; m++) {
       const r = height(b.items[pb[m]!.item]!) / height(a.items[pa[m]!.item]!)
