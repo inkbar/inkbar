@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { textContentFromPdfjs } from '../pdfjs/text-items'
+
 import { rectFromQuad, unionRects } from './geometry'
 import { CONTEXT_CHARS, matchPage } from './search'
 import { searchableText } from './search-text'
@@ -171,6 +173,36 @@ describe('matchPage', () => {
     const [hit] = matchPage(page(it), 'bc', OPTS)
     expect(hit!.quads[0]!.p3).toEqual({ x: 10, y: 30 })
     expect(hit!.quads[0]!.p4).toEqual({ x: 10, y: 10 })
+  })
+
+  it('covers the part of a vertical column a hit reads, from a PDF.js item', () => {
+    // A column of 8 characters, 28 pt each, down from y 760 and centred on x 400.
+    const content = textContentFromPdfjs(0, {
+      items: [
+        {
+          str: '日本語のテキスト',
+          dir: 'ttb',
+          transform: [28, 0, 0, 28, 400, 760],
+          width: 28,
+          height: 224,
+          fontName: 'v',
+          hasEOL: false,
+        },
+      ],
+      styles: {
+        v: { fontFamily: 'monospace', ascent: 0.88, descent: -0.12, vertical: true },
+      },
+    } as never)
+    const [hit] = matchPage(searchableText(content), 'テキスト', OPTS)
+    expect(hit!.quads).toEqual([
+      {
+        p1: { x: 414, y: 648 },
+        p2: { x: 414, y: 536 },
+        p3: { x: 386, y: 648 },
+        p4: { x: 386, y: 536 },
+      },
+    ])
+    expect(hit!.rect).toEqual({ x: 386, y: 536, width: 28, height: 112 })
   })
 
   it('keeps whole-word matches off the middle of a word', () => {

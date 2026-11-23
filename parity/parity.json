@@ -149,12 +149,7 @@
     "accepted": false
   },
   "text-vertical": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "Suspected fault in how core's PDF.js reader builds a vertical run's box, under investigation. PDF.js gives the column's length in the item's height and one em in its width, and the reader lays the box along the run's width, so the box is one em square at the top of the column. The engine reader's box covers the column.",
-      "accepted": false
-    }
+    "state": "same"
   },
   "incremental-saved": {
     "state": "same"
@@ -245,12 +240,7 @@
     "state": "same"
   },
   "redact-text-vertical": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "Suspected fault in how core's PDF.js reader builds a vertical run's box, under investigation. PDF.js gives the column's length in the item's height and one em in its width, and the reader lays the box along the run's width, so the box is one em square at the top of the column. The engine reader's box covers the column.",
-      "accepted": false
-    }
+    "state": "same"
   },
   "redact-text-half-word": {
     "state": "same"

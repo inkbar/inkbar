@@ -11,7 +11,10 @@ export interface PageGlyph {
   end: Point
 }
 
-/** A text item's baseline: where it starts, its unit direction and its width, in user space. */
+/**
+ * A text item's baseline: where it starts, its unit direction and its width, in user space. For a
+ * vertical item, the centre line of its column, down the column, and the column's length.
+ */
 export interface TextRun extends Pick<TextItem, 'str' | 'dir' | 'fontSize'> {
   origin: Point
   along: Point
@@ -39,8 +42,9 @@ const RISE_SLACK = 1
  * matches a glyph sequence that spells its text and whose first glyph starts at the item's origin.
  * Boundaries are where the pen put each glyph, projected onto the item's baseline, so they hold
  * through moves, scaling and spacing inside an item, and may run past 1 when PDF.js reports a
- * width shorter than the glyphs it drew. An item that cannot be matched, or that runs right to
- * left or top to bottom, gets undefined.
+ * width shorter than the glyphs it drew. A vertical item's `along` runs down its column, and its
+ * glyphs start and end on the column's centre line. An item that cannot be matched, or that runs
+ * right to left, gets undefined.
  */
 export function glyphAdvances(
   runs: readonly TextRun[],
@@ -48,7 +52,7 @@ export function glyphAdvances(
 ): (GlyphBounds | undefined)[] {
   let next = 0
   return runs.map((run) => {
-    if (run.dir !== 'ltr' || run.str.trim() === '' || !(run.width > 0)) return undefined
+    if (run.dir === 'rtl' || run.str.trim() === '' || !(run.width > 0)) return undefined
     const tryFrom = (from: number, to: number) => {
       for (let start = from; start < to; start++) {
         const m = matchRun(run, glyphs, start)

@@ -101,16 +101,29 @@ describe('glyphAdvances', () => {
     expect(out[1]).toEqual([0, 0.5, 1])
   })
 
-  it('leaves out right-to-left and vertical runs, empty items and zero widths', () => {
+  it('leaves out right-to-left runs, empty items and zero widths', () => {
     const out = advances(
-      [
-        run('ab', 0, 2, { dir: 'rtl' }),
-        run('ab', 0, 2, { dir: 'ttb' }),
-        run('', 0, 2),
-        run('ab', 0, 0),
-      ],
+      [run('ab', 0, 2, { dir: 'rtl' }), run('', 0, 2), run('ab', 0, 0)],
       [g('a', 0, 1), g('b', 1, 2)]
     )
-    expect(out).toEqual([undefined, undefined, undefined, undefined])
+    expect(out).toEqual([undefined, undefined, undefined])
+  })
+
+  it('measures a vertical run down its column', () => {
+    const column: TextRun = {
+      str: 'ab',
+      dir: 'ttb',
+      origin: { x: 50, y: 100 },
+      along: { x: 0, y: -1 },
+      width: 20,
+      fontSize: 10,
+    }
+    const down = (text: string, y0: number, y1: number): PageGlyph => ({
+      text,
+      start: { x: 50, y: y0 },
+      end: { x: 50, y: y1 },
+    })
+    const [b] = glyphAdvances([column], [down('a', 100, 90), down('b', 90, 80)])
+    expect(b).toEqual({ advances: [0, 0.5, 1], ends: [0.5, 1] })
   })
 })

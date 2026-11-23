@@ -21,6 +21,15 @@ const FALLBACK_DESCENT = 0.25
  *
  * So p3 = (e, f) - v * descent * fontSize, p4 = p3 + u * width, p1 = p3 + v * (ascent + descent) * fontSize,
  * p2 = p4 + (p1 - p3). `rect` is the axis-aligned bounding box of the quad.
+ *
+ * An item in a vertical font (`dir` ttb, or a space or line end PDF.js adds in a vertical run with
+ * `dir` ltr and no width) is laid down its column instead, with `dir` ttb. Its (e, f) is the vertical
+ * origin of its first glyph, the top centre of the glyph's cell, and the pen moves along -v, the
+ * text space's -y, for the column's length, which PDF.js gives in `height`. Across the column it
+ * is one em, |(a, b)|, which PDF.js gives in `width`, centred on the origin. The quad runs down the
+ * column as a horizontal item's runs along its baseline: with down = -v and across = down turned a
+ * quarter turn anticlockwise, p3 = (e, f) - across * |(a, b)| / 2, p4 = p3 + down * height,
+ * p1 = p3 + across * |(a, b)|, p2 = p4 + (p1 - p3). Its `advances` run down the column from p3.
  */
 export function textContentFromPdfjs(
   page: number,
@@ -47,16 +56,37 @@ export function textContentFromPdfjs(
     const u: Point = baseLen === 0 ? { x: 1, y: 0 } : { x: a / baseLen, y: b / baseLen }
     const v: Point =
       fontSize === 0 ? { x: -u.y, y: u.x } : { x: c / fontSize, y: d / fontSize }
-    const { ascent, descent } = metrics(tc.styles[item.fontName])
-    const below = descent * fontSize
-    const total = (ascent + descent) * fontSize
-    const w = item.width
-    const p3 = { x: e - v.x * below, y: f - v.y * below }
-    const p4 = { x: p3.x + u.x * w, y: p3.y + u.y * w }
-    const p1 = { x: p3.x + v.x * total, y: p3.y + v.y * total }
-    const p2 = { x: p4.x + v.x * total, y: p4.y + v.y * total }
-    const quad: Quad = { p1, p2, p3, p4 }
-    const dir = isDir(item.dir) ? item.dir : 'ltr'
+    const style = tc.styles[item.fontName]
+    // PDF.js gives its own spaces `dir` ltr. One inside a vertical run has no width, its gap in
+    // its height; one where a vertical run gives way to horizontal text keeps the vertical
+    // font's name but holds its gap in its width, across the page.
+    const vertical = item.dir === 'ttb' || (style?.vertical === true && !(item.width > 0))
+    let quad: Quad
+    let along: Point
+    let w: number
+    if (vertical) {
+      along = { x: -v.x, y: -v.y }
+      const across = { x: -along.y, y: along.x }
+      w = item.height
+      const half = baseLen / 2
+      const p3 = { x: e - across.x * half, y: f - across.y * half }
+      const p4 = { x: p3.x + along.x * w, y: p3.y + along.y * w }
+      const p1 = { x: p3.x + across.x * baseLen, y: p3.y + across.y * baseLen }
+      const p2 = { x: p4.x + across.x * baseLen, y: p4.y + across.y * baseLen }
+      quad = { p1, p2, p3, p4 }
+    } else {
+      along = u
+      const { ascent, descent } = metrics(style)
+      const below = descent * fontSize
+      const total = (ascent + descent) * fontSize
+      w = item.width
+      const p3 = { x: e - v.x * below, y: f - v.y * below }
+      const p4 = { x: p3.x + u.x * w, y: p3.y + u.y * w }
+      const p1 = { x: p3.x + v.x * total, y: p3.y + v.y * total }
+      const p2 = { x: p4.x + v.x * total, y: p4.y + v.y * total }
+      quad = { p1, p2, p3, p4 }
+    }
+    const dir = vertical ? 'ttb' : isDir(item.dir) ? item.dir : 'ltr'
     items.push({
       str: item.str,
       dir,
@@ -71,7 +101,7 @@ export function textContentFromPdfjs(
       dir,
       fontSize,
       origin: { x: e, y: f },
-      along: u,
+      along,
       width: w,
     })
     families.push(tc.styles[item.fontName]?.fontFamily ?? 'sans-serif')
@@ -117,7 +147,8 @@ function metrics(style: PdfjsTextContent['styles'][string] | undefined): {
   ascent: number
   descent: number
 } {
-  // Vertical fonts report metrics for horizontal layout, so they get the fallback box too.
+  // Vertical fonts report metrics for horizontal layout, so a horizontal space PDF.js names one
+  // with gets the fallback box too.
   if (!style || style.vertical)
     return { ascent: FALLBACK_ASCENT, descent: FALLBACK_DESCENT }
   const ascent = style.ascent
