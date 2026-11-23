@@ -12,9 +12,11 @@ export interface TextItem {
   rect: Rect
   /**
    * How far along the run each character boundary lies, as a fraction of its width: `str.length + 1`
-   * entries, from 0 to 1 or a little past it. Taken from where the page draws each glyph when the
-   * glyphs can be matched to the run, else measured in the run's fallback font. Absent when neither
-   * works, in which case every character takes an equal share.
+   * entries, from 0 to 1 or a little past it, measured from the quad's `p3` end. A right-to-left
+   * item's quad runs along the baseline, so its boundaries fall from 1 to 0 in reading order.
+   * Taken from where the page draws each glyph when the glyphs can be matched to the run, else
+   * measured in the run's fallback font. Absent when neither works, in which case every
+   * character takes an equal share.
    */
   advances?: readonly number[]
   /**

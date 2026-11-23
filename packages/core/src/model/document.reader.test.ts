@@ -52,7 +52,7 @@ describe('the reader a document opens with', () => {
     doc.destroy()
   })
 
-  it('with the switch on: text, links, the outline and destinations read as with it off', async () => {
+  it('with the switch on: the same words, links, outline and destinations as with it off', async () => {
     const read = async (name: 'links' | 'outline') => {
       const doc = await openDocument(await fixtureBytes(name), {
         assets: nodeAssets(),
@@ -61,8 +61,13 @@ describe('the reader a document opens with', () => {
       await doc.ready
       const out = {
         kind: doc._reader.kind,
-        // PDF.js numbers font names per document, so they are left out.
-        text: (await doc.text(0)).items.map(({ fontName: _, ...item }) => item),
+        // With the switch on the engine reads the text: its boxes come from the engine's
+        // character boxes and its font names are the fonts' own, so the words are compared.
+        text: (await doc.text(0)).items.map(({ str, dir, fontSize }) => ({
+          str,
+          dir,
+          fontSize,
+        })),
         links: doc.links(0),
         outline: await doc.outline(),
         dest: await doc.resolveDestination('chapter-2'),

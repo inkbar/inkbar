@@ -9,6 +9,29 @@ import type * as EngineModule from '@inkbar/engine'
 
 type RenderOptions = Parameters<ReaderEngineDocument['renderPage']>[1]
 type Rendered = Awaited<ReturnType<ReaderEngineDocument['renderPage']>>
+type PageTextResult = Awaited<ReturnType<ReaderEngineDocument['pageText']>>
+
+/** The engine's characters for one Courier word, `Hi`, on the baseline at (72, 700). */
+function hiText(): PageTextResult {
+  const geometry = new Float32Array(30)
+  geometry.set([72, 697, 78, 709, 72, 697, 78, 709, 72, 700, 12, 1, 0, 0, 1], 0)
+  geometry.set([78, 697, 84, 709, 78, 697, 84, 709, 78, 700, 12, 1, 0, 0, 1], 15)
+  return {
+    count: 2,
+    codes: new Uint32Array([0x48, 0x69]),
+    geometry,
+    flags: new Uint8Array(2),
+    fonts: new Uint16Array(2),
+    fontTable: [
+      {
+        name: 'Courier',
+        fixedPitch: true,
+        serif: true,
+        vertical: false,
+      },
+    ],
+  }
+}
 
 /** An `EngineError` as the engine throws it, told by its name and code. */
 function engineError(code: string): Error {
@@ -84,9 +107,10 @@ const hasCode = (error: unknown, code: string): boolean =>
 interface FakeEngine extends ReaderEngine {
   open: ReturnType<typeof vi.fn<ReaderEngine['open']>>
   destroy: ReturnType<typeof vi.fn<ReaderEngine['destroy']>>
-  doc: Omit<ReaderEngineDocument, 'close' | 'pageInfo'> & {
+  doc: Omit<ReaderEngineDocument, 'close' | 'pageInfo' | 'pageText'> & {
     close: ReturnType<typeof vi.fn<ReaderEngineDocument['close']>>
     pageInfo: ReturnType<typeof vi.fn<ReaderEngineDocument['pageInfo']>>
+    pageText: ReturnType<typeof vi.fn<ReaderEngineDocument['pageText']>>
   }
 }
 
@@ -102,6 +126,8 @@ function setup(
     rotation?: 0 | 90 | 180 | 270
     pageCount?: number
     traps?: boolean
+    /** What `pageText` answers; by default the word `Hi`. A rejection stops the engine as a render's does. */
+    pageText?: (index: number, engine: EngineState) => Promise<PageTextResult>
   } = {}
 ) {
   const engines: FakeEngine[] = []
@@ -140,6 +166,25 @@ function setup(
           if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
             state.stopped = true
           throw error
+        })
+      }),
+      // A read whose signal aborts before it is answered rejects with `aborted`, as the engine's does.
+      pageText: vi.fn<ReaderEngineDocument['pageText']>((index, options) => {
+        const reading = live()
+          .then(() => (opts.pageText ? opts.pageText(index, state) : hiText()))
+          .catch((error: unknown) => {
+            if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
+              state.stopped = true
+            throw error
+          })
+        const signal = options?.signal
+        if (!signal) return reading
+        if (signal.aborted) return Promise.reject(engineError('aborted'))
+        return new Promise<PageTextResult>((resolve, reject) => {
+          signal.addEventListener('abort', () => reject(engineError('aborted')), {
+            once: true,
+          })
+          reading.then(resolve, reject)
         })
       }),
       close: vi.fn(() => Promise.resolve()),
@@ -676,6 +721,285 @@ describe('destroy', () => {
     expect(t.engines[1]!.doc.close).toHaveBeenCalledTimes(1)
     expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
     expect(t.renders).toHaveLength(1)
+  })
+})
+
+describe('text', () => {
+  it("builds the page's runs from the engine's characters", async () => {
+    const t = setup()
+    const reader = await t.open()
+    const content = await reader.text(0, { glyphs: false })
+    expect(content.page).toBe(0)
+    expect(content.items).toMatchObject([
+      { str: 'Hi', dir: 'ltr', fontName: 'Courier', fontSize: 12, hasEOL: true },
+    ])
+    expect(content.items[0]!.advances).toEqual([0, 0.5, 1])
+    await expect(reader.textFamilies(0)).resolves.toEqual(['monospace'])
+  })
+
+  it('reads a page once for two reads of it, and for its families', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const first = await reader.text(0, { glyphs: false })
+    const again = await reader.text(0, { glyphs: true })
+    await reader.textFamilies(0)
+    expect(again).toEqual(first)
+    expect(t.engines[0]!.doc.pageText).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives each read an object and list of its own, so a caller that edits them changes no other', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const first = await reader.text(0, { glyphs: false })
+    const kept = structuredClone(first)
+    first.items.reverse()
+    first.items.push(first.items[0]!)
+    ;(first as { page: number }).page = 7
+    const again = await reader.text(0, { glyphs: false })
+    expect(again).not.toBe(first)
+    expect(again.items).not.toBe(first.items)
+    expect(again).toEqual(kept)
+    expect(t.engines[0]!.doc.pageText).toHaveBeenCalledTimes(1)
+  })
+
+  describe('a read with a signal', () => {
+    /** A reader whose engine answers a text read only once `gate` opens. */
+    async function gated() {
+      const gate = deferred<void>()
+      const t = setup({ pageText: () => gate.promise.then(() => hiText()) })
+      const reader = await t.open()
+      const pageText = t.engines[0]!.doc.pageText
+      /** The signal the engine was given for its `n`th text read. */
+      const engineSignal = (n = 0) => pageText.mock.calls[n]![1]!.signal!
+      return { t, reader, gate, pageText, engineSignal }
+    }
+
+    it('rejects with the reason of a signal aborted before it, and asks the engine nothing', async () => {
+      const { reader, pageText } = await gated()
+      const reason = new Error('moved on')
+      await expect(
+        reader.text(0, { glyphs: false, signal: AbortSignal.abort(reason) })
+      ).rejects.toBe(reason)
+      await expect(reader.textFamilies(0, AbortSignal.abort(reason))).rejects.toBe(reason)
+      expect(pageText).not.toHaveBeenCalled()
+    })
+
+    it("cancels the engine's read when its only caller aborts, and a later read asks again", async () => {
+      const { reader, gate, pageText, engineSignal } = await gated()
+      const c = new AbortController()
+      const reason = new Error('moved on')
+      const reading = reader.text(0, { glyphs: false, signal: c.signal })
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
+      c.abort(reason)
+      await expect(reading).rejects.toBe(reason)
+      expect(engineSignal().aborted).toBe(true)
+      const later = reader.text(0, { glyphs: false })
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(2))
+      gate.resolve()
+      await expect(later).resolves.toMatchObject({ items: [{ str: 'Hi' }] })
+    })
+
+    it('leaves the read to the callers still waiting when one aborts', async () => {
+      const { reader, gate, pageText, engineSignal } = await gated()
+      const one = new AbortController()
+      const two = new AbortController()
+      const reason = new Error('moved on')
+      const first = reader.text(0, { glyphs: false, signal: one.signal })
+      const second = reader.text(0, { glyphs: false, signal: two.signal })
+      const families = reader.textFamilies(0, two.signal)
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
+      one.abort(reason)
+      await expect(first).rejects.toBe(reason)
+      expect(engineSignal().aborted).toBe(false)
+      gate.resolve()
+      await expect(second).resolves.toMatchObject({ items: [{ str: 'Hi' }] })
+      await expect(families).resolves.toEqual(['monospace'])
+      // The read was kept: the aborted caller did not spoil it for later ones.
+      await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+        items: [{ str: 'Hi' }],
+      })
+      expect(pageText).toHaveBeenCalledTimes(1)
+    })
+
+    it('never cancels a read a caller with no signal waits on', async () => {
+      const { reader, gate, pageText, engineSignal } = await gated()
+      const c = new AbortController()
+      const plain = reader.textFamilies(0)
+      const signalled = reader.text(0, { glyphs: false, signal: c.signal })
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
+      c.abort()
+      await expect(signalled).rejects.toMatchObject({ name: 'AbortError' })
+      expect(engineSignal().aborted).toBe(false)
+      gate.resolve()
+      await expect(plain).resolves.toEqual(['monospace'])
+    })
+
+    it('cancels the read once every caller waiting on it has aborted', async () => {
+      const { reader, gate, pageText, engineSignal } = await gated()
+      const one = new AbortController()
+      const two = new AbortController()
+      const first = reader.text(0, { glyphs: false, signal: one.signal })
+      const second = reader.textFamilies(0, two.signal)
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
+      one.abort()
+      await expect(first).rejects.toMatchObject({ name: 'AbortError' })
+      expect(engineSignal().aborted).toBe(false)
+      two.abort()
+      await expect(second).rejects.toMatchObject({ name: 'AbortError' })
+      expect(engineSignal().aborted).toBe(true)
+      // A caller that comes after starts a read of its own.
+      const later = reader.text(0, {
+        glyphs: false,
+        signal: new AbortController().signal,
+      })
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(2))
+      expect(engineSignal(1).aborted).toBe(false)
+      gate.resolve()
+      await expect(later).resolves.toMatchObject({ items: [{ str: 'Hi' }] })
+    })
+
+    it('does not replace the engine for a read its callers cancelled', async () => {
+      const { t, reader, pageText } = await gated()
+      await reader.pageInfo(0)
+      const c = new AbortController()
+      const reading = reader.text(0, { glyphs: false, signal: c.signal })
+      await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
+      c.abort()
+      await expect(reading).rejects.toMatchObject({ name: 'AbortError' })
+      await new Promise((resolve) => setTimeout(resolve))
+      expect(t.createEngine).toHaveBeenCalledTimes(1)
+      expect(pageText).toHaveBeenCalledTimes(1)
+    })
+
+    it('reads as with no signal when its signal does not abort', async () => {
+      const t = setup()
+      const reader = await t.open()
+      expect(
+        await reader.text(0, { glyphs: false, signal: new AbortController().signal })
+      ).toEqual(await reader.text(0, { glyphs: false }))
+    })
+  })
+
+  it('keeps the last eight pages read', async () => {
+    const t = setup({ pageCount: 10 })
+    const reader = await t.open()
+    const pageText = t.engines[0]!.doc.pageText
+    for (let page = 0; page < 9; page++) await reader.text(page, { glyphs: false })
+    expect(pageText).toHaveBeenCalledTimes(9)
+    // Page 0 has gone; pages 1 to 8 are kept, and reading one keeps it longest.
+    await reader.text(8, { glyphs: false })
+    await reader.text(1, { glyphs: false })
+    expect(pageText).toHaveBeenCalledTimes(9)
+    await reader.text(0, { glyphs: false })
+    expect(pageText).toHaveBeenCalledTimes(10)
+    // Reading page 0 again let go of page 2, the one read longest ago; page 1 stayed.
+    await reader.text(1, { glyphs: false })
+    expect(pageText).toHaveBeenCalledTimes(10)
+    await reader.text(2, { glyphs: false })
+    expect(pageText).toHaveBeenCalledTimes(11)
+  })
+
+  it('does not keep a failed read', async () => {
+    const cannot = engineError('engine-failure')
+    let calls = 0
+    const t = setup({
+      traps: false,
+      pageText: () =>
+        ++calls === 1 ? Promise.reject(cannot) : Promise.resolve(hiText()),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    await expect(reader.text(0, { glyphs: false })).rejects.toBe(cannot)
+    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+      items: [{ str: 'Hi' }],
+    })
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects with PageOutOfRange for a page the file does not have', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject({
+      code: 'PageOutOfRange',
+    })
+    await expect(reader.textFamilies(-1)).rejects.toMatchObject({
+      code: 'PageOutOfRange',
+    })
+    expect(t.engines[0]!.doc.pageText).not.toHaveBeenCalled()
+  })
+
+  it('replaces an engine that stops and reads once more, as a draw does', async () => {
+    const t = setup({
+      pageText: (_, engine) =>
+        engine.index === 0
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(hiText()),
+    })
+    const reader = await t.open()
+    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+      items: [{ str: 'Hi' }],
+    })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    expect(t.engines[1]!.open).toHaveBeenCalledTimes(1)
+    expect(t.engines[1]!.doc.pageText).toHaveBeenCalledWith(0, {
+      signal: expect.any(AbortSignal) as AbortSignal,
+    })
+  })
+
+  it('rejects on a second failure, without a third engine', async () => {
+    const t = setup({ pageText: () => Promise.reject(engineError('engine-failure')) })
+    const reader = await t.open()
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+      code: 'engine-failure',
+    })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects with DocumentDestroyed after destroy', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await reader.destroy()
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    await expect(reader.textFamilies(0)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    expect(t.engines[0]!.doc.pageText).not.toHaveBeenCalled()
+  })
+
+  it('rejects a read running at destroy with DocumentDestroyed', async () => {
+    const gate = deferred<void>()
+    const t = setup({ pageText: () => gate.promise.then(() => hiText()) })
+    const reader = await t.open()
+    const reading = reader.text(0, { glyphs: false })
+    await vi.waitFor(() => expect(t.engines[0]!.doc.pageText).toHaveBeenCalled())
+    const destroying = reader.destroy()
+    gate.resolve()
+    await expect(reading).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await destroying
+  })
+
+  it('still hands links, the outline and destinations to the delegate', async () => {
+    const t = setup()
+    const delegate = {
+      links: vi.fn(() => Promise.resolve([])),
+      outline: vi.fn(() => Promise.resolve([])),
+      resolveDestination: vi.fn(() => Promise.resolve(undefined)),
+    }
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+      delegate,
+    })
+    await reader.links(0)
+    await reader.outline()
+    await reader.resolveDestination({ page: 0, fit: 'Fit', args: [] } as never)
+    expect(delegate.links).toHaveBeenCalledWith(0)
+    expect(delegate.outline).toHaveBeenCalledTimes(1)
+    expect(delegate.resolveDestination).toHaveBeenCalledTimes(1)
   })
 })
 
