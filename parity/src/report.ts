@@ -2,6 +2,13 @@
 import { commands } from 'vitest/browser'
 
 import type { Comparison } from './compare'
+import type { TextComparison } from './text'
+
+/** A point in pixels. */
+interface Point {
+  x: number
+  y: number
+}
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
@@ -156,4 +163,144 @@ export async function writeText(path: string, text: string): Promise<void> {
 
 export async function writeReport(pages: ReportPage[]): Promise<void> {
   await writeText('.report/index.html', reportHtml(pages, new Date().toISOString()))
+}
+
+/** One page's text, as the text report lists it. Points are pixels of `image`. */
+export interface TextReportPage {
+  fixture: string
+  page: number
+  state: string
+  reason: string
+  measured: TextComparison
+  /** The joined text: PDF.js, then the engine. */
+  strings: [string, string]
+  /** The engine's drawing of the page, relative to `.report/`, and its size. */
+  image: string
+  width: number
+  height: number
+  /** Each reader's item boxes (corners in drawing order) and character centres. */
+  pdfjs: { quads: Point[][]; centres: Point[] }
+  engine: { quads: Point[][]; centres: Point[] }
+}
+
+/** `s` escaped, with the character at `at` (if any) marked. */
+function marked(s: string, at: number | undefined): string {
+  if (at === undefined || at > s.length) return escape(s)
+  const mark = s.slice(at, at + 1)
+  return `${escape(s.slice(0, at))}<mark>${mark === '' ? '&nbsp;' : escape(mark)}</mark>${escape(s.slice(at + 1))}`
+}
+
+const COLOURS = { pdfjs: '#0060df', engine: '#d70022' }
+
+function overlay(p: TextReportPage): string {
+  const shapes = (['pdfjs', 'engine'] as const).map((who) => {
+    const colour = COLOURS[who]
+    const quads = p[who].quads
+      .map(
+        (q) =>
+          `<polygon points="${q.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ')}" fill="none" stroke="${colour}" stroke-width="1"/>`
+      )
+      .join('')
+    const dots = p[who].centres
+      .map(
+        (c) =>
+          `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="1.5" fill="${colour}"/>`
+      )
+      .join('')
+    return quads + dots
+  })
+  return `<svg viewBox="0 0 ${p.width} ${p.height}" preserveAspectRatio="none">${shapes.join('')}</svg>`
+}
+
+/**
+ * The text report: each page's two strings, the first difference marked, and both readers'
+ * boxes.
+ */
+export function textReportHtml(pages: TextReportPage[], generated: string): string {
+  // Pages whose strings differ first, then the largest offset (NaN counts as the largest), then by
+  // fixture and page, so the order is always defined.
+  const offset = (p: TextReportPage) =>
+    Number.isNaN(p.measured.worstOffset) ? Infinity : p.measured.worstOffset
+  const sorted = [...pages].sort(
+    (a, b) =>
+      Number(b.measured.firstDifference !== undefined) -
+        Number(a.measured.firstDifference !== undefined) ||
+      (offset(a) === offset(b) ? 0 : offset(a) < offset(b) ? 1 : -1) ||
+      a.fixture.localeCompare(b.fixture) ||
+      a.page - b.page
+  )
+  const rows = sorted.map((p) => {
+    const m = p.measured
+    const at = m.firstDifference ?? m.worstAt
+    const summary =
+      m.firstDifference !== undefined
+        ? `The text differs from character ${m.firstDifference}.`
+        : `Worst character at ${m.worstAt ?? '-'}, ${m.worstOffset.toFixed(3)} of the font size apart (characters ${m.charOffset.toFixed(3)}, items compared whole ${m.itemOffset.toFixed(3)}).`
+    return `<section>
+<h2>${escape(p.fixture)}, page ${p.page + 1} <small>${escape(p.state)}</small></h2>
+<p>${summary}</p>
+<p>${p.reason === '' ? '<em>No reason recorded.</em>' : escape(p.reason)}</p>
+<p class="text"><b>PDF.js</b> ${marked(p.strings[0], at)}</p>
+<p class="text"><b>Engine</b> ${marked(p.strings[1], at)}</p>
+<figure class="page"><div class="frame"><img src="${escape(p.image)}" loading="lazy">${overlay(p)}</div><figcaption>The engine's drawing: PDF.js's boxes and character centres in blue, the engine's in red</figcaption></figure>
+</section>`
+  })
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Text parity</title>
+<style>
+body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+section { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; }
+small { color: #666; font-weight: normal; }
+.text { font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; }
+mark { background: #ffd400; }
+.page { margin: 0; max-width: 900px; }
+.frame { position: relative; }
+.frame img { width: 100%; display: block; }
+.frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+</style>
+<h1>Text parity</h1>
+<p>${sorted.length} pages listed, ${escape(generated)}.</p>
+${rows.join('\n')}
+</html>
+`
+}
+
+/** One fixture's links and outline, as the links report lists them. */
+export interface LinksReportEntry {
+  fixture: string
+  /** `links` or `outline`. */
+  part: string
+  /** 0-based; absent for the outline. */
+  page?: number
+  state: string
+  reason: string
+  lines: string[]
+}
+
+/** The links report: each page's link differences and each outline's, one line each. */
+export function linksReportHtml(entries: LinksReportEntry[], generated: string): string {
+  const rows = entries.map(
+    (e) => `<section>
+<h2>${escape(e.fixture)}, ${e.page === undefined ? 'outline' : `links on page ${e.page + 1}`} <small>${escape(e.state)}</small></h2>
+<p>${e.reason === '' ? '<em>No reason recorded.</em>' : escape(e.reason)}</p>
+${e.lines.length === 0 ? '<p>The same.</p>' : `<ul>${e.lines.map((l) => `<li>${escape(l)}</li>`).join('')}</ul>`}
+</section>`
+  )
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Link and outline parity</title>
+<style>
+body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+section { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; }
+small { color: #666; font-weight: normal; }
+li { font-family: ui-monospace, monospace; word-break: break-all; }
+</style>
+<h1>Link and outline parity</h1>
+<p>${entries.length} listed, ${escape(generated)}.</p>
+${rows.join('\n')}
+</html>
+`
 }
