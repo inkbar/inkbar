@@ -29,6 +29,17 @@ const LOCKED = `${BASE}documents/locked.pdf`
 const PASSWORD = 'inkbar'
 /** One A4 page of Latin text in the standard fonts. */
 const TEXT_SIMPLE = `${BASE}fixtures/text-simple.pdf`
+/** The first line of `text-simple`'s first page, as the fixture's generator draws it. */
+const TEXT_SIMPLE_FIRST_LINE = 'Page 1'
+/** One page of search cases: a word split over two font runs, a hyphenated line break and more. */
+const TEXT_SEARCH = `${BASE}fixtures/text-search.pdf`
+/** A query core's own search tests use on `text-search`: one hit, over two font runs. */
+const TEXT_SEARCH_QUERY = 'Invoice'
+const TEXT_SEARCH_HITS = 1
+/** Three pages of links; the first on page 1 goes to page 2. */
+const LINKS = `${BASE}fixtures/links.pdf`
+/** Six pages with an outline; its first entry is `Cover`. */
+const OUTLINE = `${BASE}fixtures/outline.pdf`
 /**
  * One A4 page: two lines of Japanese, 24 pt from x 72, on baselines 760 and 700, in a font the
  * file does not carry, and a Latin line in Helvetica on baseline 640.
@@ -361,6 +372,93 @@ export function smokeChecks(
           requests.length === 1,
           `the Japanese font was fetched ${requests.length} times`
         )
+      },
+    },
+    {
+      name: 'with the switch on, a selection of the first line made by script reads it back',
+      timeout: 30_000,
+      async run() {
+        await drawnWith(TEXT_SIMPLE, true, async (doc) => {
+          const reader = readerOf(doc)
+          assert(reader === 'engine', `the text was read by ${reader}`)
+          const layer = await until(
+            'the text layer spans',
+            () => {
+              const found = page(0)?.querySelector<HTMLElement>('[data-ink-text-layer]')
+              return found && found.querySelector('span') && found
+            },
+            10_000
+          )
+          // The first line is every span before the layer's first line break.
+          const lineEnd = need(layer.querySelector(':scope > br'), 'line break')
+          const range = document.createRange()
+          range.setStart(layer, 0)
+          range.setEndBefore(lineEnd)
+          const selection = window.getSelection()
+          assert(selection, 'the page has no selection object')
+          selection.removeAllRanges()
+          selection.addRange(range)
+          const text = selection.toString().trim()
+          selection.removeAllRanges()
+          assert(
+            text === TEXT_SIMPLE_FIRST_LINE,
+            `the first line reads back as ${JSON.stringify(text)}`
+          )
+        })
+      },
+    },
+    {
+      name: `with the switch on, search finds ${TEXT_SEARCH_QUERY} ${TEXT_SEARCH_HITS} time in the search cases`,
+      timeout: 30_000,
+      async run() {
+        await drawnWith(TEXT_SEARCH, true, async (doc) => {
+          const reader = readerOf(doc)
+          assert(reader === 'engine', `the text was read by ${reader}`)
+          const hits = await doc.search(TEXT_SEARCH_QUERY).all()
+          assert(
+            hits.length === TEXT_SEARCH_HITS,
+            `search found ${TEXT_SEARCH_QUERY} ${hits.length} times`
+          )
+        })
+      },
+    },
+    {
+      name: 'with the switch on, an internal link, activated by script, changes the page',
+      timeout: 30_000,
+      async run() {
+        await drawnWith(LINKS, true, async (doc) => {
+          const reader = readerOf(doc)
+          assert(reader === 'engine', `the links were read by ${reader}`)
+          const link = await until(
+            'the first internal link',
+            () => page(0)?.querySelector<HTMLElement>('[data-ink-link][role="link"]'),
+            10_000
+          )
+          assert(currentPage() === '1', `the viewer opened on page ${currentPage()}`)
+          link.click()
+          // The fixture's first link goes to page 2.
+          await until('page 2', () => currentPage() === '2', 10_000)
+        })
+      },
+    },
+    {
+      name: 'with the switch on, the outline panel lists Cover',
+      timeout: 30_000,
+      async run() {
+        await drawnWith(OUTLINE, true, async (doc) => {
+          const reader = readerOf(doc)
+          assert(reader === 'engine', `the outline was read by ${reader}`)
+          await until(
+            'the Cover entry',
+            () =>
+              [
+                ...host.querySelectorAll<HTMLElement>(
+                  '[data-ink-outline] .ink-outline-title'
+                ),
+              ].some((title) => title.textContent?.trim() === 'Cover'),
+            10_000
+          )
+        })
       },
     },
     {

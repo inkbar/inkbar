@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser'
 
 import { rectFromQuad, type Quad } from '../../model/geometry'
 import { writable } from '../../model/readable'
+import { readerKind } from '../../reader/select'
 import { mountContainer, openFixtureInBrowser, settle, until } from '../test-utils'
 import { createPageTransform } from '../transform'
 import { mountViewer } from '../viewer-engine'
@@ -63,10 +64,22 @@ function spanUnder(box: HTMLElement, host: HTMLElement): DOMRect {
 function expectOverText(box: HTMLElement, host: HTMLElement) {
   const b = box.getBoundingClientRect()
   const s = spanUnder(box, host)
-  expect(b.left).toBeGreaterThanOrEqual(s.left - 1)
-  expect(b.right).toBeLessThanOrEqual(s.right + 1)
-  expect(b.top).toBeGreaterThanOrEqual(s.top - 1)
-  expect(b.bottom).toBeLessThanOrEqual(s.bottom + 1)
+  // The engine reader's text boxes are about 1.26 times as tall as the font, and its span, one
+  // font size high, sits in the middle of the box: the box reaches up to 0.13 em past the span
+  // above and below the line. With PDF.js the box is the span's own height. The fixture's lines
+  // run along the page, so they cross the screen upright unless the layer is turned a quarter.
+  const rotation = Number(
+    host.querySelector('[data-ink-text-layer]')!.getAttribute('data-main-rotation') ?? 0
+  )
+  const turned = rotation % 180 !== 0
+  const em = turned ? s.width : s.height
+  const across = readerKind() === 'engine' ? 0.15 * em : 0
+  const acrossX = turned ? across : 0
+  const acrossY = turned ? 0 : across
+  expect(b.left).toBeGreaterThanOrEqual(s.left - 1 - acrossX)
+  expect(b.right).toBeLessThanOrEqual(s.right + 1 + acrossX)
+  expect(b.top).toBeGreaterThanOrEqual(s.top - 1 - acrossY)
+  expect(b.bottom).toBeLessThanOrEqual(s.bottom + 1 + acrossY)
 }
 
 describe('search highlights', () => {

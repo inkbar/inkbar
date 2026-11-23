@@ -11,6 +11,7 @@ import {
 } from '../../model/signatures'
 import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/scripting'
+import { readerKind } from '../../reader/select'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
 import { redactionBusy } from '../redaction-actions'
@@ -2312,11 +2313,21 @@ describe('createViewer', () => {
       () => viewer.element.querySelector('.ink-page[data-page="0"] canvas') !== null
     )
     let failing = true
-    const handles = doc._pdfjs
-    const original = handles.getPage.bind(handles)
-    handles.getPage = async (index) => {
-      if (failing && index === 0) throw new Error('The page could not be drawn')
-      return original(index)
+    if (readerKind() === 'pdfjs') {
+      const handles = doc._pdfjs
+      const original = handles.getPage.bind(handles)
+      handles.getPage = async (index) => {
+        if (failing && index === 0) throw new Error('The page could not be drawn')
+        return original(index)
+      }
+    } else {
+      // The engine reader draws without PDF.js's pages: its draw fails instead.
+      const reader = doc._reader
+      const original = reader.draw.bind(reader)
+      reader.draw = async (request, ...rest) => {
+        if (failing && request.page === 0) throw new Error('The page could not be drawn')
+        return original(request, ...rest)
+      }
     }
     engine.viewport.setZoom(0.5)
     await until(() => viewer.element.querySelector('.ink-page-error') !== null)
@@ -3804,12 +3815,25 @@ describe('a floating sidebar beside the viewer', () => {
 })
 
 describe('applying redactions', () => {
-  /** The real engine, in this page; `gate` holds its loading until resolved. */
-  const realEngine = (gate?: Promise<void>): EngineLoader =>
-    vi.fn<EngineLoader>(async () => {
+  /**
+   * `loader`, held until `gate` resolves. The engine reader loads the engine once more, first, to
+   * open the file: that load goes through, so only what the apply loads is held.
+   */
+  const gated = (loader: EngineLoader, gate?: Promise<void>): EngineLoader => {
+    let opened = readerKind() !== 'engine'
+    return async () => {
+      if (!opened) {
+        opened = true
+        return loader()
+      }
       await gate
-      return import('@inkbar/engine')
-    })
+      return loader()
+    }
+  }
+
+  /** The real engine, in this page; `gate` holds the apply's loading until resolved. */
+  const realEngine = (gate?: Promise<void>): EngineLoader =>
+    vi.fn<EngineLoader>(gated(() => import('@inkbar/engine'), gate))
 
   /** The real engine, whose check of the redacted file finds content under every mark. */
   const failingCheck: EngineLoader = async () => {
@@ -4522,6 +4546,9 @@ describe('applying redactions', () => {
     doc.annotations.remove(mark.id)
     expect(control.disabled).toBe(true)
 
+    // With the engine reader every open in this project is given the engine loader by the setup
+    // file, so a viewer without an engine cannot be built here.
+    if (readerKind() === 'engine') return
     const { viewer: bare } = make('redact-text')
     const bareControl = createApplyRedactionsButton(bare)
     const { doc: bareDoc } = await ready(bare)
@@ -4529,14 +4556,6 @@ describe('applying redactions', () => {
     expect(bareControl.disabled).toBe(true)
     await expect(bare.applyRedactions()).resolves.toBeNull()
   })
-
-  /** `loader`, held until `gate` resolves. */
-  const gated =
-    (loader: EngineLoader, gate: Promise<void>): EngineLoader =>
-    async () => {
-      await gate
-      return loader()
-    }
 
   it('the pages take no input while the marks are applied, and take it again after a failure', async () => {
     let release!: () => void

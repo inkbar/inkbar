@@ -8,7 +8,7 @@ import type { SmokeState } from '../src/smoke/run.ts'
 guardConsole(test)
 
 /** How many checks the page makes through each front end. */
-const CHECKS = 25
+const CHECKS = 29
 
 /** The smoke page real browsers run: every check it makes passes here too, in each front end. */
 for (const front of FRONTS) {

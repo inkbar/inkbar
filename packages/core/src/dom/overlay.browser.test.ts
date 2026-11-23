@@ -15,6 +15,7 @@ import { isTextMarkup } from '../model/annotations/edit'
 import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
+import { readerKind } from '../reader/select'
 import { oneOfEach } from '../test-support/annotations'
 import { renderRegion } from '../test-support/render-region'
 
@@ -2166,7 +2167,12 @@ describe('loupe', () => {
     const doc = await openFixtureInBrowser(name)
     const transform = createPageTransform(doc.pages[0]!, zoom, rotation)
     const host = mountContainer(transform.cssWidth, transform.cssHeight)
-    const getPage = vi.spyOn(doc._pdfjs, 'getPage')
+    // Counts the lens's renders: each loads its page from PDF.js. The engine reader draws without
+    // PDF.js's page proxy, so with it each render is counted at the reader's draw.
+    const renders =
+      readerKind() === 'pdfjs'
+        ? vi.spyOn(doc._pdfjs, 'getPage')
+        : vi.spyOn(doc._reader, 'draw')
     const overlay = createOverlay({
       host,
       page: 0,
@@ -2180,7 +2186,7 @@ describe('loupe', () => {
       host.remove()
       void doc.destroy()
     })
-    return { doc, host, overlay, transform, getPage }
+    return { doc, host, overlay, transform, renders }
   }
 
   const lens = (host: HTMLElement) =>
@@ -2196,7 +2202,7 @@ describe('loupe', () => {
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
   it('loupe shows a circular canvas magnifying the content under its centre', async () => {
-    const { doc, host, getPage } = await mountLoupePage()
+    const { doc, host, renders } = await mountLoupePage()
     const loupe = doc.annotations.add({
       type: 'loupe',
       page: 0,
@@ -2229,14 +2235,14 @@ describe('loupe', () => {
     expect(diff / a.length).toBeLessThan(4)
 
     // A move re-renders, debounced: nothing at once, one render after the pause.
-    const before = getPage.mock.calls.length
+    const before = renders.mock.calls.length
     doc.annotations.update(loupe.id, { rect: { x: 300, y: 300, width: 80, height: 80 } })
     doc.annotations.update(loupe.id, { rect: { x: 310, y: 300, width: 80, height: 80 } })
-    expect(getPage.mock.calls.length).toBe(before)
+    expect(renders.mock.calls.length).toBe(before)
     expect(lens(host)).toBe(canvas)
-    await expect.poll(() => getPage.mock.calls.length).toBe(before + 1)
+    await expect.poll(() => renders.mock.calls.length).toBe(before + 1)
     await wait(150)
-    expect(getPage.mock.calls.length).toBe(before + 1)
+    expect(renders.mock.calls.length).toBe(before + 1)
     expect(lens(host)).toBe(canvas)
   })
 
@@ -2293,7 +2299,7 @@ describe('loupe', () => {
   })
 
   it('loupe re-renders debounced on zoom', async () => {
-    const { doc, host, overlay, getPage } = await mountLoupePage()
+    const { doc, host, overlay, renders } = await mountLoupePage()
     doc.annotations.add({
       type: 'loupe',
       page: 0,
@@ -2303,15 +2309,15 @@ describe('loupe', () => {
     const canvas = lens(host)!
     await expect.poll(() => canvas.width).toBe(80)
     await wait(150)
-    const before = getPage.mock.calls.length
+    const before = renders.mock.calls.length
     for (const zoom of [1.25, 1.5, 2])
       overlay.update(createPageTransform(doc.pages[0]!, zoom, 0))
-    expect(getPage.mock.calls.length).toBe(before)
+    expect(renders.mock.calls.length).toBe(before)
     // The old bitmap stretches with the element until the new one lands.
     expect(canvas.style.width).toBe('100%')
     await expect.poll(() => canvas.width).toBe(160)
     await wait(150)
-    expect(getPage.mock.calls.length).toBe(before + 1)
+    expect(renders.mock.calls.length).toBe(before + 1)
   })
 
   it.each([0, 270] as const)(
