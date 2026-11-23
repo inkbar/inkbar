@@ -1,0 +1,1 @@
+import{r as e}from"./reader-DU-lo_rR.js";var t=`/pr-preview/pr-492/fonts/`,n=async()=>{let[n,{fontUrls:r}]=await Promise.all([e(()=>import(`./dist-DPkgC7WP.js`),[]),e(()=>import(`./fonts-BneXjObo.js`),[])]);return{...n,createEngine:()=>n.createEngine({fallbackFonts:r(t)})}};export{n,t};
