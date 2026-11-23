@@ -66,3 +66,31 @@ jobs:
           --filter @inkbar/svelte --filter @inkbar/theme --filter @inkbar/icons
           --filter @inkbar/engine
           publish --access public --provenance --no-git-checks
+
+  # Asks inkbar/landing to draft this release's notes for the changelog page on
+  # inkbar.dev. Its workflow opens a pull request with the draft for review. A
+  # failure here leaves the npm publish as it is; run the landing workflow by
+  # hand with the version instead.
+  changelog:
+    needs: publish
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.IB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.IB_APP_PRIVATE_KEY }}
+          owner: inkbar
+          repositories: landing
+      # The tag reaches the shell through env, not interpolation.
+      - name: Start the changelog draft
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: >-
+          gh api repos/inkbar/landing/dispatches
+          -f event_type=inkbar-release
+          -f "client_payload[version]=${TAG#v}"
