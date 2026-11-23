@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 
 import { holdsText } from './pdf-bytes'
@@ -351,6 +352,64 @@ describe('unembedded-font fixtures', () => {
       expect(plain).toContain('/FontDescriptor')
     }
   )
+})
+
+describe('link and script fixtures', () => {
+  const NAMES = ['link-targets', 'link-order', 'text-rtl', 'text-vertical'] as const
+
+  /** The /Subtype of each annotation of the first page, in /Annots order. */
+  async function subtypes(name: FixtureName): Promise<string[]> {
+    const doc = await PDFDocument.load(await fixtureBytes(name))
+    const annots = doc.getPage(0).node.lookup(PDFName.of('Annots'), PDFArray)
+    return annots
+      .asArray()
+      .map((ref) =>
+        doc.context
+          .lookup(ref, PDFDict)
+          .lookup(PDFName.of('Subtype'), PDFName)
+          .decodeText()
+      )
+  }
+
+  it.each(NAMES)(
+    '%s is in the manifest, has a file and opens with pdf-lib',
+    async (name) => {
+      expect(Object.keys(manifest)).toContain(name)
+      expect(existsSync(fixturePath(name))).toBe(true)
+      const doc = await PDFDocument.load(await fixtureBytes(name))
+      expect(doc.getPageCount()).toBe(manifest[name].pages)
+    }
+  )
+
+  it('link-targets has 20 Link annotations', async () => {
+    const kinds = await subtypes('link-targets')
+    expect(kinds).toHaveLength(20)
+    expect(new Set(kinds)).toEqual(new Set(['Link']))
+  })
+
+  it('link-targets names one destination, résumé in UTF-16BE, in its name tree', async () => {
+    const doc = await PDFDocument.load(await fixtureBytes('link-targets'))
+    const names = doc.catalog
+      .lookup(PDFName.of('Names'), PDFDict)
+      .lookup(PDFName.of('Dests'), PDFDict)
+      .lookup(PDFName.of('Names'), PDFArray)
+    expect(names.size()).toBe(2)
+    const name = names.lookup(0, PDFHexString)
+    expect(name.asBytes().subarray(0, 2)).toEqual(new Uint8Array([0xfe, 0xff]))
+    expect(name.decodeText()).toBe('résumé')
+  })
+
+  it('link-order has its seven annotations in the stated order', async () => {
+    expect(await subtypes('link-order')).toEqual([
+      'Square',
+      'Link',
+      'Widget',
+      'Link',
+      'Link',
+      'Widget',
+      'Link',
+    ])
+  })
 })
 
 describe('corpus fixtures', () => {
