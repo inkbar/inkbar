@@ -25,6 +25,12 @@ export function dispatch(
     case 'pageText':
       if (!core.fetchesFonts) return core.pageText(request.doc, request.index)
       return core.pageTextAfterFonts(request.doc, request.index, signal)
+    case 'pageLinks':
+      return core.pageLinks(request.doc, request.index)
+    case 'outline':
+      return core.outline(request.doc)
+    case 'namedDestination':
+      return core.namedDestination(request.doc, request.name)
     case 'renderPage':
       return core.renderPageSliced(
         request.doc,

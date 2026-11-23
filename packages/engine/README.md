@@ -167,6 +167,24 @@ for (let i = 0; i < text.count; i++) {
 }
 ```
 
+Reading links, the outline and named destinations:
+
+- `pageLinks(index)` gives `{ annotations, links }` for a page. `annotations` has one entry for every annotation dictionary on the page, with its `index` in the page's annotation array, `subtype`, `flags`, `objectNumber` (absent for a direct object) and whether its `/Rect` and `/QuadPoints` are well formed. `links` has the Link annotations, each with the same `index`, a `rect` in user space before /Rotate (all zero when the file's `/Rect` is malformed) and `quads` when the file has them.
+- `outline()` gives `{ items, truncated }`. Each item has its `title`, `bold`, `italic`, the file's `count` and its `children`. `truncated` is true when the outline loops, nests past 64 levels or has more than 100,000 items.
+- `namedDestination(name)` takes the name's bytes and gives the destination the file's name tree or catalog holds for it, or `undefined` when the file has no such name.
+- A link or an outline item can carry a `destination`, an `action` and an `additionalAction`. A destination is `{ page, fit, args }`, with `page` counting from 0 and -1 when it names no page of the file, and `args` always four entries, `null` where the file has none, or `{ name }` holding a named destination's bytes. An action has a `kind` (the file's `/S`) and, as the file has them, `uri`, `destination`, `file`, `newWindow`, `name` or `script`. Strings from the file are `Uint8Array`s.
+- The engine reports the file's facts and applies no URL rules: it does not decode, complete or filter a URI. A JavaScript action's source comes back as text in `script`, and the engine never runs it.
+
+```ts
+const { links } = await doc.pageLinks(0)
+for (const link of links) {
+  if (link.action?.kind === 'URI' && link.action.uri)
+    console.log(new TextDecoder().decode(link.action.uri), link.rect)
+}
+const { items } = await doc.outline()
+const target = await doc.namedDestination(new TextEncoder().encode('chapter-2'))
+```
+
 Writing:
 
 - `write({ remove, annotations, fields })` sets each form value in `fields` and redraws its widgets, removes the annotations in `remove`, by page and object number, then appends each annotation to its page in the order given.

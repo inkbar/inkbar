@@ -112,6 +112,31 @@ test('page text crosses from the worker in buffers of its own', async () => {
   await engine.destroy()
 })
 
+test('links, the outline and named destinations cross from the worker with their bytes', async () => {
+  const engine = await start()
+  const linked = await engine.open(await fixture('links'))
+  const { links } = await linked.pageLinks(0)
+  const uri = links.find((l) => l.action?.kind === 'URI')?.action?.uri
+  expect(uri).toBeInstanceOf(Uint8Array)
+  expect(new TextDecoder().decode(uri)).toBe('https://example.com/a')
+  await expect(linked.pageLinks(99)).rejects.toBeInstanceOf(RangeError)
+  const outlined = await engine.open(await fixture('outline'))
+  const { items, truncated } = await outlined.outline()
+  expect(truncated).toBe(false)
+  expect(items[1]?.children).toHaveLength(2)
+  const name = new TextEncoder().encode('chapter-2')
+  expect(await outlined.namedDestination(name)).toEqual({
+    page: 1,
+    fit: 'XYZ',
+    args: [72, 500, null, null],
+  })
+  expect(name).toHaveLength(9)
+  expect(
+    await outlined.namedDestination(new TextEncoder().encode('nope'))
+  ).toBeUndefined()
+  await engine.destroy()
+})
+
 test('render options cross to the worker', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))

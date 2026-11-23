@@ -86,6 +86,9 @@ function fakeEngine() {
       pageInfo: () => Promise.reject(new Error('unused')),
       renderPage: () => Promise.reject(new Error('unused')),
       pageText: () => Promise.reject(new Error('unused')),
+      pageLinks: () => Promise.reject(new Error('unused')),
+      outline: () => Promise.reject(new Error('unused')),
+      namedDestination: () => Promise.reject(new Error('unused')),
       write: (_input: WriteInput) => queued('write', () => undefined),
       redact: (input) =>
         queued('redact', () => {
