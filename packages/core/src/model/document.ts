@@ -1,14 +1,11 @@
 import { refOfPdfjsId } from '../pdf/annotation-fields'
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects, type PdfObjects } from '../pdf/objects'
-import { destinationPage, resolveDestination } from '../pdfjs/destinations'
-import { pageGlyphs } from '../pdfjs/glyphs'
+import { destinationPage } from '../pdfjs/destinations'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
-import { readOutline } from '../pdfjs/outline'
 import { createPdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
-import { readTextContent } from '../pdfjs/text-content'
 import { readerKind } from '../reader/select'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
@@ -36,7 +33,6 @@ import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
 import { buildFormFields, type RawWidget } from './form/structure'
-import { linkFromPdfjs, type PageLink } from './links'
 import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
@@ -67,7 +63,6 @@ import {
 } from './search'
 import { searchableText, type SearchableText } from './search-text'
 import { resolveSource, sourceFileName, type DocumentSource } from './source'
-import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { TextPicture, ToPng } from './annotations/drawing/pdf/pictures'
 import type { TextMeasure } from './annotations/drawing/types'
@@ -78,8 +73,10 @@ import type {
 } from './annotations/types'
 import type { Destination, RawDestination } from './destination'
 import type { FieldsMode, FormField } from './form/types'
+import type { PageLink } from './links'
 import type { OutlineItem } from './outline'
 import type { RedactionPreview, RedactionResult } from './redaction/types'
+import type { TextContent } from './text'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -414,6 +411,11 @@ export async function openDocument(
   /** Whether the file has annotations other than widgets and links, which Inkbar may have saved. */
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
+  /**
+   * Each page's annotations as PDF.js reads them, read once while the document opens: the open
+   * and the reader share them. Cleared when the open has read every page.
+   */
+  const annotationsRead = new Map<number, Promise<PdfjsAnnotationData[]>>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
@@ -456,12 +458,16 @@ export async function openDocument(
    */
   const engineReader =
     readerKind() === 'engine'
-      ? async (proxy: PdfjsDocument): Promise<DocumentReader> => {
+      ? async (
+          proxy: PdfjsDocument,
+          pdfjsReader: DocumentReader
+        ): Promise<DocumentReader> => {
           const { createEngineReader } = await import('../engine-reader/reader')
           return createEngineReader({
             loader: options.engine!,
             bytes: () => proxy.getData(),
             password: options.password,
+            delegate: pdfjsReader,
           })
         }
       : undefined
@@ -496,7 +502,27 @@ export async function openDocument(
       return cache.get(index)
     }
     handles = { module: pdfjs, proxy, getPage }
-    reader = engineReader ? await engineReader(proxy) : createPdfjsReader(handles)
+    const annotationsOf = (index: number): Promise<PdfjsAnnotationData[]> => {
+      let read = annotationsRead.get(index)
+      if (!read) {
+        // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
+        const made = getPage(index).then((page) =>
+          page.getAnnotations().catch((): PdfjsAnnotationData[] => [])
+        )
+        // A page that could not be had is not cached: the next read asks again.
+        made.catch(() => {
+          if (annotationsRead.get(index) === made) annotationsRead.delete(index)
+        })
+        annotationsRead.set(index, made)
+        read = made
+      }
+      return read
+    }
+    const pdfjsReader = createPdfjsReader(handles, {
+      measure,
+      annotations: annotationsOf,
+    })
+    reader = engineReader ? await engineReader(proxy, pdfjsReader) : pdfjsReader
     const meta = await proxy.getMetadata().catch(() => {
       // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
       // title/author are nice-to-have. The document itself has opened, so carry on without it.
@@ -513,22 +539,22 @@ export async function openDocument(
     for (let i = 0; i < proxy.numPages; i++) pages.push(await reader.pageInfo(i))
 
     const importedAt = new Date().toISOString()
+    const opened = reader
     const perPage = await mapInOrder(proxy.numPages, EMBEDDED_CONCURRENCY, async (i) => {
-      const page = await getPage(i)
-      const raw: PdfjsAnnotationData[] = await page.getAnnotations().catch(() => {
-        // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
-        return []
-      })
+      const raw = await annotationsOf(i)
       // Widgets and links keep their place in `/Annots`, which Tab order shares between them.
       const widgets = raw.flatMap((data, at): RawWidget[] =>
         data.subtype === 'Widget' ? [{ page: i, data, at }] : []
       )
-      const links = raw.flatMap((data, at) => linkFromPdfjs(i, data, at) ?? [])
+      const links = await opened.links(i)
       // A reply Inkbar saved is hidden, so PDF.js leaves it out; its parent is not.
       const others = raw.flatMap((d) =>
         d.subtype !== 'Widget' && d.subtype !== 'Link' ? [[d.id, d.subtype] as const] : []
       )
       return { ...importEmbeddedPage(i, raw, importedAt), widgets, links, others }
+    }).finally(() => {
+      // Nothing reads them after the open, so they are not held: a later read asks PDF.js again.
+      annotationsRead.clear()
     })
     perPage.forEach((r, i) => {
       if (r.links.length > 0) linksByPage.set(i, r.links)
@@ -921,15 +947,8 @@ export async function openDocument(
    */
   async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
     if (destroyed) throw destroyedError()
-    if (!handles) throw statusError(status.get())
-    const p = await handles.getPage(page)
-    const tc = await readTextContent(p)
-    // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
-    const placed =
-      glyphs && tc.items.length > 0
-        ? await pageGlyphs(p, handles.module).catch(() => undefined)
-        : undefined
-    return textContentFromPdfjs(page, tc, measure, placed)
+    if (!reader) throw statusError(status.get())
+    return reader.text(page, { glyphs })
   }
 
   /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
@@ -1030,19 +1049,17 @@ export async function openDocument(
     annotations: store,
     links: (page) => linksByPage.get(page) ?? [],
     resolveDestination(raw) {
-      if (destroyed || !handles) return Promise.resolve(undefined)
+      if (destroyed || !reader) return Promise.resolve(undefined)
       const key = JSON.stringify(raw)
       let found = destinationCache.get(key)
       if (!found) {
-        found = resolveDestination(handles.proxy, raw).catch(() => undefined)
+        found = reader.resolveDestination(raw).catch(() => undefined)
         destinationCache.set(key, found)
       }
       return found
     },
     outline() {
-      outlineRead ??= ready.then(() =>
-        destroyed || !handles ? [] : readOutline(handles.proxy)
-      )
+      outlineRead ??= ready.then(() => (destroyed || !reader ? [] : reader.outline()))
       return outlineRead
     },
     get embedded() {
@@ -1124,6 +1141,7 @@ export async function openDocument(
       store.destroy()
       pageCache?.clear()
       searchable.clear()
+      annotationsRead.clear()
       destinationCache.clear()
       const openReader = reader
       if (openReader) teardown(() => openReader.destroy())

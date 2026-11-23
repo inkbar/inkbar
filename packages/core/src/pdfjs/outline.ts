@@ -1,7 +1,7 @@
-import { targetOf, type PdfjsTargetFields } from '../model/links'
 import { mapInOrder } from '../model/map-in-order'
 
 import { resolveDestination } from './destinations'
+import { targetOf, type PdfjsTargetFields } from './links'
 
 import type { PdfjsDocument } from './types'
 import type { Destination, RawDestination } from '../model/destination'

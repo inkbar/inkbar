@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { hiddenFromPdfjsIds, regionCanvasSize } from '../dom/draw-request'
 import { openFixtureInBrowser } from '../dom/test-utils'
@@ -7,11 +7,15 @@ import {
   normalizeRotation,
   type ViewRotation,
 } from '../dom/transform'
+import { canvasMeasureChar } from '../model/measure-char'
 
+import { createPdfjsReader } from './reader'
 import { hiddenAppearances } from './widget-appearance'
 
+import type { PdfjsAnnotationData } from './types'
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
+import type { TextContent } from '../model/text'
 
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
@@ -268,5 +272,169 @@ describe('the PDF.js reader', () => {
     await expect(task!.promise).rejects.toMatchObject({
       name: 'RenderingCancelledException',
     })
+  })
+})
+
+/**
+ * The strings and boxes of page 0 of `text-search` as the document gave them before text was read
+ * through the reader: `[str, x, y, width, height]`.
+ */
+const TEXT_SEARCH_PAGE_0 = [
+  ['Inv', 72, 697.102, 18.676000000000002, 12.950000000000045],
+  ['oice', 90.396, 697.102, 28.013999999999996, 12.950000000000045],
+  ['', 72, 673.102, 0, 12.950000000000045],
+  ['A long docu-', 72, 673.102, 78.596, 12.950000000000045],
+  ['ment ends here.', 72, 657.102, 101.16399999999999, 12.950000000000045],
+  ['café crème', 72, 633.102, 69.24399999999997, 12.950000000000045],
+  ['“quoted” and ‘single’', 72, 609.102, 126.05600000000004, 12.950000000000045],
+  ['left column', 72, 557.102, 67.69, 12.950000000000045],
+  [' ', 139.69, 557.102, 180.31, 12.950000000000045],
+  ['right column', 320, 557.102, 76.24400000000003, 12.950000000000045],
+  ['left second line', 72, 541.102, 93.38, 12.950000000000045],
+  [' ', 165.38, 541.102, 154.62, 12.950000000000045],
+  ['right second line', 320, 541.102, 101.93400000000003, 12.950000000000045],
+  ['widely', 72, 497.102, 43.891999999999996, 12.949999999999989],
+  [' ', 115.89200000000002, 497.102, 9.891999999999996, 12.949999999999989],
+  ['spaced', 125.78400000000002, 497.102, 50.135999999999996, 12.949999999999989],
+  [' ', 175.92, 497.102, 9.891999999999996, 12.949999999999989],
+  ['words', 185.81199999999998, 497.102, 41.337999999999994, 12.949999999999989],
+  ['kerned', 72, 473.102, 48.078, 12.949999999999989],
+  [' ', 120.07800000000003, 473.102, 9.891999999999996, 12.949999999999989],
+  ['word', 129.97000000000003, 473.102, 33.337999999999994, 12.949999999999989],
+  ['Hello World', 72, 437.102, 76.55399999999997, 12.949999999999989],
+  ['half full', 72, 413.102, 31.122, 12.949999999999989],
+  ['To', 72, 389.102, 14.657999999999987, 12.949999999999989],
+]
+
+const stringsAndBoxes = (content: TextContent) =>
+  content.items.map((i) => [i.str, i.rect.x, i.rect.y, i.rect.width, i.rect.height])
+
+describe('what the PDF.js reader reads besides pixels', () => {
+  /** A PDF.js reader over `doc`'s handles, reading annotations straight from PDF.js. */
+  const readerOf = (doc: InkDocument) =>
+    createPdfjsReader(doc._pdfjs, {
+      measure: canvasMeasureChar(),
+      annotations: async (page) => (await doc._pdfjs.getPage(page)).getAnnotations(),
+    })
+
+  async function openAny(
+    name: 'text-search' | 'links' | 'outline'
+  ): Promise<InkDocument> {
+    const doc = await openFixtureInBrowser(name)
+    cleanup.push(() => void doc.destroy())
+    return doc
+  }
+
+  it('reads the text the document gave before', async () => {
+    const doc = await openAny('text-search')
+    const reader = readerOf(doc)
+    const measured = await reader.text(0, { glyphs: false })
+    expect(measured.page).toBe(0)
+    expect(stringsAndBoxes(measured)).toEqual(TEXT_SEARCH_PAGE_0)
+    // With glyphs, everything the document gives, boundaries included.
+    expect(await reader.text(0, { glyphs: true })).toEqual(await doc.text(0))
+  })
+
+  it('stops a text read once its signal aborts, with the reason', async () => {
+    const doc = await openAny('text-search')
+    const reader = readerOf(doc)
+    const reason = new Error('moved on')
+    await expect(
+      reader.text(0, { glyphs: false, signal: AbortSignal.abort(reason) })
+    ).rejects.toBe(reason)
+    const c = new AbortController()
+    const reading = reader.text(0, { glyphs: true, signal: c.signal })
+    c.abort(reason)
+    await expect(reading).rejects.toBe(reason)
+    // A signal that does not abort changes nothing.
+    expect(
+      await reader.text(0, { glyphs: true, signal: new AbortController().signal })
+    ).toEqual(await reader.text(0, { glyphs: true }))
+  })
+
+  it('reads the links the document gives', async () => {
+    const doc = await openAny('links')
+    const links = await readerOf(doc).links(0)
+    expect(links).toHaveLength(8)
+    expect(links.map((l) => [l.id, l.order])).toEqual([
+      ['pdf:0:11R', 0],
+      ['pdf:0:12R', 1],
+      ['pdf:0:13R', 2],
+      ['pdf:0:14R', 3],
+      ['pdf:0:15R', 4],
+      ['pdf:0:16R', 5],
+      ['pdf:0:17R', 6],
+      ['pdf:0:18R', 7],
+    ])
+    expect(links[0]).toMatchObject({
+      page: 0,
+      rect: { x: 68, y: 696, width: 70, height: 18 },
+    })
+    expect(links.map((l) => l.target)).toEqual([
+      { kind: 'dest', raw: [{ num: 6, gen: 0 }, { name: 'XYZ' }, 72, 600, null] },
+      { kind: 'dest', raw: 'chapter-3' },
+      { kind: 'url', url: 'https://example.com/a', newWindow: false },
+      { kind: 'unsupported', reason: 'unsafe-url' },
+      { kind: 'named', action: 'NextPage' },
+      { kind: 'unsupported', reason: 'remote' },
+      { kind: 'unsupported', reason: 'launch' },
+      { kind: 'url', url: 'https://example.com/wrapped', newWindow: false },
+    ])
+    expect(links[7]!.quads).toHaveLength(2)
+    expect(links).toEqual(doc.links(0))
+  })
+
+  it('reads the outline the document gives', async () => {
+    const doc = await openAny('outline')
+    const outline = await readerOf(doc).outline()
+    type Item = (typeof outline)[number]
+    const titles = (items: readonly Item[]): unknown[] =>
+      items.map((i) => (i.children.length > 0 ? [i.title, titles(i.children)] : i.title))
+    expect(titles(outline)).toEqual([
+      'Cover',
+      ['Part One', ['Chapter 1', 'Chapter 2']],
+      ['Part Two', ['Section A', 'Section B']],
+      'Appendix',
+      'Website',
+      'Next page',
+      'Broken',
+    ])
+    expect(outline[1]!.children[1]!.target).toEqual({
+      kind: 'resolved',
+      dest: { page: 1, fit: 'xyz', left: 72, top: 500, zoom: undefined },
+    })
+    expect(outline[2]!.children[0]!.target).toEqual({
+      kind: 'resolved',
+      dest: { page: 3, fit: 'fitr', rect: { x: 72, y: 100, width: 228, height: 300 } },
+    })
+    expect(outline).toEqual(await doc.outline())
+  })
+
+  it('resolves a named destination as the document does', async () => {
+    const doc = await openAny('outline')
+    const dest = await readerOf(doc).resolveDestination('chapter-2')
+    expect(dest).toEqual({ page: 1, fit: 'xyz', left: 72, top: 500, zoom: undefined })
+    expect(dest).toEqual(await doc.resolveDestination('chapter-2'))
+  })
+
+  it("reads each page's annotations once while it opens, for its own use and the reader's links", async () => {
+    // Every page proxy shares one prototype: spying on it sees each document's pages.
+    const first = await openAny('links')
+    const proto = Object.getPrototypeOf(await first._pdfjs.getPage(0)) as {
+      getAnnotations(): Promise<PdfjsAnnotationData[]>
+    }
+    const spy = vi.spyOn(proto, 'getAnnotations')
+    cleanup.push(() => spy.mockRestore())
+    const pagesRead = () =>
+      spy.mock.contexts
+        .map((page) => (page as { pageNumber: number }).pageNumber)
+        .sort((a, b) => a - b)
+    const doc = await openAny('links')
+    const each = Array.from({ length: doc.pages.length }, (_, i) => i + 1)
+    expect(pagesRead()).toEqual(each)
+    // The open does not keep what it read, so links asked for after it read the page again.
+    for (let i = 0; i < doc.pages.length; i++)
+      expect(await doc._reader.links(i)).toEqual(doc.links(i))
+    expect(pagesRead()).toEqual(each.flatMap((n) => [n, n]))
   })
 })
