@@ -64,7 +64,7 @@ A failure names each difference: the character where the two strings first diffe
 - The engine's boxes are taller than PDF.js's: 1.264 times as tall on upright Helvetica, where the top is 3.18 pt higher and the bottom 0.24 pt lower at 14 pt, and 1.252 times on Times. Comparing centres absorbs most of this: every centre in Helvetica sits 0.105 of the font size higher.
 - Characters compared by their own boundaries: the noise ceiling is 0.123 (`redact-text-rotated`, unembedded Helvetica on a baseline turned 30 degrees), and the other fixtures in unembedded Helvetica measure 0.105 to 0.112. Characters in embedded fonts measure at most 0.025 (`corpus-embedpdf-chrome-type3-text`).
 - Stretches compared as wholes: the noise ceiling is 0.000001 (the Hebrew line of `text-rtl`).
-- The smallest real difference is 8.39 (`text-vertical`, a stretch compared whole). The other real differences change the text itself.
+- The smallest real difference is 8.31 (`text-vertical`, a stretch compared whole). The other real differences change the text itself.
 
 The limit sits at twice the noise ceiling and still catches a character moved by 0.3 of the font size, which the unit tests pin. To get a fixture past it, record the difference in `parity.json`; leave the constant alone.
 

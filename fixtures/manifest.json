@@ -2135,6 +2135,6 @@
     "file": "text-vertical.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (the Ahem subset the redaction fixtures use, every character drawn as a square one em wide, with a ToUnicode CMap giving the Japanese text), beside one horizontal Helvetica line at 20 pt"
+    "describes": "A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (an embedded subset of Noto Sans JP Regular, CID-keyed CFF in OpenType, every glyph one em square with /DW2 [880 -1000], and a ToUnicode CMap), beside one horizontal Helvetica line at 20 pt"
   }
 }
