@@ -20,17 +20,27 @@ import { manifestPath, out } from './generate-paths'
 import type { FixtureMeta } from './index'
 import type { FixtureName } from './urls'
 
+/** An object's body, and its generation when that is not 0. */
+type Body = string | { body: string; generation: number }
+
 /** A PDF of `bodies`, object n at bodies[n - 1], object 1 the catalog. */
-function buildPdf(bodies: string[]): Buffer {
+function buildPdf(bodies: Body[]): Buffer {
   let text = '%PDF-1.7\n'
   const offsets: number[] = []
-  bodies.forEach((body, i) => {
+  const generations: number[] = []
+  bodies.forEach((entry, i) => {
+    const { body, generation } =
+      typeof entry === 'string' ? { body: entry, generation: 0 } : entry
     offsets.push(text.length)
-    text += `${i + 1} 0 obj\n${body}\nendobj\n`
+    generations.push(generation)
+    text += `${i + 1} ${generation} obj\n${body}\nendobj\n`
   })
   const xref = text.length
   text += `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n`
-  for (const offset of offsets) text += `${String(offset).padStart(10, '0')} 00000 n \n`
+  offsets.forEach((offset, i) => {
+    const generation = String(generations[i]).padStart(5, '0')
+    text += `${String(offset).padStart(10, '0')} ${generation} n \n`
+  })
   text += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R /Info 6 0 R >>\n`
   text += `startxref\n${xref}\n%%EOF\n`
   return Buffer.from(text, 'latin1')
@@ -58,16 +68,26 @@ const FIRST_ANNOT = 7
 
 interface Case {
   name: string
-  /** The /A, /AA or /Dest entries of the Link. */
+  /** The /A, /AA or /Dest entries of the Link. `NUMBER_REF` stands for the number object. */
   entries: string
   /** What the PDF.js reader reports in `doc.links(0)` for the Link. */
   pdfjs: string
+  /** The generation of the Link's object, when not 0. */
+  generation?: number
+  /** An annotation written into /Annots just before the Link, beside it on the page. */
+  before?: string
 }
+
+/** Stands in a case's entries for a reference to an object holding the number 500. */
+const NUMBER_REF = '{number}'
+
+/** `text` as a UTF-16BE text string with its byte-order mark. */
+const utf16 = (text: string) => [0xfe, 0xff, ...Buffer.from(text, 'utf16le').swap16()]
 
 const UTF8_E_ACUTE = [...Buffer.from('https://example.com/é', 'utf8')]
 
 /** `résumé` as a UTF-16BE text string with its byte-order mark, as a named destination. */
-const UTF16_RESUME = [0xfe, 0xff, ...Buffer.from('résumé', 'utf16le').swap16()]
+const UTF16_RESUME = utf16('résumé')
 
 const CASES: Case[] = [
   {
@@ -186,6 +206,65 @@ const CASES: Case[] = [
     entries: '/A << /S /GoTo /D [3 0 R /XYZ 72 600 0 5] >>',
     pdfjs: 'unsupported, reason unknown',
   },
+  {
+    name: 'link-generation',
+    entries: `/A ${uri(lit('https://example.com/generation'))}`,
+    generation: 1,
+    pdfjs:
+      'url https://example.com/generation, newWindow false, its id the object number, R and the generation 1',
+  },
+  {
+    name: 'dest-invalid-beside-aa',
+    entries: `/Dest 5 /AA << /U ${uri(lit('https://example.com/aa-unused'))} >>`,
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'launch-string-bom',
+    entries: `/A << /S /Launch /F ${hex(utf16('https://example.com/bom'))} >>`,
+    pdfjs: 'unsupported, reason launch',
+  },
+  {
+    name: 'launch-spec-utf16',
+    entries: `/A << /S /Launch /F << /Type /Filespec /UF ${hex(utf16('https://example.com/spec'))} >> >>`,
+    pdfjs: 'url https://example.com/spec, newWindow false',
+  },
+  {
+    name: 'uri-name',
+    entries: '/A << /S /URI /URI /https:#2F#2Fexample.com#2Fname >>',
+    pdfjs: 'unsupported, reason launch',
+  },
+  {
+    name: 'dest-xyz-one-argument',
+    entries: '/Dest [3 0 R /XYZ 72]',
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'dest-indirect-argument',
+    entries: `/Dest [3 0 R /FitH ${NUMBER_REF}]`,
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'dest-fit-string',
+    entries: '/Dest [3 0 R (Fit)]',
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'dest-page-number',
+    entries: '/Dest [0 /FitH 500]',
+    pdfjs: 'dest, raw [0, name FitH, 500]',
+  },
+  {
+    name: 'dest-page-real',
+    entries: '/Dest [0.5 /Fit]',
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'after-markup-no-quads',
+    entries: `/A ${uri(lit('https://example.com/after-markup'))}`,
+    before: '/Subtype /Highlight /F 4 /C [1 1 0]',
+    pdfjs:
+      'url https://example.com/after-markup, newWindow false, its order not counting the Highlight with no /QuadPoints before it',
+  },
 ]
 
 /** The catalog's name tree: `résumé`, written as `UTF16_RESUME`, goes to the page. */
@@ -193,15 +272,20 @@ const NAMED_DESTS = `/Names << /Dests << /Names [${hex(UTF16_RESUME)} [3 0 R /Fi
 
 /**
  * A one-page document with `annots` as objects 7 on, then `direct` written into /Annots itself,
- * and `catalog` entries in the catalog.
+ * and `catalog` entries in the catalog. `more` follows the annotations as further objects.
  */
 function onePage(
   contents: string,
-  annots: string[],
+  annots: Body[],
   catalog = '',
-  direct: string[] = []
+  direct: string[] = [],
+  more: Body[] = []
 ): Buffer {
-  const refs = [...annots.map((_, i) => `${FIRST_ANNOT + i} 0 R`), ...direct].join(' ')
+  const gen = (a: Body) => (typeof a === 'string' ? 0 : a.generation)
+  const refs = [
+    ...annots.map((a, i) => `${FIRST_ANNOT + i} ${gen(a)} R`),
+    ...direct,
+  ].join(' ')
   return buildPdf([
     `<< /Type /Catalog /Pages 2 0 R ${catalog}>>`,
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -210,6 +294,7 @@ function onePage(
     HELVETICA,
     '<< /Title (Link fixture) /Producer (Inkbar fixtures) >>',
     ...annots,
+    ...more,
   ])
 }
 
@@ -223,19 +308,34 @@ function write(name: FixtureName, bytes: Buffer, meta: Omit<FixtureMeta, 'file'>
   entries[name] = { file: `${name}.pdf`, ...meta }
 }
 
-/** The Link boxes and their labels, one row for each case, from the top of the page. */
+/**
+ * The Link boxes and their labels, one row for each case, from the top of the page, then the
+ * number object `NUMBER_REF` names.
+ */
 function linkTargets(describes: string) {
   let contents = ''
-  const annots = CASES.map((c, i) => {
-    const y = 740 - i * 30
-    contents += label(72, y + 4, c.name)
-    return `<< /Type /Annot /Subtype /Link /Rect [300 ${y} 420 ${y + 20}] /F 4 /Border [0 0 0] /P 3 0 R ${c.entries} >>`
+  const annots: Body[] = []
+  CASES.forEach((c, i) => {
+    const y = 750 - i * 21
+    contents += label(72, y + 3, c.name)
+    if (c.before)
+      annots.push(
+        `<< /Type /Annot ${c.before} /Rect [440 ${y} 560 ${y + 16}] /P 3 0 R >>`
+      )
+    const body = `<< /Type /Annot /Subtype /Link /Rect [300 ${y} 420 ${y + 16}] /F 4 /Border [0 0 0] /P 3 0 R ${c.entries} >>`
+    annots.push(c.generation ? { body, generation: c.generation } : body)
   })
-  write('link-targets', onePage(contents, annots, NAMED_DESTS), {
+  const numberRef = `${FIRST_ANNOT + annots.length} 0 R`
+  const filled = annots.map((a) =>
+    typeof a === 'string'
+      ? a.replace(NUMBER_REF, numberRef)
+      : { ...a, body: a.body.replace(NUMBER_REF, numberRef) }
+  )
+  write('link-targets', onePage(contents, filled, NAMED_DESTS, [], ['500']), {
     pages: 1,
     opens: true,
     describes,
-    annotations: { Link: CASES.length },
+    annotations: { Link: CASES.length, Highlight: 1 },
   })
 }
 
@@ -288,7 +388,8 @@ function linkOrder() {
 }
 
 const TARGETS_DESCRIBES =
-  `One page with ${CASES.length} Link annotations, each beside a label of its case name. ` +
+  `One page with ${CASES.length} Link annotations, each beside a label of its case name, and a ` +
+  'Highlight with no /QuadPoints in /Annots just before the last Link. ' +
   'For each case, in /Annots order, the target the PDF.js reader reports in doc.links(0): ' +
   CASES.map((c) => `${c.name}: ${c.pdfjs}`).join('; ') +
   '.'

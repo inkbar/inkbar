@@ -11,7 +11,7 @@ import { InkError, isInkError } from '../model/errors'
 
 import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
-import { nameBytes, rawDestination } from './targets'
+import { nameBytes, rawDestination, refKey, type RefPages } from './targets'
 
 import type { FileDestinationShape, ReaderEngine, ReaderEngineDocument } from './types'
 import type { PageLink } from '../model/links'
@@ -46,7 +46,10 @@ export interface EngineReaderOptions {
   bytes: () => Promise<Uint8Array>
   /** The password the document was opened with. */
   password: string | undefined
-  /** Where a missing fallback font is reported. Default `console.warn`. */
+  /**
+   * Where a missing fallback font, and a page whose text the engine cut short, are reported.
+   * Default `console.warn`.
+   */
   warn?: (message: string) => void
   /**
    * The reader that answers once a replacement engine cannot start: page facts, pixels, text,
@@ -61,7 +64,10 @@ export interface EngineReaderOptions {
   onFallback?: () => void
 }
 
-/** @internal The engine reader: a `DocumentReader` that also gives the families its text is in. */
+/**
+ * @internal The engine reader: a `DocumentReader` that also gives the families its text is in and
+ * where its baselines lie.
+ */
 export interface EngineDocumentReader extends DocumentReader {
   /**
    * The CSS generic family of each of the page's text items, read with them. Once `signal`
@@ -69,6 +75,12 @@ export interface EngineDocumentReader extends DocumentReader {
    * the text then comes from the fallback, which gives none.
    */
   textFamilies(page: number, signal?: AbortSignal): Promise<readonly GenericFamily[]>
+  /**
+   * How far each of the page's text items' baselines lies from its quad's `p3`-`p4` edge towards
+   * `p1`, in points, as `textFamilies` gives families: `NaN` for a vertical item, and empty once
+   * the engine cannot start.
+   */
+  textBaselines(page: number, signal?: AbortSignal): Promise<readonly number[]>
 }
 
 /** An engine and the file open in it. */
@@ -400,6 +412,20 @@ export async function createEngineReader(
     }
   }
 
+  /**
+   * A page with more characters than the engine reads gives the ones up to the cut, and those
+   * read, search and select as on any page. The rest of the page has no text. The host is told
+   * once per page.
+   */
+  const cutPages = new Set<number>()
+  const reportTruncated = (page: number): void => {
+    if (cutPages.has(page)) return
+    cutPages.add(page)
+    warn(
+      `Inkbar: page ${page + 1} has more text than can be read; its text is read up to the first 1,000,000 characters.`
+    )
+  }
+
   const draw = (
     request: DrawRequest,
     canvas: HTMLCanvasElement,
@@ -487,7 +513,10 @@ export async function createEngineReader(
       runs: run(
         (doc) => doc.pageText(page, { signal: cancel.signal }),
         cancel.signal
-      ).then((chars) => runsFromChars(page, chars)),
+      ).then((chars) => {
+        if (chars.truncated) reportTruncated(page)
+        return runsFromChars(page, chars)
+      }),
       waiting: 0,
       cancel,
     }
@@ -576,13 +605,16 @@ export async function createEngineReader(
           }
         )
         linkStops = 0
-        return linksFromFacts(page, facts)
+        return linksFromFacts(page, facts, refPages)
       },
       (reader) => reader.links(page)
     ).catch((): PageLink[] => [])
     if (destroyed) throw destroyedError()
     return found
   }
+
+  /** The page of each page reference this reader has put in a destination's `raw`. */
+  const refPages: RefPages = new Map()
 
   /** Named destinations looked up, by name. A failed lookup is not kept. */
   const named = new Map<string, Promise<Destination | undefined>>()
@@ -611,8 +643,8 @@ export async function createEngineReader(
             if (gone || destroyed) throw error
             return undefined
           }
-          const raw = dest && rawDestination(dest)
-          return Array.isArray(raw) ? destinationFromArray(raw, pageCount) : undefined
+          const raw = dest && rawDestination(dest, refPages)
+          return Array.isArray(raw) ? explicitDestination(raw) : undefined
         },
         (reader) => reader.resolveDestination(name)
       )
@@ -636,13 +668,37 @@ export async function createEngineReader(
     if (destroyed) throw destroyedError()
     let dest: Destination | undefined
     try {
-      dest =
-        typeof raw === 'string' ? await lookUp(raw) : destinationFromArray(raw, pageCount)
+      dest = typeof raw === 'string' ? await lookUp(raw) : await explicitDestination(raw)
     } catch (error) {
       throw destroyed ? destroyedError() : error
     }
     if (destroyed) throw destroyedError()
     return dest
+  }
+
+  /**
+   * Where an explicit destination goes. Its first entry is a page index, or a page reference
+   * `{ num, gen }` as this reader gives one, found again by the page it was given with. A
+   * reference this reader never gave, such as the fallback's own, goes to the fallback once
+   * the engine cannot start, and otherwise resolves to nothing.
+   */
+  const explicitDestination = async (
+    raw: readonly unknown[]
+  ): Promise<Destination | undefined> => {
+    const first = raw[0]
+    if (typeof first !== 'object' || first === null)
+      return destinationFromArray(raw, pageCount)
+    const { num, gen } = first as { num?: unknown; gen?: unknown }
+    const page =
+      typeof num === 'number' && typeof gen === 'number'
+        ? refPages.get(refKey(num, gen))
+        : undefined
+    if (page !== undefined)
+      return destinationFromArray([page, ...raw.slice(1)], pageCount)
+    return orFallback(
+      () => Promise.resolve(undefined),
+      (reader) => reader.resolveDestination(raw)
+    )
   }
 
   /**
@@ -683,7 +739,7 @@ export async function createEngineReader(
       if (destroyed) throw destroyedError()
       return dest
     }
-    return outlineFromFacts(facts.items, resolve)
+    return outlineFromFacts(facts.items, resolve, refPages)
   }
 
   let destroying: Promise<void> | undefined
@@ -710,6 +766,12 @@ export async function createEngineReader(
     textFamilies: (page, signal) =>
       orFallback(
         () => readText(page, (runs) => runs.families, signal),
+        () => Promise.resolve([]),
+        signal
+      ),
+    textBaselines: (page, signal) =>
+      orFallback(
+        () => readText(page, (runs) => runs.baselines, signal),
         () => Promise.resolve([]),
         signal
       ),

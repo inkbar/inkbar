@@ -14,9 +14,10 @@ type Quad = NonNullable<PageLink['quads']>[number]
 export const LINK_TOLERANCE = 0.01
 
 /**
- * `links` with each destination target replaced by where it goes, as `resolve` resolves it. An
- * explicit destination's raw array is the reader's own (PDF.js names the page by its object
- * reference, the engine by its index), so only where it goes can be compared. A named destination
+ * `links` with each destination target replaced by where it goes, as `resolve` resolves it. Both
+ * readers write an explicit destination's raw array as PDF.js does, but the engine holds its
+ * numbers in single precision and gives a reference the generation of the object the file holds,
+ * not the one the array writes, so only where it goes is compared. A named destination
  * that does not resolve keeps its name; an explicit one that does not resolve becomes an empty
  * array, so two that go nowhere compare equal.
  */

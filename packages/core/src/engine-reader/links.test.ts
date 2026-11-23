@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { linksFromFacts, outlineFromFacts } from './links'
+import { explicitDest } from './test-utils'
 
 import type {
   OutlineEntryShape,
@@ -28,6 +29,7 @@ const entry = (
     subtype: 'Link',
     flags: 4,
     rectOk: true,
+    hasQuads: false,
     quadsOk: true,
     ...rest,
     ...(objectNumber === undefined ? {} : { objectNumber }),
@@ -41,7 +43,7 @@ const link = (
 ): PageLinkFactsShape => ({
   index,
   rect: { x: 72, y: 700, width: 100, height: 20 },
-  action: { kind: 'URI', uri: ascii(`https://example.com/${index}`) },
+  action: { kind: 'URI', uriKind: 'string', uri: ascii(`https://example.com/${index}`) },
   ...over,
 })
 
@@ -124,10 +126,10 @@ describe('linksFromFacts', () => {
         entry(3, { flags: 32 }), // no view: left out
         entry(4, { subtype: 'Popup' }), // a popup: listed after the rest
         entry(5, { subtype: 'Square', flags: 1 }), // invisible: left out
-        entry(6, { subtype: 'Highlight', quadsOk: false }), // no quads: left out
+        entry(6, { subtype: 'Highlight', hasQuads: true, quadsOk: false }), // bad quads: left out
         entry(7, { subtype: 'Ink', flags: 0 }), // order 2
         entry(8, { subtype: 'Ink', flags: 33 }), // left out: flags are only ignored when 0
-        entry(9, { subtype: 'Underline' }), // order 3
+        entry(9, { subtype: 'Underline', hasQuads: true }), // order 3
         entry(10), // order 4
       ])
     )
@@ -135,6 +137,49 @@ describe('linksFromFacts', () => {
       ['pdf:0:11R', 1],
       ['pdf:0:20R', 4],
     ])
+  })
+
+  it("keeps the page's other links when one destination's fit is named constructor", () => {
+    const crafted = (fit: string): PageLinkFactsShape => {
+      const { action: _action, ...rest } = link(1)
+      return { ...rest, destination: explicitDest(0, fit) }
+    }
+    for (const fit of ['constructor', '__proto__', 'toString']) {
+      const links = linksFromFacts(
+        0,
+        page([entry(0), entry(1), entry(2)], [link(0), crafted(fit), link(2)])
+      )
+      expect(links.map((l) => l.target)).toEqual([
+        urlOf(0),
+        { kind: 'unsupported', reason: 'unknown' },
+        urlOf(2),
+      ])
+    }
+  })
+
+  it('leaves out text markup with no /QuadPoints, as PDF.js does', () => {
+    // PDF.js gives Highlight, Underline, Squiggly and StrikeOut null quad points when the file
+    // has none, and its `viewable` test then fails. Any other kind needs none.
+    const links = linksFromFacts(
+      0,
+      page([
+        entry(0, { subtype: 'Highlight' }),
+        entry(1, { subtype: 'Squiggly', flags: 0 }),
+        entry(2, { subtype: 'StrikeOut' }),
+        entry(3, { subtype: 'Square' }), // order 0
+        entry(4, { subtype: 'Underline', hasQuads: true }), // order 1
+        entry(5), // order 2
+      ])
+    )
+    expect(links.map((l) => [l.id, l.order])).toEqual([['pdf:0:15R', 2]])
+  })
+
+  it('writes the generation after the R when it is not 0, as PDF.js does', () => {
+    const links = linksFromFacts(
+      0,
+      page([entry(0, { generation: 0 }), entry(1, { generation: 3 })], [link(0), link(1)])
+    )
+    expect(links.map((l) => l.id)).toEqual(['pdf:0:10R', 'pdf:0:11R3'])
   })
 
   it('a link stored as a direct object gets the id PDF.js makes for one', () => {
@@ -316,10 +361,10 @@ describe('outlineFromFacts', () => {
     const outline = await outlineFromFacts(
       [
         item({
-          destination: { page: 0, fit: 'Fit', args: [null, null, null, null] },
+          destination: explicitDest(0, 'Fit'),
           children: [item({ destination: { name: ascii('chapter-2') } })],
         }),
-        item({ destination: { page: -1, fit: 'Fit', args: [null, null, null, null] } }),
+        item({ destination: explicitDest(-1, 'Fit') }),
         item({ action: { kind: 'GoTo', destination: { name: ascii('missing') } } }),
       ],
       resolve
@@ -341,9 +386,13 @@ describe('outlineFromFacts', () => {
   it('other targets pass through', async () => {
     const outline = await outlineFromFacts(
       [
-        item({ action: { kind: 'URI', uri: ascii('https://example.com/o') } }),
+        item({
+          action: { kind: 'URI', uriKind: 'string', uri: ascii('https://example.com/o') },
+        }),
         item({ action: { kind: 'Named', name: 'NextPage' } }),
-        item({ action: { kind: 'URI', uri: ascii('javascript:alert(1)') } }),
+        item({
+          action: { kind: 'URI', uriKind: 'string', uri: ascii('javascript:alert(1)') },
+        }),
       ],
       resolver()
     )

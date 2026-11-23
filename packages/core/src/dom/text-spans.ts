@@ -10,12 +10,23 @@ export interface MountTextSpansOptions {
   content: TextContent
   /** One per item. Absent: `sans-serif` for every item. */
   families?: readonly string[]
+  /**
+   * One per item: how far its baseline lies from its quad's `p3`-`p4` edge towards `p1`. An item
+   * without a finite one has its span centred on its box.
+   */
+  baselines?: readonly number[]
   info: PageInfo
   container: HTMLElement
   transform: PageTransform
 }
 
 const DEGREES = 180 / Math.PI
+/**
+ * The share of a span's line box, one font size high, that stands above the baseline: the
+ * ascent core's PDF.js reader gives a font PDF.js has no figures for.
+ */
+const LINE_ASCENT = 0.75
+
 /** Below this, in degrees, a run is taken as level and gets no `--rotate`. */
 const LEVEL = 1e-6
 
@@ -80,7 +91,7 @@ function sizeLayer(
 export function mountTextSpans(options: MountTextSpansOptions): {
   update(transform: PageTransform): void
 } {
-  const { content, families, info, container, transform } = options
+  const { content, families, baselines, info, container, transform } = options
   const doc = container.ownerDocument
   const { box } = info
   const context = measureContext(doc)
@@ -104,16 +115,25 @@ export function mountTextSpans(options: MountTextSpansOptions): {
     return width
   }
 
-  const spanFor = (item: TextItem, family: string): HTMLSpanElement => {
+  const spanFor = (
+    item: TextItem,
+    family: string,
+    baseline: number | undefined
+  ): HTMLSpanElement => {
     const { p1, p3, p4 } = item.quad
     const size = Number.isFinite(item.fontSize) && item.fontSize > 0 ? item.fontSize : 0
-    // The run's height is the engine's loose box, taller than the font: the span's line box,
-    // one font size high, is centred on it by moving its top corner down the glyphs' up.
+    // The run's height runs from the font's descent to its ascent, which need not be one font
+    // size. The span's line box, one font size high, stands on the baseline with `LINE_ASCENT`
+    // of it above, so the spans of a line in different fonts line up. With no baseline it is
+    // centred on the box. Either way its top corner moves down the glyphs' up from `p1`.
     const height = Math.hypot(p1.x - p3.x, p1.y - p3.y)
     let x = p1.x
     let y = p1.y
     if (height > 0) {
-      const shift = (height - size) / 2
+      const shift =
+        baseline !== undefined && Number.isFinite(baseline)
+          ? height - baseline - LINE_ASCENT * size
+          : (height - size) / 2
       x -= ((p1.x - p3.x) / height) * shift
       y -= ((p1.y - p3.y) / height) * shift
     }
@@ -145,7 +165,8 @@ export function mountTextSpans(options: MountTextSpansOptions): {
   const fragment = doc.createDocumentFragment()
   content.items.forEach((item, i) => {
     // A run of only spaces gets a span too, so text copied across a run boundary keeps its space.
-    if (item.str !== '') fragment.append(spanFor(item, families?.[i] ?? 'sans-serif'))
+    if (item.str !== '')
+      fragment.append(spanFor(item, families?.[i] ?? 'sans-serif', baselines?.[i]))
     if (item.hasEOL) {
       const br = doc.createElement('br')
       br.setAttribute('role', 'presentation')

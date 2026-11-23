@@ -4,7 +4,7 @@ import { importedId } from '../model/annotations/embedded'
 import { quadsFromFlat, rectFromPoints, type Rect } from '../model/geometry'
 import { mapInOrder } from '../model/map-in-order'
 
-import { targetFromFacts } from './targets'
+import { targetFromFacts, type RefPages } from './targets'
 
 import type { PageAnnotationEntryShape, PageLinksShape, OutlineEntryShape } from './types'
 import type { Destination, LinkTarget, RawDestination } from '../model/destination'
@@ -24,21 +24,26 @@ const NEEDS_QUADS = new Set(['Highlight', 'Underline', 'Squiggly', 'StrikeOut'])
 /**
  * Whether PDF.js's `getAnnotations` lists the annotation: the `viewable` test. A widget always
  * is; any other is unless its flags, when not 0, have Invisible or NoView, or it is text markup
- * without well-formed /QuadPoints. Hidden does not count here.
+ * without /QuadPoints or with ones not well formed. Hidden does not count here.
  */
 function listed(entry: PageAnnotationEntryShape): boolean {
   if (entry.subtype === 'Widget') return true
-  if (NEEDS_QUADS.has(entry.subtype) && !entry.quadsOk) return false
+  if (NEEDS_QUADS.has(entry.subtype) && !(entry.hasQuads && entry.quadsOk)) return false
   return entry.flags === 0 || (entry.flags & (INVISIBLE | NO_VIEW)) === 0
 }
 
 /**
  * @internal The page's links as core's `PageLink`s. `order` is the link's place in the list PDF.js
  * gives of the page's annotations, which puts widgets and popups after the rest. `id` is the one
- * PDF.js gives: the object number and `R`, or for an annotation written as a direct object
- * `annot_p<page>_<n>`, n counting the page's direct annotations from 1.
+ * PDF.js gives: the object number, `R` and, when it is not 0, the generation, or for an
+ * annotation written as a direct object `annot_p<page>_<n>`, n counting the page's direct
+ * annotations from 1. Page references in the links' destinations are noted in `pages`.
  */
-export function linksFromFacts(page: number, facts: PageLinksShape): PageLink[] {
+export function linksFromFacts(
+  page: number,
+  facts: PageLinksShape,
+  pages?: RefPages
+): PageLink[] {
   const byIndex = new Map(facts.links.map((link) => [link.index, link]))
   const out: PageLink[] = []
   let order = 0
@@ -64,13 +69,13 @@ export function linksFromFacts(page: number, facts: PageLinksShape): PageLink[] 
         page,
         entry.objectNumber === undefined
           ? `annot_p${page}_${direct}`
-          : `${entry.objectNumber}R`
+          : `${entry.objectNumber}R${entry.generation ? entry.generation : ''}`
       ),
       page,
       rect,
       ...(quads ? { quads: quadsFromFlat(quads) } : {}),
       order: at,
-      target: targetFromFacts(link),
+      target: targetFromFacts(link, pages),
     })
   }
   return out
@@ -102,17 +107,19 @@ function boxedQuads(flat: readonly number[], rect: Rect): number[] | undefined {
 /**
  * @internal The outline as `OutlineItem`s, each destination resolved through `resolve`, as the
  * PDF.js reader builds it: ids by position (`0`, `0.1`), titles on one line, `open` for a
- * positive count, and a destination that resolves to nothing `unsupported`.
+ * positive count, and a destination that resolves to nothing `unsupported`. Page references in
+ * the destinations are noted in `pages` before any is resolved.
  */
 export async function outlineFromFacts(
   entries: readonly OutlineEntryShape[],
-  resolve: (raw: RawDestination) => Promise<Destination | undefined>
+  resolve: (raw: RawDestination) => Promise<Destination | undefined>,
+  pages?: RefPages
 ): Promise<OutlineItem[]> {
   // Targets in document order; their destinations resolved together and handed out in order.
   const targets: LinkTarget[] = []
   const collect = (nodes: readonly OutlineEntryShape[]): void => {
     for (const node of nodes) {
-      targets.push(targetFromFacts(node))
+      targets.push(targetFromFacts(node, pages))
       collect(node.children)
     }
   }

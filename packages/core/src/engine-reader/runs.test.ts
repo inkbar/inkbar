@@ -433,9 +433,10 @@ describe('runsFromChars', () => {
 
     /**
      * Each turn with where `b`, drawn from 6 to 12 along, ends along the baseline, and how far
-     * below the baseline the run's boxes reach. At 90 and 180 degrees that is the cell: 12 along
-     * and a quarter of the size below. At 30 degrees the loose boxes are the bounds of the turned
-     * cells, which reach 3 tan 30 further along and 3 sin 60 further below.
+     * below the baseline the run's box reaches. At 90 and 180 degrees `b` ends with its cell, 12
+     * along. At 30 degrees the loose boxes are the bounds of the turned cells, which reach 3 tan
+     * 30 further along. The box reaches the font's descent below at every turn: a quarter of the
+     * size for a font the engine has no figures for.
      */
     const turns = [
       ['90', [0, 1, -1, 0], 12, -3],
@@ -449,7 +450,7 @@ describe('runsFromChars', () => {
           Math.cos(Math.PI / 6),
         ],
         12 + 3 * Math.tan(Math.PI / 6),
-        -3 - 3 * Math.sin(Math.PI / 3),
+        -3,
       ],
     ] as const
 
@@ -730,6 +731,7 @@ describe('runsFromChars', () => {
     expect(runsFromChars(1, empty)).toEqual({
       content: { page: 1, items: [] },
       families: [],
+      baselines: [],
     })
   })
 
@@ -827,5 +829,205 @@ describe('runsFromChars', () => {
       expect(item.advances!.every(Number.isFinite)).toBe(true)
       expect(item.glyphEnds!.every(Number.isFinite)).toBe(true)
     }
+  })
+
+  describe("a run's height", () => {
+    /** How far `p` stands from the baseline through (x0, y0) along `up`. */
+    const across = (
+      p: { x: number; y: number },
+      x0: number,
+      y0: number,
+      up: [number, number]
+    ) => (p.x - x0) * up[0] + (p.y - y0) * up[1]
+    const heights = (item: TextItem, x0: number, y0: number, up: [number, number]) => [
+      across(item.quad.p3, x0, y0, up),
+      across(item.quad.p1, x0, y0, up),
+    ]
+    /** `ab` at 12 pt in `font`, with loose boxes 3 below and 9 above the baseline. */
+    const run = (f: Partial<Font>, m?: readonly [number, number, number, number]) =>
+      runsFromChars(
+        0,
+        chars(line('ab', 72, 700, m ? { m } : {}), [{ ...HELVETICA, ...f }])
+      ).content.items[0]!
+
+    it("stands on PDF.js's figures for a standard font, not on its loose boxes", () => {
+      const item = run({ ascent: 0.945, descent: -0.224, standard: 'Helvetica' })
+      const [below, above] = heights(item, 72, 700, [0, 1])
+      close(below!, -0.207 * 12)
+      close(above!, 0.718 * 12)
+    })
+
+    it("stands on the descriptor's figures, then the face's", () => {
+      const descriptor = run({
+        ascent: 0.9,
+        descent: -0.25,
+        descriptorAscent: 0.8,
+        descriptorDescent: -0.2,
+      })
+      expect(heights(descriptor, 72, 700, [0, 1]).map((h) => +h.toFixed(4))).toEqual([
+        -2.4, 9.6,
+      ])
+      const face = run({ ascent: 0.9, descent: -0.25 })
+      expect(heights(face, 72, 700, [0, 1]).map((h) => +h.toFixed(4))).toEqual([-3, 10.8])
+    })
+
+    it('falls back to the loose boxes when the figures are absurd, and is never empty', () => {
+      // An ascent of five ems and a descent deeper than an em: the cells, 3 below and 9 above.
+      for (const f of [
+        { ascent: 5, descent: -0.2 },
+        { ascent: 0.8, descent: -1.3 },
+      ]) {
+        const [below, above] = heights(run(f), 72, 700, [0, 1])
+        close(below!, -3)
+        close(above!, 9)
+      }
+      // Loose boxes with no height, with figures that fail: PDF.js's 0.75 and 0.25.
+      const flat = runsFromChars(
+        0,
+        chars(
+          [...'ab'].map((c, i) => ({
+            c,
+            x: 72 + i * 6,
+            y: 700,
+            w: 6,
+            box: [72 + i * 6, 700, 78 + i * 6, 700] as const,
+          })),
+          [{ ...HELVETICA, ascent: 0, descent: 0.4 }]
+        )
+      ).content.items[0]!
+      const [below, above] = heights(flat, 72, 700, [0, 1])
+      close(below!, -3)
+      close(above!, 9)
+      expect(above! > below!).toBe(true)
+    })
+
+    it('at 30 degrees, is the font size across the baseline, not the bounds of turned cells', () => {
+      const c = Math.cos(Math.PI / 6)
+      const sn = Math.sin(Math.PI / 6)
+      const item = run({ standard: 'Helvetica' }, [c, sn, -sn, c])
+      const [below, above] = heights(item, 72, 700, [-sn, c])
+      close(below!, -0.207 * 12)
+      close(above!, 0.718 * 12)
+      // Its sides stand at a right angle to the baseline.
+      close(
+        (item.quad.p1.x - item.quad.p3.x) * c + (item.quad.p1.y - item.quad.p3.y) * sn,
+        0
+      )
+    })
+
+    it("scales with the text matrix: the font size is the size set times the matrix's (c, d)", () => {
+      // Size 1 in a matrix that scales by 8, as `/F1 1 Tf 8 0 0 8 x y Tm` writes it.
+      const page = chars(
+        [...'ab'].map((ch, i) => ({
+          c: ch,
+          x: 72 + i * 4,
+          y: 700,
+          w: 4,
+          size: 1,
+          m: [8, 0, 0, 8] as const,
+        })),
+        [{ ...HELVETICA, standard: 'Times-Roman' }]
+      )
+      const item = runsFromChars(0, page).content.items[0]!
+      expect(item.fontSize).toBe(8)
+      const [below, above] = heights(item, 72, 700, [0, 1])
+      close(below!, -0.217 * 8)
+      close(above!, 0.683 * 8)
+    })
+
+    it('on a turned baseline, with figures that fail, takes the bounds of the turned cells', () => {
+      // The loose path: at 30 degrees each cell's upright bounds reach 3 sin 60 further below.
+      const c = Math.cos(Math.PI / 6)
+      const sn = Math.sin(Math.PI / 6)
+      const m = [c, sn, -sn, c] as const
+      const page = chars(
+        [0, 6].map((t, i) => ({ c: 'ab'[i]!, x: 72 + c * t, y: 700 + sn * t, w: 6, m })),
+        [{ ...HELVETICA, ascent: 5, descent: -0.2 }]
+      )
+      const item = runsFromChars(0, page).content.items[0]!
+      expect(item.str).toBe('ab')
+      const [below, above] = heights(item, 72, 700, [-sn, c])
+      close(below!, -3 - 3 * Math.sin(Math.PI / 3))
+      expect(above! - below!).toBeGreaterThan(12)
+    })
+
+    it('scales its thresholds down with the text matrix: a 5 pt gap at 12 pt ends the run', () => {
+      // Size 24 in a matrix that halves it: 12 pt in user space, so a run ends past 3.6 pt.
+      const half = [0.5, 0, 0, 0.5] as const
+      const page = chars([
+        { c: 'a', x: 72, y: 700, w: 6, size: 24, m: half },
+        { c: 'b', x: 83, y: 700, w: 6, size: 24, m: half },
+      ])
+      const { items } = runsFromChars(0, page).content
+      expect(items.map((i) => [i.str, i.fontSize])).toEqual([
+        ['a', 12],
+        ['b', 12],
+      ])
+    })
+
+    it('reads a gap between two items as a space by the size in user space', () => {
+      // 2.5 pt between two fonts at 12 pt in user space: past 0.15 of 12, short of 0.15 of 24.
+      const half = [0.5, 0, 0, 0.5] as const
+      const page = chars(
+        [
+          ...line('ab', 72, 700, { size: 24, m: half }),
+          ...line('cd', 86.5, 700, { size: 24, m: half, font: 1 }),
+        ],
+        [HELVETICA, BOLD]
+      )
+      const { content } = runsFromChars(0, page)
+      expect(content.items.map((i) => i.str)).toEqual(['ab', 'cd'])
+      expect(searchableText(content).raw).toBe('ab cd ')
+    })
+
+    it("stands along the matrix's (c, d) when the matrix skews the text, as PDF.js does", () => {
+      // The baseline along x, the glyphs leaning 45 degrees: (c, d) = (1, 1).
+      const item = run({}, [1, 0, 1, 1])
+      const lean = Math.SQRT1_2
+      const { p1, p3 } = item.quad
+      close((p1.x - p3.x) / Math.hypot(p1.x - p3.x, p1.y - p3.y), lean)
+      // One em along (c, d), whose length makes the size 12 times sqrt 2.
+      close(item.fontSize, 12 * Math.SQRT2)
+      close(Math.hypot(p1.x - p3.x, p1.y - p3.y), item.fontSize)
+      close(p3.x, 72 - 0.25 * item.fontSize * lean)
+    })
+
+    it('gives how far each baseline stands above its box, none for vertical text', () => {
+      const page = chars(
+        [
+          ...line('ab', 72, 700),
+          { c: ' ', x: 84, y: 700, flags: GENERATED },
+          ...line('cd', 120, 700),
+          { c: 'e', x: 72, y: 600, font: 1 },
+        ],
+        [
+          { ...HELVETICA, standard: 'Helvetica' },
+          { ...HELVETICA, vertical: true },
+        ]
+      )
+      const { content, baselines } = runsFromChars(0, page)
+      expect(content.items.map((i) => i.str)).toEqual(['ab', ' ', 'cd', 'e'])
+      expect(baselines.slice(0, 3).map((b) => +b.toFixed(4))).toEqual([
+        2.484, 2.484, 2.484,
+      ])
+      expect(baselines[3]).toBeNaN()
+    })
+
+    it('gives a space between two runs the size of the run before it', () => {
+      const page = chars(
+        [
+          { c: 'a', x: 72, y: 700, w: 4, size: 1, m: [8, 0, 0, 8] },
+          { c: ' ', x: 76, y: 700, size: 1, flags: GENERATED },
+          { c: 'b', x: 100, y: 700, w: 4, size: 1, m: [8, 0, 0, 8] },
+        ],
+        [{ ...HELVETICA, standard: 'Helvetica' }]
+      )
+      const { items } = runsFromChars(0, page).content
+      expect(items.map((i) => [i.str, i.fontSize])).toEqual([
+        ['a', 8],
+        [' ', 8],
+        ['b', 8],
+      ])
+    })
   })
 })

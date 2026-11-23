@@ -522,12 +522,7 @@
     "state": "same"
   },
   "corpus-type3": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "The characters match, but the engine reader gives each Type 3 item a font size of 1, and its worst character lies 0.25 of the font size from PDF.js's.",
-      "accepted": false
-    }
+    "state": "same"
   },
   "corpus-embedpdf-chrome-type3-text": {
     "state": "same"
@@ -557,12 +552,7 @@
   "corpus-bug-1746": {
     "state": "different",
     "reason": "Type 3 glyphs over a CCITT image at half opacity: the engine draws both glyphs much paler than PDF.js; cause not yet investigated",
-    "accepted": true,
-    "text": {
-      "state": "different",
-      "reason": "The characters match, but the engine reader makes each Type 3 item 2002 pt tall where PDF.js makes it 2 pt.",
-      "accepted": false
-    }
+    "accepted": true
   },
   "corpus-bug-1087": {
     "state": "same"

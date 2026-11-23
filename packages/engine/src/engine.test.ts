@@ -505,9 +505,15 @@ describe('links, outline and named destinations', () => {
   test("a link's destination gives the shape of its array, and its action the kinds of its entries", async () => {
     const targets = await engine.open(await fixtureBytes('link-targets'))
     const { annotations, links } = await targets.pageLinks(0)
-    expect(annotations).toHaveLength(23)
+    // 34 Links, and a Highlight with no /QuadPoints before the last.
+    expect(annotations).toHaveLength(35)
     for (const entry of annotations)
-      expect(entry).toMatchObject({ generation: 0, hasQuads: false, quadsOk: true })
+      expect(entry).toMatchObject({ hasQuads: false, quadsOk: true })
+    // link-generation, the twenty-fourth: its object's generation is 1.
+    expect(annotations.map((entry) => entry.generation)).toEqual(
+      annotations.map((_, i) => (i === 23 ? 1 : 0))
+    )
+    expect(annotations[33]?.subtype).toBe('Highlight')
     const shape = {
       fit: 'Fit',
       argIndirect: false,
@@ -564,10 +570,30 @@ describe('links, outline and named destinations', () => {
       argCount: 4,
       argKinds: ['number', 'number', 'number', 'number'],
     })
-    for (const link of links) {
-      expect(link).not.toHaveProperty('destinationInvalid')
+    // dest-invalid-beside-aa: a /Dest that is a number.
+    expect(links[24]).toMatchObject({ destinationInvalid: true })
+    expect(links[24]).not.toHaveProperty('destination')
+    // launch-string-bom, launch-spec-utf16 and uri-name.
+    expect(links[25]?.action).toMatchObject({ kind: 'Launch', fileKind: 'string' })
+    expect(links[26]?.action).toMatchObject({ kind: 'Launch', fileKind: 'spec' })
+    expect(links[27]?.action).toMatchObject({
+      kind: 'URI',
+      uriKind: 'name',
+      uri: utf8('https://example.com/name'),
+    })
+    // dest-indirect-argument, dest-fit-string, dest-page-number and dest-page-real.
+    expect(links[29]?.destination).toMatchObject({
+      argIndirect: true,
+      argKinds: ['number'],
+    })
+    expect(links[30]?.destination).toMatchObject({ fitKind: 'string', argCount: 0 })
+    expect(links[31]?.destination).toMatchObject({ page: 0, pageKind: 'integer' })
+    expect(links[31]?.destination).not.toHaveProperty('pageRef')
+    expect(links[32]?.destination).toMatchObject({ pageKind: 'other' })
+    links.forEach((link, i) => {
+      if (i !== 24) expect(link).not.toHaveProperty('destinationInvalid')
       expect(link.action?.scriptTruncated).toBeUndefined()
-    }
+    })
   })
 
   test('a page index outside the document rejects with a RangeError', async () => {

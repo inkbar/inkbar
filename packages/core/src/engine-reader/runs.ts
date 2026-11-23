@@ -3,6 +3,8 @@
 import { rectFromQuad, type Point, type Quad } from '../model/geometry'
 import { GAP_SPACE } from '../model/search-text'
 
+import { fontMetrics, PDFJS_FALLBACK, type FontMetricFacts } from './metrics'
+
 import type { TextContent, TextItem } from '../model/text'
 
 /** How far off the run's baseline, as a fraction of the font size, a character may sit. */
@@ -17,10 +19,6 @@ const RUN_GAP = 2 * GAP_SPACE
  * the one before, never behind its start.
  */
 const JUMP_BACK = 0.01
-
-/** Fractions of the font size used when a run's boxes give it no height. */
-const FALLBACK_ASCENT = 0.75
-const FALLBACK_DESCENT = 0.25
 
 /** Numbers per character in `geometry`. */
 const STRIDE = 15
@@ -38,12 +36,16 @@ export interface PageChars {
   geometry: Float32Array
   flags: Uint8Array
   fonts: Uint16Array
-  fontTable: readonly {
+  fontTable: readonly ({
     name: string
     fixedPitch: boolean
     serif: boolean
-    vertical: boolean
-  }[]
+  } & FontMetricFacts)[]
+  /**
+   * The page had more characters than the engine reads, and these are the first of them. The
+   * cut can fall inside a line break the engine inferred, leaving a lone CR at the end.
+   */
+  truncated?: boolean
 }
 
 /** @internal The CSS generic family the text layer uses for a font. */
@@ -81,12 +83,21 @@ interface Char {
   text: string
   flag: number
   font: number
+  /**
+   * The font size in user space, as PDF.js gives it: the size the text sets, times the length of
+   * the text matrix's (c, d), which carries the matrix's scale across the baseline.
+   */
   size: number
   origin: Point
   /** Unit vector along the baseline, from the text matrix. */
   along: Point
-  /** Unit vector the glyphs stand up along. */
+  /** Unit vector the glyphs stand up along, across the baseline at a right angle. */
   up: Point
+  /**
+   * Unit vector of the text matrix's (c, d), the way PDF.js stands a run's box on its baseline.
+   * The same as `up` unless the matrix skews the text.
+   */
+  side: Point
   /** Loose box: left, bottom, right, top. */
   box: readonly [number, number, number, number]
 }
@@ -103,9 +114,11 @@ function readChar(chars: PageChars, index: number): Char {
   const along = lenAlong > 0 ? { x: a / lenAlong, y: b / lenAlong } : { x: 1, y: 0 }
   // A mirrored matrix stands its glyphs on the other side of the baseline.
   const up = a * d - b * c < 0 ? { x: along.y, y: -along.x } : { x: -along.y, y: along.x }
+  const lenSide = Math.hypot(c, d)
+  const side = lenSide > 0 ? { x: c / lenSide, y: d / lenSide } : up
   const code = chars.codes[index] ?? 0
   const flag = chars.flags[index] ?? 0
-  const size = n(10)
+  const size = n(10) * (lenSide > 0 ? lenSide : 1)
   return {
     index,
     text: textOf(code, flag),
@@ -115,6 +128,7 @@ function readChar(chars: PageChars, index: number): Char {
     origin: { x: n(8), y: n(9) },
     along,
     up,
+    side,
     box: [n(4), n(5), n(6), n(7)],
   }
 }
@@ -197,6 +211,8 @@ interface Frame {
   up: Point
   below: number
   above: number
+  /** The item's font size. */
+  size: number
 }
 
 /** A run being built: its characters, in the engine's order, and what they share. */
@@ -211,7 +227,9 @@ interface Run {
 }
 
 /**
- * @internal `TextItem`s for the page, and each item's generic family (same length as `items`).
+ * @internal `TextItem`s for the page, each item's generic family, and how far each item's
+ * baseline lies from its quad's `p3`-`p4` edge towards `p1`, in points (both the same length as
+ * `items`; `NaN` for a vertical item, which has no baseline across its box).
  *
  * A run ends where the font or its size changes, where the baseline turns or moves off by more
  * than `BASELINE_TOLERANCE` of the size, where the next character starts more than `RUN_GAP` of
@@ -221,13 +239,21 @@ interface Run {
  * item of its own; before a line break it is dropped. A right-to-left run's string is in reading order
  * and its quad runs along the baseline, as a PDF.js item's does, so its `advances` fall from 1 at
  * the quad's right end to 0 at its left.
+ *
+ * An item's quad reaches from the font's descent to its ascent times the font size, measured
+ * along the text matrix's (c, d) from the baseline, which is across the baseline at a right
+ * angle unless the matrix skews the text, at any angle the baseline lies; `fontMetrics` says
+ * which figures. A font it gives none for, and vertical text, take the smallest box about the
+ * run's line that holds the characters' loose boxes. A box is never empty: one with no height
+ * takes PDF.js's own figures. `fontSize` is the size in user space, as PDF.js gives it.
  */
 export function runsFromChars(
   page: number,
   chars: PageChars
-): { content: TextContent; families: GenericFamily[] } {
+): { content: TextContent; families: GenericFamily[]; baselines: number[] } {
   const items: TextItem[] = []
   const families: GenericFamily[] = []
+  const baselines: number[] = []
   let run: Run | undefined
   /** A generated space waiting to see whether the run goes on past it. */
   let pending: Char | undefined
@@ -254,6 +280,7 @@ export function runsFromChars(
     if (!built) return undefined
     items.push(built)
     families.push(familyOf(chars.fontTable[font]))
+    baselines.push(built.dir === 'ttb' || !frame ? Number.NaN : -frame.below)
     return frame
   }
 
@@ -272,7 +299,7 @@ export function runsFromChars(
    * no item, `next` is its first character, measured by where it starts.
    */
   const spaceBetween = (space: Char, before: Frame, next: Quad | Char): void => {
-    const { dir, end, base, up, below, above } = before
+    const { dir, end, base, up, below, above, size } = before
     const read = dir === 'rtl' ? { x: -base.x, y: -base.y } : base
     const start =
       'p1' in next
@@ -299,7 +326,9 @@ export function runsFromChars(
       str: ' ',
       dir,
       fontName: chars.fontTable[space.font]?.name ?? '',
-      fontSize: space.size,
+      // The engine gives a space it generated an upright matrix, so its own size leaves out the
+      // matrix's scale.
+      fontSize: size,
       hasEOL: false,
       quad,
       rect: rectFromQuad(quad),
@@ -307,6 +336,7 @@ export function runsFromChars(
       glyphEnds: rtl ? [0] : [1],
     })
     families.push(familyOf(chars.fontTable[space.font]))
+    baselines.push(dir === 'ttb' ? Number.NaN : -below)
   }
 
   /** Whether `c` carries on `r`, read as `dir`. */
@@ -381,14 +411,17 @@ export function runsFromChars(
   // The page's last run ends its line.
   const lastItem = items[items.length - 1]
   if (lastItem) lastItem.hasEOL = true
-  return { content: { page, items }, families }
+  return { content: { page, items }, families, baselines }
 
   function buildItem(r: Run, eol: boolean): TextItem | undefined {
     const dir: Dir = r.dir ?? 'ltr'
     const first = r.chars[0]!
-    // The quad runs along the baseline, or down the column for vertical text.
+    // The font's figures set the height, as `fontMetrics` says; without them, the loose boxes.
+    const metrics = dir === 'ttb' ? undefined : fontMetrics(chars.fontTable[r.font])
+    // The quad runs along the baseline, or down the column for vertical text. A box from the
+    // font's figures stands along the matrix's (c, d), as PDF.js stands its box.
     const base = dir === 'ttb' ? readingDir(first, 'ttb') : first.along
-    const up = dir === 'ttb' ? { x: -base.y, y: base.x } : first.up
+    const up = dir === 'ttb' ? { x: -base.y, y: base.x } : metrics ? first.side : first.up
     const from = first.origin
     let low = Infinity
     let high = -Infinity
@@ -408,6 +441,7 @@ export function runsFromChars(
       spans.push([s, e])
       low = Math.min(low, s)
       high = Math.max(high, e)
+      if (metrics) continue
       const [left, bottom, right, top] = c.box
       for (const x of [left, right])
         for (const y of [bottom, top]) {
@@ -474,9 +508,14 @@ export function runsFromChars(
       advances[str.length] = share(1)
     }
     const scale = scaleOf(r.size)
+    if (metrics) {
+      below = metrics.descent * scale
+      above = metrics.ascent * scale
+    }
+    // Loose boxes that give the run no height take PDF.js's figures, so no box is empty.
     if (!(above > below)) {
-      below = -FALLBACK_DESCENT * scale
-      above = FALLBACK_ASCENT * scale
+      below = PDFJS_FALLBACK.descent * scale
+      above = PDFJS_FALLBACK.ascent * scale
     }
     const p3 = {
       x: from.x + base.x * low + up.x * below,
@@ -489,7 +528,7 @@ export function runsFromChars(
     const quad: Quad = { p1, p2, p3, p4 }
     const endAt = dir === 'rtl' ? low : high
     const end = { x: from.x + base.x * endAt, y: from.y + base.y * endAt }
-    frame = { dir, end, base, up, below, above }
+    frame = { dir, end, base, up, below, above, size: r.size }
     return {
       str,
       dir,
