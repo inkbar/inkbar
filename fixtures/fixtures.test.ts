@@ -381,9 +381,9 @@ describe('link and script fixtures', () => {
     }
   )
 
-  it('link-targets has 20 Link annotations', async () => {
+  it('link-targets has 23 Link annotations', async () => {
     const kinds = await subtypes('link-targets')
-    expect(kinds).toHaveLength(20)
+    expect(kinds).toHaveLength(23)
     expect(new Set(kinds)).toEqual(new Set(['Link']))
   })
 

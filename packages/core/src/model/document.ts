@@ -219,12 +219,16 @@ export interface InkDocument {
   links(page: number): readonly PageLink[]
   /**
    * Looks a destination up in the file: a name through its name tree, or an explicit array.
-   * `undefined` when it names no page. Answers are cached per document by the destination.
+   * `undefined` when it names no page, or when the file's data for it cannot be read. Answers
+   * are cached per document by the destination. Only a lookup the reader could not answer at all
+   * (with the engine reading the file, one made as its engine stopped) also gives `undefined`
+   * but is not cached: the next call asks again.
    */
   resolveDestination(raw: RawDestination): Promise<Destination | undefined>
   /**
    * The document's outline (its bookmarks), each destination already resolved. Read on the first
-   * call, after `ready`, and cached; `[]` when the file has none. Rejects as `ready` does.
+   * call, after `ready`, and cached; `[]` when the file has none. A read that fails also gives
+   * `[]`, and is not cached: the next call reads again. Rejects as `ready` does.
    */
   outline(): Promise<readonly OutlineItem[]>
   /**
@@ -417,6 +421,11 @@ export async function openDocument(
    */
   const annotationsRead = new Map<number, Promise<PdfjsAnnotationData[]>>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
+  /**
+   * Each page's searchable text, and whether its boundaries come from the page's glyphs. Declared
+   * here: the engine reader clears it if it turns to PDF.js while the document opens.
+   */
+  const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
   let preserved: ForeignAnnotation[] = []
@@ -455,16 +464,23 @@ export async function openDocument(
   /**
    * With the internal switch on, pages are drawn and their text, links, outline and destinations
    * read by an engine reader over the file PDF.js opened; PDF.js still reads annotations and
-   * forms. Its module loads only then.
+   * forms. Its module loads only then. When an engine started to replace one that stopped
+   * cannot start, the PDF.js reader answers for the rest of the document's life.
    */
   const engineReader =
     readerKind() === 'engine'
-      ? async (proxy: PdfjsDocument): Promise<DocumentReader> => {
+      ? async (
+          proxy: PdfjsDocument,
+          fallback: DocumentReader
+        ): Promise<DocumentReader> => {
           const { createEngineReader } = await import('../engine-reader/reader')
           return createEngineReader({
             loader: options.engine!,
             bytes: () => proxy.getData(),
             password: options.password,
+            fallback,
+            // Search keeps no text read before the switch.
+            onFallback: () => searchable.clear(),
           })
         }
       : undefined
@@ -519,7 +535,7 @@ export async function openDocument(
       measure,
       annotations: annotationsOf,
     })
-    reader = engineReader ? await engineReader(proxy) : pdfjsReader
+    reader = engineReader ? await engineReader(proxy, pdfjsReader) : pdfjsReader
     const meta = await proxy.getMetadata().catch(() => {
       // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
       // title/author are nice-to-have. The document itself has opened, so carry on without it.
@@ -948,8 +964,6 @@ export async function openDocument(
     return reader.text(page, { glyphs })
   }
 
-  /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
-  const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
   const abortError = (signal: AbortSignal | undefined): unknown =>
     signal?.reason ?? new DOMException('Aborted', 'AbortError')
   const searchableFor = (page: number, placed: boolean): Promise<SearchableText> => {
@@ -1050,14 +1064,30 @@ export async function openDocument(
       const key = JSON.stringify(raw)
       let found = destinationCache.get(key)
       if (!found) {
-        found = reader.resolveDestination(raw).catch(() => undefined)
-        destinationCache.set(key, found)
+        const asked = reader.resolveDestination(raw)
+        const made = asked.catch(() => undefined)
+        // A lookup that failed is not kept: the next call asks again.
+        asked.catch(() => {
+          if (destinationCache.get(key) === made) destinationCache.delete(key)
+        })
+        destinationCache.set(key, made)
+        found = made
       }
       return found
     },
     outline() {
-      outlineRead ??= ready.then(() => (destroyed || !reader ? [] : reader.outline()))
-      return outlineRead
+      if (outlineRead) return outlineRead
+      const made: Promise<readonly OutlineItem[]> = ready.then(() =>
+        destroyed || !reader
+          ? []
+          : reader.outline().catch(() => {
+              // A read that failed is not kept: the next call reads again.
+              if (outlineRead === made) outlineRead = undefined
+              return []
+            })
+      )
+      outlineRead = made
+      return made
     },
     get embedded() {
       return embedded.get()

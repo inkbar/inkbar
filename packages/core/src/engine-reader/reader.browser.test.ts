@@ -454,7 +454,7 @@ describe("the engine reader's links and outline", () => {
     }
   )
 
-  it("reads link-targets' twenty cases as the manifest records them", async () => {
+  it("reads link-targets' twenty-three cases as the manifest records them", async () => {
     const { links } = await read('link-targets')
     const url = (address: string, newWindow = false) => ({
       kind: 'url',
@@ -486,13 +486,19 @@ describe("the engine reader's links and outline", () => {
       { kind: 'dest', name: undefined, resolved: undefined },
       // A name the file writes in UTF-16BE, found in its name tree.
       { kind: 'dest', name: 'résumé', resolved: { page: 0, fit: 'fit' } },
+      // Explicit destinations PDF.js refuses: a Fit with an argument, a FitH with two, an XYZ
+      // with four.
+      unsupported('unknown'),
+      unsupported('unknown'),
+      unsupported('unknown'),
     ])
   })
 
   it('resolves the name résumé, written in UTF-16BE, to page 0 through the engine', async () => {
     const doc = await open('link-targets')
     expect(doc._reader.kind).toBe('engine')
-    const link = doc.links(0).at(-1)!
+    // dest-named-utf16, the twentieth case.
+    const link = doc.links(0)[19]!
     expect(link.target).toEqual({ kind: 'dest', raw: 'résumé' })
     await expect(doc._reader.resolveDestination('résumé')).resolves.toEqual({
       page: 0,

@@ -21,11 +21,12 @@ afterAll(async () => {
   )
 })
 
-/** Page `page`'s links read by `doc`, each destination resolved by the same reader. */
+/**
+ * Page `page`'s links read by `doc`, each destination resolved by the same reader through the
+ * document, which gives a lookup that fails as one that goes nowhere.
+ */
 const linksOf = async (doc: InkDocument, page: number) =>
-  resolveLinks(await doc._reader.links(page), (raw) =>
-    doc._reader.resolveDestination(raw)
-  )
+  resolveLinks(await doc._reader.links(page), (raw) => doc.resolveDestination(raw))
 
 const reports = (lines: string[]) =>
   reportMode === 'all' || (reportMode === 'differences' && lines.length > 0)
@@ -43,10 +44,7 @@ describe.each(opening)('%s', (name) => {
       }
       return {
         perPage,
-        outline: outlineDifferences(
-          await pdfjs._reader.outline(),
-          await engine._reader.outline()
-        ),
+        outline: outlineDifferences(await pdfjs.outline(), await engine.outline()),
       }
     })
     if (read === undefined) return

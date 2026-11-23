@@ -48,6 +48,7 @@ export function createPdfjsReader(
       return annotations.flatMap((data, at) => linkFromPdfjs(page, data, at) ?? [])
     },
     outline: () => readOutline(handles.proxy),
+    // A lookup PDF.js cannot do gives the same answer every time: it goes nowhere.
     resolveDestination: (raw) => resolveDestination(handles.proxy, raw),
     destroy: () => Promise.resolve(),
   }

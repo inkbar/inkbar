@@ -373,9 +373,15 @@ describe('targetFromFacts', () => {
 })
 
 describe('rawDestination', () => {
+  /** An explicit destination's facts: four arguments, `null` past those given. */
+  const explicit = (fit: string, ...given: number[]) => ({
+    page: 1,
+    fit,
+    args: [...given, null, null, null, null].slice(0, 4),
+  })
+
   it('an explicit destination: [page, { name: fit }, ...] with the arguments its fit takes', () => {
-    const args = [1, 2, 3, 4]
-    expect(rawDestination({ page: 1, fit: 'XYZ', args })).toEqual([
+    expect(rawDestination(explicit('XYZ', 1, 2, 3))).toEqual([
       1,
       { name: 'XYZ' },
       1,
@@ -383,10 +389,10 @@ describe('rawDestination', () => {
       3,
     ])
     for (const fit of ['FitH', 'FitBH', 'FitV', 'FitBV'])
-      expect(rawDestination({ page: 1, fit, args })).toEqual([1, { name: fit }, 1])
+      expect(rawDestination(explicit(fit, 1))).toEqual([1, { name: fit }, 1])
     for (const fit of ['Fit', 'FitB'])
-      expect(rawDestination({ page: 1, fit, args })).toEqual([1, { name: fit }])
-    expect(rawDestination({ page: 1, fit: 'FitR', args })).toEqual([
+      expect(rawDestination(explicit(fit))).toEqual([1, { name: fit }])
+    expect(rawDestination(explicit('FitR', 1, 2, 3, 4))).toEqual([
       1,
       { name: 'FitR' },
       1,
@@ -402,13 +408,57 @@ describe('rawDestination', () => {
     ).toEqual([-1, { name: 'Fit' }])
   })
 
-  it('none for a fit PDF.js does not know, or a FitR missing a corner', () => {
+  // PDF.js's `isValidExplicitDest`, rule by rule, as far as the facts tell.
+  it('none for a fit PDF.js does not know', () => {
     expect(
       rawDestination({ page: 0, fit: 'Unknown', args: [null, null, null, null] })
-    ).toBe(undefined)
-    expect(
-      rawDestination({ page: 0, fit: 'FitR', args: [1, 2, 3, null] })
     ).toBeUndefined()
+  })
+
+  it('none for a Fit or FitB with an argument', () => {
+    for (const fit of ['Fit', 'FitB']) {
+      expect(rawDestination(explicit(fit, 1))).toBeUndefined()
+      expect(
+        rawDestination({ page: 1, fit, args: [null, null, null, 4] })
+      ).toBeUndefined()
+    }
+  })
+
+  it('none for a FitH, FitBH, FitV or FitBV with more than one argument', () => {
+    for (const fit of ['FitH', 'FitBH', 'FitV', 'FitBV']) {
+      expect(rawDestination(explicit(fit, 1, 2))).toBeUndefined()
+      expect(rawDestination({ page: 1, fit, args: [1, null, null, 4] })).toBeUndefined()
+      // No argument at all is allowed: it leaves the coordinate as it is.
+      expect(rawDestination(explicit(fit))).toEqual([1, { name: fit }, null])
+    }
+  })
+
+  it('none for an XYZ with more than three arguments', () => {
+    expect(rawDestination(explicit('XYZ', 1, 2, 3, 4))).toBeUndefined()
+    expect(
+      rawDestination({ page: 1, fit: 'XYZ', args: [null, null, null, 0] })
+    ).toBeUndefined()
+  })
+
+  it('none for a FitR without four numbers', () => {
+    expect(rawDestination(explicit('FitR', 1, 2, 3))).toBeUndefined()
+    expect(
+      rawDestination({ page: 1, fit: 'FitR', args: [1, null, 3, 4] })
+    ).toBeUndefined()
+  })
+
+  it('kept where the facts cannot tell a refused destination from an accepted one', () => {
+    // PDF.js refuses an XYZ with fewer than two arguments, but [p /XYZ 72] and the accepted
+    // [p /XYZ 72 null] give the same facts.
+    expect(rawDestination(explicit('XYZ', 72))).toEqual([
+      1,
+      { name: 'XYZ' },
+      72,
+      null,
+      null,
+    ])
+    // A null the file writes after a Fit, or a name in place of a number, reads as no argument.
+    expect(rawDestination(explicit('Fit'))).toEqual([1, { name: 'Fit' }])
   })
 
   it('a name, decoded as PDF.js decodes a byte string', () => {

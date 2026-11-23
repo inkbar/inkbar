@@ -1242,18 +1242,36 @@ describe('links, the outline and destinations', () => {
     await expect(reader.resolveDestination('odd')).resolves.toBeUndefined()
   })
 
-  it('a lookup that fails resolves to nothing and is asked again next time', async () => {
-    let calls = 0
+  it('a lookup a working engine cannot do resolves to nothing, and is kept', async () => {
     const t = setup({
       traps: false,
-      namedDestination: () =>
-        ++calls === 1
-          ? Promise.reject(new Error('cannot read'))
+      namedDestination: () => Promise.reject(new Error('cannot read')),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    for (let i = 0; i < 3; i++)
+      await expect(reader.resolveDestination('a')).resolves.toBeUndefined()
+    expect(t.engines[0]!.doc.namedDestination).toHaveBeenCalledTimes(1)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+
+  it('a lookup that failed as engines stopped is asked again, and kept once it succeeds', async () => {
+    // The first two engines stop on the lookup; the third answers it.
+    const t = setup({
+      namedDestination: (_, engine) =>
+        engine.index < 2
+          ? Promise.reject(engineError('engine-failure'))
           : Promise.resolve({ page: 0, fit: 'Fit', args: [null, null, null, null] }),
     })
     const reader = await t.open()
-    await expect(reader.resolveDestination('a')).resolves.toBeUndefined()
+    await reader.pageInfo(0)
+    await expect(reader.resolveDestination('a')).rejects.toMatchObject({
+      code: 'engine-failure',
+    })
     await expect(reader.resolveDestination('a')).resolves.toEqual({ page: 0, fit: 'fit' })
+    await expect(reader.resolveDestination('a')).resolves.toEqual({ page: 0, fit: 'fit' })
+    expect(t.engines[2]!.doc.namedDestination).toHaveBeenCalledTimes(1)
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
   })
 
   it('reads the outline from the engine, each destination resolved', async () => {
@@ -1381,10 +1399,237 @@ describe('links, the outline and destinations', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(1)
   })
 
-  it('an outline that cannot be read is empty, as the PDF.js reader gives it', async () => {
+  it('an outline that cannot be read rejects, as the PDF.js reader does', async () => {
     const t = setup({ outline: () => Promise.reject(new Error('cannot read')) })
     const reader = await t.open()
-    await expect(reader.outline()).resolves.toEqual([])
+    await expect(reader.outline()).rejects.toThrow('cannot read')
+  })
+})
+
+describe('an engine that cannot start', () => {
+  /** What the fallback reader answers, told apart from the engine's by its values. */
+  const fallbackText = { page: 0, items: [] }
+  const fallbackLink = {
+    id: 'pdf:0:1R',
+    page: 0,
+    rect: { x: 0, y: 0, width: 1, height: 1 },
+    target: { kind: 'named', action: 'NextPage' } as const,
+  }
+  const fallbackOutline = [
+    {
+      id: '0',
+      title: 'From the fallback',
+      target: { kind: 'named', action: 'FirstPage' } as const,
+      bold: false,
+      italic: false,
+      open: false,
+      children: [],
+    },
+  ]
+  const fallbackFacts = {
+    index: 0,
+    box: { x: 0, y: 0, width: 100, height: 100 },
+    rotate: 0,
+    userUnit: 1,
+    width: 100,
+    height: 100,
+  } as const
+  const fallback = () => ({
+    kind: 'pdfjs' as const,
+    pageCount: 2,
+    pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
+    draw: vi.fn(() => Promise.resolve()),
+    text: vi.fn(() => Promise.resolve(fallbackText)),
+    links: vi.fn(() => Promise.resolve([fallbackLink])),
+    outline: vi.fn(() => Promise.resolve(fallbackOutline)),
+    resolveDestination: vi.fn(() => Promise.resolve({ page: 1, fit: 'fit' as const })),
+    destroy: vi.fn(() => Promise.resolve()),
+  })
+
+  /**
+   * A two-page file whose first engine stops on its first text read, and whose replacement
+   * cannot start.
+   */
+  const stopsThenCannotStart = async (withFallback = true) => {
+    const t = setup({
+      pageCount: 2,
+      pageText: () => Promise.reject(engineError('engine-failure')),
+    })
+    const instead = fallback()
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn: t.warn,
+      ...(withFallback && { fallback: instead }),
+    })
+    // A page the engine has read, so the reader can tell the engine stopped.
+    await reader.pageInfo(0)
+    const real = t.createEngine.getMockImplementation()!
+    t.createEngine.mockImplementation(() => {
+      if (t.createEngine.mock.calls.length > 1)
+        return Promise.reject(new Error('no wasm'))
+      return real()
+    })
+    return { t, reader, instead }
+  }
+
+  it('a text read whose engine stopped and could not be replaced comes from the fallback', async () => {
+    const { t, reader, instead } = await stopsThenCannotStart()
+    await expect(reader.text(1, { glyphs: true })).resolves.toBe(fallbackText)
+    expect(instead.text).toHaveBeenCalledWith(1, { glyphs: true })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+
+  it('then text, links, the outline, names and pixels come from the fallback, with no engine started again', async () => {
+    const { t, reader, instead } = await stopsThenCannotStart()
+    await reader.text(0, { glyphs: false })
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    for (let i = 0; i < 3; i++) {
+      await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
+      await expect(reader.links(1)).resolves.toEqual([fallbackLink])
+      await expect(reader.outline()).resolves.toBe(fallbackOutline)
+      await expect(reader.resolveDestination(`name-${i}`)).resolves.toEqual({
+        page: 1,
+        fit: 'fit',
+      })
+      const { canvas } = fakeCanvas()
+      await reader.draw(request({ page: 1 }), canvas)
+    }
+    expect(instead.links).toHaveBeenCalledTimes(3)
+    expect(instead.outline).toHaveBeenCalledTimes(3)
+    expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
+    expect(instead.draw).toHaveBeenCalledTimes(3)
+    // An explicit destination needs no reader.
+    await expect(reader.resolveDestination([1, { name: 'Fit' }])).resolves.toEqual({
+      page: 1,
+      fit: 'fit',
+    })
+    expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
+    // Facts the engine gave are kept; a page it never gave comes from the fallback.
+    await expect(reader.pageInfo(0)).resolves.toMatchObject({ width: 612 })
+    await expect(reader.pageInfo(1)).resolves.toBe(fallbackFacts)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+
+  it('the text has no families once it comes from the fallback', async () => {
+    const { reader } = await stopsThenCannotStart()
+    await expect(reader.textFamilies(0)).resolves.toEqual([])
+  })
+
+  it('a call aborted, or made after destroy, does not reach the fallback', async () => {
+    const { reader, instead } = await stopsThenCannotStart()
+    await reader.text(0, { glyphs: false })
+    instead.text.mockClear()
+    const reason = new Error('moved on')
+    const c = new AbortController()
+    c.abort(reason)
+    await expect(reader.text(0, { glyphs: false, signal: c.signal })).rejects.toBe(reason)
+    await reader.destroy()
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    await expect(reader.outline()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    expect(instead.text).not.toHaveBeenCalled()
+    expect(instead.outline).not.toHaveBeenCalled()
+  })
+
+  it('drops the text it kept, and tells the host once', async () => {
+    const t = setup({
+      pageCount: 2,
+      pageText: (index) =>
+        index === 0
+          ? Promise.resolve(hiText())
+          : Promise.reject(engineError('engine-failure')),
+    })
+    const instead = fallback()
+    const onFallback = vi.fn()
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn: t.warn,
+      fallback: instead,
+      onFallback,
+    })
+    await reader.pageInfo(0)
+    // Page 0 is read by the engine and kept.
+    const engineText = await reader.text(0, { glyphs: false })
+    expect(engineText.items.map((i) => i.str).join('')).toContain('Hi')
+    t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
+    await expect(reader.text(1, { glyphs: false })).resolves.toBe(fallbackText)
+    // Page 0, read again, is the fallback's too.
+    await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
+    await reader.text(1, { glyphs: false })
+    expect(onFallback).toHaveBeenCalledTimes(1)
+  })
+
+  it('a fallback call running at destroy rejects with DocumentDestroyed', async () => {
+    const { reader, instead } = await stopsThenCannotStart()
+    await reader.text(0, { glyphs: false })
+    const text = deferred<typeof fallbackText>()
+    const facts = deferred<typeof fallbackFacts>()
+    const draw = deferred<void>()
+    instead.text.mockReturnValueOnce(text.promise)
+    instead.pageInfo.mockReturnValueOnce(facts.promise)
+    instead.draw.mockReturnValueOnce(draw.promise)
+    const reading = reader.text(1, { glyphs: false })
+    const asking = reader.pageInfo(1)
+    const { canvas } = fakeCanvas()
+    const drawing = reader.draw(request({ page: 1 }), canvas)
+    // Let each call reach the fallback before the reader goes.
+    await vi.waitFor(() => expect(instead.draw).toHaveBeenCalled())
+    await reader.destroy()
+    const destroyedError = { code: 'DocumentDestroyed' }
+    await expect(reading).rejects.toMatchObject(destroyedError)
+    await expect(asking).rejects.toMatchObject(destroyedError)
+    await expect(drawing).rejects.toMatchObject(destroyedError)
+    // Settling after destroy changes nothing.
+    text.resolve(fallbackText)
+    facts.resolve(fallbackFacts)
+    draw.reject(new Error('worker gone'))
+  })
+
+  it('page facts still being read when the engine cannot start come from the fallback', async () => {
+    const t = setup({
+      pageCount: 2,
+      pageText: () => Promise.reject(engineError('engine-failure')),
+    })
+    const instead = fallback()
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn: t.warn,
+      fallback: instead,
+    })
+    await reader.pageInfo(0)
+    // Page 1's facts are still on their way from the first engine when it stops.
+    const slow = deferred<Awaited<ReturnType<ReaderEngineDocument['pageInfo']>>>()
+    t.engines[0]!.doc.pageInfo.mockImplementationOnce(() => slow.promise)
+    const first = reader.pageInfo(1)
+    t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
+    await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
+    // The engine cannot start; page 1's read on the stopped engine has not failed yet.
+    const second = reader.pageInfo(1)
+    slow.reject(engineError('engine-failure'))
+    await expect(first).resolves.toBe(fallbackFacts)
+    await expect(second).resolves.toBe(fallbackFacts)
+  })
+
+  it('without a fallback, calls reject with why the engine did not start, and none starts it again', async () => {
+    const { t, reader } = await stopsThenCannotStart(false)
+    const notStarted = { code: 'SaveFailed', details: { stage: 'engine' } }
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(notStarted)
+    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject(notStarted)
+    await expect(reader.outline()).rejects.toMatchObject(notStarted)
+    await expect(reader.resolveDestination('a')).rejects.toMatchObject(notStarted)
+    await expect(reader.links(1)).resolves.toEqual([])
+    const { canvas } = fakeCanvas()
+    await expect(reader.draw(request({ page: 1 }), canvas)).rejects.toMatchObject(
+      notStarted
+    )
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 })
 

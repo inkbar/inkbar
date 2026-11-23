@@ -170,6 +170,22 @@ const CASES: Case[] = [
     entries: `/A << /S /GoTo /D ${hex(UTF16_RESUME)} >>`,
     pdfjs: 'dest, raw résumé',
   },
+  // Explicit destinations PDF.js refuses (`isValidExplicitDest`): the Link goes nowhere.
+  {
+    name: 'dest-fit-argument',
+    entries: '/Dest [3 0 R /Fit 72]',
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'dest-fith-two-arguments',
+    entries: '/Dest [3 0 R /FitH 600 72]',
+    pdfjs: 'unsupported, reason unknown',
+  },
+  {
+    name: 'dest-xyz-four-arguments',
+    entries: '/A << /S /GoTo /D [3 0 R /XYZ 72 600 0 5] >>',
+    pdfjs: 'unsupported, reason unknown',
+  },
 ]
 
 /** The catalog's name tree: `résumé`, written as `UTF16_RESUME`, goes to the page. */
@@ -211,7 +227,7 @@ function write(name: FixtureName, bytes: Buffer, meta: Omit<FixtureMeta, 'file'>
 function linkTargets(describes: string) {
   let contents = ''
   const annots = CASES.map((c, i) => {
-    const y = 740 - i * 36
+    const y = 740 - i * 30
     contents += label(72, y + 4, c.name)
     return `<< /Type /Annot /Subtype /Link /Rect [300 ${y} 420 ${y + 20}] /F 4 /Border [0 0 0] /P 3 0 R ${c.entries} >>`
   })

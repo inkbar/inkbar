@@ -737,7 +737,7 @@ createViewer(el, {
 
 Following a link or an outline item records where you were. `viewer.back()` and `viewer.forward()` move through those positions, `canGoBack` and `canGoForward` say whether they can, and `createBack(viewer)` and `createForward(viewer)` are toolbar buttons for them. Scrolling and the page buttons record nothing. The history keeps 50 positions and clears when another document opens. There are no keyboard shortcuts for it, so Alt+Left stays the browser's.
 
-`doc.outline()` gives the outline as data: `OutlineItem`s with an `id` (its path, such as `"1.0"`), `title`, `target`, `bold`, `italic`, `open` and `children`. It is read on the first call and cached. To render your own tree, use `createOutlineController({ document, viewport, navigation })` with readables of the document, the viewport and the navigation. A viewer engine's `navigation` is a plain object, so wrap it, and the viewport too (a readable of your own should publish the new viewport after `engine.rebuild`):
+`doc.outline()` gives the outline as data: `OutlineItem`s with an `id` (its path, such as `"1.0"`), `title`, `target`, `bold`, `italic`, `open` and `children`. It is read on the first call and cached; a read that fails gives `[]` and is read again on the next call. To render your own tree, use `createOutlineController({ document, viewport, navigation })` with readables of the document, the viewport and the navigation. A viewer engine's `navigation` is a plain object, so wrap it, and the viewport too (a readable of your own should publish the new viewport after `engine.rebuild`):
 
 ```ts
 const controller = createOutlineController({
