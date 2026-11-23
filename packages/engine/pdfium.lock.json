@@ -1,5 +1,5 @@
 {
-  "version": "v8165.7",
-  "url": "https://github.com/inkbar/pdfium/releases/download/v8165.7/inkbar-pdfium-wasm32-v8165.7.tar.gz",
-  "sha256": "b62821f788713f9bfa03efddd0ee160ec50acecea0ed52ffe461cac005f1110c"
+  "version": "v8165.9",
+  "url": "https://github.com/inkbar/pdfium/releases/download/v8165.9/inkbar-pdfium-wasm32-v8165.9.tar.gz",
+  "sha256": "83b96d0dcd11144ef037a1fb2b59412756d4478cf59e621353c453397d1d5321"
 }

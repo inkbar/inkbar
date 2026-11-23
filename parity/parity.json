@@ -6,12 +6,7 @@
     "state": "same"
   },
   "text-rotated-90": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "On this /Rotate 90 page the engine gives the lines in the reverse order from PDF.js, which keeps the order the content stream draws them in. Each line's text and place agree.",
-      "accepted": false
-    }
+    "state": "same"
   },
   "text-rotated-180": {
     "state": "same"
@@ -140,13 +135,7 @@
     "state": "same"
   },
   "links": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "Page 3 has /Rotate 90, and on it the engine gives the two lines in the reverse order from PDF.js, which keeps the order the content stream draws them in. Each line's text and place agree.",
-      "accepted": false,
-      "pages": [3]
-    }
+    "state": "same"
   },
   "link-targets": {
     "state": "same"
@@ -236,12 +225,7 @@
     "state": "same"
   },
   "redact-text-type3": {
-    "state": "same",
-    "text": {
-      "state": "different",
-      "reason": "Text in a Type 3 font with no /ToUnicode: PDFium marks every character as having no Unicode value, and the engine reader leaves such characters out, so the page has no text with it. PDF.js reads each code through the font's encoding.",
-      "accepted": false
-    }
+    "state": "same"
   },
   "redact-text-nested-form": {
     "state": "same"
@@ -541,7 +525,7 @@
     "state": "same",
     "text": {
       "state": "different",
-      "reason": "Text in a Type 3 font with no /ToUnicode: PDFium marks every character as having no Unicode value, and the engine reader leaves such characters out, so the page has no text with it. PDF.js reads each code through the font's encoding.",
+      "reason": "The characters match, but the engine reader gives each Type 3 item a font size of 1, and its worst character lies 0.25 of the font size from PDF.js's.",
       "accepted": false
     }
   },
@@ -576,7 +560,7 @@
     "accepted": true,
     "text": {
       "state": "different",
-      "reason": "Text in a Type 3 font with no /ToUnicode: PDFium marks every character as having no Unicode value, and the engine reader leaves such characters out, so the page has no text with it. PDF.js reads each code through the font's encoding.",
+      "reason": "The characters match, but the engine reader makes each Type 3 item 2002 pt tall where PDF.js makes it 2 pt.",
       "accepted": false
     }
   },
@@ -619,12 +603,7 @@
   "corpus-bug-1388": {
     "state": "different",
     "reason": "Text in render mode 2 (fill and stroke): the engine draws the glyph, a black square; PDF.js draws nothing",
-    "accepted": true,
-    "text": {
-      "state": "different",
-      "reason": "The font's /ToUnicode maps its one character code, 32, to U+B0A9. PDF.js reads U+B0A9; PDFium reads the code itself, a space, so the engine reads no text. The map's bfrange section announces ten entries and holds one.",
-      "accepted": false
-    }
+    "accepted": true
   },
   "corpus-bug-842": {
     "state": "same"
