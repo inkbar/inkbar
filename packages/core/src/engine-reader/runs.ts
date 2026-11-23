@@ -189,6 +189,8 @@ function familyOf(font: PageChars['fontTable'][number] | undefined): GenericFami
 /** How a built item lies: its direction, the directions of its quad, and its height about its baseline. */
 interface Frame {
   dir: Dir
+  /** Where the item ends on its baseline, in reading order: right to left, its left end. */
+  end: Point
   /** Unit vector from `p3` to `p4`. */
   base: Point
   /** Unit vector from `p3` to `p1`. */
@@ -229,38 +231,63 @@ export function runsFromChars(
   let run: Run | undefined
   /** A generated space waiting to see whether the run goes on past it. */
   let pending: Char | undefined
-  /** How the last item built lies, for a space that follows it. */
+  /** How the last item built lies, set as `buildItem` builds it. */
   let frame: Frame | undefined
 
   const vertical = (font: number): boolean => chars.fontTable[font]?.vertical === true
 
-  const flush = (eol: boolean): void => {
+  /**
+   * A generated space where a run broke, with how the item before it lies, waiting for the item
+   * after it to be built.
+   */
+  let between: { space: Char; next: Char; before: Frame } | undefined
+
+  /** Builds the run, if there is one, and gives how its item lies, if it made one. */
+  const flush = (eol: boolean): Frame | undefined => {
     pending = undefined
-    if (!run) return
+    if (!run) return undefined
     const built = buildItem(run, eol)
     const font = run.font
     run = undefined
-    if (!built) return
+    if (between) spaceBetween(between.space, between.before, built?.quad ?? between.next)
+    between = undefined
+    if (!built) return undefined
     items.push(built)
     families.push(familyOf(chars.fontTable[font]))
+    return frame
   }
 
   /**
-   * The generated space `space` between the item just built and the run `next` starts, as an
-   * item of its own, as PDF.js gives one: it spans the gap along the item's baseline, at the
-   * item's height, so text copied across the two keeps its space.
+   * The generated space `space` between the item `before` describes and the item after it,
+   * `next`, as an item of its own, as PDF.js gives one, so text copied across the two keeps its
+   * space. It lies on the baseline of the item before, at its height and in its direction, from
+   * where that item ends to the edge of `next` that faces it: the corner of `next`'s quad that
+   * comes first along the item before's reading direction, measured along that baseline. The
+   * edge is found from the whole quad because `next` may read the other way, and then its first
+   * character is at its far end. The engine's own position for the space is not used: it is one
+   * advance along page x from the character before, which is off the baseline of turned text.
+   * Where `next` lies at or behind the item's end, as on a new line, the space has no width and
+   * sits at the item's end; where it lies further on, on another baseline, the space reaches to
+   * where its nearest corner falls on the item's baseline. When the run after the space builds
+   * no item, `next` is its first character, measured by where it starts.
    */
-  const spaceBetween = (space: Char, next: Char): void => {
-    if (!frame) return
-    const { dir, base, up, below, above } = frame
+  const spaceBetween = (space: Char, before: Frame, next: Quad | Char): void => {
+    const { dir, end, base, up, below, above } = before
     const read = dir === 'rtl' ? { x: -base.x, y: -base.y } : base
-    const [start] = extent(next, dir, read, space.origin)
+    const start =
+      'p1' in next
+        ? Math.min(
+            ...[next.p1, next.p2, next.p3, next.p4].map((p) =>
+              dot({ x: p.x - end.x, y: p.y - end.y }, read)
+            )
+          )
+        : extent(next, dir, read, end)[0]
     const gap = Math.max(0, start)
-    // Right to left, the gap lies against the baseline from the space's origin.
+    // Right to left, the gap lies against the baseline back from the item's end.
     const low = dir === 'rtl' ? -gap : 0
     const p3 = {
-      x: space.origin.x + base.x * low + up.x * below,
-      y: space.origin.y + base.y * low + up.y * below,
+      x: end.x + base.x * low + up.x * below,
+      y: end.y + base.y * low + up.y * below,
     }
     const p4 = { x: p3.x + base.x * gap, y: p3.y + base.y * gap }
     const height = above - below
@@ -339,9 +366,8 @@ export function runsFromChars(
       // The engine leaves out the line break after a hyphen it marks: the run ends its line.
       const hyphenEnds = (run.last.flag & HYPHEN) !== 0
       const space = hyphenEnds ? undefined : pending
-      frame = undefined
-      flush(hyphenEnds)
-      if (space) spaceBetween(space, c)
+      const before = flush(hyphenEnds)
+      if (space && before) between = { space, next: c, before }
     }
     run = {
       chars: [c],
@@ -461,7 +487,9 @@ export function runsFromChars(
     const p1 = { x: p3.x + up.x * height, y: p3.y + up.y * height }
     const p2 = { x: p4.x + up.x * height, y: p4.y + up.y * height }
     const quad: Quad = { p1, p2, p3, p4 }
-    frame = { dir, base, up, below, above }
+    const endAt = dir === 'rtl' ? low : high
+    const end = { x: from.x + base.x * endAt, y: from.y + base.y * endAt }
+    frame = { dir, end, base, up, below, above }
     return {
       str,
       dir,
