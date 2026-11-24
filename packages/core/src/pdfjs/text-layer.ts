@@ -1,6 +1,7 @@
 // The only file that touches PDF.js's `TextLayer`. It takes the already-loaded PDF.js module
 // instead of importing `#pdfjs`, so `@inkbar/core/dom` can re-export the text layer without
 // evaluating PDF.js at import time.
+import type { TextReads } from './text-reads'
 import type { PdfjsModule, PdfjsPage, PdfjsViewport } from './types'
 
 export interface MountedTextLayer {
@@ -16,6 +17,8 @@ export interface MountPdfjsTextLayerOptions {
   viewport: PdfjsViewport
   /** Aborting cancels the render (and any later use of the layer). */
   signal?: AbortSignal
+  /** The document's running text reads, i.e. `InkDocument._pdfjs.textReads`. */
+  reads?: TextReads
 }
 
 /**
@@ -27,11 +30,11 @@ export interface MountPdfjsTextLayerOptions {
 export async function mountPdfjsTextLayer(
   opts: MountPdfjsTextLayerOptions
 ): Promise<MountedTextLayer> {
+  const params = { includeMarkedContent: false, disableNormalization: true }
   const layer = new opts.module.TextLayer({
-    textContentSource: opts.pdfPage.streamTextContent({
-      includeMarkedContent: false,
-      disableNormalization: true,
-    }),
+    textContentSource: opts.reads
+      ? opts.reads.open(opts.pdfPage, params)
+      : opts.pdfPage.streamTextContent(params),
     container: opts.container,
     viewport: opts.viewport,
   })

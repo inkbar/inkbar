@@ -1,3 +1,4 @@
+import type { TextReads } from './text-reads'
 import type { PdfjsPage, PdfjsTextContent } from './types'
 
 type Piece = Pick<PdfjsTextContent, 'items' | 'styles' | 'lang'>
@@ -11,13 +12,18 @@ type Piece = Pick<PdfjsTextContent, 'items' | 'styles' | 'lang'>
  * the text another way.
  *
  * Once `signal` aborts, the stream is cancelled and the read rejects with the signal's reason.
+ * With `reads` the stream is opened through them, so the document can wait for it to end.
  */
 export async function readTextContent(
   page: PdfjsPage,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  reads?: TextReads
 ): Promise<PdfjsTextContent> {
   signal?.throwIfAborted()
-  const reader = (page.streamTextContent() as ReadableStream<Piece>).getReader()
+  const stream = reads
+    ? reads.open(page)
+    : (page.streamTextContent() as ReadableStream<Piece>)
+  const reader = stream.getReader()
   const content: PdfjsTextContent = {
     items: [],
     styles: Object.create(null) as PdfjsTextContent['styles'],

@@ -119,6 +119,7 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
       container: el,
       viewport,
       signal: abort.signal,
+      reads: doc._pdfjs.textReads,
     })
     if (!abort.signal.aborted) opts.onRendered?.()
   }

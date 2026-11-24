@@ -6,6 +6,7 @@ import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createPdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
+import { createTextReads, type TextReads } from '../pdfjs/text-reads'
 import { readerKind } from '../reader/select'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
@@ -344,6 +345,8 @@ export interface InkDocument {
     module: PdfjsModule
     proxy: PdfjsDocument
     getPage(index: number): Promise<PdfjsPage>
+    /** Running text reads, so `destroy()` can wait for PDF.js to finish them. */
+    textReads: TextReads
   }
   /** @internal Page facts and pixels for the DOM layer. Not part of the public contract. */
   readonly _reader: DocumentReader
@@ -498,7 +501,12 @@ export async function openDocument(
       password: options.password,
       verbosity: options.verbosity,
     })
-    destroyTask = () => task.destroy()
+    const textReads = createTextReads()
+    // PDF.js warns in the console when it is destroyed while a page's text is being read.
+    destroyTask = async () => {
+      await textReads.settle()
+      await task.destroy()
+    }
     const cache = createPageCache((index) => proxy.getPage(index + 1))
     pageCache = cache
     const getPage = (index: number): Promise<PdfjsPage> => {
@@ -514,7 +522,7 @@ export async function openDocument(
       // A failed lookup is not cached: the next mount of the page asks PDF.js again.
       return cache.get(index)
     }
-    handles = { module: pdfjs, proxy, getPage }
+    handles = { module: pdfjs, proxy, getPage, textReads }
     const annotationsOf = (index: number): Promise<PdfjsAnnotationData[]> => {
       let read = annotationsRead.get(index)
       if (!read) {
@@ -956,12 +964,20 @@ export async function openDocument(
   /**
    * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
    * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
-   * decodes its images, so search does it only for pages with hits.
+   * decodes its images, so search does it only for pages with hits. Rejects with
+   * `DocumentDestroyed` once the document is destroyed, whether or not the read has finished.
    */
   async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
     if (destroyed) throw destroyedError()
     if (!reader) throw statusError(status.get())
-    return reader.text(page, { glyphs })
+    // PDF.js leaves a read of the drawing commands unsettled when it is destroyed, so the read
+    // ends here with the document.
+    const content = await Promise.race([
+      reader.text(page, { glyphs }),
+      destroyedSignal.then(() => Promise.reject<TextContent>(destroyedError())),
+    ])
+    if (destroyed) throw destroyedError()
+    return content
   }
 
   const abortError = (signal: AbortSignal | undefined): unknown =>
