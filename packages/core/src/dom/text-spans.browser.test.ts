@@ -1,5 +1,14 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import { rectFromQuad, unionRects, type Quad, type Rect } from '../model/geometry'
 
@@ -82,7 +91,9 @@ async function mount(name: FixtureName, zoom: number, rotation: ViewRotation = 0
   })
   const spannedAt = content.items.flatMap((item, i) => (spanned(item.str) ? [i] : []))
   const items = spannedAt.map((i) => content.items[i]!)
-  const lines = spannedAt.map((i) => lineBox(content.items[i]!, baselines[i]!))
+  const lines = spannedAt.map((i) =>
+    lineBox(content.items[i]!, baselines[i]!, lineAscent(families[i] ?? 'sans-serif'))
+  )
   return {
     doc,
     content,
@@ -119,15 +130,28 @@ const tolerance = (r: { width: number; height: number }): number =>
   Math.max(1.5, 0.06 * Math.max(r.width, r.height))
 
 /**
- * Where the span's line box goes: one font size high, standing on the run's baseline with three
- * quarters of it above.
+ * The share of a family's line box above the baseline: its ascent over its ascent and descent,
+ * as the browser reports them, or three quarters where it reports none.
  */
-function lineBox(item: TextItem, baseline: number): Rect {
+function lineAscent(family: string): number {
+  const context = document.createElement('canvas').getContext('2d')!
+  context.font = `30px ${family}`
+  const metrics = context.measureText('')
+  const ascent = metrics.fontBoundingBoxAscent
+  const descent = Math.abs(metrics.fontBoundingBoxDescent)
+  return ascent > 0 ? ascent / (ascent + descent) : 0.75
+}
+
+/**
+ * Where the span's line box goes: one font size high, standing on the run's baseline with
+ * `share` of it above.
+ */
+function lineBox(item: TextItem, baseline: number, share: number): Rect {
   const { p1, p3, p4 } = item.quad
   const height = Math.hypot(p1.x - p3.x, p1.y - p3.y)
   if (!(height > 0) || !Number.isFinite(baseline)) return item.rect
   const up = { x: (p1.x - p3.x) / height, y: (p1.y - p3.y) / height }
-  const top = baseline + 0.75 * item.fontSize
+  const top = baseline + share * item.fontSize
   const bottom = top - item.fontSize
   const at = (p: { x: number; y: number }, h: number) => ({
     x: p.x + up.x * h,
@@ -144,8 +168,9 @@ function lineBox(item: TextItem, baseline: number): Rect {
 /**
  * Every span lies over its item's box, on every edge, within `tolerance`. An item whose line box
  * lies off its box by more than the tolerance cannot: its span is one font size high and stands
- * on the baseline. Such an item is checked against its line box instead, and listed in `tall`,
- * which the caller asserts on so no other item escapes the item-box check.
+ * on the baseline. Such an item is checked against its line box instead, and must be one `tall`
+ * names, so no other item escapes the item-box check. Which of them it happens to depends on the
+ * browser's font, whose ascent places the line box.
  */
 function expectSpansOverItems(
   host: HTMLElement,
@@ -180,11 +205,11 @@ function expectSpansOverItems(
         )
   })
   expect(misses).toEqual([])
-  expect(shifted).toEqual(tall)
+  expect(shifted.filter((str) => !tall.includes(str))).toEqual([])
 }
 
 /**
- * Items whose line box lies off their box by more than the tolerance, by fixture: Noto Sans
+ * Items whose line box may lie off their box by more than the tolerance, by fixture: Noto Sans
  * Hebrew's, whose ascent and descent span 1.36 ems.
  */
 const TALL: Partial<Record<FixtureName, string[]>> = { 'text-rtl': ['שלום עולם', 'שלום'] }
@@ -386,6 +411,40 @@ describe('text spans from the engine reader', () => {
     expectSpansOverItems(host, container, items, lines, t)
   })
 
+  it("stands each span on its baseline with the browser font's share of the line above", async () => {
+    const { host, container, lines, families, t } = await mount('text-simple', 3)
+    // Not the share used where the browser gives no figures, or this would pin nothing.
+    expect(Math.abs(lineAscent(families[0]!) - 0.75)).toBeGreaterThan(0.02)
+    const origin = host.getBoundingClientRect()
+    const spans = [...container.querySelectorAll('span')]
+    expect(spans.length).toBeGreaterThan(0)
+    spans.forEach((span, i) => {
+      const got = span.getBoundingClientRect()
+      const want = t.toCssRect(lines[i]!)
+      expect(Math.abs(got.top - origin.top - want.top)).toBeLessThan(0.75)
+      expect(Math.abs(got.height - want.height)).toBeLessThan(0.75)
+    })
+  })
+
+  it('puts three quarters of the line above where the browser gives no font figures', async () => {
+    // Widths only, and any will do: this test looks at where the spans stand, not how wide.
+    vi.spyOn(CanvasRenderingContext2D.prototype, 'measureText').mockImplementation(
+      (text: string) => ({ width: text.length * 10 }) as TextMetrics
+    )
+    const { host, container, lines, t } = await mount('text-simple', 3)
+    vi.restoreAllMocks()
+    // `lines` were worked out under the same mock, so with three quarters.
+    const origin = host.getBoundingClientRect()
+    const spans = [...container.querySelectorAll('span')]
+    spans.forEach((span, i) => {
+      const got = span.getBoundingClientRect()
+      expect(Math.abs(got.top - origin.top - t.toCssRect(lines[i]!).top)).toBeLessThan(
+        0.75
+      )
+    })
+    expect(spans.length).toBeGreaterThan(0)
+  })
+
   it('marks right-to-left items and gives each its family', async () => {
     const { container, items, families, content } = await mount('text-rtl', 1)
     const spans = spansIn(container)
@@ -538,10 +597,10 @@ function margins(quad: Quad, items: TextItem[]): { top: number; bottom: number }
 /**
  * How far, as a fraction of the font size, a selection may fall short of its items' boxes across
  * the line. The selection is the CSS fallback font's text, one font size of line box with the
- * font's own ascent and descent (C em in all) centred on it, so on Helvetica's box it reaches
- * 0.032 + (C - 1) / 2 above and 0.043 + (C - 1) / 2 below. Common sans fonts have C from about
- * 1.1 (Liberation Sans, measured here: +0.080 and +0.090 at 14 pt) to 1.36 (Noto Sans); the
- * check holds for any C down to 0.9.
+ * font's own ascent and descent (C em in all) centred on it, and the line box stands on the
+ * baseline with the font's share of it above. With Liberation Sans (C about 1.1) it reaches
+ * 0.148 above Helvetica's box and 0.022 below, measured here at 14 pt, and stops 0.006 short of
+ * the top of the Japanese lines on `unembedded-japanese`.
  */
 const ACROSS = 0.02
 
@@ -596,7 +655,7 @@ describe('selection over the spans', () => {
 
   it("may stop short of the box's top on a font taller than the CSS font's text, on text-rtl", async () => {
     // Noto Sans Hebrew's ascent is 1.068 em; the selection is the CSS fallback font's text. With
-    // Liberation Sans it stops 0.255 em short of the box's top and level with its bottom. Bounds,
+    // Liberation Sans it stops 0.187 em short of the box's top and 0.069 em short of its bottom. Bounds,
     // not that value, so another machine's fallback font passes: the top no more than 0.4 em
     // short, the quad over the baseline and up to 0.6 em above it, the bottom no more than 0.1 em
     // short of the box's bottom.

@@ -22,10 +22,13 @@ export interface MountTextSpansOptions {
 
 const DEGREES = 180 / Math.PI
 /**
- * The share of a span's line box, one font size high, that stands above the baseline: the
- * ascent core's PDF.js reader gives a font PDF.js has no figures for.
+ * The share of a span's line box, one font size high, that stands above the baseline when the
+ * browser gives no figures for the span's font: the ascent core's PDF.js reader gives a font
+ * PDF.js has no figures for.
  */
 const LINE_ASCENT = 0.75
+/** The size, in CSS pixels, a family's ascent is measured at. */
+const ASCENT_SIZE = 30
 
 /** Below this, in degrees, a run is taken as level and gets no `--rotate`. */
 const LEVEL = 1e-6
@@ -115,6 +118,34 @@ export function mountTextSpans(options: MountTextSpansOptions): {
     return width
   }
 
+  /** Shares measured in this mount, by family. */
+  const ascents = new Map<string, number>()
+  /**
+   * The share of a family's line box that stands above the baseline: its ascent over its ascent
+   * and descent, as PDF.js's layer measures it. A selection covers the line box, so with this
+   * share it reaches as high over the glyphs as the browser's font does.
+   */
+  const lineAscent = (family: string): number => {
+    let share = ascents.get(family)
+    if (share === undefined) {
+      share = LINE_ASCENT
+      if (context) {
+        const wanted = `${ASCENT_SIZE}px ${family}`
+        if (wanted !== font) {
+          context.font = wanted
+          font = wanted
+        }
+        const metrics = context.measureText('')
+        const ascent = metrics.fontBoundingBoxAscent
+        const descent = Math.abs(metrics.fontBoundingBoxDescent)
+        if (ascent > 0 && Number.isFinite(ascent + descent))
+          share = ascent / (ascent + descent)
+      }
+      ascents.set(family, share)
+    }
+    return share
+  }
+
   const spanFor = (
     item: TextItem,
     family: string,
@@ -123,8 +154,8 @@ export function mountTextSpans(options: MountTextSpansOptions): {
     const { p1, p3, p4 } = item.quad
     const size = Number.isFinite(item.fontSize) && item.fontSize > 0 ? item.fontSize : 0
     // The run's height runs from the font's descent to its ascent, which need not be one font
-    // size. The span's line box, one font size high, stands on the baseline with `LINE_ASCENT`
-    // of it above, so the spans of a line in different fonts line up. With no baseline it is
+    // size. The span's line box, one font size high, stands on the baseline with the family's
+    // share of it above, so the browser's glyphs sit on the page's. With no baseline it is
     // centred on the box. Either way its top corner moves down the glyphs' up from `p1`.
     const height = Math.hypot(p1.x - p3.x, p1.y - p3.y)
     let x = p1.x
@@ -132,7 +163,7 @@ export function mountTextSpans(options: MountTextSpansOptions): {
     if (height > 0) {
       const shift =
         baseline !== undefined && Number.isFinite(baseline)
-          ? height - baseline - LINE_ASCENT * size
+          ? height - baseline - lineAscent(family) * size
           : (height - size) / 2
       x -= ((p1.x - p3.x) / height) * shift
       y -= ((p1.y - p3.y) / height) * shift
