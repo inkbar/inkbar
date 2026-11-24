@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { cleanUri, nameBytes, rawDestination, targetFromFacts } from './targets'
+import { explicitDest } from './test-utils'
 
-import type { FileActionShape, FileTargetShape } from './types'
+import type { FileActionShape, FileDestinationShape, FileTargetShape } from './types'
 
 /** The bytes of ASCII text. */
 const ascii = (text: string) => new TextEncoder().encode(text)
 
 const action = (a: FileActionShape): FileTargetShape => ({ action: a })
-const uri = (text: string) => action({ kind: 'URI', uri: ascii(text) })
+const uri = (text: string) => action({ kind: 'URI', uriKind: 'string', uri: ascii(text) })
 const script = (source: string) => action({ kind: 'JavaScript', script: source })
 
 const unsupported = (reason: string) => ({ kind: 'unsupported', reason })
@@ -75,10 +76,20 @@ describe('targetFromFacts', () => {
     // PDF.js tells a refused address with no scheme by whether it has a #, so these come out
     // as launch or remote (the link-targets fixture's uri-bytes is launch).
     expect(
-      targetFromFacts(action({ kind: 'URI', uri: new Uint8Array([0xff, 0xfe]) }))
+      targetFromFacts(
+        action({ kind: 'URI', uriKind: 'string', uri: new Uint8Array([0xff, 0xfe]) })
+      )
     ).toEqual(unsupported('launch'))
     expect(targetFromFacts(uri('www.example'))).toEqual(unsupported('launch'))
     expect(targetFromFacts(uri('page.html#top'))).toEqual(unsupported('remote'))
+  })
+
+  it('a URI written as a name is the address / and the name, as PDF.js reads it', () => {
+    const named = (text: string) =>
+      targetFromFacts(action({ kind: 'URI', uriKind: 'name', uri: ascii(text) }))
+    // `/URI /https://example.com` would otherwise read as an address with a scheme.
+    expect(named('https://example.com')).toEqual(unsupported('launch'))
+    expect(named('page#top')).toEqual(unsupported('remote'))
   })
 
   it('a URI action with no address goes nowhere', () => {
@@ -93,10 +104,10 @@ describe('targetFromFacts', () => {
       targetFromFacts(
         action({
           kind: 'GoTo',
-          destination: { page: 2, fit: 'XYZ', args: [72, 500, null, null] },
+          destination: explicitDest(2, 'XYZ', [72, 500]),
         })
       )
-    ).toEqual({ kind: 'dest', raw: [2, { name: 'XYZ' }, 72, 500, null] })
+    ).toEqual({ kind: 'dest', raw: [2, { name: 'XYZ' }, 72, 500] })
     expect(
       targetFromFacts(action({ kind: 'GoTo', destination: { name: ascii('chapter-2') } }))
     ).toEqual({ kind: 'dest', raw: 'chapter-2' })
@@ -108,17 +119,29 @@ describe('targetFromFacts', () => {
       targetFromFacts(
         action({
           kind: 'GoToR',
+          fileKind: 'string',
           file: ascii('https://example.com/doc.pdf'),
           newWindow: true,
         })
       )
     ).toEqual(url('https://example.com/doc.pdf', true))
     expect(
-      targetFromFacts(action({ kind: 'Launch', file: ascii('https://example.com/run') }))
+      targetFromFacts(
+        action({
+          kind: 'Launch',
+          fileKind: 'string',
+          file: ascii('https://example.com/run'),
+        })
+      )
     ).toEqual(url('https://example.com/run'))
     expect(
       targetFromFacts(
-        action({ kind: 'Launch', file: ascii('www.example.com/run'), newWindow: false })
+        action({
+          kind: 'Launch',
+          fileKind: 'string',
+          file: ascii('www.example.com/run'),
+          newWindow: false,
+        })
       )
     ).toEqual(url('http://www.example.com/run'))
   })
@@ -128,6 +151,7 @@ describe('targetFromFacts', () => {
       targetFromFacts(
         action({
           kind: 'GoToR',
+          fileKind: 'string',
           file: ascii('https://example.com/doc.pdf#old'),
           destination: { name: ascii('ch1') },
         })
@@ -137,19 +161,31 @@ describe('targetFromFacts', () => {
 
   it('a GoToR or Launch action whose file is unsafe is unsafe-url', () => {
     expect(
-      targetFromFacts(action({ kind: 'GoToR', file: ascii('file:///etc/passwd') }))
-    ).toEqual(unsupported('unsafe-url'))
-    expect(
-      targetFromFacts(action({ kind: 'Launch', file: ascii('javascript:alert(1)') }))
+      targetFromFacts(
+        action({ kind: 'GoToR', fileKind: 'string', file: ascii('file:///etc/passwd') })
+      )
     ).toEqual(unsupported('unsafe-url'))
     expect(
       targetFromFacts(
-        action({ kind: 'Launch', file: new Uint8Array([0xc3, 0x28]), newWindow: true })
+        action({ kind: 'Launch', fileKind: 'string', file: ascii('javascript:alert(1)') })
+      )
+    ).toEqual(unsupported('unsafe-url'))
+    expect(
+      targetFromFacts(
+        action({
+          kind: 'Launch',
+          fileKind: 'string',
+          file: new Uint8Array([0xc3, 0x28]),
+          newWindow: true,
+        })
       )
     ).toEqual(unsupported('launch'))
-    // Bytes 0xff 0xfe are an empty UTF-16LE name, which PDF.js reads as no address at all.
+    // In a file specification, bytes 0xff 0xfe are an empty UTF-16LE name, which PDF.js reads
+    // as no address at all.
     expect(
-      targetFromFacts(action({ kind: 'GoToR', file: new Uint8Array([0xff, 0xfe]) }))
+      targetFromFacts(
+        action({ kind: 'GoToR', fileKind: 'spec', file: new Uint8Array([0xff, 0xfe]) })
+      )
     ).toEqual(unsupported('unknown'))
   })
 
@@ -158,6 +194,7 @@ describe('targetFromFacts', () => {
       targetFromFacts(
         action({
           kind: 'GoToR',
+          fileKind: 'string',
           file: ascii('other.pdf'),
           destination: { name: ascii('ch1') },
         })
@@ -167,8 +204,9 @@ describe('targetFromFacts', () => {
       targetFromFacts(
         action({
           kind: 'GoToR',
+          fileKind: 'string',
           file: ascii('other.pdf'),
-          destination: { page: 0, fit: 'Fit', args: [null, null, null, null] },
+          destination: explicitDest(0, 'Fit'),
         })
       )
     ).toEqual(unsupported('remote'))
@@ -177,28 +215,97 @@ describe('targetFromFacts', () => {
   it('a GoToR action to a file with no destination is launch, as PDF.js reports it', () => {
     // PDF.js joins a GoToR's file and destination as file#dest and tells remote from launch by
     // the #, so with no destination there is no # and it is launch.
-    expect(targetFromFacts(action({ kind: 'GoToR', file: ascii('other.pdf') }))).toEqual(
-      unsupported('launch')
-    )
+    expect(
+      targetFromFacts(
+        action({ kind: 'GoToR', fileKind: 'string', file: ascii('other.pdf') })
+      )
+    ).toEqual(unsupported('launch'))
     // And with no file at all, PDF.js reads nothing from it.
     expect(targetFromFacts(action({ kind: 'GoToR' }))).toEqual(unsupported('unknown'))
   })
 
   it('a Launch action to a file is launch', () => {
-    expect(targetFromFacts(action({ kind: 'Launch', file: ascii('app.exe') }))).toEqual(
-      unsupported('launch')
-    )
+    expect(
+      targetFromFacts(
+        action({ kind: 'Launch', fileKind: 'string', file: ascii('app.exe') })
+      )
+    ).toEqual(unsupported('launch'))
     expect(targetFromFacts(action({ kind: 'Launch' }))).toEqual(unsupported('unknown'))
   })
 
-  it('a file name with a byte-order mark is read as text', () => {
+  it('a file specification is read as text, a plain /F string as its bytes', () => {
     const utf16 = new Uint8Array([
       0xfe,
       0xff,
       ...[...'https://example.com/u'].flatMap((c) => [0, c.charCodeAt(0)]),
     ])
-    expect(targetFromFacts(action({ kind: 'Launch', file: utf16 }))).toEqual(
-      url('https://example.com/u')
+    expect(
+      targetFromFacts(action({ kind: 'Launch', fileKind: 'spec', file: utf16 }))
+    ).toEqual(url('https://example.com/u'))
+    // PDF.js keeps a string's bytes, so its byte-order mark is two characters of the address.
+    expect(
+      targetFromFacts(action({ kind: 'Launch', fileKind: 'string', file: utf16 }))
+    ).toEqual(unsupported('launch'))
+  })
+
+  it('a file specification turns each backslash into a slash, as PDF.js does', () => {
+    const named = (text: string) =>
+      targetFromFacts(action({ kind: 'GoToR', fileKind: 'spec', file: ascii(text) }))
+    expect(named('https:\\\\example.com\\a\\b.pdf')).toEqual(
+      url('https://example.com/a/b.pdf')
+    )
+    expect(named('https:\\/\\/example.com/c.pdf')).toEqual(
+      url('https://example.com/c.pdf')
+    )
+    // A plain string keeps them: the URL parser then reads them as slashes itself.
+    expect(
+      targetFromFacts(
+        action({ kind: 'GoToR', fileKind: 'string', file: ascii('dir\\x.pdf#p') })
+      )
+    ).toEqual(unsupported('remote'))
+  })
+
+  it('a file specification with no string gives the address "", as PDF.js reads it', () => {
+    const spec = { kind: 'GoToR', fileKind: 'spec' } as const
+    expect(targetFromFacts(action(spec))).toEqual(unsupported('unknown'))
+    // A destination in the other file still joins it: "#ch1".
+    expect(
+      targetFromFacts(action({ ...spec, destination: { name: ascii('ch1') } }))
+    ).toEqual(unsupported('remote'))
+    // An /F that is neither a string nor a file specification: PDF.js reads nothing.
+    expect(
+      targetFromFacts(action({ kind: 'GoToR', destination: { name: ascii('ch1') } }))
+    ).toEqual(unsupported('unknown'))
+  })
+
+  it('a remote explicit destination is joined as JSON of the array PDF.js gives', () => {
+    const remote = (destination: FileDestinationShape) =>
+      targetFromFacts(
+        action({
+          kind: 'GoToR',
+          fileKind: 'string',
+          file: ascii('https://example.com/other.pdf'),
+          destination,
+        })
+      )
+    expect(remote(explicitDest(4, 'FitH', [500]))).toEqual(
+      url('https://example.com/other.pdf#[4,{%22name%22:%22FitH%22},500]')
+    )
+    expect(
+      remote(
+        explicitDest(-1, 'Fit', [], {
+          pageRef: { objectNumber: 7, generation: 0 },
+          pageKind: 'other',
+        })
+      )
+    ).toEqual(
+      url(
+        'https://example.com/other.pdf#[{%22num%22:7,%22gen%22:0},{%22name%22:%22Fit%22}]'
+      )
+    )
+    // One PDF.js refuses adds nothing.
+    expect(remote(explicitDest(4, 'XYZ', [1]))).toEqual(
+      url('https://example.com/other.pdf')
     )
   })
 
@@ -283,6 +390,18 @@ describe('targetFromFacts', () => {
     expect(ran).toBe(false)
   })
 
+  it('a script cut short is read by its start, as a whole one is', () => {
+    const cut = (source: string) =>
+      targetFromFacts(
+        action({ kind: 'JavaScript', script: source, scriptTruncated: true })
+      )
+    expect(cut("app.launchURL('https://example.com/js', true); app.alert('")).toEqual(
+      url('https://example.com/js', true)
+    )
+    // Cut inside the call, it matches nothing.
+    expect(cut("app.launchURL('https://example.com/j")).toEqual(unsupported('unknown'))
+  })
+
   it('reads a megabyte script in linear time', () => {
     // A backtracking pattern would take minutes on these; the bound only leaves room for a
     // loaded machine.
@@ -303,13 +422,13 @@ describe('targetFromFacts', () => {
   it('with no action, the destination: dest', () => {
     expect(
       targetFromFacts({
-        destination: { page: 0, fit: 'Fit', args: [null, null, null, null] },
+        destination: explicitDest(0, 'Fit'),
       })
     ).toEqual({ kind: 'dest', raw: [0, { name: 'Fit' }] })
   })
 
   it('an action wins over a destination, even one that goes nowhere', () => {
-    const destination = { page: 0, fit: 'Fit', args: [null, null, null, null] }
+    const destination = explicitDest(0, 'Fit')
     expect(targetFromFacts({ ...uri('https://example.com/a'), destination })).toEqual(
       url('https://example.com/a')
     )
@@ -321,12 +440,20 @@ describe('targetFromFacts', () => {
   it('with neither, the additional action, by the same rules', () => {
     expect(
       targetFromFacts({
-        additionalAction: { kind: 'URI', uri: ascii('https://example.com/aa') },
+        additionalAction: {
+          kind: 'URI',
+          uriKind: 'string',
+          uri: ascii('https://example.com/aa'),
+        },
       })
     ).toEqual(url('https://example.com/aa'))
     expect(
       targetFromFacts({
-        additionalAction: { kind: 'URI', uri: ascii('javascript:alert(1)') },
+        additionalAction: {
+          kind: 'URI',
+          uriKind: 'string',
+          uri: ascii('javascript:alert(1)'),
+        },
       })
     ).toEqual(unsupported('unsafe-url'))
     expect(
@@ -349,6 +476,27 @@ describe('targetFromFacts', () => {
     ).toEqual({ kind: 'named', action: 'NextPage' })
   })
 
+  it('a /Dest that is no destination still keeps the additional action out', () => {
+    // PDF.js takes /Dest whenever the dictionary has one, valid or not, and reads /AA only
+    // when it has neither /A nor /Dest.
+    const additionalAction = { kind: 'Named', name: 'LastPage' } as const
+    expect(targetFromFacts({ destinationInvalid: true, additionalAction })).toEqual(
+      unsupported('unknown')
+    )
+    // A /Dest array PDF.js refuses does the same.
+    expect(
+      targetFromFacts({ destination: explicitDest(0, 'XYZ'), additionalAction })
+    ).toEqual(unsupported('unknown'))
+    // /A still wins over both.
+    expect(
+      targetFromFacts({
+        destinationInvalid: true,
+        action: { kind: 'Named', name: 'NextPage' },
+        additionalAction,
+      })
+    ).toEqual({ kind: 'named', action: 'NextPage' })
+  })
+
   it('an empty destination name goes nowhere, as PDF.js tests the value before decoding it', () => {
     const empty = { name: new Uint8Array() }
     expect(targetFromFacts({ destination: empty })).toEqual(unsupported('unknown'))
@@ -358,7 +506,12 @@ describe('targetFromFacts', () => {
     // A GoToR with an empty destination gets no #, so it is launch, not remote.
     expect(
       targetFromFacts(
-        action({ kind: 'GoToR', file: ascii('other.pdf'), destination: empty })
+        action({
+          kind: 'GoToR',
+          fileKind: 'string',
+          file: ascii('other.pdf'),
+          destination: empty,
+        })
       )
     ).toEqual(unsupported('launch'))
     // Bytes that decode to nothing are still a value: PDF.js keeps the empty name.
@@ -373,26 +526,33 @@ describe('targetFromFacts', () => {
 })
 
 describe('rawDestination', () => {
-  /** An explicit destination's facts: four arguments, `null` past those given. */
-  const explicit = (fit: string, ...given: number[]) => ({
-    page: 1,
-    fit,
-    args: [...given, null, null, null, null].slice(0, 4),
-  })
+  const ref = { objectNumber: 12, generation: 0 }
+  const byRef = (fit: string, given: readonly (number | null)[] = []) =>
+    explicitDest(3, fit, given, { pageRef: ref, pageKind: 'ref' })
 
-  it('an explicit destination: [page, { name: fit }, ...] with the arguments its fit takes', () => {
-    expect(rawDestination(explicit('XYZ', 1, 2, 3))).toEqual([
+  it('an explicit destination: the page number, { name: fit }, the arguments as written', () => {
+    expect(rawDestination(explicitDest(1, 'XYZ', [1, 2, 3]))).toEqual([
       1,
       { name: 'XYZ' },
       1,
       2,
       3,
     ])
-    for (const fit of ['FitH', 'FitBH', 'FitV', 'FitBV'])
-      expect(rawDestination(explicit(fit, 1))).toEqual([1, { name: fit }, 1])
+    // Two arguments are two, not three with a null: PDF.js gives the array as the file has it.
+    expect(rawDestination(explicitDest(1, 'XYZ', [1, null]))).toEqual([
+      1,
+      { name: 'XYZ' },
+      1,
+      null,
+    ])
+    for (const fit of ['FitH', 'FitBH', 'FitV', 'FitBV']) {
+      expect(rawDestination(explicitDest(1, fit, [1]))).toEqual([1, { name: fit }, 1])
+      // No argument at all is allowed: it leaves the coordinate as it is.
+      expect(rawDestination(explicitDest(1, fit))).toEqual([1, { name: fit }])
+    }
     for (const fit of ['Fit', 'FitB'])
-      expect(rawDestination(explicit(fit))).toEqual([1, { name: fit }])
-    expect(rawDestination(explicit('FitR', 1, 2, 3, 4))).toEqual([
+      expect(rawDestination(explicitDest(1, fit))).toEqual([1, { name: fit }])
+    expect(rawDestination(explicitDest(1, 'FitR', [1, 2, 3, 4]))).toEqual([
       1,
       { name: 'FitR' },
       1,
@@ -402,63 +562,87 @@ describe('rawDestination', () => {
     ])
   })
 
+  it('a page reference as PDF.js gives it, { num, gen }, noted with its page', () => {
+    const pages = new Map<string, number>()
+    expect(rawDestination(byRef('XYZ', [72, 600, null]), pages)).toEqual([
+      { num: 12, gen: 0 },
+      { name: 'XYZ' },
+      72,
+      600,
+      null,
+    ])
+    expect(pages.get('12 0')).toBe(3)
+    const gen2 = explicitDest(-1, 'Fit', [], {
+      pageRef: { objectNumber: 9, generation: 2 },
+      pageKind: 'other',
+    })
+    // A reference to anything is a valid entry: PDF.js checks only that it is a reference.
+    expect(rawDestination(gen2, pages)).toEqual([{ num: 9, gen: 2 }, { name: 'Fit' }])
+    expect(pages.get('9 2')).toBe(-1)
+  })
+
   it('a page of -1 is passed on', () => {
-    expect(
-      rawDestination({ page: -1, fit: 'Fit', args: [null, null, null, null] })
-    ).toEqual([-1, { name: 'Fit' }])
+    expect(rawDestination(explicitDest(-1, 'Fit'))).toEqual([-1, { name: 'Fit' }])
   })
 
-  // PDF.js's `isValidExplicitDest`, rule by rule, as far as the facts tell.
+  // PDF.js's `isValidExplicitDest`, rule by rule.
+  it('none for a page entry that is neither a reference nor a whole number', () => {
+    for (const pageKind of ['other', 'missing'] as const)
+      expect(rawDestination(explicitDest(-1, 'Fit', [], { pageKind }))).toBeUndefined()
+  })
+
+  it('none for a fit not written as a name', () => {
+    for (const fitKind of ['string', 'other', 'missing'] as const)
+      expect(rawDestination(explicitDest(0, 'Fit', [], { fitKind }))).toBeUndefined()
+  })
+
   it('none for a fit PDF.js does not know', () => {
-    expect(
-      rawDestination({ page: 0, fit: 'Unknown', args: [null, null, null, null] })
-    ).toBeUndefined()
+    expect(rawDestination(explicitDest(0, 'Unknown'))).toBeUndefined()
   })
 
-  it('none for a Fit or FitB with an argument', () => {
+  it('none, and no throw, for a fit named after a property every object has', () => {
+    for (const fit of ['constructor', '__proto__', 'toString', 'hasOwnProperty'])
+      expect(rawDestination(explicitDest(0, fit))).toBeUndefined()
+  })
+
+  it('none for a Fit or FitB with an argument, even a null', () => {
     for (const fit of ['Fit', 'FitB']) {
-      expect(rawDestination(explicit(fit, 1))).toBeUndefined()
-      expect(
-        rawDestination({ page: 1, fit, args: [null, null, null, 4] })
-      ).toBeUndefined()
+      expect(rawDestination(explicitDest(1, fit, [1]))).toBeUndefined()
+      expect(rawDestination(explicitDest(1, fit, [null]))).toBeUndefined()
     }
   })
 
   it('none for a FitH, FitBH, FitV or FitBV with more than one argument', () => {
     for (const fit of ['FitH', 'FitBH', 'FitV', 'FitBV']) {
-      expect(rawDestination(explicit(fit, 1, 2))).toBeUndefined()
-      expect(rawDestination({ page: 1, fit, args: [1, null, null, 4] })).toBeUndefined()
-      // No argument at all is allowed: it leaves the coordinate as it is.
-      expect(rawDestination(explicit(fit))).toEqual([1, { name: fit }, null])
+      expect(rawDestination(explicitDest(1, fit, [1, 2]))).toBeUndefined()
+      expect(rawDestination(explicitDest(1, fit, [1, null]))).toBeUndefined()
     }
   })
 
-  it('none for an XYZ with more than three arguments', () => {
-    expect(rawDestination(explicit('XYZ', 1, 2, 3, 4))).toBeUndefined()
+  it('none for an XYZ with fewer than two arguments or more than three', () => {
+    expect(rawDestination(explicitDest(1, 'XYZ', [72]))).toBeUndefined()
+    expect(rawDestination(explicitDest(1, 'XYZ'))).toBeUndefined()
+    expect(rawDestination(explicitDest(1, 'XYZ', [1, 2, 3, 4]))).toBeUndefined()
     expect(
-      rawDestination({ page: 1, fit: 'XYZ', args: [null, null, null, 0] })
+      rawDestination(explicitDest(1, 'XYZ', [null, null, null, null]))
     ).toBeUndefined()
   })
 
-  it('none for a FitR without four numbers', () => {
-    expect(rawDestination(explicit('FitR', 1, 2, 3))).toBeUndefined()
-    expect(
-      rawDestination({ page: 1, fit: 'FitR', args: [1, null, 3, 4] })
-    ).toBeUndefined()
+  it('none for a FitR without four numbers: a null is refused there', () => {
+    expect(rawDestination(explicitDest(1, 'FitR', [1, 2, 3]))).toBeUndefined()
+    expect(rawDestination(explicitDest(1, 'FitR', [1, null, 3, 4]))).toBeUndefined()
+    expect(rawDestination(explicitDest(1, 'FitR', [1, 2, 3, 4, 5]))).toBeUndefined()
   })
 
-  it('kept where the facts cannot tell a refused destination from an accepted one', () => {
-    // PDF.js refuses an XYZ with fewer than two arguments, but [p /XYZ 72] and the accepted
-    // [p /XYZ 72 null] give the same facts.
-    expect(rawDestination(explicit('XYZ', 72))).toEqual([
-      1,
-      { name: 'XYZ' },
-      72,
-      null,
-      null,
-    ])
-    // A null the file writes after a Fit, or a name in place of a number, reads as no argument.
-    expect(rawDestination(explicit('Fit'))).toEqual([1, { name: 'Fit' }])
+  it('none for an argument that is neither a number nor null', () => {
+    const name = explicitDest(1, 'XYZ', [1, 2], { argKinds: ['number', 'other'] })
+    expect(rawDestination(name)).toBeUndefined()
+  })
+
+  it('none for an argument written as a reference, even to a number', () => {
+    expect(
+      rawDestination(explicitDest(1, 'FitH', [500], { argIndirect: true }))
+    ).toBeUndefined()
   })
 
   it('a name, decoded as PDF.js decodes a byte string', () => {

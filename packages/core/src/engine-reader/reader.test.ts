@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'v
 import { mapInOrder } from '../model/map-in-order'
 
 import { createEngineReader, MAX_PIXELS } from './reader'
+import { explicitDest } from './test-utils'
 
 import type { ReaderEngine, ReaderEngineDocument } from './types'
 import type { EngineLoader } from '../model/save/saver'
@@ -510,6 +511,18 @@ describe('drawing', () => {
     expect(context.drawImage).toHaveBeenCalledWith(scratch, 0, 0, 16_588, 23_458)
     // The scratch bitmap is let go once drawn.
     expect([scratch.width, scratch.height]).toEqual([0, 0])
+  })
+
+  it('reads a page whose text the engine cut short, and warns once for it', async () => {
+    const t = setup({ pageText: () => Promise.resolve({ ...hiText(), truncated: true }) })
+    const reader = await t.open()
+    const { items } = await reader.text(0, { glyphs: false })
+    expect(items.map((i) => i.str)).toEqual(['Hi'])
+    await reader.text(0, { glyphs: true })
+    expect(t.warn).toHaveBeenCalledTimes(1)
+    expect(t.warn).toHaveBeenCalledWith(
+      'Inkbar: page 1 has more text than can be read; its text is read up to the first 1,000,000 characters.'
+    )
   })
 
   it('warns once per missing font key', async () => {
@@ -1064,7 +1077,9 @@ describe('links, the outline and destinations', () => {
           subtype: 'Link',
           flags: 4,
           objectNumber: 9,
+          generation: 0,
           rectOk: true,
+          hasQuads: false,
           quadsOk: true,
         },
       ],
@@ -1072,7 +1087,7 @@ describe('links, the outline and destinations', () => {
         {
           index: 0,
           rect: { x: 72, y: 700, width: 100, height: 20 },
-          destination: { page: 0, fit: 'XYZ', args: [72, 600, null, null] },
+          destination: explicitDest(0, 'XYZ', [72, 600]),
         },
       ],
     })
@@ -1086,7 +1101,7 @@ describe('links, the outline and destinations', () => {
         page: 0,
         rect: { x: 72, y: 700, width: 100, height: 20 },
         order: 0,
-        target: { kind: 'dest', raw: [0, { name: 'XYZ' }, 72, 600, null] },
+        target: { kind: 'dest', raw: [0, { name: 'XYZ' }, 72, 600] },
       },
     ])
     expect(t.engines[0]!.doc.pageLinks).toHaveBeenCalledWith(0)
@@ -1198,13 +1213,71 @@ describe('links, the outline and destinations', () => {
     expect(t.engines[0]!.doc.namedDestination).not.toHaveBeenCalled()
   })
 
+  it('gives a page reference as PDF.js does, { num, gen }, and resolves it again', async () => {
+    const byRef = (page: number, objectNumber: number) =>
+      explicitDest(page, 'FitH', [500], {
+        pageRef: { objectNumber, generation: 0 },
+        pageKind: page < 0 ? 'other' : 'ref',
+      })
+    const t = setup({
+      pageCount: 3,
+      pageLinks: () =>
+        Promise.resolve({
+          annotations: [0, 1].map((index) => ({
+            index,
+            subtype: 'Link',
+            flags: 4,
+            objectNumber: 20 + index,
+            generation: 0,
+            rectOk: true,
+            hasQuads: false,
+            quadsOk: true,
+          })),
+          links: [
+            {
+              index: 0,
+              rect: { x: 0, y: 0, width: 9, height: 9 },
+              destination: byRef(2, 7),
+            },
+            {
+              index: 1,
+              rect: { x: 0, y: 0, width: 9, height: 9 },
+              destination: byRef(-1, 99),
+            },
+          ],
+        }),
+    })
+    const reader = await t.open()
+    const [toPage, toNothing] = await reader.links(0)
+    expect(toPage!.target).toEqual({
+      kind: 'dest',
+      raw: [{ num: 7, gen: 0 }, { name: 'FitH' }, 500],
+    })
+    // A copy resolves as well as the array the link gave: the reference is looked up by value.
+    const raw = JSON.parse(
+      JSON.stringify((toPage!.target as { raw: readonly unknown[] }).raw)
+    ) as unknown[]
+    await expect(reader.resolveDestination(raw)).resolves.toEqual({
+      page: 2,
+      fit: 'fith',
+      top: 500,
+    })
+    // A reference to no page resolves to nothing, and so does one the reader never gave.
+    await expect(
+      reader.resolveDestination((toNothing!.target as { raw: readonly unknown[] }).raw)
+    ).resolves.toBeUndefined()
+    await expect(
+      reader.resolveDestination([{ num: 8, gen: 0 }, { name: 'Fit' }])
+    ).resolves.toBeUndefined()
+  })
+
   it('looks a name up in the engine by the bytes it was read from, once per name', async () => {
     const t = setup({
       pageCount: 2,
       namedDestination: (name) =>
         Promise.resolve(
           new TextDecoder().decode(name) === 'chapter-2'
-            ? { page: 1, fit: 'FitH', args: [500, null, null, null] }
+            ? explicitDest(1, 'FitH', [500])
             : undefined
         ),
     })
@@ -1233,8 +1306,8 @@ describe('links, the outline and destinations', () => {
       namedDestination: (name) =>
         Promise.resolve(
           new TextDecoder().decode(name) === 'nowhere'
-            ? { page: -1, fit: 'Fit', args: [null, null, null, null] }
-            : { page: 0, fit: 'Unknown', args: [null, null, null, null] }
+            ? explicitDest(-1, 'Fit')
+            : explicitDest(0, 'Unknown')
         ),
     })
     const reader = await t.open()
@@ -1261,7 +1334,7 @@ describe('links, the outline and destinations', () => {
       namedDestination: (_, engine) =>
         engine.index < 2
           ? Promise.reject(engineError('engine-failure'))
-          : Promise.resolve({ page: 0, fit: 'Fit', args: [null, null, null, null] }),
+          : Promise.resolve(explicitDest(0, 'Fit')),
     })
     const reader = await t.open()
     await reader.pageInfo(0)
@@ -1286,7 +1359,7 @@ describe('links, the outline and destinations', () => {
               italic: false,
               count: 0,
               children: [],
-              destination: { page: 0, fit: 'Fit', args: [null, null, null, null] },
+              destination: explicitDest(0, 'Fit'),
             },
             {
               title: 'Chapter 2',
@@ -1300,8 +1373,7 @@ describe('links, the outline and destinations', () => {
           // A cut-short outline is given as far as it goes.
           truncated: true,
         }),
-      namedDestination: () =>
-        Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] }),
+      namedDestination: () => Promise.resolve(explicitDest(1, 'Fit')),
     })
     const reader = await t.open()
     const outline = await reader.outline()
@@ -1333,7 +1405,7 @@ describe('links, the outline and destinations', () => {
         }),
       namedDestination: oneQueue(
         (name: Uint8Array) => trapping(index(name)),
-        () => Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] })
+        () => Promise.resolve(explicitDest(1, 'Fit'))
       ),
     })
     const reader = await t.open()
@@ -1387,7 +1459,7 @@ describe('links, the outline and destinations', () => {
       namedDestination: (name) =>
         new TextDecoder().decode(name) === 'bad'
           ? Promise.reject(engineError('engine-failure'))
-          : Promise.resolve({ page: 1, fit: 'Fit', args: [null, null, null, null] }),
+          : Promise.resolve(explicitDest(1, 'Fit')),
     })
     const reader = await t.open()
     await reader.pageInfo(0)
@@ -1506,6 +1578,13 @@ describe('an engine that cannot start', () => {
       fit: 'fit',
     })
     expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
+    // A page reference the engine never gave, as the fallback's own links give, goes to it.
+    const fallbackRaw = [{ num: 5, gen: 0 }, { name: 'Fit' }]
+    await expect(reader.resolveDestination(fallbackRaw)).resolves.toEqual({
+      page: 1,
+      fit: 'fit',
+    })
+    expect(instead.resolveDestination).toHaveBeenLastCalledWith(fallbackRaw)
     // Facts the engine gave are kept; a page it never gave comes from the fallback.
     await expect(reader.pageInfo(0)).resolves.toMatchObject({ width: 612 })
     await expect(reader.pageInfo(1)).resolves.toBe(fallbackFacts)

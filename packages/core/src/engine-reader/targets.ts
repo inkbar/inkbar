@@ -5,7 +5,22 @@
 import { isNamedAction, type LinkTarget, type RawDestination } from '../model/destination'
 import { safeUrl, unsafeUrlReason } from '../model/form/url'
 
-import type { FileActionShape, FileDestinationShape, FileTargetShape } from './types'
+import type {
+  ExplicitDestinationShape,
+  FileActionShape,
+  FileDestinationShape,
+  FileTargetShape,
+} from './types'
+
+/**
+ * @internal Pages by object reference, `"<number> <generation>"`, for the references this
+ * reader puts in an explicit destination's `raw`, so it can resolve them again. -1 for a
+ * reference to no page of the file.
+ */
+export type RefPages = Map<string, number>
+
+/** @internal The key of a page reference in `RefPages`. */
+export const refKey = (num: number, gen: number): string => `${num} ${gen}`
 
 /** What PDF.js reads from a link or outline item before Inkbar turns it into a target. */
 interface Read {
@@ -19,9 +34,13 @@ interface Read {
 
 /**
  * @internal Where a link or outline item goes, by PDF.js 6.4.299's rules, from the file's facts.
+ * The page reference of an explicit destination it gives is noted in `pages`.
  */
-export function targetFromFacts(facts: FileTargetShape): LinkTarget {
-  const read = readTarget(facts)
+export function targetFromFacts(
+  facts: FileTargetShape & { destinationInvalid?: true },
+  pages?: RefPages
+): LinkTarget {
+  const read = readTarget(facts, pages)
   if (read.dest !== undefined) return { kind: 'dest', raw: read.dest }
   if (isNamedAction(read.action)) return { kind: 'named', action: read.action }
   const unsafeUrl = read.unsafeUrl
@@ -46,29 +65,43 @@ export function cleanUri(bytes: Uint8Array): string | undefined {
 }
 
 /**
- * @internal A destination as a `RawDestination`: a name decoded as PDF.js decodes a byte string,
- * an explicit one as `[page, { name: fit }, ...args]` with the arguments its fit takes. A `page`
- * of -1 is kept and resolves to nothing. `undefined` for an explicit destination PDF.js does not
- * accept (`isValidExplicitDest`), as far as the engine's facts tell: an unknown fit, a Fit or
- * FitB with an argument, a FitH, FitBH, FitV or FitBV with more than one, an XYZ with more than
- * three, or a FitR without four numbers.
- *
- * The facts give four arguments with `null` where the file has none, so a `null` the file
- * writes looks like one it leaves out, and an argument that is not a number reads as `null`.
- * What PDF.js refuses for those reasons is kept here: an XYZ with fewer than two arguments,
- * any fit with a written `null` past the arguments it takes, a FitR with more than four, a
- * non-number argument (or an indirect reference to a number), a fit written as a string, and a
- * first entry that is neither a page reference nor a whole number.
+ * @internal A destination as a `RawDestination`, in the shape PDF.js gives one: a name decoded as
+ * PDF.js decodes a byte string; an explicit one as the file's array, its page entry as
+ * `{ num, gen }` when it is a reference and as the number when it is a whole number, its fit as
+ * `{ name }`, then the arguments as written. A page number of -1 is kept and resolves to nothing.
+ * `undefined` for an explicit destination PDF.js's `isValidExplicitDest` refuses. A reference is
+ * noted in `pages` with the page it names.
  */
-export function rawDestination(dest: FileDestinationShape): RawDestination | undefined {
+export function rawDestination(
+  dest: FileDestinationShape,
+  pages?: RefPages
+): RawDestination | undefined {
   if ('name' in dest) return pdfString(dest.name)
-  const count = FIT_ARGS[dest.fit]
-  if (count === undefined) return undefined
-  const args = dest.args.slice(0, count)
-  // An argument past those the fit takes is one more than PDF.js allows.
-  if (dest.args.slice(count).some((arg) => arg !== null)) return undefined
-  if (dest.fit === 'FitR' && (args.length < 4 || args.includes(null))) return undefined
-  return [dest.page, { name: dest.fit }, ...args]
+  if (!validExplicit(dest)) return undefined
+  const rest = [{ name: dest.fit }, ...dest.args.slice(0, dest.argCount)]
+  if (!dest.pageRef) return [dest.page, ...rest]
+  const { objectNumber: num, generation: gen } = dest.pageRef
+  pages?.set(refKey(num, gen), dest.page)
+  return [{ num, gen }, ...rest]
+}
+
+/**
+ * Whether PDF.js 6.4.299's `isValidExplicitDest` accepts the array: a page entry that is a
+ * reference, to anything, or a whole number; a fit written as a name PDF.js knows; as many
+ * arguments as that fit takes (XYZ two or three, Fit and FitB none, FitH, FitBH, FitV and FitBV
+ * at most one, FitR four); and each argument a number or, but for FitR, `null`, written in
+ * place: a reference, even to a number, is refused.
+ */
+function validExplicit(dest: ExplicitDestinationShape): boolean {
+  if (!dest.pageRef && dest.pageKind !== 'integer') return false
+  if (dest.fitKind !== 'name') return false
+  const range = FIT_ARGS.get(dest.fit)
+  if (!range) return false
+  const [least, most] = range
+  if (dest.argCount < least || dest.argCount > most) return false
+  if (dest.argIndirect) return false
+  const nullable = dest.fit !== 'FitR'
+  return dest.argKinds.every((kind) => kind === 'number' || (nullable && kind === 'null'))
 }
 
 /**
@@ -96,48 +129,59 @@ export function nameBytes(name: string): Uint8Array {
   return out
 }
 
-/** The most arguments after the fit name PDF.js accepts for each fit. */
-const FIT_ARGS: Readonly<Record<string, number>> = {
-  XYZ: 3,
-  Fit: 0,
-  FitB: 0,
-  FitH: 1,
-  FitBH: 1,
-  FitV: 1,
-  FitBV: 1,
-  FitR: 4,
-}
+/**
+ * The fewest and most arguments after the fit name PDF.js accepts for each fit. A map, so a name
+ * from the file such as `constructor` finds nothing.
+ */
+const FIT_ARGS: ReadonlyMap<string, readonly [number, number]> = new Map([
+  ['XYZ', [2, 3]],
+  ['Fit', [0, 0]],
+  ['FitB', [0, 0]],
+  ['FitH', [0, 1]],
+  ['FitBH', [0, 1]],
+  ['FitV', [0, 1]],
+  ['FitBV', [0, 1]],
+  ['FitR', [4, 4]],
+])
 
 /**
  * What PDF.js reads from a link's or outline item's dictionary: its `/A`; failing that its
- * `/Dest`; failing both, its `/AA` entry for a press, else a release.
+ * `/Dest`, whatever the `/Dest` holds; with neither, its `/AA` entry for a press, else a release.
  */
-function readTarget(facts: FileTargetShape): Read {
-  const action = facts.action ?? (facts.destination ? undefined : facts.additionalAction)
-  if (!action) return facts.destination ? destRead(facts.destination) : {}
-  return readAction(action)
+function readTarget(
+  facts: FileTargetShape & { destinationInvalid?: true },
+  pages: RefPages | undefined
+): Read {
+  const hasDest = facts.destination !== undefined || facts.destinationInvalid === true
+  const action = facts.action ?? (hasDest ? undefined : facts.additionalAction)
+  if (!action) return destRead(facts.destination, pages)
+  return readAction(action, pages)
 }
 
 /**
  * A destination as PDF.js reads it into a target. An empty string or name is none: PDF.js tests
  * the file's value before decoding it.
  */
-const destRead = (dest: FileDestinationShape | undefined): Read => {
+const destRead = (dest: FileDestinationShape | undefined, pages?: RefPages): Read => {
   if (!dest || ('name' in dest && dest.name.length === 0)) return {}
-  const raw = rawDestination(dest)
+  const raw = rawDestination(dest, pages)
   return raw === undefined ? {} : { dest: raw }
 }
 
-function readAction(action: FileActionShape): Read {
+function readAction(action: FileActionShape, pages: RefPages | undefined): Read {
   switch (action.kind) {
     case 'URI':
-      return action.uri ? { unsafeUrl: latin1(action.uri) } : {}
+      // PDF.js reads a name as the address `/` and the name.
+      if (action.uriKind === 'name')
+        return { unsafeUrl: `/${latin1(action.uri ?? EMPTY)}` }
+      return action.uriKind === 'string' ? { unsafeUrl: latin1(action.uri ?? EMPTY) } : {}
     case 'GoTo':
-      return destRead(action.destination)
+      return destRead(action.destination, pages)
     case 'GoToR':
     case 'Launch': {
-      if (!action.file) return {}
-      let address = fileName(action.file)
+      if (!action.fileKind) return {}
+      const file = action.file ?? EMPTY
+      let address = action.fileKind === 'spec' ? specFileName(file) : latin1(file)
       const remote = action.destination && remoteDest(action.destination)
       // PDF.js joins the file and a destination in it as file#dest.
       if (remote) address = `${address.split('#', 1)[0]}#${remote}`
@@ -159,23 +203,26 @@ function readAction(action: FileActionShape): Read {
 
 /**
  * A destination in another file as PDF.js writes it after the `#`: a name decoded, an explicit
- * one as JSON. `undefined` for one PDF.js does not accept.
+ * one as JSON of its array. `undefined` for one PDF.js does not accept.
  */
 function remoteDest(dest: FileDestinationShape): string | undefined {
   const raw = rawDestination(dest)
   if (raw === undefined) return undefined
-  if (typeof raw === 'string') return raw
-  // The page of another file is the number the file gives, so it is a valid entry.
-  return Number.isInteger(raw[0]) ? JSON.stringify(raw) : undefined
+  return typeof raw === 'string' ? raw : JSON.stringify(raw)
 }
 
+const EMPTY = new Uint8Array()
+
 /**
- * The file a GoToR or Launch action names. The engine gives the first string of a file
- * specification or `/F` itself: PDF.js decodes the former as text and keeps the latter's bytes,
- * so a name with a byte-order mark, which only text has, is decoded and any other is kept.
+ * The file a file specification names, as PDF.js's `FileSpec.filename` gives it: the string
+ * decoded as text, each backslash then a slash (a doubled one first made single, and one before
+ * a slash dropped). PDF.js keeps a plain `/F` string's bytes instead.
  */
-function fileName(bytes: Uint8Array): string {
-  return startsWithMark(bytes) ? pdfString(bytes) : latin1(bytes)
+function specFileName(bytes: Uint8Array): string {
+  return pdfString(bytes)
+    .replaceAll('\\\\', '\\')
+    .replaceAll('\\/', '/')
+    .replaceAll('\\', '/')
 }
 
 /**

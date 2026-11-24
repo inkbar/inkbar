@@ -381,10 +381,11 @@ describe('link and script fixtures', () => {
     }
   )
 
-  it('link-targets has 23 Link annotations', async () => {
+  it('link-targets has 34 Link annotations, and a Highlight before the last', async () => {
     const kinds = await subtypes('link-targets')
-    expect(kinds).toHaveLength(23)
-    expect(new Set(kinds)).toEqual(new Set(['Link']))
+    expect(kinds).toHaveLength(35)
+    expect(kinds.filter((kind) => kind === 'Link')).toHaveLength(34)
+    expect(kinds.indexOf('Highlight')).toBe(33)
   })
 
   it('link-targets names one destination, résumé in UTF-16BE, in its name tree', async () => {

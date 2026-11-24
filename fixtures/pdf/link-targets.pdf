@@ -6,34 +6,45 @@ endobj
 << /Type /Pages /Kids [3 0 R] /Count 1 >>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R 24 0 R 25 0 R 26 0 R 27 0 R 28 0 R 29 0 R] >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R 24 0 R 25 0 R 26 0 R 27 0 R 28 0 R 29 0 R 30 1 R 31 0 R 32 0 R 33 0 R 34 0 R 35 0 R 36 0 R 37 0 R 38 0 R 39 0 R 40 0 R 41 0 R] >>
 endobj
 4 0 obj
-<< /Length 1023 >>
+<< /Length 1562 >>
 stream
-BT /F1 14 Tf 72 744 Td (a-and-dest) Tj ET
-BT /F1 14 Tf 72 714 Td (gotor-absolute) Tj ET
-BT /F1 14 Tf 72 684 Td (gotor-file) Tj ET
-BT /F1 14 Tf 72 654 Td (launch-absolute) Tj ET
-BT /F1 14 Tf 72 624 Td (launch-file) Tj ET
-BT /F1 14 Tf 72 594 Td (js-launch-url) Tj ET
-BT /F1 14 Tf 72 564 Td (js-window-open) Tj ET
-BT /F1 14 Tf 72 534 Td (js-other) Tj ET
-BT /F1 14 Tf 72 504 Td (aa-only) Tj ET
-BT /F1 14 Tf 72 474 Td (uri-www) Tj ET
-BT /F1 14 Tf 72 444 Td (uri-utf8) Tj ET
-BT /F1 14 Tf 72 414 Td (uri-javascript) Tj ET
-BT /F1 14 Tf 72 384 Td (uri-file) Tj ET
-BT /F1 14 Tf 72 354 Td (uri-data) Tj ET
-BT /F1 14 Tf 72 324 Td (uri-bytes) Tj ET
-BT /F1 14 Tf 72 294 Td (js-launch-javascript) Tj ET
-BT /F1 14 Tf 72 264 Td (named-next) Tj ET
-BT /F1 14 Tf 72 234 Td (named-other) Tj ET
-BT /F1 14 Tf 72 204 Td (dest-catalog) Tj ET
-BT /F1 14 Tf 72 174 Td (dest-named-utf16) Tj ET
-BT /F1 14 Tf 72 144 Td (dest-fit-argument) Tj ET
-BT /F1 14 Tf 72 114 Td (dest-fith-two-arguments) Tj ET
-BT /F1 14 Tf 72 84 Td (dest-xyz-four-arguments) Tj ET
+BT /F1 14 Tf 72 753 Td (a-and-dest) Tj ET
+BT /F1 14 Tf 72 732 Td (gotor-absolute) Tj ET
+BT /F1 14 Tf 72 711 Td (gotor-file) Tj ET
+BT /F1 14 Tf 72 690 Td (launch-absolute) Tj ET
+BT /F1 14 Tf 72 669 Td (launch-file) Tj ET
+BT /F1 14 Tf 72 648 Td (js-launch-url) Tj ET
+BT /F1 14 Tf 72 627 Td (js-window-open) Tj ET
+BT /F1 14 Tf 72 606 Td (js-other) Tj ET
+BT /F1 14 Tf 72 585 Td (aa-only) Tj ET
+BT /F1 14 Tf 72 564 Td (uri-www) Tj ET
+BT /F1 14 Tf 72 543 Td (uri-utf8) Tj ET
+BT /F1 14 Tf 72 522 Td (uri-javascript) Tj ET
+BT /F1 14 Tf 72 501 Td (uri-file) Tj ET
+BT /F1 14 Tf 72 480 Td (uri-data) Tj ET
+BT /F1 14 Tf 72 459 Td (uri-bytes) Tj ET
+BT /F1 14 Tf 72 438 Td (js-launch-javascript) Tj ET
+BT /F1 14 Tf 72 417 Td (named-next) Tj ET
+BT /F1 14 Tf 72 396 Td (named-other) Tj ET
+BT /F1 14 Tf 72 375 Td (dest-catalog) Tj ET
+BT /F1 14 Tf 72 354 Td (dest-named-utf16) Tj ET
+BT /F1 14 Tf 72 333 Td (dest-fit-argument) Tj ET
+BT /F1 14 Tf 72 312 Td (dest-fith-two-arguments) Tj ET
+BT /F1 14 Tf 72 291 Td (dest-xyz-four-arguments) Tj ET
+BT /F1 14 Tf 72 270 Td (link-generation) Tj ET
+BT /F1 14 Tf 72 249 Td (dest-invalid-beside-aa) Tj ET
+BT /F1 14 Tf 72 228 Td (launch-string-bom) Tj ET
+BT /F1 14 Tf 72 207 Td (launch-spec-utf16) Tj ET
+BT /F1 14 Tf 72 186 Td (uri-name) Tj ET
+BT /F1 14 Tf 72 165 Td (dest-xyz-one-argument) Tj ET
+BT /F1 14 Tf 72 144 Td (dest-indirect-argument) Tj ET
+BT /F1 14 Tf 72 123 Td (dest-fit-string) Tj ET
+BT /F1 14 Tf 72 102 Td (dest-page-number) Tj ET
+BT /F1 14 Tf 72 81 Td (dest-page-real) Tj ET
+BT /F1 14 Tf 72 60 Td (after-markup-no-quads) Tj ET
 
 endstream
 endobj
@@ -44,108 +55,160 @@ endobj
 << /Title (Link fixture) /Producer (Inkbar fixtures) >>
 endobj
 7 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 740 420 760] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/a) >> /Dest [3 0 R /Fit] >>
+<< /Type /Annot /Subtype /Link /Rect [300 750 420 766] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/a) >> /Dest [3 0 R /Fit] >>
 endobj
 8 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 710 420 730] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoToR /F (https://example.com/doc.pdf) /NewWindow true >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 729 420 745] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoToR /F (https://example.com/doc.pdf) /NewWindow true >> >>
 endobj
 9 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 680 420 700] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoToR /F (other.pdf) /D (ch1) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 708 420 724] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoToR /F (other.pdf) /D (ch1) >> >>
 endobj
 10 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 650 420 670] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F (https://example.com/run) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 687 420 703] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F (https://example.com/run) >> >>
 endobj
 11 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 620 420 640] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F (app.exe) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 666 420 682] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F (app.exe) >> >>
 endobj
 12 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 590 420 610] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.launchURL\('https://example.com/js', true\)) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 645 420 661] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.launchURL\('https://example.com/js', true\)) >> >>
 endobj
 13 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 560 420 580] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (window.open\('https://example.com/open'\)) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 624 420 640] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (window.open\('https://example.com/open'\)) >> >>
 endobj
 14 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 530 420 550] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.alert\('x'\)) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 603 420 619] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.alert\('x'\)) >> >>
 endobj
 15 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 500 420 520] /F 4 /Border [0 0 0] /P 3 0 R /AA << /U << /S /URI /URI (https://example.com/aa) >> >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 582 420 598] /F 4 /Border [0 0 0] /P 3 0 R /AA << /U << /S /URI /URI (https://example.com/aa) >> >> >>
 endobj
 16 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 470 420 490] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (www.example.com/path) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 561 420 577] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (www.example.com/path) >> >>
 endobj
 17 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 440 420 460] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI <68747470733a2f2f6578616d706c652e636f6d2fc3a9> >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 540 420 556] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI <68747470733a2f2f6578616d706c652e636f6d2fc3a9> >> >>
 endobj
 18 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 410 420 430] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (javascript:alert\(1\)) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 519 420 535] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (javascript:alert\(1\)) >> >>
 endobj
 19 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 380 420 400] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (file:///etc/passwd) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 498 420 514] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (file:///etc/passwd) >> >>
 endobj
 20 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 350 420 370] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (data:text/html,x) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 477 420 493] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (data:text/html,x) >> >>
 endobj
 21 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 320 420 340] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI <fffe> >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 456 420 472] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI <fffe> >> >>
 endobj
 22 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 290 420 310] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.launchURL\('javascript:alert\(1\)'\)) >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 435 420 451] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /JavaScript /JS (app.launchURL\('javascript:alert\(1\)'\)) >> >>
 endobj
 23 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 260 420 280] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Named /N /NextPage >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 414 420 430] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Named /N /NextPage >> >>
 endobj
 24 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 230 420 250] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Named /N /Print >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 393 420 409] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Named /N /Print >> >>
 endobj
 25 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 200 420 220] /F 4 /Border [0 0 0] /P 3 0 R /Dest [1 0 R /Fit] >>
+<< /Type /Annot /Subtype /Link /Rect [300 372 420 388] /F 4 /Border [0 0 0] /P 3 0 R /Dest [1 0 R /Fit] >>
 endobj
 26 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 170 420 190] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoTo /D <feff007200e900730075006d00e9> >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 351 420 367] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoTo /D <feff007200e900730075006d00e9> >> >>
 endobj
 27 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 140 420 160] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /Fit 72] >>
+<< /Type /Annot /Subtype /Link /Rect [300 330 420 346] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /Fit 72] >>
 endobj
 28 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 110 420 130] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /FitH 600 72] >>
+<< /Type /Annot /Subtype /Link /Rect [300 309 420 325] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /FitH 600 72] >>
 endobj
 29 0 obj
-<< /Type /Annot /Subtype /Link /Rect [300 80 420 100] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoTo /D [3 0 R /XYZ 72 600 0 5] >> >>
+<< /Type /Annot /Subtype /Link /Rect [300 288 420 304] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /GoTo /D [3 0 R /XYZ 72 600 0 5] >> >>
+endobj
+30 1 obj
+<< /Type /Annot /Subtype /Link /Rect [300 267 420 283] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/generation) >> >>
+endobj
+31 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 246 420 262] /F 4 /Border [0 0 0] /P 3 0 R /Dest 5 /AA << /U << /S /URI /URI (https://example.com/aa-unused) >> >> >>
+endobj
+32 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 225 420 241] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F <feff00680074007400700073003a002f002f006500780061006d0070006c0065002e0063006f006d002f0062006f006d> >> >>
+endobj
+33 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 204 420 220] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /Launch /F << /Type /Filespec /UF <feff00680074007400700073003a002f002f006500780061006d0070006c0065002e0063006f006d002f0073007000650063> >> >> >>
+endobj
+34 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 183 420 199] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI /https:#2F#2Fexample.com#2Fname >> >>
+endobj
+35 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 162 420 178] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /XYZ 72] >>
+endobj
+36 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 141 420 157] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R /FitH 42 0 R] >>
+endobj
+37 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 120 420 136] /F 4 /Border [0 0 0] /P 3 0 R /Dest [3 0 R (Fit)] >>
+endobj
+38 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 99 420 115] /F 4 /Border [0 0 0] /P 3 0 R /Dest [0 /FitH 500] >>
+endobj
+39 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 78 420 94] /F 4 /Border [0 0 0] /P 3 0 R /Dest [0.5 /Fit] >>
+endobj
+40 0 obj
+<< /Type /Annot /Subtype /Highlight /F 4 /C [1 1 0] /Rect [440 57 560 73] /P 3 0 R >>
+endobj
+41 0 obj
+<< /Type /Annot /Subtype /Link /Rect [300 57 420 73] /F 4 /Border [0 0 0] /P 3 0 R /A << /S /URI /URI (https://example.com/after-markup) >> >>
+endobj
+42 0 obj
+500
 endobj
 xref
-0 30
+0 43
 0000000000 65535 f 
 0000000009 00000 n 
 0000000137 00000 n 
 0000000194 00000 n 
-0000000488 00000 n 
-0000001563 00000 n 
-0000001660 00000 n 
-0000001731 00000 n 
-0000001899 00000 n 
-0000002070 00000 n 
-0000002216 00000 n 
-0000002369 00000 n 
-0000002506 00000 n 
-0000002688 00000 n 
-0000002864 00000 n 
-0000003015 00000 n 
-0000003176 00000 n 
-0000003325 00000 n 
-0000003498 00000 n 
-0000003648 00000 n 
-0000003795 00000 n 
-0000003940 00000 n 
-0000004073 00000 n 
-0000004248 00000 n 
-0000004384 00000 n 
-0000004517 00000 n 
-0000004640 00000 n 
-0000004796 00000 n 
-0000004922 00000 n 
-0000005053 00000 n 
+0000000572 00000 n 
+0000002186 00000 n 
+0000002283 00000 n 
+0000002354 00000 n 
+0000002522 00000 n 
+0000002693 00000 n 
+0000002839 00000 n 
+0000002992 00000 n 
+0000003129 00000 n 
+0000003311 00000 n 
+0000003487 00000 n 
+0000003638 00000 n 
+0000003799 00000 n 
+0000003948 00000 n 
+0000004121 00000 n 
+0000004271 00000 n 
+0000004418 00000 n 
+0000004563 00000 n 
+0000004696 00000 n 
+0000004871 00000 n 
+0000005007 00000 n 
+0000005140 00000 n 
+0000005263 00000 n 
+0000005419 00000 n 
+0000005545 00000 n 
+0000005676 00000 n 
+0000005825 00001 n 
+0000005984 00000 n 
+0000006160 00000 n 
+0000006386 00000 n 
+0000006642 00000 n 
+0000006800 00000 n 
+0000006926 00000 n 
+0000007057 00000 n 
+0000007181 00000 n 
+0000007304 00000 n 
+0000007423 00000 n 
+0000007525 00000 n 
+0000007684 00000 n 
 trailer
-<< /Size 30 /Root 1 0 R /Info 6 0 R >>
+<< /Size 43 /Root 1 0 R /Info 6 0 R >>
 startxref
-5201
+7704
 %%EOF

@@ -45,24 +45,54 @@ export interface ReaderEngineDocument {
 }
 
 /**
- * @internal A destination as the file gives it. `page` is 0-based, or -1 when it names no page of
- * the file; `args` always has four entries, `null` where the file has none or `null`. A named
- * destination is the name's bytes.
+ * @internal An explicit destination as the file gives it, with the shape of its array as the file
+ * wrote it. `page` is 0-based, or -1 when it names no page of the file; in a remote go-to's or a
+ * launch's destination it is the number the file gives. `args` always has four entries, `null`
+ * where the file has none or no number.
  */
-export type FileDestinationShape =
-  { page: number; fit: string; args: readonly (number | null)[] } | { name: Uint8Array }
+export interface ExplicitDestinationShape {
+  page: number
+  fit: string
+  args: readonly (number | null)[]
+  /**
+   * The object the first entry refers to, when it is a reference: its number, and the
+   * generation of the object the file holds under it.
+   */
+  pageRef?: { objectNumber: number; generation: number }
+  /** The number of entries after the fit. */
+  argCount: number
+  /** What each of the first 8 entries after the fit holds, read through a reference. */
+  argKinds: readonly ('number' | 'null' | 'other')[]
+  /** Whether any of those 8 is written as a reference. */
+  argIndirect: boolean
+  /** How the fit entry is written. */
+  fitKind: 'name' | 'string' | 'other' | 'missing'
+  /** How the page entry is written: a reference to a dictionary, a whole number, or neither. */
+  pageKind: 'ref' | 'integer' | 'other' | 'missing'
+}
+
+/** @internal A destination as the file gives it: explicit, or a named one's bytes. */
+export type FileDestinationShape = ExplicitDestinationShape | { name: Uint8Array }
 
 /** @internal An action as the file gives it: nothing decoded, completed or filtered. */
 export interface FileActionShape {
   /** The action's `/S`. */
   kind: string
+  /** A URI action's `/URI`: empty when it is neither a string nor a name. */
   uri?: Uint8Array
+  /** Whether `/URI` is a string or a name; absent when it is neither. */
+  uriKind?: 'string' | 'name'
   destination?: FileDestinationShape
+  /** A GoToR's or Launch's `/F` when a string, else the first string its file specification gives. */
   file?: Uint8Array
+  /** Whether `/F` is a string or a file specification; absent when it is neither. */
+  fileKind?: 'string' | 'spec'
   newWindow?: boolean
   name?: string
-  /** A JavaScript action's source. Never run. */
+  /** A JavaScript action's source, cut short when long. Never run. */
   script?: string
+  /** Present, and true, when `script` was cut. */
+  scriptTruncated?: true
 }
 
 /** @internal Where a link or outline item goes, as the file gives it. */
@@ -81,8 +111,12 @@ export interface PageAnnotationEntryShape {
   flags: number
   /** Absent for an annotation written as a direct object. */
   objectNumber?: number
+  /** The generation of the annotation's object; present with `objectNumber`. */
+  generation?: number
   /** Whether `/Rect` is four numbers. */
   rectOk: boolean
+  /** Whether `/QuadPoints` is there and not null, whatever it holds. */
+  hasQuads: boolean
   /** Whether `/QuadPoints` is absent or a non-empty list of numbers in eights. */
   quadsOk: boolean
 }
@@ -95,6 +129,11 @@ export interface PageLinkFactsShape extends FileTargetShape {
   rect: Rect
   /** Eight numbers a quad, as the file has them; absent when not well formed. */
   quads?: readonly number[]
+  /**
+   * Present, and true, when the link has a `/Dest`, null included, that is not a string, a name
+   * or an array; `destination` is then absent.
+   */
+  destinationInvalid?: true
 }
 
 /** @internal A page's annotation entries and its links. */

@@ -50,7 +50,7 @@ Three more checks read what each reader gives besides pixels, for every fixture 
 
   Every distance must be within `TEXT_TOLERANCE`. A box, boundary or font size that is not a finite number counts as a difference. The check pairs characters, so the readers may split a line into runs at different places.
 
-- **Links** (`src/links.browser.test.ts`). On every page of the file, both readers must give the same links in the same order: the same count, and for each link the same id, `order`, target and quads, and a rect within 0.01 pt. The check compares a destination by where it goes, as each reader resolves it, since the two readers write an explicit destination's page differently. Two explicit destinations that go nowhere count as equal.
+- **Links** (`src/links.browser.test.ts`). On every page of the file, both readers must give the same links in the same order: the same count, and for each link the same id, `order`, target and quads, and a rect within 0.01 pt. The check compares a destination by where it goes, as each reader resolves it: both readers write an explicit destination's array as PDF.js does, but the engine holds its numbers in single precision. Two explicit destinations that go nowhere count as equal.
 - **Outline** (same file). The same tree: for each item its title, bold, italic, open, resolved destination and number of children.
 
 A failure names each difference: the character where the two strings first differ, or the worst character and its distance; the link or outline item and the field, with both readers' values.
@@ -61,12 +61,12 @@ A failure names each difference: the character where the two strings first diffe
 
 `TEXT_TOLERANCE` is 0.25 of the font size. We measured every fixture with text, as for the pixel constants. A report run writes the numbers to `.report/text-measures.json`: per page, `charOffset` for characters compared by their own boundaries, `itemOffset` for stretches compared at their item boundaries, and `heightRatio`, the lowest and highest ratio of the engine's box height to PDF.js's.
 
-- The engine's boxes are taller than PDF.js's: 1.264 times as tall on upright Helvetica, where the top is 3.18 pt higher and the bottom 0.24 pt lower at 14 pt, and 1.252 times on Times. Comparing centres absorbs most of this: every centre in Helvetica sits 0.105 of the font size higher.
-- Characters compared by their own boundaries: the noise ceiling is 0.123 (`redact-text-rotated`, unembedded Helvetica on a baseline turned 30 degrees), and the other fixtures in unembedded Helvetica measure 0.105 to 0.112. Characters in embedded fonts measure at most 0.025 (`corpus-embedpdf-chrome-type3-text`).
-- Stretches compared at their item boundaries: the noise ceiling is 0.000001 (the Hebrew line of `text-rtl`).
+- Box heights match. The engine reader stands each box on the font's ascent and descent as PDF.js does (`fontMetrics` in core's engine reader says which figures), so the ratio of the engine's box height to PDF.js's is 1 on every page but `corpus-type3`'s, where it is 0.962: PDF.js scales a Type 3 font's size by the height of its glyph space, /FontBBox times /FontMatrix (1.04 there), and the engine reports neither.
+- Characters compared by their own boundaries: the noise ceiling is 0.066 (`unembedded-greek`), then 0.065 (`redact-text-rotated`, unembedded Helvetica on a baseline turned 30 degrees), 0.036 (`text-search`) and 0.021 (`corpus-type3`, from the Type 3 size above). Every other page measures at most 0.0005. The first three lie along the baseline, not across it: in `unembedded-greek` and `redact-text-rotated` at the end of a run, where the engine's last glyph box reaches past the advance PDF.js ends the run at (on a turned baseline that box is upright, so it reaches further), and in `text-search` inside a kerned word.
+- Stretches compared at their item boundaries: the noise ceiling is below 0.000001 (the Hebrew line of `text-rtl`).
 - The smallest real difference is 8.31 (`text-vertical`, a stretch compared at its item boundaries). The other real differences change the text itself.
 
-The limit sits at twice the noise ceiling and still catches a character moved by 0.3 of the font size, which the unit tests pin. To get a fixture past it, record the difference in `parity.json`; leave the constant alone.
+The limit was set at twice the noise ceiling of the time, 0.123, when the engine reader's boxes were taller than PDF.js's. It stays there: it still catches a character moved by 0.3 of the font size, which the unit tests pin. To get a fixture past it, record the difference in `parity.json`; leave the constant alone.
 
 ## parity.json
 

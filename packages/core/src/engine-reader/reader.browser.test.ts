@@ -228,13 +228,13 @@ describe("the engine reader's text", () => {
         const other = pdfjs[k]!
         const a = edges(item.rect)
         const b = edges(other.rect)
-        // Left, bottom and right agree within a point. The top does not: the engine's loose box
-        // reaches the font's bounding box, 13.23 pt above the baseline at 14 pt, where PDF.js
-        // stops at Helvetica's ascent, 10.05 pt. The difference is pinned here.
+        // Left and right agree within a point. Bottom and top agree: both readers stand the box
+        // on Helvetica's ascent and descent from PDF.js's table, 10.05 pt above the baseline and
+        // 2.90 pt below it at 14 pt.
         expect(Math.abs(a[0]! - b[0]!)).toBeLessThanOrEqual(1)
-        expect(Math.abs(a[1]! - b[1]!)).toBeLessThanOrEqual(1)
+        expect(a[1]!).toBeCloseTo(b[1]!, 3)
         expect(Math.abs(a[2]! - b[2]!)).toBeLessThanOrEqual(1)
-        expect(a[3]! - b[3]!).toBeCloseTo(3.18, 2)
+        expect(a[3]!).toBeCloseTo(b[3]!, 3)
         if (other.advances) {
           expect(item.advances).toHaveLength(other.advances.length)
           item.advances!.forEach((t, i) => expect(t).toBeCloseTo(other.advances![i]!, 2))
@@ -270,16 +270,14 @@ describe("the engine reader's text", () => {
     const [a, b] = [engine[0]!, pdfjs[0]!]
     expect(a.text).toBe(b.text)
     expect(a.quads).toHaveLength(b.quads.length)
-    // The tolerance of the item comparison above: within a point, but for the top, which stands
-    // 3.18 pt higher on the engine's boxes.
+    // The tolerance of the item comparison above: within a point along the line, the same
+    // height across it.
     a.quads.forEach((quad, q) => {
       const other = b.quads[q]!
-      for (const corner of ['p1', 'p2', 'p3', 'p4'] as const)
+      for (const corner of ['p1', 'p2', 'p3', 'p4'] as const) {
         expect(Math.abs(quad[corner].x - other[corner].x)).toBeLessThanOrEqual(1)
-      for (const corner of ['p3', 'p4'] as const)
-        expect(Math.abs(quad[corner].y - other[corner].y)).toBeLessThanOrEqual(1)
-      for (const corner of ['p1', 'p2'] as const)
-        expect(quad[corner].y - other[corner].y).toBeCloseTo(3.18, 2)
+        expect(quad[corner].y).toBeCloseTo(other[corner].y, 3)
+      }
     })
   })
 
@@ -451,7 +449,7 @@ describe("the engine reader's links and outline", () => {
     }
   )
 
-  it("reads link-targets' twenty-three cases as the manifest records them", async () => {
+  it("reads link-targets' thirty-four cases as the manifest records them", async () => {
     const { links } = await read('link-targets')
     const url = (address: string, newWindow = false) => ({
       kind: 'url',
@@ -488,7 +486,31 @@ describe("the engine reader's links and outline", () => {
       unsupported('unknown'),
       unsupported('unknown'),
       unsupported('unknown'),
+      // link-generation: its object's generation is 1.
+      url('https://example.com/generation'),
+      // A /Dest that is a number keeps /AA out.
+      unsupported('unknown'),
+      // A plain /F string keeps its bytes, byte-order mark and all; a file specification's is
+      // decoded.
+      unsupported('launch'),
+      url('https://example.com/spec'),
+      // A /URI written as a name reads as /https://example.com/name.
+      unsupported('launch'),
+      // An XYZ with one argument, an argument written as a reference, a fit written as a string.
+      unsupported('unknown'),
+      unsupported('unknown'),
+      unsupported('unknown'),
+      // A page given as a whole number, and one that is not whole.
+      { kind: 'dest', name: undefined, resolved: { page: 0, fit: 'fith', top: 500 } },
+      unsupported('unknown'),
+      // after-markup-no-quads.
+      url('https://example.com/after-markup'),
     ])
+    // link-generation, the twenty-fourth case.
+    expect(links[0]![23]!.id).toMatch(/^pdf:0:\d+R1$/)
+    // after-markup-no-quads, the last: the Highlight before it has no /QuadPoints, so PDF.js
+    // does not count it.
+    expect(links[0]![33]!.order).toBe(links[0]![32]!.order! + 1)
   })
 
   it('resolves the name résumé, written in UTF-16BE, to page 0 through the engine', async () => {
@@ -503,8 +525,24 @@ describe("the engine reader's links and outline", () => {
     })
   })
 
-  it('gives a destination as the page index and the fit with its arguments, on links page 0', async () => {
-    // The shape a host sees in `raw`: PDF.js gives the page as an object reference instead.
+  it.each(['links', 'link-targets'] as const)(
+    "gives each destination's raw as PDF.js gives it, on %s",
+    async (name) => {
+      const raws = (doc: InkDocument) =>
+        doc.pages.flatMap((_, page) =>
+          doc
+            .links(page)
+            .map((l) => (l.target.kind === 'dest' ? l.target.raw : undefined))
+        )
+      const engine = raws(await open(name))
+      delete flag.__INKBAR_READER__
+      const pdfjs = raws(await open(name))
+      expect(engine).toEqual(pdfjs)
+      expect(engine.filter((raw) => Array.isArray(raw)).length).toBeGreaterThan(0)
+    }
+  )
+
+  it('gives an explicit destination its page as a reference, { num, gen }, on links page 0', async () => {
     const doc = await open('links')
     expect(
       doc
@@ -512,9 +550,12 @@ describe("the engine reader's links and outline", () => {
         .slice(0, 2)
         .map((l) => l.target)
     ).toEqual([
-      { kind: 'dest', raw: [1, { name: 'XYZ' }, 72, 600, null] },
+      { kind: 'dest', raw: [{ num: 6, gen: 0 }, { name: 'XYZ' }, 72, 600, null] },
       { kind: 'dest', raw: 'chapter-3' },
     ])
+    await expect(
+      doc.resolveDestination([{ num: 6, gen: 0 }, { name: 'XYZ' }, 72, 600, null])
+    ).resolves.toEqual({ page: 1, fit: 'xyz', left: 72, top: 600, zoom: undefined })
   })
 
   it("orders link-order's links as PDF.js does, with the ids it gives", async () => {

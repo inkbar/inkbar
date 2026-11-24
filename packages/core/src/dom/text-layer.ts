@@ -66,13 +66,21 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     transform: PageTransform
   ): Promise<void> => {
     // Destroying the layer cancels its read, so a page scrolled past does not hold up the next.
-    const [content, families, info] = await Promise.all([
+    const [content, families, baselines, info] = await Promise.all([
       reader.text(page, { glyphs: false, signal: abort.signal }),
       reader.textFamilies(page, abort.signal),
+      reader.textBaselines(page, abort.signal),
       reader.pageInfo(page),
     ])
     if (abort.signal.aborted) return
-    spans = mountTextSpans({ content, families, info, container: el, transform })
+    spans = mountTextSpans({
+      content,
+      families,
+      baselines,
+      info,
+      container: el,
+      transform,
+    })
     opts.onRendered?.()
   }
 

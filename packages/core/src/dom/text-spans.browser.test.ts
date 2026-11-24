@@ -1,7 +1,7 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { rectFromQuad, unionRects, type Rect } from '../model/geometry'
+import { rectFromQuad, unionRects, type Quad, type Rect } from '../model/geometry'
 
 import { getSelectionQuads } from './selection'
 import { mountContainer, openFixtureInBrowser } from './test-utils'
@@ -56,9 +56,10 @@ async function open(name: FixtureName): Promise<InkDocument> {
 async function mount(name: FixtureName, zoom: number, rotation: ViewRotation = 0) {
   const doc = await open(name)
   const reader = doc._reader as EngineDocumentReader
-  const [content, families, info] = await Promise.all([
+  const [content, families, baselines, info] = await Promise.all([
     reader.text(0, { glyphs: false }),
     reader.textFamilies(0),
+    reader.textBaselines(0),
     reader.pageInfo(0),
   ])
   const t = createPageTransform(doc.pages[0]!, zoom, rotation)
@@ -71,9 +72,30 @@ async function mount(name: FixtureName, zoom: number, rotation: ViewRotation = 0
   container.style.cssText = 'position:absolute;inset:0;user-select:text;'
   host.append(container)
   cleanup.push(() => host.remove())
-  const layer = mountTextSpans({ content, families, info, container, transform: t })
-  const items = content.items.filter((item) => spanned(item.str))
-  return { doc, content, families, info, t, host, container, layer, items }
+  const layer = mountTextSpans({
+    content,
+    families,
+    baselines,
+    info,
+    container,
+    transform: t,
+  })
+  const spannedAt = content.items.flatMap((item, i) => (spanned(item.str) ? [i] : []))
+  const items = spannedAt.map((i) => content.items[i]!)
+  const lines = spannedAt.map((i) => lineBox(content.items[i]!, baselines[i]!))
+  return {
+    doc,
+    content,
+    families,
+    baselines,
+    info,
+    t,
+    host,
+    container,
+    layer,
+    items,
+    lines,
+  }
 }
 
 const spansIn = (container: HTMLElement) => [
@@ -97,34 +119,39 @@ const tolerance = (r: { width: number; height: number }): number =>
   Math.max(1.5, 0.06 * Math.max(r.width, r.height))
 
 /**
- * The run's box shrunk across its baseline to one font size, centred: where the span's line box
- * goes when the engine's loose box is taller than the font.
+ * Where the span's line box goes: one font size high, standing on the run's baseline with three
+ * quarters of it above.
  */
-function lineBox(item: TextItem): Rect {
-  const { p1, p2, p3, p4 } = item.quad
+function lineBox(item: TextItem, baseline: number): Rect {
+  const { p1, p3, p4 } = item.quad
   const height = Math.hypot(p1.x - p3.x, p1.y - p3.y)
-  if (!(height > 0)) return item.rect
-  const k = (height - item.fontSize) / 2 / height
-  const ux = (p1.x - p3.x) * k
-  const uy = (p1.y - p3.y) * k
+  if (!(height > 0) || !Number.isFinite(baseline)) return item.rect
+  const up = { x: (p1.x - p3.x) / height, y: (p1.y - p3.y) / height }
+  const top = baseline + 0.75 * item.fontSize
+  const bottom = top - item.fontSize
+  const at = (p: { x: number; y: number }, h: number) => ({
+    x: p.x + up.x * h,
+    y: p.y + up.y * h,
+  })
   return rectFromQuad({
-    p1: { x: p1.x - ux, y: p1.y - uy },
-    p2: { x: p2.x - ux, y: p2.y - uy },
-    p3: { x: p3.x + ux, y: p3.y + uy },
-    p4: { x: p4.x + ux, y: p4.y + uy },
+    p1: at(p3, top),
+    p2: at(p4, top),
+    p3: at(p3, bottom),
+    p4: at(p4, bottom),
   })
 }
 
 /**
- * Every span lies over its item's box, on every edge, within `tolerance`. An item whose loose
- * box is taller than its font by more than twice the tolerance cannot: its span is one font
- * size high. Such an item is checked against its centred line box instead, and listed in
- * `tall`, which the caller asserts on so no other item escapes the item-box check.
+ * Every span lies over its item's box, on every edge, within `tolerance`. An item whose line box
+ * lies off its box by more than the tolerance cannot: its span is one font size high and stands
+ * on the baseline. Such an item is checked against its line box instead, and listed in `tall`,
+ * which the caller asserts on so no other item escapes the item-box check.
  */
 function expectSpansOverItems(
   host: HTMLElement,
   container: HTMLElement,
   items: TextItem[],
+  lines: Rect[],
   t: PageTransform,
   tall: string[] = []
 ) {
@@ -138,13 +165,13 @@ function expectSpansOverItems(
     expect(span.textContent).toBe(item.str)
     const actual = span.getBoundingClientRect()
     const allowed = tolerance(actual)
-    const height = Math.hypot(
-      item.quad.p1.x - item.quad.p3.x,
-      item.quad.p1.y - item.quad.p3.y
-    )
-    const tallItem = t.toCssLength(height - item.fontSize) / 2 > allowed
+    const line = t.toCssRect(lines[i]!)
+    const box = t.toCssRect(item.rect)
+    const tallItem = Object.values(
+      edgeErrors(new DOMRect(line.left, line.top, line.width, line.height), box)
+    ).some((error) => error > allowed)
     if (tallItem) shifted.push(item.str)
-    const css = t.toCssRect(tallItem ? lineBox(item) : item.rect)
+    const css = tallItem ? line : box
     const expected = { ...css, left: css.left + h.left, top: css.top + h.top }
     for (const [edge, error] of Object.entries(edgeErrors(actual, expected)))
       if (!(error <= allowed))
@@ -156,8 +183,11 @@ function expectSpansOverItems(
   expect(shifted).toEqual(tall)
 }
 
-/** Items whose loose box is too tall for the tolerance, by fixture: Noto Sans Hebrew's. */
-const TALL: Partial<Record<FixtureName, string[]>> = { 'text-rtl': ['שלום'] }
+/**
+ * Items whose line box lies off their box by more than the tolerance, by fixture: Noto Sans
+ * Hebrew's, whose ascent and descent span 1.36 ems.
+ */
+const TALL: Partial<Record<FixtureName, string[]>> = { 'text-rtl': ['שלום עולם', 'שלום'] }
 
 const GEOMETRY: FixtureName[] = [
   'text-simple',
@@ -177,14 +207,14 @@ describe('text spans from the engine reader', () => {
     ] as const)(
       'lies over each item at zoom %d, view rotation %d',
       async (zoom, rotation) => {
-        const { host, container, items, t } = await mount(name, zoom, rotation)
+        const { host, container, items, lines, t } = await mount(name, zoom, rotation)
         expect(items.length).toBeGreaterThan(0)
-        expectSpansOverItems(host, container, items, t, TALL[name])
+        expectSpansOverItems(host, container, items, lines, t, TALL[name])
       }
     )
 
     it('stays over each item after an update to zoom 3, keeping its nodes', async () => {
-      const { doc, host, container, items, layer } = await mount(name, 1)
+      const { doc, host, container, items, lines, layer } = await mount(name, 1)
       const before = [...container.childNodes]
       const zoomed = createPageTransform(doc.pages[0]!, 3, 0)
       sizeHost(host, zoomed)
@@ -192,17 +222,17 @@ describe('text spans from the engine reader', () => {
       const after = [...container.childNodes]
       expect(after).toHaveLength(before.length)
       after.forEach((node, i) => expect(node).toBe(before[i]))
-      expectSpansOverItems(host, container, items, zoomed, TALL[name])
+      expectSpansOverItems(host, container, items, lines, zoomed, TALL[name])
     })
 
     it('stays over each item after an update that turns the view', async () => {
-      const { doc, host, container, items, layer } = await mount(name, 1)
+      const { doc, host, container, items, lines, layer } = await mount(name, 1)
       const before = [...container.childNodes]
       const turned = createPageTransform(doc.pages[0]!, 2, 90)
       sizeHost(host, turned)
       layer.update(turned)
       ;[...container.childNodes].forEach((node, i) => expect(node).toBe(before[i]))
-      expectSpansOverItems(host, container, items, turned, TALL[name])
+      expectSpansOverItems(host, container, items, lines, turned, TALL[name])
     })
   })
 
@@ -351,9 +381,9 @@ describe('text spans from the engine reader', () => {
   it('keeps each span over its item whatever --min-font-size the layer carries', async () => {
     // A browser minimum cannot be switched on here; the compensation the theme applies for one
     // is checked instead: spans drawn larger and scaled back must land in the same place.
-    const { host, container, items, t } = await mount('text-simple', 2)
+    const { host, container, items, lines, t } = await mount('text-simple', 2)
     container.style.setProperty('--min-font-size', '8')
-    expectSpansOverItems(host, container, items, t)
+    expectSpansOverItems(host, container, items, lines, t)
   })
 
   it('marks right-to-left items and gives each its family', async () => {
@@ -370,12 +400,12 @@ describe('text spans from the engine reader', () => {
   })
 
   it('lays a vertical run down its column', async () => {
-    const { host, container, items, t } = await mount('text-vertical', 1)
+    const { host, container, items, lines, t } = await mount('text-vertical', 1)
     const i = items.findIndex((item) => item.dir === 'ttb')
     expect(i).toBeGreaterThanOrEqual(0)
     const span = spansIn(container)[i]!
     expect(span.style.getPropertyValue('--rotate')).toBe('90deg')
-    expectSpansOverItems(host, container, items, t)
+    expectSpansOverItems(host, container, items, lines, t)
   })
 
   it('gives no --scale-x to an item that measures 0, and does not throw', async () => {
@@ -491,6 +521,36 @@ function lineSpans(container: HTMLElement): HTMLElement[][] {
   return out.filter((line) => line.length > 0)
 }
 
+/**
+ * How far a selection quad reaches past its items' boxes across the line, as fractions of their
+ * largest font size: above the top and below the bottom. Negative where it falls short.
+ */
+function margins(quad: Quad, items: TextItem[]): { top: number; bottom: number } {
+  const size = Math.max(...items.map((item) => item.fontSize))
+  const box = unionRects(items.map((item) => item.rect))
+  const got = rectFromQuad(quad)
+  return {
+    top: (got.y + got.height - (box.y + box.height)) / size,
+    bottom: (box.y - got.y) / size,
+  }
+}
+
+/**
+ * How far, as a fraction of the font size, a selection may fall short of its items' boxes across
+ * the line. The selection is the CSS fallback font's text, one font size of line box with the
+ * font's own ascent and descent (C em in all) centred on it, so on Helvetica's box it reaches
+ * 0.032 + (C - 1) / 2 above and 0.043 + (C - 1) / 2 below. Common sans fonts have C from about
+ * 1.1 (Liberation Sans, measured here: +0.080 and +0.090 at 14 pt) to 1.36 (Noto Sans); the
+ * check holds for any C down to 0.9.
+ */
+const ACROSS = 0.02
+
+/**
+ * Lines in Noto Sans Hebrew, whose ascent (1.068 em) reaches above the CSS font's text: their
+ * selection may stop short of the box's top, which the test below bounds.
+ */
+const SHORT = ['שלום עולם', 'abc שלום 123']
+
 describe('selection over the spans', () => {
   it.each(['text-simple', 'text-rtl', 'text-search'] as const)(
     'gives the quads and the text of each whole line, on %s',
@@ -509,26 +569,63 @@ describe('selection over the spans', () => {
         const result = getSelectionQuads(host, () => ({ page: 0, transform: t }))
         expect(result).toHaveLength(1)
         texts.push(result[0]!.text)
-        // One quad per column the line crosses, each over its column's items.
+        // One quad per column the line crosses, each over its column's items along the line
+        // and, but on a line `SHORT` lists, holding them across it within `ACROSS` of the size.
         const columns = columnsOf(line.filter((item) => item.str.trim() !== ''))
         counts.push(result[0]!.quads.length)
         expect(result[0]!.quads).toHaveLength(columns.length)
         result[0]!.quads.forEach((quad, k) => {
           const got = t.toCssRect(rectFromQuad(quad))
-          const want = t.toCssRect(unionRects(columns[k]!.map((item) => item.rect)))
-          const allowed = tolerance(want)
-          const errors = edgeErrors(
-            new DOMRect(got.left, got.top, got.width, got.height),
-            want
-          )
-          for (const error of Object.values(errors))
-            expect(error).toBeLessThanOrEqual(allowed)
+          const items = columns[k]!
+          const along = t.toCssRect(unionRects(items.map((item) => item.rect)))
+          const allowed = tolerance(along)
+          expect(Math.abs(got.left - along.left)).toBeLessThanOrEqual(allowed)
+          expect(
+            Math.abs(got.left + got.width - (along.left + along.width))
+          ).toBeLessThanOrEqual(allowed)
+          if (SHORT.includes(result[0]!.text)) return
+          const { top, bottom } = margins(quad, items)
+          expect(top).toBeGreaterThanOrEqual(-ACROSS)
+          expect(bottom).toBeGreaterThanOrEqual(-ACROSS)
         })
       })
       expect(texts).toEqual(LINES[name])
       expect(counts).toEqual(LINES[name]!.map((line) => QUADS[line] ?? 1))
     }
   )
+
+  it("may stop short of the box's top on a font taller than the CSS font's text, on text-rtl", async () => {
+    // Noto Sans Hebrew's ascent is 1.068 em; the selection is the CSS fallback font's text. With
+    // Liberation Sans it stops 0.255 em short of the box's top and level with its bottom. Bounds,
+    // not that value, so another machine's fallback font passes: the top no more than 0.4 em
+    // short, the quad over the baseline and up to 0.6 em above it, the bottom no more than 0.1 em
+    // short of the box's bottom.
+    const { host, container, content, baselines, t } = await mount('text-rtl', 1.5)
+    const groups = lines(content.items)
+    const spanLines = lineSpans(container)
+    const seen: string[] = []
+    groups.forEach((line, i) => {
+      const spans = spanLines[i]!
+      select(spans[0]!, spans.at(-1)!)
+      const [result] = getSelectionQuads(host, () => ({ page: 0, transform: t }))
+      if (!SHORT.includes(result!.text)) return
+      seen.push(result!.text)
+      expect(result!.quads).toHaveLength(1)
+      const items = line.filter((item) => item.str.trim() !== '')
+      const quad = result!.quads[0]!
+      const { top, bottom } = margins(quad, items)
+      expect(top).toBeGreaterThanOrEqual(-0.4)
+      expect(bottom).toBeGreaterThanOrEqual(-0.1)
+      // The text is level, so its baseline is a height on the page.
+      const first = items[0]!
+      const baseline = first.quad.p3.y + baselines[content.items.indexOf(first)]!
+      const size = Math.max(...items.map((item) => item.fontSize))
+      const got = rectFromQuad(quad)
+      expect(got.y).toBeLessThanOrEqual(baseline)
+      expect(got.y + got.height).toBeGreaterThanOrEqual(baseline + 0.6 * size)
+    })
+    expect(seen).toEqual(SHORT)
+  })
 
   it.each([
     [
