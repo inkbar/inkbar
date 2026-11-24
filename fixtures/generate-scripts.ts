@@ -6,7 +6,7 @@
  *   pnpm --filter @inkbar/fixtures generate:scripts
  *
  * `text-rtl` embeds Noto Sans Hebrew (fonts/NotoSansHebrew-Regular.ttf, see fonts/README.md) and
- * `text-vertical` embeds the Ahem subset the redaction fixtures use (redaction-samples/).
+ * `text-vertical` embeds a subset of Noto Sans JP (fonts/NotoSansJP-subset.otf).
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -142,19 +142,136 @@ function writeRtl() {
   )
 }
 
-// The Japanese column: each character has a code (a CID) of its own, and every code draws the
-// same square glyph of the Ahem subset the redaction fixtures use (glyph 35, the letter A, a square
-// one em wide), so the page is drawn without a Japanese font while its text is Japanese.
+/** The offset of the table `tag` of an OpenType font. */
+function otfTable(font: Buffer, tag: string): number {
+  for (let i = 0; i < font.readUInt16BE(4); i++) {
+    const at = 12 + 16 * i
+    if (font.toString('latin1', at, at + 4) === tag) return font.readUInt32BE(at + 8)
+  }
+  throw new Error(`the font has no ${tag} table`)
+}
+
+/** The glyph a format 4 subtable of the font's cmap gives `char`, or 0. */
+function glyphOf(font: Buffer, char: string): number {
+  const cmap = otfTable(font, 'cmap')
+  const code = char.codePointAt(0) as number
+  for (let i = 0; i < font.readUInt16BE(cmap + 2); i++) {
+    const sub = cmap + font.readUInt32BE(cmap + 8 + 8 * i)
+    if (font.readUInt16BE(sub) !== 4) continue
+    const segments = font.readUInt16BE(sub + 6) / 2
+    const ends = sub + 14
+    const starts = ends + 2 * segments + 2
+    const deltas = starts + 2 * segments
+    const ranges = deltas + 2 * segments
+    for (let s = 0; s < segments; s++) {
+      if (code > font.readUInt16BE(ends + 2 * s)) continue
+      if (code < font.readUInt16BE(starts + 2 * s)) return 0
+      const delta = font.readUInt16BE(deltas + 2 * s)
+      const range = font.readUInt16BE(ranges + 2 * s)
+      if (range === 0) return (code + delta) & 0xffff
+      const at = ranges + 2 * s + range + 2 * (code - font.readUInt16BE(starts + 2 * s))
+      const glyph = font.readUInt16BE(at)
+      return glyph === 0 ? 0 : (glyph + delta) & 0xffff
+    }
+  }
+  return 0
+}
+
+/**
+ * The CID of each glyph of a CID-keyed CFF font wrapped in OpenType, from the charset of its CFF
+ * table. A subset renumbers the glyphs and keeps the CIDs, and a PDF names glyphs by CID.
+ */
+function cidsOf(font: Buffer): number[] {
+  const cff = font.subarray(otfTable(font, 'CFF '))
+  /** The items of the INDEX at `at`, and where the INDEX ends. */
+  const index = (at: number) => {
+    const count = cff.readUInt16BE(at)
+    if (count === 0) return { items: [] as Buffer[], end: at + 2 }
+    const size = cff[at + 2] as number
+    const offset = (k: number) => cff.readUIntBE(at + 3 + k * size, size)
+    const base = at + 2 + (count + 1) * size
+    const items = Array.from({ length: count }, (_, k) =>
+      cff.subarray(base + offset(k), base + offset(k + 1))
+    )
+    return { items, end: base + offset(count) }
+  }
+  /** The operands of each operator of a DICT, by operator (12 x is 1200 + x). */
+  const dict = (data: Buffer) => {
+    const ops = new Map<number, number[]>()
+    let operands: number[] = []
+    let i = 0
+    while (i < data.length) {
+      const b0 = data[i] as number
+      if (b0 <= 21) {
+        const op = b0 === 12 ? 1200 + (data[i + 1] as number) : b0
+        i += b0 === 12 ? 2 : 1
+        ops.set(op, operands)
+        operands = []
+      } else if (b0 === 28) {
+        operands.push(data.readInt16BE(i + 1))
+        i += 3
+      } else if (b0 === 29) {
+        operands.push(data.readInt32BE(i + 1))
+        i += 5
+      } else if (b0 === 30) {
+        // A real number; no operand this reads is one, so it stands as 0.
+        i++
+        while (((data[i] as number) & 15) !== 15 && (data[i] as number) >> 4 !== 15) i++
+        i++
+        operands.push(0)
+      } else if (b0 <= 246) {
+        operands.push(b0 - 139)
+        i++
+      } else if (b0 <= 250) {
+        operands.push((b0 - 247) * 256 + (data[i + 1] as number) + 108)
+        i += 2
+      } else {
+        operands.push(-(b0 - 251) * 256 - (data[i + 1] as number) - 108)
+        i += 2
+      }
+    }
+    return ops
+  }
+  const names = index(cff[2] as number)
+  const top = dict(index(names.end).items[0] as Buffer)
+  if (!top.has(1230)) throw new Error('the CFF font is not CID-keyed')
+  const glyphs = cff.readUInt16BE((top.get(17) as number[])[0])
+  const charset = (top.get(15) as number[])[0] as number
+  const format = cff[charset] as number
+  const cids = [0]
+  let at = charset + 1
+  while (cids.length < glyphs) {
+    if (format === 0) {
+      cids.push(cff.readUInt16BE(at))
+      at += 2
+      continue
+    }
+    const first = cff.readUInt16BE(at)
+    const left = format === 1 ? (cff[at + 2] as number) : cff.readUInt16BE(at + 2)
+    at += format === 1 ? 3 : 4
+    for (let k = 0; k <= left; k++) cids.push(first + k)
+  }
+  return cids
+}
+
+// The Japanese column, drawn in a subset of Noto Sans JP Regular (fonts/NotoSansJP-subset.otf,
+// see fonts/README.md). Every glyph of the font is one em wide and one em tall, with its vertical
+// origin 880 units above the baseline, which is what /DW2 [880 -1000] says.
 const COLUMN = '日本語のテキスト'
 
 function writeVertical() {
-  const file = readFileSync(join(here, 'redaction-samples', 'ahem-subset.ttf'))
+  const file = readFileSync(join(here, 'fonts', 'NotoSansJP-subset.otf'))
+  const cids = cidsOf(file)
   const characters = [...COLUMN]
-  const map = Buffer.alloc((characters.length + 1) * 2)
-  characters.forEach((_, i) => map.writeUInt16BE(35, (i + 1) * 2))
+  const map = characters.map((char): [number, string] => {
+    const glyph = glyphOf(file, char)
+    if (glyph === 0) throw new Error(`the Noto Sans JP subset has no glyph for ${char}`)
+    return [cids[glyph] as number, char]
+  })
   const contents =
-    `BT /F2 28 Tf 400 760 Td ${codes(characters.map((_, i) => i + 1))} Tj ET\n` +
+    `BT /F2 28 Tf 400 760 Td ${codes(map.map(([cid]) => cid))} Tj ET\n` +
     'BT /F1 20 Tf 72 700 Td (Horizontal line beside the column) Tj ET\n'
+  const name = 'INKBAR+NotoSansJP-Regular'
   write(
     'text-vertical',
     buildPdf(
@@ -164,24 +281,20 @@ function writeVertical() {
         page('/F1 5 0 R /F2 6 0 R'),
         stream('', contents),
         HELVETICA,
-        '<< /Type /Font /Subtype /Type0 /BaseFont /Ahem /Encoding /Identity-V /DescendantFonts [7 0 R] /ToUnicode 11 0 R >>',
-        '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Ahem /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 8 0 R /DW 1000 /CIDToGIDMap 10 0 R >>',
-        '<< /Type /FontDescriptor /FontName /Ahem /Flags 4 /FontBBox [0 -200 1000 800] /ItalicAngle 0 /Ascent 800 /Descent -200 /CapHeight 800 /StemV 80 /FontFile2 9 0 R >>',
-        stream(`/Length1 ${file.length}`, file),
-        stream('', map),
-        stream(
-          '',
-          toUnicode(characters.map((char, i): [number, string] => [i + 1, char]))
-        ),
+        `<< /Type /Font /Subtype /Type0 /BaseFont /${name} /Encoding /Identity-V /DescendantFonts [7 0 R] /ToUnicode 10 0 R >>`,
+        `<< /Type /Font /Subtype /CIDFontType0 /BaseFont /${name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 8 0 R /DW 1000 /DW2 [880 -1000] >>`,
+        `<< /Type /FontDescriptor /FontName /${name} /Flags 4 /FontBBox [-1002 -1048 2928 1808] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 733 /StemV 80 /FontFile3 9 0 R >>`,
+        stream('/Subtype /OpenType', file),
+        stream('', toUnicode(map)),
         INFO,
       ],
-      12
+      11
     ),
     {
       pages: 1,
       opens: true,
       describes:
-        'A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (the Ahem subset the redaction fixtures use, every character drawn as a square one em wide, with a ToUnicode CMap giving the Japanese text), beside one horizontal Helvetica line at 20 pt',
+        'A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (an embedded subset of Noto Sans JP Regular, CID-keyed CFF in OpenType, every glyph one em square with /DW2 [880 -1000], and a ToUnicode CMap), beside one horizontal Helvetica line at 20 pt',
     }
   )
 }
