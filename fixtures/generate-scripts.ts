@@ -9,17 +9,14 @@
  * `text-vertical` embeds the Ahem subset the redaction fixtures use (redaction-samples/).
  */
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 import { format, resolveConfig } from 'prettier'
 
+import { here, manifestPath, out } from './generate-paths'
+
 import type { FixtureMeta } from './index'
 import type { FixtureName } from './urls'
-
-const here = dirname(fileURLToPath(import.meta.url))
-const out = join(here, 'pdf')
-const manifestPath = join(here, 'manifest.json')
 
 /** A PDF of `bodies`, object n at bodies[n - 1], object 1 the catalog and `info` the info dict. */
 function buildPdf(bodies: (string | Buffer)[], info: number): Buffer {

@@ -1,7 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { join } from 'node:path'
 
 import {
   PDFArray,
@@ -32,14 +38,13 @@ import {
   type PDFRadioGroup,
   type PDFRef,
 } from 'pdf-lib'
+import { format, resolveConfig } from 'prettier'
 
 import { BODY, drawLines as text, newFixtureDoc as doc } from './generate-large'
+import { manifestPath, out } from './generate-paths'
 
 import type { FixtureMeta } from './index'
 import type { FixtureName } from './urls'
-
-const here = dirname(fileURLToPath(import.meta.url))
-const out = join(here, 'pdf')
 
 const manifest: Partial<Record<FixtureName, FixtureMeta>> = {}
 
@@ -84,8 +89,17 @@ const fromLatin1 = (s: string) => new Uint8Array(Buffer.from(s, 'latin1'))
  * it as owner). Equal files give equal strings.
  */
 function readEncrypted(file: string, owner: string): string {
+  // Streams are compared uncompressed: qpdf compresses the ones the source left plain, and
+  // the bytes that come out depend on the zlib it was built with.
+  // So a change of compression level or filter alone is deliberately not seen: the file is kept.
   const content = latin1(
-    execFileSync('qpdf', [`--password=${owner}`, '--decrypt', file, '-'])
+    execFileSync('qpdf', [
+      `--password=${owner}`,
+      '--decrypt',
+      '--stream-data=uncompress',
+      file,
+      '-',
+    ])
   ).replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
   const settings = execFileSync(
     'qpdf',
@@ -2231,11 +2245,24 @@ async function main() {
   malformedMissingXref(simple)
   await scannedNoText()
   await userUnit2()
-  writeFileSync(join(here, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
+  // Entries other scripts own (the saved and corpus files) stay as they are, and so does the
+  // order of every entry already there; only the ones this script writes are replaced.
+  const kept = existsSync(manifestPath)
+    ? (JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, FixtureMeta>)
+    : {}
+  writeFileSync(
+    manifestPath,
+    await format(JSON.stringify({ ...kept, ...manifest }, null, 2), {
+      ...(await resolveConfig(manifestPath)),
+      filepath: manifestPath,
+    })
+  )
   console.log(`wrote ${Object.keys(manifest).length} fixtures`)
-  // These two merge their entries into the manifest just written, as the other generators do.
+  // These four merge their entries into the manifest just written, as the other generators do.
   await import('./generate-links')
+  await import('./generate-redaction')
   await import('./generate-scripts')
+  await import('./generate-unembedded')
 }
 
 await main()

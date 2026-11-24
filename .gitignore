@@ -8,6 +8,7 @@ test-results
 .vitest
 __screenshots__/**/*-actual.png
 fixtures/pdf/generated-large.pdf
+fixtures/.tmp/
 *.log
 .DS_Store
 **/playwright/.cache

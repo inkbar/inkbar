@@ -13,18 +13,15 @@
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { deflateSync } from 'node:zlib'
 
 import { format, resolveConfig } from 'prettier'
 
+import { here, manifestPath, out } from './generate-paths'
+
 import type { FixtureMeta, RedactionRegion } from './index'
 import type { FixtureName } from './urls'
-
-const here = dirname(fileURLToPath(import.meta.url))
-const out = join(here, 'pdf')
-const manifestPath = join(here, 'manifest.json')
 
 /** A PDF of `bodies`, object n at bodies[n - 1], object 1 the catalog. */
 function buildPdf(bodies: (string | Buffer)[], trailer = ''): Buffer {
@@ -2078,7 +2075,14 @@ function writeEncrypted(
   const decrypted = (file: string) =>
     execFileSync(
       'qpdf',
-      ['--password=inkbar', '--decrypt', '--preserve-unreferenced', file, '-'],
+      [
+        '--password=inkbar',
+        '--decrypt',
+        '--stream-data=uncompress',
+        '--preserve-unreferenced',
+        file,
+        '-',
+      ],
       {
         stdio: ['ignore', 'pipe', 'ignore'],
       }
