@@ -235,7 +235,7 @@ export function textReportHtml(pages: TextReportPage[], generated: string): stri
     const summary =
       m.firstDifference !== undefined
         ? `The text differs from character ${m.firstDifference}.`
-        : `Worst character at ${m.worstAt ?? '-'}, ${m.worstOffset.toFixed(3)} of the font size apart (characters ${m.charOffset.toFixed(3)}, items compared whole ${m.itemOffset.toFixed(3)}).`
+        : `Worst character at ${m.worstAt ?? '-'}, ${m.worstOffset.toFixed(3)} of the font size apart (characters ${m.charOffset.toFixed(3)}, compared at item boundaries ${m.itemOffset.toFixed(3)}).`
     return `<section>
 <h2>${escape(p.fixture)}, page ${p.page + 1} <small>${escape(p.state)}</small></h2>
 <p>${summary}</p>
