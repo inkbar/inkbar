@@ -35,6 +35,16 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
     const end = () => el.scrollHeight - el.clientHeight
     const mountedSamples: number[] = []
     const deltas: number[] = []
+    // The display's own frame interval: the median of idle frames before any scrolling.
+    const idle: number[] = []
+    let previous = await frame()
+    for (let i = 0; i < 60; i++) {
+      const now = await frame()
+      idle.push(now - previous)
+      previous = now
+    }
+    idle.sort((a, b) => a - b)
+    const frameInterval = idle[Math.floor(idle.length / 2)] ?? Number.NaN
     let last = await frame()
     while (el.scrollTop < end() - 1) {
       el.scrollTop = Math.min(end(), el.scrollTop + el.clientHeight)
@@ -56,6 +66,7 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
     return {
       mountedSamples,
       deltas,
+      frameInterval,
       lastPage: Math.max(...pages),
       atEnd: el.scrollTop >= end() - 1,
     }
@@ -66,7 +77,10 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
   ).toBeVisible()
   const after = await heap()
   const growthMb = (after! - before!) / MB
-  const slow = result.deltas.filter((d) => d > 16.7)
+  // A frame is slow when it takes more than 1.5 times the display's own frame interval.
+  const intervalMs = +result.frameInterval.toFixed(1)
+  const slowThreshold = result.frameInterval * 1.5
+  const slow = result.deltas.filter((d) => d > slowThreshold)
   const slowShare = slow.length / result.deltas.length
   const worst = Math.max(...result.deltas)
   const worstIndex = result.deltas.indexOf(worst)
@@ -77,6 +91,7 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
   const maxMounted = Math.max(...result.mountedSamples)
   report('large document', {
     frames: result.deltas.length,
+    frameIntervalMs: intervalMs,
     maxMounted,
     heapBeforeMb: +(before! / MB).toFixed(1),
     heapAfterMb: +(after! / MB).toFixed(1),
@@ -87,7 +102,7 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
     slowest,
   })
   console.log(
-    `large document: ${JSON.stringify({ frames: result.deltas.length, maxMounted, growthMb: +growthMb.toFixed(1), slowFramePercent: +(slowShare * 100).toFixed(2), worstFrameMs: +worst.toFixed(1), worstIndex, slowest })}`
+    `large document: ${JSON.stringify({ frames: result.deltas.length, frameIntervalMs: intervalMs, maxMounted, growthMb: +growthMb.toFixed(1), slowFramePercent: +(slowShare * 100).toFixed(2), worstFrameMs: +worst.toFixed(1), worstIndex, slowest })}`
   )
 
   expect(result.atEnd).toBe(true)
@@ -98,6 +113,8 @@ test('1,000 pages: bounded mounts, bounded memory and smooth frames end to end',
   // worst frame there is tens of times the local figure. Frame budgets are asserted locally
   // and only reported on CI, where the structural budgets above still hold.
   if (!process.env.CI) {
+    expect(intervalMs, 'idle frame interval').toBeGreaterThanOrEqual(4)
+    expect(intervalMs, 'idle frame interval').toBeLessThanOrEqual(34)
     expect(slowShare).toBeLessThanOrEqual(0.05)
     expect(worst).toBeLessThanOrEqual(100)
   }
