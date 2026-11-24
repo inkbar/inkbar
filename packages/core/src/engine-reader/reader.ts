@@ -13,7 +13,7 @@ import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
 import { nameBytes, rawDestination } from './targets'
 
-import type { ReaderEngine, ReaderEngineDocument } from './types'
+import type { FileDestinationShape, ReaderEngine, ReaderEngineDocument } from './types'
 import type { PageLink } from '../model/links'
 import type { OutlineItem } from '../model/outline'
 import type { PageInfo, PageRotation } from '../model/pages'
@@ -48,13 +48,25 @@ export interface EngineReaderOptions {
   password: string | undefined
   /** Where a missing fallback font is reported. Default `console.warn`. */
   warn?: (message: string) => void
+  /**
+   * The reader that answers once a replacement engine cannot start: page facts, pixels, text,
+   * links, the outline and destinations then all come from it. Absent: those calls reject with
+   * the error the start failed with. A host can see the switch: text read again for a page has
+   * the fallback's item boundaries (the text the reader kept is dropped when it happens), and
+   * where the two readers differ, pages read after it differ from pages read before. The page
+   * facts the engine gave are kept, and links keep their ids, which both readers give alike.
+   */
+  fallback?: DocumentReader
+  /** Called once, when the reader turns to `fallback`. */
+  onFallback?: () => void
 }
 
 /** @internal The engine reader: a `DocumentReader` that also gives the families its text is in. */
 export interface EngineDocumentReader extends DocumentReader {
   /**
    * The CSS generic family of each of the page's text items, read with them. Once `signal`
-   * aborts it rejects with `signal.reason`, as `text` does.
+   * aborts it rejects with `signal.reason`, as `text` does. Empty once the engine cannot start:
+   * the text then comes from the fallback, which gives none.
    */
   textFamilies(page: number, signal?: AbortSignal): Promise<readonly GenericFamily[]>
 }
@@ -166,17 +178,77 @@ export async function createEngineReader(
   const pageCount = first.doc.pageCount
   /** The session in use, or starting; undefined once a stopped one is dropped or one failed to start. */
   let current: Promise<Session> | undefined = Promise.resolve(first)
+  /**
+   * Set when an engine started to replace a stopped one fails to start. The reader then starts
+   * no other: every call goes to `options.fallback`.
+   */
+  let cannotStart: { error: unknown; start: Promise<Session> } | undefined
 
   const session = (): Promise<Session> => {
     if (current) return current
+    if (cannotStart) return cannotStart.start
     const made = start()
     current = made
-    // One that failed to start is not kept: the next call tries again.
-    made.catch(() => {
-      if (current === made) current = undefined
+    // One attempt: an engine that cannot start is not started again for this document. This
+    // handler runs before the callers waiting on `made` see it fail, so they find it set.
+    made.catch((error: unknown) => {
+      if (current !== made) return
+      current = undefined
+      if (destroyed) return
+      cannotStart = { error, start: made }
+      // Text from here on is the fallback's: the engine's kept pages are not mixed in.
+      texts.clear()
+      options.onFallback?.()
     })
     return made
   }
+
+  /**
+   * `work` on the engine, or `instead` once the engine cannot start. A call whose `work` fails
+   * because the engine could not be started takes `instead` too. A call that was aborted, or
+   * made on a destroyed reader, does not.
+   */
+  const orFallback = async <T>(
+    work: () => Promise<T>,
+    instead: (reader: DocumentReader) => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> => {
+    if (!cannotStart) {
+      try {
+        return await work()
+      } catch (error) {
+        if (!cannotStart || destroyed || signal?.aborted) throw error
+      }
+    }
+    if (destroyed) throw destroyedError()
+    signal?.throwIfAborted()
+    if (!options.fallback) throw cannotStart?.error
+    return untilDestroyed(instead(options.fallback))
+  }
+
+  /**
+   * `call` as the reader's own: once the reader is destroyed it rejects with DocumentDestroyed,
+   * at once if it is still running, as a call on the engine does.
+   */
+  const untilDestroyed = <T>(call: Promise<T>): Promise<T> =>
+    new Promise<T>((resolve, reject) => {
+      const gone = (): void => reject(destroyedError())
+      if (destroyed) return gone()
+      stopped.signal.addEventListener('abort', gone, { once: true })
+      const settle = (): void => stopped.signal.removeEventListener('abort', gone)
+      call.then(
+        (value) => {
+          settle()
+          if (destroyed) gone()
+          else resolve(value)
+        },
+        (error: unknown) => {
+          settle()
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the call's own error, passed on
+          reject(destroyed ? destroyedError() : error)
+        }
+      )
+    })
 
   /**
    * Frees a session whose engine stopped. The next call starts another, unless one has already.
@@ -226,25 +298,41 @@ export async function createEngineReader(
    * engine still works the error is the call's own and goes to the caller. A call the engine
    * rejected with `aborted` because the reader dropped its session runs once more too. Never
    * for a call that was aborted or a reader that was destroyed. `onDrop` is called when this
-   * call is the one that dropped the engine, so each drop is told to one caller only.
+   * call is the one that dropped the engine, so each drop is told to one caller only. `onGone`
+   * is called when the call fails because no engine could answer it: the engine could not be
+   * started, or the one that replaced a stopped engine stopped as well. Any other failure is the
+   * call's own.
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
     signal?: AbortSignal,
-    onDrop?: () => void
+    onDrop?: () => void,
+    onGone?: () => void
   ): Promise<T> => {
     let retried = false
     for (;;) {
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
       const used = session()
-      const s = await used
+      let s: Session
+      try {
+        s = await used
+      } catch (error) {
+        onGone?.()
+        throw error
+      }
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
       try {
         return await work(s.doc)
       } catch (error) {
-        if (destroyed || signal?.aborted || retried) throw error
+        if (destroyed || signal?.aborted) throw error
+        if (retried) {
+          // The engine that replaced a stopped one stopped too, or was dropped under the call.
+          const code = codeOf(error)
+          if (code === 'engine-failure' || code === 'aborted') onGone?.()
+          throw error
+        }
         const code = codeOf(error)
         if (code === 'aborted' && s.dropped) {
           retried = true
@@ -267,9 +355,23 @@ export async function createEngineReader(
         pageCount,
       })
   }
+  /** A page's facts: the engine's, kept, else the fallback's once the engine cannot start. */
   const pageInfo = async (index: number): Promise<PageInfo> => {
     if (destroyed) throw destroyedError()
     checkPage(index)
+    const kept = facts.get(index)
+    if (cannotStart && kept) {
+      // One still running may be about to fail with the engine that could not start.
+      const known = await kept.catch(() => undefined)
+      if (destroyed) throw destroyedError()
+      if (known) return toPageInfo(known, index)
+    }
+    return orFallback(
+      () => enginePageInfo(index),
+      (reader) => reader.pageInfo(index)
+    )
+  }
+  const enginePageInfo = async (index: number): Promise<PageInfo> => {
     let asked = facts.get(index)
     if (!asked) {
       const made = run((doc) => doc.pageInfo(index))
@@ -298,7 +400,18 @@ export async function createEngineReader(
     }
   }
 
-  const draw = async (
+  const draw = (
+    request: DrawRequest,
+    canvas: HTMLCanvasElement,
+    signal?: AbortSignal
+  ): Promise<void> =>
+    orFallback(
+      () => engineDraw(request, canvas, signal),
+      (reader) => reader.draw(request, canvas, signal),
+      signal
+    )
+
+  const engineDraw = async (
     request: DrawRequest,
     canvas: HTMLCanvasElement,
     signal?: AbortSignal
@@ -447,22 +560,28 @@ export async function createEngineReader(
    * annotations PDF.js cannot parse has none with the PDF.js reader. Once link reads have
    * dropped `STOPS_IN_A_ROW` engines with none succeeding in between, the rest of the pages have
    * none without asking: a file whose link reads stop the engine would otherwise start a new
-   * engine for every page.
+   * engine for every page. Once the engine cannot start, they come from the fallback.
    */
   const links = async (page: number): Promise<PageLink[]> => {
     if (destroyed) throw destroyedError()
     checkPage(page)
-    if (linkStops >= STOPS_IN_A_ROW) return []
-    const facts = await run(
-      (doc) => doc.pageLinks(page),
-      undefined,
-      () => {
-        linkStops++
-      }
-    ).catch(() => undefined)
+    const found = await orFallback(
+      async () => {
+        if (linkStops >= STOPS_IN_A_ROW) return []
+        const facts = await run(
+          (doc) => doc.pageLinks(page),
+          undefined,
+          () => {
+            linkStops++
+          }
+        )
+        linkStops = 0
+        return linksFromFacts(page, facts)
+      },
+      (reader) => reader.links(page)
+    ).catch((): PageLink[] => [])
     if (destroyed) throw destroyedError()
-    if (facts) linkStops = 0
-    return facts ? linksFromFacts(page, facts) : []
+    return found
   }
 
   /** Named destinations looked up, by name. A failed lookup is not kept. */
@@ -474,14 +593,29 @@ export async function createEngineReader(
   ): Promise<Destination | undefined> => {
     let found = named.get(name)
     if (!found) {
-      const made = run(
-        (doc) => doc.namedDestination(nameBytes(name)),
-        undefined,
-        onDrop
-      ).then((dest) => {
-        const raw = dest && rawDestination(dest)
-        return Array.isArray(raw) ? destinationFromArray(raw, pageCount) : undefined
-      })
+      const made = orFallback(
+        async () => {
+          let gone = false
+          let dest: FileDestinationShape | undefined
+          try {
+            dest = await run(
+              (doc) => doc.namedDestination(nameBytes(name)),
+              undefined,
+              onDrop,
+              () => {
+                gone = true
+              }
+            )
+          } catch (error) {
+            // A working engine that cannot look the name up gives the same answer every time.
+            if (gone || destroyed) throw error
+            return undefined
+          }
+          const raw = dest && rawDestination(dest)
+          return Array.isArray(raw) ? destinationFromArray(raw, pageCount) : undefined
+        },
+        (reader) => reader.resolveDestination(name)
+      )
       named.set(name, made)
       made.catch(() => {
         if (named.get(name) === made) named.delete(name)
@@ -492,32 +626,46 @@ export async function createEngineReader(
   }
   /**
    * Where `raw` goes. An explicit destination is read here; a name is looked up in the engine
-   * by the bytes it decodes from. As with the PDF.js reader, one that cannot be read resolves to
-   * nothing.
+   * by the bytes it decodes from, or in the fallback once the engine cannot start. A name the
+   * file does not hold, or that a working engine cannot look up, resolves to nothing. It
+   * rejects only when no engine could answer (see `run`'s `onGone`), and is then not kept.
    */
   const resolveDestination = async (
     raw: RawDestination
   ): Promise<Destination | undefined> => {
     if (destroyed) throw destroyedError()
-    const dest =
-      typeof raw === 'string'
-        ? await lookUp(raw).catch(() => undefined)
-        : destinationFromArray(raw, pageCount)
+    let dest: Destination | undefined
+    try {
+      dest =
+        typeof raw === 'string' ? await lookUp(raw) : destinationFromArray(raw, pageCount)
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
     if (destroyed) throw destroyedError()
     return dest
   }
 
   /**
-   * The outline, `[]` when the engine cannot read it, as the PDF.js reader gives it then. Once
-   * this read's lookups have dropped `STOPS_IN_A_ROW` engines with none succeeding in between,
-   * counting each drop once, the rest of its names resolve to nothing without asking: a file
-   * whose lookups stop the engine would otherwise restart it for every batch of names.
+   * The outline. It rejects when the engine cannot read it, and comes from the fallback once
+   * the engine cannot start. Once this read's lookups have dropped `STOPS_IN_A_ROW` engines
+   * with none succeeding in between, counting each drop once, the rest of its names resolve to
+   * nothing without asking: a file whose lookups stop the engine would otherwise restart it for
+   * every batch of names.
    */
   const outline = async (): Promise<OutlineItem[]> => {
     if (destroyed) throw destroyedError()
-    const facts = await run((doc) => doc.outline()).catch(() => undefined)
+    let read: OutlineItem[]
+    try {
+      read = await orFallback(engineOutline, (reader) => reader.outline())
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
     if (destroyed) throw destroyedError()
-    if (!facts) return []
+    return read
+  }
+  const engineOutline = async (): Promise<OutlineItem[]> => {
+    const facts = await run((doc) => doc.outline())
+    if (destroyed) throw destroyedError()
     let stops = 0
     const resolve = async (raw: RawDestination): Promise<Destination | undefined> => {
       if (typeof raw !== 'string') return resolveDestination(raw)
@@ -548,12 +696,23 @@ export async function createEngineReader(
     // gets an object and list of its own, as the PDF.js reader gives: one that sorts or edits
     // them leaves the kept text as it was.
     text: (page, options): Promise<TextContent> =>
-      readText(
-        page,
-        ({ content }) => ({ page: content.page, items: [...content.items] }),
+      orFallback(
+        () =>
+          readText(
+            page,
+            ({ content }) => ({ page: content.page, items: [...content.items] }),
+            options?.signal
+          ),
+        (reader) => reader.text(page, options),
         options?.signal
       ),
-    textFamilies: (page, signal) => readText(page, (runs) => runs.families, signal),
+    // The fallback's text has no families: its items are each given the default.
+    textFamilies: (page, signal) =>
+      orFallback(
+        () => readText(page, (runs) => runs.families, signal),
+        () => Promise.resolve([]),
+        signal
+      ),
     links,
     outline,
     resolveDestination,

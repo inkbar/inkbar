@@ -22,10 +22,11 @@ interface PdfjsOutlineNode extends PdfjsTargetFields {
 
 /**
  * The document's outline, every destination resolved in full: the current item needs each
- * one's position. `[]` when the file has none or PDF.js cannot read it.
+ * one's position. `[]` when the file has none; rejects when PDF.js cannot read it. An item
+ * whose destination cannot be looked up is unsupported.
  */
 export async function readOutline(proxy: PdfjsDocument): Promise<OutlineItem[]> {
-  const roots = (await proxy.getOutline().catch(() => null)) as PdfjsOutlineNode[] | null
+  const roots = (await proxy.getOutline()) as PdfjsOutlineNode[] | null
   if (!roots || roots.length === 0) return []
 
   // Destinations in document order, resolved together, then handed out in the same order.

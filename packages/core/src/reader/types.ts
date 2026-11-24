@@ -59,8 +59,17 @@ export interface DocumentReader {
   ): Promise<TextContent>
   /** The page's visible links, in the order of the page's annotations. */
   links(page: number): Promise<PageLink[]>
-  /** The outline, every destination resolved. `[]` when the file has none. */
+  /**
+   * The outline, every destination resolved. `[]` when the file has none. Rejects when it could
+   * not be read; the document then reads it again on the next call.
+   */
   outline(): Promise<OutlineItem[]>
+  /**
+   * Where `raw` goes. `undefined` when it names no page, including when the file's data cannot
+   * be looked up: that answer would not change, so the document keeps it. Rejects only when the
+   * reader could not answer at all (its engine stopped or could not start); the document then
+   * asks again on the next call.
+   */
   resolveDestination(raw: RawDestination): Promise<Destination | undefined>
   destroy(): Promise<void>
 }

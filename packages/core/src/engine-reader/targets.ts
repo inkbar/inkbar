@@ -49,13 +49,24 @@ export function cleanUri(bytes: Uint8Array): string | undefined {
  * @internal A destination as a `RawDestination`: a name decoded as PDF.js decodes a byte string,
  * an explicit one as `[page, { name: fit }, ...args]` with the arguments its fit takes. A `page`
  * of -1 is kept and resolves to nothing. `undefined` for an explicit destination PDF.js does not
- * accept: an unknown fit, or a FitR missing a corner.
+ * accept (`isValidExplicitDest`), as far as the engine's facts tell: an unknown fit, a Fit or
+ * FitB with an argument, a FitH, FitBH, FitV or FitBV with more than one, an XYZ with more than
+ * three, or a FitR without four numbers.
+ *
+ * The facts give four arguments with `null` where the file has none, so a `null` the file
+ * writes looks like one it leaves out, and an argument that is not a number reads as `null`.
+ * What PDF.js refuses for those reasons is kept here: an XYZ with fewer than two arguments,
+ * any fit with a written `null` past the arguments it takes, a FitR with more than four, a
+ * non-number argument (or an indirect reference to a number), a fit written as a string, and a
+ * first entry that is neither a page reference nor a whole number.
  */
 export function rawDestination(dest: FileDestinationShape): RawDestination | undefined {
   if ('name' in dest) return pdfString(dest.name)
   const count = FIT_ARGS[dest.fit]
   if (count === undefined) return undefined
   const args = dest.args.slice(0, count)
+  // An argument past those the fit takes is one more than PDF.js allows.
+  if (dest.args.slice(count).some((arg) => arg !== null)) return undefined
   if (dest.fit === 'FitR' && (args.length < 4 || args.includes(null))) return undefined
   return [dest.page, { name: dest.fit }, ...args]
 }
@@ -85,7 +96,7 @@ export function nameBytes(name: string): Uint8Array {
   return out
 }
 
-/** The arguments after the fit name each fit takes, as far as PDF.js reads them. */
+/** The most arguments after the fit name PDF.js accepts for each fit. */
 const FIT_ARGS: Readonly<Record<string, number>> = {
   XYZ: 3,
   Fit: 0,
