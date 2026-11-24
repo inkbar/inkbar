@@ -877,7 +877,7 @@ describe('fallback fonts', () => {
     expect(requests).toEqual([ALL.japanese])
     const again = await opened.renderPage(0)
     expect(again.missingFonts).toEqual([])
-    expect(again.data).toEqual(first.data)
+    expect(Buffer.from(again.data).equals(Buffer.from(first.data))).toBe(true)
     expect(requests).toHaveLength(1)
 
     // Without the font the two lines are not drawn as text.
