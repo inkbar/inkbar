@@ -28,9 +28,9 @@ export interface SearchHit {
   rect: Rect
   /**
    * True when every quad is cut where the page draws its glyphs. False when some text could not
-   * be matched to the page's glyphs (right-to-left or vertical text, or an unusual file) and its
-   * quad is cut at estimated widths, which can fall short of the glyphs; pad those before
-   * covering text with them.
+   * be matched to the page's glyphs (right-to-left text, or an unusual file) and its quad is cut
+   * at estimated widths, which can fall short of the glyphs; pad those before covering text
+   * with them.
    */
   exact: boolean
   /** Up to `CONTEXT_CHARS` of page text either side of the hit, whitespace collapsed. */

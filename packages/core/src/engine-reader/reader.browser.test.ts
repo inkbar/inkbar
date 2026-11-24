@@ -361,6 +361,71 @@ describe("the engine reader's text", () => {
       }
     }
   })
+
+  // PDF.js gives a vertical run's length in its height and one em in its width; its reader
+  // lays the box down the column from the top centre of the first glyph.
+  it.each(['text-vertical', 'redact-text-vertical'] as const)(
+    "gives PDF.js's vertical runs the column the glyphs are drawn in, on %s",
+    async (name) => {
+      const engine = await open(name)
+      const engineItems = (await engine._reader.text(0, { glyphs: true })).items
+      delete flag.__INKBAR_READER__
+      const plain = await open(name)
+      expect(plain._reader.kind).toBe('pdfjs')
+      const items = (await plain._reader.text(0, { glyphs: true })).items.filter(
+        (item) => item.dir === 'ttb' && item.str.trim() !== ''
+      )
+      expect(items.map((item) => item.str)).toEqual(
+        engineItems.filter((item) => item.dir === 'ttb').map((item) => item.str)
+      )
+      const canvas = await mountPage(plain)
+      // The page canvas `mountPage` draws: zoom 1, unturned, 1 device pixel per CSS pixel.
+      const t = createPageTransform(plain.pages[0]!, 1, 0)
+      for (const item of items) {
+        const other = engineItems.find((e) => e.str === item.str)!
+        expect(item.fontSize).toBe(other.fontSize)
+        // Ahem's glyph boxes reach 1.28 pt past the last advance; a tenth of an em holds that.
+        for (const corner of ['p1', 'p2', 'p3', 'p4'] as const) {
+          const d = Math.hypot(
+            item.quad[corner].x - other.quad[corner].x,
+            item.quad[corner].y - other.quad[corner].y
+          )
+          expect(d, `${item.str} ${corner}`).toBeLessThanOrEqual(0.1 * item.fontSize)
+        }
+        expect(item.advances).toHaveLength(item.str.length + 1)
+        // Every dark pixel half an em around the box lies within 2 pt of it, and the box holds
+        // glyphs. Ahem's glyphs stand 1.28 pt lower in their cells than /DW2 puts them.
+        const { rect } = item
+        const pad = item.fontSize / 2
+        const count = (r: Rect) => {
+          const css = t.toCssRect(r)
+          const left = Math.round(css.left)
+          const top = Math.round(css.top)
+          return darkPixels(
+            canvas,
+            left,
+            top,
+            Math.round(css.left + css.width) - left,
+            Math.round(css.top + css.height) - top
+          )
+        }
+        const inside = count({
+          x: rect.x - 2,
+          y: rect.y - 2,
+          width: rect.width + 4,
+          height: rect.height + 4,
+        })
+        const around = count({
+          x: rect.x - pad,
+          y: rect.y - pad,
+          width: rect.width + 2 * pad,
+          height: rect.height + 2 * pad,
+        })
+        expect(inside, item.str).toBeGreaterThan(100)
+        expect(inside, item.str).toBe(around)
+      }
+    }
+  )
 })
 
 describe('reopening after applying redactions', () => {

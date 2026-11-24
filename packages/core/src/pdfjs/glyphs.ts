@@ -7,7 +7,12 @@ interface Glyph {
   unicode: string
   width: number
   isSpace: boolean
+  /** A vertical font's figures for the glyph: its vertical advance w1y, then its vertical origin. */
+  vmetric?: readonly number[] | null
 }
+
+/** The vertical advance a vertical font's glyph takes without one of its own: /DW2's default. */
+const DEFAULT_VERTICAL_ADVANCE = -1000
 
 interface Font {
   fontMatrix?: readonly number[]
@@ -40,8 +45,9 @@ interface State {
  * The glyphs a page draws, in content order, with where each starts and where its own width ends
  * in user space. The pen moves the way PDF.js's canvas renderer moves it (`showText` and
  * `showType3Text`): text matrix and moves, the current transformation matrix, font size and font
- * matrix, character and word spacing, horizontal scaling, and `TJ` kerning. Glyphs in vertical
- * fonts are left out. Annotation appearances are not read.
+ * matrix, character and word spacing, horizontal scaling, and `TJ` kerning. A glyph in a vertical
+ * font starts at its vertical origin and ends one vertical advance down the column. Annotation
+ * appearances are not read.
  */
 export async function pageGlyphs(
   page: PdfjsPage,
@@ -97,6 +103,10 @@ export async function pageGlyphs(
     if (fontSize === 0) return
     const fontMatrix = font.fontMatrix ?? FONT_IDENTITY
     const toUser = multiplyMatrix(s.textMatrix, s.ctm)
+    if (font.vertical) {
+      showVertical(glyphs, fontMatrix, toUser)
+      return
+    }
     const at = (x: number): ReturnType<typeof applyMatrix> =>
       applyMatrix(toUser, { x: s.x + x, y: s.y + s.rise })
     const hScale = s.hScale * fontDirection
@@ -122,6 +132,35 @@ export async function pageGlyphs(
       x += width + spacing * (font.isType3Font ? 1 : fontDirection)
     }
     s.x += x * hScale
+  }
+  /**
+   * PDF.js's canvas renderer moves the pen down text space's y, by each glyph's vertical advance
+   * less the spacing and by `TJ` kerning. Horizontal scaling plays no part. With a negative font
+   * size it does not flip y, so it draws the glyphs up the column from the pen, though it still
+   * moves the pen down by the same amount afterwards.
+   */
+  const showVertical = (
+    glyphs: readonly (Glyph | number | null)[],
+    fontMatrix: readonly number[],
+    toUser: Matrix
+  ) => {
+    const { fontSize, fontDirection, charSpacing, wordSpacing } = s
+    const at = (y: number): ReturnType<typeof applyMatrix> =>
+      applyMatrix(toUser, { x: s.x, y: s.y + s.rise - fontDirection * y })
+    let y = 0
+    for (const g of glyphs) {
+      if (typeof g === 'number') {
+        y += (g * fontSize) / 1000
+        continue
+      }
+      if (!g) continue
+      const spacing = charSpacing + (g.isSpace ? wordSpacing : 0)
+      const advance =
+        -(g.vmetric?.[0] ?? DEFAULT_VERTICAL_ADVANCE) * fontSize * fontMatrix[0]!
+      out.push({ text: g.unicode, start: at(y), end: at(y + advance) })
+      y += advance - spacing * fontDirection
+    }
+    s.y -= y
   }
   for (let i = 0; i < list.fnArray.length; i++) {
     const args = list.argsArray[i] as unknown[] | null

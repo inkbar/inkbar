@@ -154,15 +154,58 @@ describe('pageGlyphs', () => {
     ])
   })
 
-  it('leaves out vertical fonts', async () => {
+  it('places glyphs of a vertical font down the column, by their vertical advances', async () => {
+    const vglyph = (unicode: string, advance: number) => ({
+      ...glyph(unicode, 1000),
+      vmetric: [advance, 500, 880],
+    })
     const { p } = page(
       [
         [OPS.beginText, null],
         [OPS.setFont, ['v', 10]],
-        [OPS.showText, [[glyph('a', 500)]]],
+        [OPS.setCharSpacing, [1]],
+        [OPS.moveText, [100, 700]],
+        [OPS.showText, [[vglyph('a', -1000), 500, vglyph('b', -600)]]],
+        [OPS.setFont, ['f', 10]],
+        [OPS.setCharSpacing, [0]],
+        [OPS.showText, [[glyph('c', 500)]]],
       ],
       { v: { vertical: true } }
     )
-    expect(await pageGlyphs(p, pdfjs)).toEqual([])
+    const out = await pageGlyphs(p, pdfjs)
+    expect(out.map((g) => g.text)).toEqual(['a', 'b', 'c'])
+    // a: 700 down to 690, then up 1 for the spacing; kerning 500 moves 5 down; b: 686..680,
+    // then up 1. The pen ends 19 below where it started, where the next run starts.
+    expect(out.map((g) => [g.start.x, g.start.y, g.end.x, g.end.y])).toEqual([
+      [100, 700, 100, 690],
+      [100, 686, 100, 680],
+      [100, 681, 105, 681],
+    ])
+  })
+
+  it('places glyphs of a vertical font up the column at a negative font size', async () => {
+    const vglyph = (unicode: string) => ({
+      ...glyph(unicode, 1000),
+      vmetric: [-1000, 500, 880],
+    })
+    const { p } = page(
+      [
+        [OPS.beginText, null],
+        [OPS.setFont, ['v', -10]],
+        [OPS.moveText, [100, 700]],
+        [OPS.showText, [[vglyph('a'), vglyph('b')]]],
+        [OPS.setFont, ['f', 10]],
+        [OPS.showText, [[glyph('c', 500)]]],
+      ],
+      { v: { vertical: true } }
+    )
+    // PDF.js draws them up from the pen, then still moves the pen 20 down.
+    expect(
+      (await pageGlyphs(p, pdfjs)).map((g) => [g.start.x, g.start.y, g.end.x, g.end.y])
+    ).toEqual([
+      [100, 700, 100, 710],
+      [100, 710, 100, 720],
+      [100, 680, 105, 680],
+    ])
   })
 })
