@@ -304,19 +304,16 @@ describe("the engine reader's text", () => {
     expect(engine).toContain('left column right column')
   })
 
-  // On a page turned 90 degrees the engine reads its lines in the order they stand on screen,
-  // left to right, which puts the last line of the file first. PDF.js reads them in the order the
-  // file writes them. Each line is the same; their order is what the engine gives.
-  it('reads the lines of text-rotated-90 in the order they stand on screen', async () => {
+  // The engine reads a page turned 90 degrees as it reads the page unturned, so its lines come
+  // in the order the file writes them, as PDF.js reads them.
+  it('reads the lines of text-rotated-90 in the order the file writes them', async () => {
+    const written =
+      'Rotated 90 Hello Inkbar. This document exercises text selection. National Insurance number QQ123456C appears here. Email: sam.hargreaves@hargreaves-mott.example The quick brown fox jumps over the lazy dog.'
     const doc = await open('text-rotated-90')
-    await expect(joinedText(doc, 0)).resolves.toBe(
-      'The quick brown fox jumps over the lazy dog. Email: sam.hargreaves@hargreaves-mott.example National Insurance number QQ123456C appears here. Hello Inkbar. This document exercises text selection. Rotated 90'
-    )
+    await expect(joinedText(doc, 0)).resolves.toBe(written)
     delete flag.__INKBAR_READER__
     const plain = await open('text-rotated-90')
-    expect(await joinedText(plain, 0)).toBe(
-      'Rotated 90 Hello Inkbar. This document exercises text selection. National Insurance number QQ123456C appears here. Email: sam.hargreaves@hargreaves-mott.example The quick brown fox jumps over the lazy dog.'
-    )
+    expect(await joinedText(plain, 0)).toBe(written)
   })
 
   // The engine reads the Hebrew in reading order, though the file draws it last letter first.

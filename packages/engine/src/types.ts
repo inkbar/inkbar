@@ -51,7 +51,30 @@ export interface TextFont {
   bold: boolean
   /** Written top to bottom. */
   vertical: boolean
+  /**
+   * The height above the baseline in em units, from the face the engine loaded for the font.
+   * `null` for a Type 3 font, and when the face gives 0 for both this and `descent`.
+   */
+  ascent: number | null
+  /** The depth below the baseline in em units, as `ascent`; negative below the baseline. */
+  descent: number | null
+  /**
+   * The font descriptor's `/Ascent` over 1000, with the sign the file gives it. A Type 0 font's
+   * comes from its descendant font. `null` when there is no descriptor, or it has no number here.
+   * Nothing checks it: a file can give any value.
+   */
+  descriptorAscent: number | null
+  /** The font descriptor's `/Descent` over 1000, as `descriptorAscent`. */
+  descriptorDescent: number | null
+  /**
+   * The standard 14 font the engine draws this font with, when it is one with no embedded file.
+   * `null` otherwise.
+   */
+  standard: StandardFontName | null
 }
+
+/** One of the standard 14 fonts every PDF reader provides, by name. */
+export type StandardFontName = StandardFont | 'Symbol' | 'ZapfDingbats'
 
 /** The numbers per character in `PageText.geometry`. */
 export const TEXT_GEOMETRY_STRIDE = 15
@@ -71,6 +94,11 @@ export interface PageText {
   /** Index into `fontTable`. */
   fonts: Uint16Array
   fontTable: TextFont[]
+  /**
+   * The page had more than 1,000,000 characters and these are the first 1,000,000. The cut can
+   * fall inside a line break the engine inferred, so the last character can be a lone CR.
+   */
+  truncated: boolean
 }
 
 /** Options for `EngineDocument.pageText`. */
@@ -85,25 +113,84 @@ export interface PageTextOptions {
 
 /** A destination as the file gives it. */
 export type FileDestination =
-  /**
-   * `page` is 0-based, or -1 when it names no page of this file. `args` are the numbers after
-   * the fit, and always four of them: `null` where the file has `null` or has no number.
-   */
-  | { page: number; fit: string; args: (number | null)[] }
+  /** A page and a fit, with the array's shape. */
+  | ExplicitDestination
   /** A named destination: the name's bytes. */
   | { name: Uint8Array }
+
+/** How a destination array's entry after the page is written. */
+export type DestinationFitKind = 'name' | 'string' | 'other' | 'missing'
+
+/**
+ * How a destination array's first entry is written: a reference to a dictionary, a whole number,
+ * anything else, or `missing` for an empty array.
+ */
+export type DestinationPageKind = 'ref' | 'integer' | 'other' | 'missing'
+
+/** What one argument after the fit holds, read through a reference: a reference to no object is `null`. */
+export type DestinationArgKind = 'number' | 'null' | 'other'
+
+/**
+ * An explicit destination: a page and a fit, and the shape of the array as the file wrote it, so
+ * a caller can check it by its own rules. The engine applies none.
+ */
+export interface ExplicitDestination {
+  /**
+   * 0-based, or -1 when it names no page of this file. In a remote go-to's or a launch's
+   * destination it names a page of the other file, and is the number the file gives.
+   */
+  page: number
+  /** `'XYZ'`, `'Fit'`, `'FitH'`, `'FitV'`, `'FitR'`, `'FitB'`, `'FitBH'`, `'FitBV'` or `'Unknown'`. */
+  fit: string
+  /** The four entries after the fit: a number, or `null` where the file has none or no number. */
+  args: (number | null)[]
+  /**
+   * The object the first entry refers to, when it is a reference: its number, and the
+   * generation of the object the file holds under that number (0 when it holds none). Absent
+   * when the first entry is not a reference.
+   */
+  pageRef?: { objectNumber: number; generation: number }
+  /** The number of entries after the fit, however many. */
+  argCount: number
+  /** What each of the first 8 entries after the fit holds. */
+  argKinds: DestinationArgKind[]
+  /** Whether any of those 8 is written as a reference. */
+  argIndirect: boolean
+  /** How the fit entry is written. */
+  fitKind: DestinationFitKind
+  /** How the page entry is written. */
+  pageKind: DestinationPageKind
+}
 
 /** An action as the file gives it. Nothing is decoded, completed or filtered. */
 export interface FileAction {
   /** The action's `/S`: `'URI'`, `'GoTo'`, `'GoToR'`, `'Launch'`, `'Named'`, `'JavaScript'` or another name. */
   kind: string
+  /** A URI action's `/URI`: its bytes, empty when it is neither a string nor a name. */
   uri?: Uint8Array
+  /** Whether a URI action's `/URI` is a string or a name. Absent when it is neither. */
+  uriKind?: 'string' | 'name'
   destination?: FileDestination
+  /**
+   * A remote go-to's or a launch's file: `/F` when it is a string, else the first string of the
+   * file specification's `/UF`, `/F`, `/Unix`, `/Mac` and `/DOS`.
+   */
   file?: Uint8Array
+  /**
+   * Whether a remote go-to's or a launch's `/F` is a string or a file specification. Absent when
+   * it is neither.
+   */
+  fileKind?: 'string' | 'spec'
   newWindow?: boolean
   name?: string
-  /** A JavaScript action's source. The engine never runs it. */
+  /**
+   * A JavaScript action's source. The engine never runs it. It is cut to 4,096 bytes, written as
+   * UTF-8 with JSON escapes, and a page's links share 1,048,576 such bytes; once those are spent
+   * each later script is empty.
+   */
   script?: string
+  /** Present, and true, only when `script` was cut. */
+  scriptTruncated?: true
 }
 
 /** Where a link or an outline item goes, as the file gives it. Any of the three may be present together. */
@@ -121,7 +208,11 @@ export interface PageAnnotationEntry {
   flags: number
   /** Absent for an annotation stored as a direct object. */
   objectNumber?: number
+  /** The generation of the annotation's object; present with `objectNumber`. */
+  generation?: number
   rectOk: boolean
+  /** Whether `/QuadPoints` is present and not null, whatever it holds. */
+  hasQuads: boolean
   quadsOk: boolean
 }
 
@@ -132,6 +223,12 @@ export interface PageLinkFacts extends FileTarget {
   rect: Rect
   /** 8 numbers per quad, as the file has them. */
   quads?: number[]
+  /**
+   * Present, and true, only when the link has a `/Dest` (`null` included) that is not a string,
+   * a name or an array; `destination` is then absent. An array that is no valid destination is
+   * given as `destination`, for the caller to check.
+   */
+  destinationInvalid?: true
 }
 
 export interface PageLinks {

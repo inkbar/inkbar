@@ -348,6 +348,7 @@ describe('pageText', () => {
     expect(text.geometry).toHaveLength(0)
     expect(text.flags).toHaveLength(0)
     expect(text.fonts).toHaveLength(0)
+    expect(text.truncated).toBe(false)
   })
 
   test('a closed document rejects', async () => {
@@ -385,6 +386,78 @@ describe('pageText', () => {
     await expect(doc.pageText(0, null as never)).rejects.toBeInstanceOf(RangeError)
     await expect(doc.pageText(0, 1 as never)).rejects.toBeInstanceOf(RangeError)
   })
+
+  const textOf = async (name: string, page = 0) => {
+    const opened = await engine.open(await fixtureBytes(name as 'text-simple'))
+    const text = await opened.pageText(page)
+    return { text, string: String.fromCodePoint(...text.codes) }
+  }
+
+  test('a standard font with no file gives its name and the face it is drawn with', async () => {
+    const { text } = await textOf('text-simple')
+    expect(text.truncated).toBe(false)
+    const [helvetica] = text.fontTable
+    expect(helvetica).toMatchObject({
+      name: 'Helvetica',
+      standard: 'Helvetica',
+      descriptorAscent: null,
+      descriptorDescent: null,
+    })
+    expect(helvetica?.ascent).toBeCloseTo(0.945, 6)
+    expect(helvetica?.descent).toBeCloseTo(-0.224, 6)
+  })
+
+  test("a font with a descriptor gives the descriptor's ascent and descent", async () => {
+    const { text } = await textOf('unembedded-arial')
+    const arial = text.fontTable.find((f) => f.name === 'Arial')
+    expect(arial?.standard).toBeNull()
+    expect(arial?.descriptorAscent).toBeCloseTo(0.9, 6)
+    expect(arial?.descriptorDescent).toBeCloseTo(-0.25, 6)
+    expect(arial?.ascent).toEqual(expect.any(Number))
+    expect(arial?.descent).toEqual(expect.any(Number))
+    expect(text.fontTable.find((f) => f.name === 'Helvetica')?.standard).toBe('Helvetica')
+  })
+
+  test('a Type 3 font has no metrics, and its characters read from their glyph names', async () => {
+    const type3 = await textOf('redact-text-type3')
+    expect(type3.string).toBe('SECRET-ALPHA KEEP-BETA')
+    expect(type3.text.fontTable).toEqual([
+      {
+        name: '',
+        fixedPitch: false,
+        serif: false,
+        italic: false,
+        bold: false,
+        vertical: false,
+        ascent: null,
+        descent: null,
+        descriptorAscent: null,
+        descriptorDescent: null,
+        standard: null,
+      },
+    ])
+    expect((await textOf('corpus-type3')).string).toBe('A\r\nA\r\nA')
+    expect((await textOf('corpus-bug-1746')).string).toBe('aa')
+    for (const name of ['redact-text-type3', 'corpus-type3', 'corpus-bug-1746']) {
+      const { text } = await textOf(name)
+      expect(
+        text.flags.every((f) => (f & 4) === 0),
+        name
+      ).toBe(true)
+    }
+  })
+
+  test('a turned page reads in the order of its lines before the turn', async () => {
+    const lines = (await textOf('text-rotated-90')).string.split('\r\n')
+    expect(lines).toEqual([
+      'Rotated 90',
+      'Hello Inkbar. This document exercises text selection.',
+      'National Insurance number QQ123456C appears here.',
+      'Email: sam.hargreaves@hargreaves-mott.example',
+      'The quick brown fox jumps over the lazy dog.',
+    ])
+    expect((await textOf('links', 2)).string).toBe('Page 3\r\nBack to start')
+  })
 })
 
 describe('links, outline and named destinations', () => {
@@ -410,7 +483,11 @@ describe('links, outline and named destinations', () => {
       destination: { page: 1, fit: 'XYZ', args: [72, 600, null, null] },
     })
     const uri = links.find((l) => l.action?.uri !== undefined && l.quads === undefined)
-    expect(uri?.action).toEqual({ kind: 'URI', uri: utf8('https://example.com/a') })
+    expect(uri?.action).toEqual({
+      kind: 'URI',
+      uri: utf8('https://example.com/a'),
+      uriKind: 'string',
+    })
     const wrapped = links.find((l) => l.quads !== undefined)
     expect(wrapped?.quads).toHaveLength(16)
     expect(wrapped?.action?.uri).toEqual(utf8('https://example.com/wrapped'))
@@ -423,6 +500,74 @@ describe('links, outline and named destinations', () => {
       expect.arrayContaining(['URI', 'Named', 'GoToR', 'Launch'])
     )
     expect(links.map((l) => l.action?.uri)).toContainEqual(utf8('javascript:alert(1)'))
+  })
+
+  test("a link's destination gives the shape of its array, and its action the kinds of its entries", async () => {
+    const targets = await engine.open(await fixtureBytes('link-targets'))
+    const { annotations, links } = await targets.pageLinks(0)
+    expect(annotations).toHaveLength(23)
+    for (const entry of annotations)
+      expect(entry).toMatchObject({ generation: 0, hasQuads: false, quadsOk: true })
+    const shape = {
+      fit: 'Fit',
+      argIndirect: false,
+      fitKind: 'name',
+      pageKind: 'ref',
+    }
+    const ref = (objectNumber: number) => ({ objectNumber, generation: 0 })
+    // a-and-dest: a /Dest beside a URI action.
+    expect(links[0]?.destination).toEqual({
+      ...shape,
+      page: 0,
+      pageRef: ref(3),
+      args: [null, null, null, null],
+      argCount: 0,
+      argKinds: [],
+    })
+    expect(links[0]?.action).toMatchObject({ kind: 'URI', uriKind: 'string' })
+    // gotor-absolute and launch-file: /F as a string.
+    expect(links[1]?.action).toMatchObject({ kind: 'GoToR', fileKind: 'string' })
+    expect(links[4]?.action).toMatchObject({ kind: 'Launch', fileKind: 'string' })
+    // dest-catalog: a reference to the catalog, which is no page.
+    expect(links[18]?.destination).toEqual({
+      ...shape,
+      page: -1,
+      pageRef: ref(1),
+      args: [null, null, null, null],
+      argCount: 0,
+      argKinds: [],
+    })
+    // dest-fit-argument, dest-fith-two-arguments, dest-xyz-four-arguments.
+    expect(links[20]?.destination).toEqual({
+      ...shape,
+      page: 0,
+      pageRef: ref(3),
+      args: [72, null, null, null],
+      argCount: 1,
+      argKinds: ['number'],
+    })
+    expect(links[21]?.destination).toEqual({
+      ...shape,
+      fit: 'FitH',
+      page: 0,
+      pageRef: ref(3),
+      args: [600, 72, null, null],
+      argCount: 2,
+      argKinds: ['number', 'number'],
+    })
+    expect(links[22]?.action?.destination).toEqual({
+      ...shape,
+      fit: 'XYZ',
+      page: 0,
+      pageRef: ref(3),
+      args: [72, 600, 0, 5],
+      argCount: 4,
+      argKinds: ['number', 'number', 'number', 'number'],
+    })
+    for (const link of links) {
+      expect(link).not.toHaveProperty('destinationInvalid')
+      expect(link.action?.scriptTruncated).toBeUndefined()
+    }
   })
 
   test('a page index outside the document rejects with a RangeError', async () => {
@@ -456,6 +601,7 @@ describe('links, outline and named destinations', () => {
     expect(website?.action).toEqual({
       kind: 'URI',
       uri: utf8('https://example.com/outline'),
+      uriKind: 'string',
     })
     expect(items.find((i) => i.title === 'Next page')?.action).toEqual({
       kind: 'Named',
@@ -469,8 +615,14 @@ describe('links, outline and named destinations', () => {
     expect(sectionB).toMatchObject({ italic: true, bold: false })
     expect(items[0]?.destination).toEqual({
       page: 0,
+      pageRef: { objectNumber: 5, generation: 0 },
       fit: 'XYZ',
       args: [null, 700, null, null],
+      argCount: 3,
+      argKinds: ['null', 'number', 'null'],
+      argIndirect: false,
+      fitKind: 'name',
+      pageKind: 'ref',
     })
   })
 
@@ -482,8 +634,14 @@ describe('links, outline and named destinations', () => {
     const outlined = await engine.open(await fixtureBytes('outline'))
     expect(await outlined.namedDestination(utf8('chapter-2'))).toEqual({
       page: 1,
+      pageRef: { objectNumber: 7, generation: 0 },
       fit: 'XYZ',
       args: [72, 500, null, null],
+      argCount: 3,
+      argKinds: ['number', 'number', 'null'],
+      argIndirect: false,
+      fitKind: 'name',
+      pageKind: 'ref',
     })
     expect(await outlined.namedDestination(utf8('appendix'))).toMatchObject({
       page: 4,

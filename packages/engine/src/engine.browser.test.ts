@@ -125,16 +125,74 @@ test('links, the outline and named destinations cross from the worker with their
   expect(truncated).toBe(false)
   expect(items[1]?.children).toHaveLength(2)
   const name = new TextEncoder().encode('chapter-2')
-  expect(await outlined.namedDestination(name)).toEqual({
+  expect(await outlined.namedDestination(name)).toMatchObject({
     page: 1,
     fit: 'XYZ',
     args: [72, 500, null, null],
+    argCount: 3,
+    argKinds: ['number', 'number', 'null'],
+    fitKind: 'name',
+    pageKind: 'ref',
   })
   expect(name).toHaveLength(9)
   expect(
     await outlined.namedDestination(new TextEncoder().encode('nope'))
   ).toBeUndefined()
   await engine.destroy()
+})
+
+test('font metrics, Type 3 text and turned pages read the same through the worker', async () => {
+  const engine = await start()
+  const textOf = async (name: Parameters<typeof fixtureUrl>[0], page = 0) => {
+    const text = await (await engine.open(await fixture(name))).pageText(page)
+    return { text, string: String.fromCodePoint(...text.codes) }
+  }
+  const simple = await textOf('text-simple')
+  expect(simple.text.truncated).toBe(false)
+  expect(simple.text.fontTable[0]).toMatchObject({
+    standard: 'Helvetica',
+    descriptorAscent: null,
+    descriptorDescent: null,
+  })
+  expect(simple.text.fontTable[0]?.ascent).toBeCloseTo(0.945, 6)
+  expect(simple.text.fontTable[0]?.descent).toBeCloseTo(-0.224, 6)
+  const arial = (await textOf('unembedded-arial')).text.fontTable.find(
+    (f) => f.name === 'Arial'
+  )
+  expect(arial?.standard).toBeNull()
+  expect(arial?.descriptorAscent).toBeCloseTo(0.9, 6)
+  expect(arial?.descriptorDescent).toBeCloseTo(-0.25, 6)
+  const type3 = await textOf('redact-text-type3')
+  expect(type3.string).toBe('SECRET-ALPHA KEEP-BETA')
+  expect(type3.text.fontTable[0]).toMatchObject({
+    ascent: null,
+    descent: null,
+    standard: null,
+  })
+  expect((await textOf('corpus-type3')).string).toBe('A\r\nA\r\nA')
+  expect((await textOf('corpus-bug-1746')).string).toBe('aa')
+  expect((await textOf('text-rotated-90')).string.split('\r\n')[0]).toBe('Rotated 90')
+  expect((await textOf('links', 2)).string).toBe('Page 3\r\nBack to start')
+})
+
+test("a link's facts cross from the worker", async () => {
+  const engine = await start()
+  const targets = await engine.open(await fixture('link-targets'))
+  const { annotations, links } = await targets.pageLinks(0)
+  expect(annotations[0]).toMatchObject({ generation: 0, hasQuads: false })
+  expect(links[0]?.action).toMatchObject({ kind: 'URI', uriKind: 'string' })
+  expect(links[1]?.action).toMatchObject({ kind: 'GoToR', fileKind: 'string' })
+  expect(links[21]?.destination).toEqual({
+    page: 0,
+    pageRef: { objectNumber: 3, generation: 0 },
+    fit: 'FitH',
+    args: [600, 72, null, null],
+    argCount: 2,
+    argKinds: ['number', 'number'],
+    argIndirect: false,
+    fitKind: 'name',
+    pageKind: 'ref',
+  })
 })
 
 test('render options cross to the worker', async () => {

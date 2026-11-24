@@ -210,6 +210,8 @@ export const FUNCTIONS = {
   INK_Text_Fonts: { args: ['ptr'], ret: 'ptr' },
   // NUL-terminated UTF-8 JSON, owned by the InkText
   INK_Text_FontTable: { args: ['ptr'], ret: 'ptr' },
+  // (const InkText* t) -> 1 when the page had more than 1,000,000 characters
+  INK_Text_Truncated: { args: ['ptr'], ret: 'i32' },
   INK_Text_Free: { args: ['ptr'], ret: 'void' },
   // (FPDF_DOCUMENT doc, int page_index) -> char* JSON, freed with INK_Json_Free; NULL on failure
   INK_Links_Page: { args: ['ptr', 'i32'], ret: 'ptr' },

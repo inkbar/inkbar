@@ -1,15 +1,45 @@
 import { EngineError } from '../errors.ts'
-import { TEXT_GEOMETRY_STRIDE, type PageText, type TextFont } from '../types.ts'
+import {
+  TEXT_GEOMETRY_STRIDE,
+  type PageText,
+  type StandardFontName,
+  type TextFont,
+} from '../types.ts'
 
 import type { Heap } from './strings.ts'
 
 const FONT_KEYS = ['fixedPitch', 'serif', 'italic', 'bold', 'vertical'] as const
+const METRIC_KEYS = [
+  'ascent',
+  'descent',
+  'descriptorAscent',
+  'descriptorDescent',
+] as const
+const STANDARD_FONTS: ReadonlySet<string> = new Set<StandardFontName>([
+  'Courier',
+  'Courier-Bold',
+  'Courier-BoldOblique',
+  'Courier-Oblique',
+  'Helvetica',
+  'Helvetica-Bold',
+  'Helvetica-BoldOblique',
+  'Helvetica-Oblique',
+  'Times-Roman',
+  'Times-Bold',
+  'Times-BoldItalic',
+  'Times-Italic',
+  'Symbol',
+  'ZapfDingbats',
+])
+
+const finiteOrNull = (value: unknown): boolean =>
+  value === null || (typeof value === 'number' && Number.isFinite(value))
 
 function fail(message: string, cause?: unknown): EngineError {
   return new EngineError('engine-failure', message, cause === undefined ? {} : { cause })
 }
 
-/** The font table the fork wrote, checked: an array of the six-key objects. */
+/** The font table the fork wrote, checked: an array of the eleven-key objects. */
 function readFontTable(heap: Heap, pointer: number): TextFont[] {
   const bytes = heap.native.HEAPU8
   const end = pointer === 0 ? -1 : bytes.indexOf(0, pointer)
@@ -20,17 +50,22 @@ function readFontTable(heap: Heap, pointer: number): TextFont[] {
   } catch (cause) {
     throw fail("A page's font table could not be read.", cause)
   }
-  if (!Array.isArray(parsed)) throw fail("A page's font table could not be read.")
-  return parsed.map((entry: unknown): TextFont => {
-    const item = (typeof entry === 'object' && entry !== null ? entry : {}) as Record<
-      string,
-      unknown
-    >
-    if (
-      typeof item.name !== 'string' ||
-      FONT_KEYS.some((k) => typeof item[k] !== 'boolean')
+  const bad = (key: string, expected: string) =>
+    fail(
+      "A page's font table could not be read.",
+      new Error(`${key}: expected ${expected}`)
     )
-      throw fail("A page's font table could not be read.")
+  if (!Array.isArray(parsed)) throw bad('root', 'a list')
+  return parsed.map((entry: unknown): TextFont => {
+    if (typeof entry !== 'object' || entry === null) throw bad('entry', 'an object')
+    const item = entry as Record<string, unknown>
+    if (typeof item.name !== 'string') throw bad('name', 'a string')
+    const flag = FONT_KEYS.find((k) => typeof item[k] !== 'boolean')
+    if (flag) throw bad(flag, 'a boolean')
+    const metric = METRIC_KEYS.find((k) => !finiteOrNull(item[k]))
+    if (metric) throw bad(metric, 'a finite number or null')
+    if (!(item.standard === null || STANDARD_FONTS.has(item.standard as string)))
+      throw bad('standard', 'a standard 14 font name or null')
     return {
       name: item.name,
       fixedPitch: item.fixedPitch as boolean,
@@ -38,6 +73,11 @@ function readFontTable(heap: Heap, pointer: number): TextFont[] {
       italic: item.italic as boolean,
       bold: item.bold as boolean,
       vertical: item.vertical as boolean,
+      ascent: item.ascent as number | null,
+      descent: item.descent as number | null,
+      descriptorAscent: item.descriptorAscent as number | null,
+      descriptorDescent: item.descriptorDescent as number | null,
+      standard: item.standard as StandardFontName | null,
     }
   })
 }
@@ -56,6 +96,13 @@ export function readPageText(heap: Heap, doc: number, index: number): PageText {
   try {
     const count = fn.INK_Text_Count(text)
     const fontTable = readFontTable(heap, fn.INK_Text_FontTable(text))
+    const cut = fn.INK_Text_Truncated(text)
+    if (cut !== 0 && cut !== 1)
+      throw fail(
+        "A page's characters could not be read.",
+        new Error(`INK_Text_Truncated: expected 0 or 1, got ${cut}`)
+      )
+    const truncated = cut === 1
     if (count === 0)
       return {
         count,
@@ -64,6 +111,7 @@ export function readPageText(heap: Heap, doc: number, index: number): PageText {
         flags: new Uint8Array(0),
         fonts: new Uint16Array(0),
         fontTable,
+        truncated,
       }
     const memory = native.HEAPU8.buffer
     const at = (pointer: number, size: number, align: number) => {
@@ -82,6 +130,7 @@ export function readPageText(heap: Heap, doc: number, index: number): PageText {
       flags: new Uint8Array(memory, flags, count).slice(),
       fonts: new Uint16Array(memory, fonts, count).slice(),
       fontTable,
+      truncated,
     }
   } finally {
     if (!heap.stopped) fn.INK_Text_Free(text)
