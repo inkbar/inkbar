@@ -294,6 +294,7 @@ export const de: InkMessages = {
     sign: 'Unterschreiben',
     signField: template('de', 'Dieses Feld unterschreiben: {label}'),
     signFieldTitle: 'Dieses Feld unterschreiben',
+    radioOption: template('de', '{option}, {label}'),
     alert: 'Meldung',
     ok: 'OK',
   },

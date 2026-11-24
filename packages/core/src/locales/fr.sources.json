@@ -40,6 +40,7 @@
   "forms.sign": "Sign",
   "forms.signField": "Sign this field: {label}",
   "forms.signFieldTitle": "Sign this field",
+  "forms.radioOption": "{option}, {label}",
   "forms.unnamed": "Form field",
   "highlight.choose": "Choose highlight",
   "highlight.colour": "Colour",

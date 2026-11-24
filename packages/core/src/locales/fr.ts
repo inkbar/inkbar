@@ -297,6 +297,7 @@ export const fr: InkMessages = {
     sign: 'Signer',
     signField: template('fr', 'Signer ce champ\u202f: {label}'),
     signFieldTitle: 'Signer ce champ',
+    radioOption: template('fr', '{option}, {label}'),
     alert: 'Message',
     ok: 'OK',
   },

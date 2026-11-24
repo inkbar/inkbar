@@ -32,6 +32,7 @@ import { sameValue } from '../model/form/values'
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
 import { createButtonWidget } from './form-button'
 import { createChoiceWidget, createToggleWidget } from './form-choice'
+import { controlLabel } from './form-label'
 import { annotsOrder, pageTabOrder } from './form-order'
 import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
@@ -142,7 +143,7 @@ export interface WidgetViewContext {
   readonly box: HTMLElement
   /**
    * The control's accessible name: `/TU`, else the last part of the field name, else
-   * `forms.unnamed`. Read when the view labels its control.
+   * `forms.unnamed`, with a radio's own option first. Read when the view labels its control.
    */
   readonly label: string
   /** The viewer's words now. */
@@ -233,13 +234,6 @@ interface Entry {
   view: WidgetView | undefined
   /** The field's value when last synced, to clear a refused commit's mark once it changes. */
   value: FieldValue | undefined
-}
-
-/** A field's accessible name: its tooltip, else the last part of its name. */
-function labelOf(field: FormField, m: InkMessages): string {
-  const tip = field.tooltip?.trim()
-  if (tip) return tip
-  return field.name.split('.').at(-1)?.trim() || m.forms.unnamed
 }
 
 const toggle = (el: Element, attr: string, on: boolean) => {
@@ -527,7 +521,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         page,
         box,
         get label() {
-          return labelOf(e.field, words())
+          return controlLabel(e.field, e.widget, words())
         },
         get messages() {
           return words()
@@ -572,7 +566,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   syncEntries(entries)
 
   /** Each field's name as last labelled, to rewrite only labels that came from the words. */
-  const named = new Map(entries.map((e) => [e, labelOf(e.field, words())]))
+  const named = new Map(entries.map((e) => [e, controlLabel(e.field, e.widget, words())]))
 
   const stops = [
     // New words: a control named by them is renamed in place, and a signature field's
@@ -582,7 +576,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       for (const e of entries) {
         const control = e.view?.control
         const was = named.get(e)
-        const now = labelOf(e.field, m)
+        const now = controlLabel(e.field, e.widget, m)
         named.set(e, now)
         if (control && was !== now && control.getAttribute('aria-label') === was)
           control.setAttribute('aria-label', now)
