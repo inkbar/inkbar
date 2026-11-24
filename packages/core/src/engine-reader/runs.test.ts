@@ -6,6 +6,7 @@ import { searchableText } from '../model/search-text'
 import { runsFromChars, type PageChars } from './runs'
 
 import type { Quad } from '../model/geometry'
+import type { TextItem } from '../model/text'
 
 type Font = PageChars['fontTable'][number]
 
@@ -246,6 +247,45 @@ describe('runsFromChars', () => {
     expect(space.advances).toEqual([1, 0])
   })
 
+  it('lays a space from a left-to-right run to the near end of a right-to-left one', () => {
+    // ab from 72 to 84, then של from 90 to 110: ש, read first, is drawn rightmost.
+    const page = chars([
+      ...line('ab', 72, 700),
+      { c: ' ', x: 84, y: 700, flags: GENERATED },
+      { c: 'ש', x: 100, y: 700, w: 10 },
+      { c: 'ל', x: 90, y: 700, w: 10 },
+    ])
+    const { content } = runsFromChars(0, page)
+    expect(content.items.map((i) => [i.str, i.dir])).toEqual([
+      ['ab', 'ltr'],
+      [' ', 'ltr'],
+      ['של', 'rtl'],
+    ])
+    const space = content.items[1]!
+    expect(space.rect).toEqual({ x: 84, y: 697, width: 6, height: 12 })
+    expect(space.advances).toEqual([0, 1])
+  })
+
+  it('lays a space from a right-to-left run to the near end of a left-to-right one', () => {
+    // של from 100 to 120, then ab further left, from 82 to 94: b, read last, is drawn rightmost.
+    // The engine puts the space one advance right of ל's origin, at 110.
+    const page = chars([
+      { c: 'ש', x: 110, y: 700, w: 10 },
+      { c: 'ל', x: 100, y: 700, w: 10 },
+      { c: ' ', x: 110, y: 700, flags: GENERATED },
+      ...line('ab', 82, 700),
+    ])
+    const { content } = runsFromChars(0, page)
+    expect(content.items.map((i) => [i.str, i.dir])).toEqual([
+      ['של', 'rtl'],
+      [' ', 'rtl'],
+      ['ab', 'ltr'],
+    ])
+    const space = content.items[1]!
+    expect(space.rect).toEqual({ x: 94, y: 697, width: 6, height: 12 })
+    expect(space.advances).toEqual([1, 0])
+  })
+
   it('drops a generated space before a line break', () => {
     const page = chars([
       ...line('ab', 72, 700),
@@ -388,6 +428,133 @@ describe('runsFromChars', () => {
         close(glyphEnds![1]!, advances![2]!)
         close(advances![1]!, 6 / 26.4)
         close(glyphEnds![1]!, 8.4 / 26.4)
+      }
+    )
+
+    /**
+     * Each turn with where `b`, drawn from 6 to 12 along, ends along the baseline, and how far
+     * below the baseline the run's boxes reach. At 90 and 180 degrees that is the cell: 12 along
+     * and a quarter of the size below. At 30 degrees the loose boxes are the bounds of the turned
+     * cells, which reach 3 tan 30 further along and 3 sin 60 further below.
+     */
+    const turns = [
+      ['90', [0, 1, -1, 0], 12, -3],
+      ['180', [-1, 0, 0, -1], 12, -3],
+      [
+        '30',
+        [
+          Math.cos(Math.PI / 6),
+          Math.sin(Math.PI / 6),
+          -Math.sin(Math.PI / 6),
+          Math.cos(Math.PI / 6),
+        ],
+        12 + 3 * Math.tan(Math.PI / 6),
+        -3 - 3 * Math.sin(Math.PI / 3),
+      ],
+    ] as const
+
+    it.each(turns)(
+      'at %s degrees, between two runs, lies on the first run’s baseline from its end to the next start',
+      (_, m, end, below) => {
+        // `ab`, a gap of half the size, then `cd`: the gap ends the run.
+        const at = (t: number) => ({ x: 300 + m[0] * t, y: 100 + m[1] * t })
+        const page = chars([
+          { c: 'a', ...at(0), w: 6, m },
+          { c: 'b', ...at(6), w: 6, m },
+          { c: ' ', x: at(6).x + 6, y: at(6).y, m, flags: GENERATED },
+          { c: 'c', ...at(18), w: 6, m },
+          { c: 'd', ...at(24), w: 6, m },
+        ])
+        const { content } = runsFromChars(0, page)
+        expect(content.items.map((i) => [i.str, i.dir])).toEqual([
+          ['ab', 'ltr'],
+          [' ', 'ltr'],
+          ['cd', 'ltr'],
+        ])
+        const [ab, space, cd] = content.items as [TextItem, TextItem, TextItem]
+        // Measured from the first origin along the baseline and up the glyphs.
+        const across = (p: { x: number; y: number }) =>
+          (p.x - 300) * m[2] + (p.y - 100) * m[3]
+        const along = (p: { x: number; y: number }) =>
+          (p.x - 300) * m[0] + (p.y - 100) * m[1]
+        // Parallel to the baseline at the height of `ab`, from the end of `b` to where `c`
+        // starts, 18 along.
+        close(along(space.quad.p3), end)
+        close(along(space.quad.p4), 18)
+        close(across(space.quad.p3), below)
+        close(across(space.quad.p4), below)
+        // It meets the runs on either side, at their height.
+        close(space.quad.p3.x, ab.quad.p4.x)
+        close(space.quad.p3.y, ab.quad.p4.y)
+        close(space.quad.p2.x, cd.quad.p1.x)
+        close(space.quad.p2.y, cd.quad.p1.y)
+        close(space.quad.p1.x, ab.quad.p2.x)
+        close(space.quad.p1.y, ab.quad.p2.y)
+        expect(space.advances).toEqual([0, 1])
+        expect(searchableText(content).raw).toBe('ab cd ')
+      }
+    )
+
+    it('at 90 degrees, between two right-to-left runs, lies on the first run’s baseline', () => {
+      // Up the page, so read down it: של from 20 down to 0 along the baseline, a gap of half the
+      // size, then ום from -6 down to -26. The engine puts the space one advance along page x
+      // from ל's origin, off the baseline.
+      const m = [0, 1, -1, 0] as const
+      const at = (t: number) => ({ x: 300, y: 100 + t })
+      const page = chars([
+        { c: 'ש', ...at(10), w: 10, m },
+        { c: 'ל', ...at(0), w: 10, m },
+        { c: ' ', x: 310, y: 100, m, flags: GENERATED },
+        { c: 'ו', ...at(-16), w: 10, m },
+        { c: 'ם', ...at(-26), w: 10, m },
+      ])
+      const { content } = runsFromChars(0, page)
+      expect(content.items.map((i) => [i.str, i.dir])).toEqual([
+        ['של', 'rtl'],
+        [' ', 'rtl'],
+        ['ום', 'rtl'],
+      ])
+      const space = content.items[1]!
+      // Along the baseline from -6 to 0, a quarter of the size below it: right of x 300.
+      for (const [corner, x, y] of [
+        ['p3', 303, 94],
+        ['p4', 303, 100],
+        ['p1', 291, 94],
+        ['p2', 291, 100],
+      ] as const) {
+        close(space.quad[corner].x, x)
+        close(space.quad[corner].y, y)
+      }
+      expect(space.advances).toEqual([1, 0])
+    })
+
+    it.each(turns)(
+      'at %s degrees, before a run on the next line, has no width at the first run’s end',
+      (_, m) => {
+        // `ab`, then `cd` from the start of a line 14 further down the glyphs, with no line break.
+        const at = (t: number, line = 0) => ({
+          x: 300 + m[0] * t - m[2] * 14 * line,
+          y: 100 + m[1] * t - m[3] * 14 * line,
+        })
+        const page = chars([
+          { c: 'a', ...at(0), w: 6, m },
+          { c: 'b', ...at(6), w: 6, m },
+          { c: ' ', x: at(6).x + 6, y: at(6).y, m, flags: GENERATED },
+          { c: 'c', ...at(0, 1), w: 6, m },
+          { c: 'd', ...at(6, 1), w: 6, m },
+        ])
+        const { content } = runsFromChars(0, page)
+        expect(content.items.map((i) => i.str)).toEqual(['ab', ' ', 'cd'])
+        const [ab, space] = content.items as [TextItem, TextItem]
+        for (const [corner, edge] of [
+          ['p3', 'p4'],
+          ['p4', 'p4'],
+          ['p1', 'p2'],
+          ['p2', 'p2'],
+        ] as const) {
+          close(space.quad[corner].x, ab.quad[edge].x)
+          close(space.quad[corner].y, ab.quad[edge].y)
+        }
       }
     )
   })
