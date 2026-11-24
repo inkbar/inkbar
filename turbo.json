@@ -12,7 +12,16 @@
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"], "env": ["SANDBOX_BASE"] },
     "typecheck": { "dependsOn": ["^build"] },
     "lint": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] },
+    "test": { "dependsOn": ["^build", "build"] },
+    "@inkbar/core#test": {
+      "dependsOn": [
+        "^build",
+        "build",
+        "@inkbar/vue#build",
+        "@inkbar/react#build",
+        "@inkbar/svelte#build"
+      ]
+    },
     "test:browser": { "dependsOn": ["^build", "build"] },
     "test:browser:engine": { "dependsOn": ["^build", "build"] },
     "generate": { "cache": false }
