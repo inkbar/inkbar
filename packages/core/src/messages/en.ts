@@ -273,6 +273,7 @@ export const en: InkMessages = {
     sign: 'Sign',
     signField: template('en', 'Sign this field: {label}'),
     signFieldTitle: 'Sign this field',
+    radioOption: template('en', '{option}, {label}'),
     alert: 'Message',
     ok: 'OK',
   },

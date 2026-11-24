@@ -1736,6 +1736,18 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(document.activeElement).toBe(yearly)
   })
 
+  it('names each radio by its option, then its group', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const labels = (name: string) =>
+      widgetsOf(doc, name).map((w) => controlOf(p.host, w).getAttribute('aria-label'))
+    // `plan` names its states; `shared` lists its options in /Opt, both "A".
+    expect(labels('plan')).toEqual(['monthly, plan', 'yearly, plan'])
+    expect(labels('shared')).toEqual(['A, shared', 'A, shared'])
+    // A checkbox keeps the field's name alone.
+    expect(labels('agree')).toEqual(['agree'])
+  })
+
   it('numbers a radio group and passes over hidden and read-only radios', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)

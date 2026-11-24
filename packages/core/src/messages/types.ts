@@ -273,6 +273,8 @@ export interface InkMessages {
     sign: string
     signField: MessageFn<{ label: string }>
     signFieldTitle: string
+    /** A radio's name: its option, then the group's name. */
+    radioOption: MessageFn<{ option: string; label: string }>
     alert: string
     ok: string
   }

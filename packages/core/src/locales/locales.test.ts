@@ -33,7 +33,7 @@ function sourceOf(value: unknown): string {
 }
 
 /** Params that take a name get a word; the rest get the number. */
-const NAMES = ['name', 'author', 'label', 'badge', 'kind']
+const NAMES = ['name', 'author', 'label', 'badge', 'kind', 'option']
 
 describe.each(Object.entries(shipped))('%s', (lang, messages) => {
   it('names its language', () => {
