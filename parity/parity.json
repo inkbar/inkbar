@@ -145,7 +145,7 @@
   },
   "text-rtl": {
     "state": "different",
-    "reason": "The Hebrew line in embedded Noto Sans Hebrew: the top of the right-hand stroke of the letter ayin (U+05E2) is drawn a few pixels differently, 0.03% of the page and a longest unmatched run of 25 px; every other glyph, the mixed line and the Latin line match",
+    "reason": "The digits and the Latin line are in Helvetica, not embedded, at 32 pt (64 px per em): the readers substitute different Helvetica outlines, and the digit 1 has a foot in the one PDF.js uses and none in the engine's, 56% of the worst 16 px block and 0.03% of the page; the Hebrew in embedded Noto Sans Hebrew matches",
     "accepted": false
   },
   "text-vertical": {
