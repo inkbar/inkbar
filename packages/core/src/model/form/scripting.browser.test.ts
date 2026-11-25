@@ -54,6 +54,8 @@ describe('form scripts', () => {
 
   it('sums the fields under a parent a calculation names, and lists them with getArray', async () => {
     const { form } = await open('form-scripted-parents')
+    const heard: InkError[] = []
+    form.on('error', (e) => heard.push(e))
     expect(form.set({ 'total.a': '10' }).applied).toEqual(['total.a'])
     // AFSimple_Calculate("SUM", new Array("total")) over total.a, total.b and total.more.c.
     expect(form.get('sum')).toBe('15')
@@ -61,6 +63,14 @@ describe('form scripts', () => {
     expect(form.get('count')).toBe('3')
     form.set({ 'total.more.c': '4' })
     expect(form.get('sum')).toBe('16')
+    // /CO ends with total. PDF.js's sandbox gives a name with no widget object no way to send,
+    // so calculating total throws, as it does with PDF.js, and each calculation reports it.
+    expect(heard.map((e) => e.code)).toEqual(['FormScriptError', 'FormScriptError'])
+    // The sandbox calls total's missing `_send`.
+    for (const { message } of heard) {
+      expect(message).toMatch(/^TypeError: not a function\n/)
+      expect(message).toContain('at runCalculate (')
+    }
   })
 
   it('formats a percent field and runs a hand-written calculation after the total', async () => {

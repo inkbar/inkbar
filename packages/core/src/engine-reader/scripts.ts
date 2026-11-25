@@ -180,6 +180,9 @@ function walkFieldObjects(
     visited.add(id)
     if (!entry.dictionary) return
     const group = groups.get(id)
+    // The engine gives `/Subtype` only for a dictionary with `/Kids`: a Link without them gets a
+    // name slot here, where PDF.js returns before naming it. Missing fact: every walked
+    // dictionary's `/Subtype`.
     if (group?.subtype === 'Link') return
     const t = entry.partialName === undefined ? undefined : partOf(entry.partialName)
     const name = t === undefined ? above : above === '' ? t : `${above}.${t}`
@@ -191,11 +194,17 @@ function walkFieldObjects(
         ? null
         : [...parentParts, ...(t === undefined ? [] : [t])]
     const kids = group?.kids.flatMap((k) => (k.ref ? [refId(k.ref)] : [])) ?? []
+    // A second dictionary of a full name the engine already has is merged into that field: its
+    // widgets take the field's /V, /FT and /Ff, and a toggle's export values its /Opt. Missing
+    // fact: each such dictionary's own /V, /DV, /FT, /Ff and /Opt.
     const widget = widgets.get(id)
     if (group && group.subtype !== 'Widget' && kids.length > 0) {
       list.push({ name, id, widgets: [], container: containerOf(group, kids, own) })
       if (!ids.has(id)) ids.set(id, name)
     } else if (widget) {
+      // A Widget with /Kids (a radio parent written as a widget) gives PDF.js a widget-class
+      // object; here it gives one only when the engine lists it as a field's widget. Missing
+      // fact: the field facts of a Widget dictionary with /Kids that is no field's widget.
       const last = list.at(-1)
       if (last) last.widgets.push(id)
       else list.push({ name, widgets: [id] })

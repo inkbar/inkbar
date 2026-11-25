@@ -396,8 +396,9 @@ function writeScriptedParents() {
   write(
     'form-scripted-parents',
     buildPdf([
-      // 1: the catalog. /CO names the parent last: with either reader the sandbox calculates no
-      // field listed after a parent.
+      // 1: the catalog. /CO names the parent last. PDF.js's sandbox gives a name with no widget
+      // object no `send`, so calculating total throws in `runCalculate`, which ends the loop over
+      // /CO: an entry after it would never be calculated.
       '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 13 0 R 7 0 R] >> >>',
       INFO,
       PAGES,
