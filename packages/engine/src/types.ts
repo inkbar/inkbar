@@ -575,8 +575,8 @@ export interface AnnotationRenderOptions {
   /**
    * The annotations to draw, in the order given, each by its place in the page's `/Annots`. A
    * `state` is the name of a state of `/AP /N` to draw, one character per byte of the name
-   * (U+0001 to U+00FF), as `AnnotationFacts.appearanceStates` gives it; without one, the state
-   * `/AS` selects is drawn. At most 1,000,000 of them.
+   * (U+0001 to U+00FF), at most 65,535 of them, as `AnnotationFacts.appearanceStates` gives it;
+   * without one, the state `/AS` selects is drawn. At most 1,000,000 entries.
    */
   annotations: readonly { index: number; state?: string }[]
   /** The part of the page to draw, in user space, as for `renderPage`. */
@@ -594,7 +594,9 @@ export interface AnnotationRenderOptions {
 
 /**
  * Annotations drawn alone. With the same region, size and rotation, the bitmap lines up pixel for
- * pixel with `renderPage`'s.
+ * pixel with `renderPage`'s, and like it leaves out what falls past the page box. An annotation
+ * the page render skips but the draw does not (one flagged NoView, or of an unknown type flagged
+ * Invisible) shows here and not on the page.
  */
 export interface RenderedAnnotations {
   /** Width in pixels. */
@@ -610,7 +612,8 @@ export interface RenderedAnnotations {
    * The places in `/Annots` of the entries drawn, in the order drawn. An entry is left out when
    * nothing was drawn for it: no annotation dictionary at that place, a hidden annotation, a
    * popup, no rectangle, a state its `/AP /N` lacks, or no appearance the engine can make
-   * without writing one into the file.
+   * without writing one into the file. Other flags are not read: an annotation flagged NoView,
+   * or of an unknown type flagged Invisible, is drawn, though `renderPage` skips it.
    */
   drawn: number[]
 }

@@ -198,17 +198,23 @@ export function hiddenAnnotations(hide: unknown): Hidden {
   return hidden
 }
 
+/**
+ * The longest state name `renderAnnotations` takes, in bytes. PDF 1.7 (Annex C) limits a name to
+ * 127 bytes; this leaves room for files past that limit while keeping a name a small copy.
+ */
+export const MAX_STATE_BYTES = 65_535
+
 /** One annotation to draw alone, checked. */
 export interface AnnotationDraw {
   index: number
-  /** The state's name as its bytes, without a NUL; absent for the state `/AS` selects. */
+  /** The state's name as its bytes, then a NUL; absent for the state `/AS` selects. */
   state?: Uint8Array
 }
 
 /**
  * The annotations `renderAnnotations` draws, checked. Throws a `RangeError` for a list that is
- * not one of `{ index, state? }`, with a place as `hide` takes it and a state of one or more
- * characters from U+0001 to U+00FF, or that is longer than `MAX_HIDDEN`.
+ * not one of `{ index, state? }`, with a place as `hide` takes it and a state of 1 to
+ * `MAX_STATE_BYTES` characters from U+0001 to U+00FF, or that is longer than `MAX_HIDDEN`.
  */
 export function annotationDraws(annotations: unknown): AnnotationDraw[] {
   if (!Array.isArray(annotations))
@@ -222,13 +228,20 @@ export function annotationDraws(annotations: unknown): AnnotationDraw[] {
       )
     const { state } = item
     if (state === undefined) return { index: item.index }
+    if (typeof state === 'string' && state.length > MAX_STATE_BYTES)
+      throw new ArgumentError(
+        `annotation ${i}: state may be at most ${MAX_STATE_BYTES.toLocaleString('en')} characters`
+      )
     // A name's bytes, one a character; a NUL would end the name the module reads.
     // eslint-disable-next-line no-control-regex -- U+0001 is the first byte a name may hold
     if (typeof state !== 'string' || !/^[\u0001-\u00ff]+$/.test(state))
       throw new ArgumentError(
         `annotation ${i}: state must be a name of one or more characters from U+0001 to U+00FF`
       )
-    return { index: item.index, state: Uint8Array.from(state, (c) => c.charCodeAt(0)) }
+    // No spread: a long name would overflow the call stack.
+    const bytes = new Uint8Array(state.length + 1)
+    for (let c = 0; c < state.length; c++) bytes[c] = state.charCodeAt(c)
+    return { index: item.index, state: bytes }
   })
 }
 

@@ -3,7 +3,13 @@ import { readFile } from 'node:fs/promises'
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
-import { createEngine, type Engine, type EngineDocument, type Rect } from './index.ts'
+import {
+  createEngine,
+  type AnnotationFacts,
+  type Engine,
+  type EngineDocument,
+  type Rect,
+} from './index.ts'
 
 let engine: Engine
 
@@ -550,10 +556,11 @@ describe('renderAnnotations', () => {
     doc: EngineDocument,
     page: number,
     options: { scale?: number; region?: Rect; size?: { width: number; height: number } },
-    rotation: (typeof ROTATIONS)[number]
+    rotation: (typeof ROTATIONS)[number],
+    pick: (a: AnnotationFacts) => boolean = (a) => a.subtype === 'Widget'
   ) {
     const { annotations } = await doc.pageAnnotations(page)
-    const widgets = annotations.filter((a) => a.subtype === 'Widget')
+    const widgets = annotations.filter(pick)
     const bare = await doc.renderPage(page, {
       ...options,
       rotation,
@@ -568,7 +575,49 @@ describe('renderAnnotations', () => {
       rotation,
     })
     expect([alone.width, alone.height]).toEqual([bare.width, bare.height])
-    return { widgets, alone, ...difference(layOver(alone.data, bare.data), whole.data) }
+    const changed = difference(bare.data, whole.data).count
+    const result = difference(layOver(alone.data, bare.data), whole.data)
+    // Where a widget's soft edge lies on the page's own soft edge, the page render blends the two
+    // in one integer step and the test in two; elsewhere either the widget or the page decides
+    // the pixel alone.
+    const overlap = new Uint8Array(bare.data.length)
+    for (let i = 0; i < overlap.length; i += 4) {
+      const a = alone.data[i + 3] as number
+      const soft = a > 0 && a < 255
+      for (let c = 0; c < 3; c++)
+        overlap[i + c] = soft && bare.data[i + c] !== 255 ? 1 : 0
+    }
+    const composite = layOver(alone.data, bare.data)
+    let worstOverlap = 0
+    let worst = 0
+    for (let i = 0; i < composite.length; i++) {
+      const d = Math.abs((composite[i] as number) - (whole.data[i] as number))
+      if (overlap[i]) worstOverlap = Math.max(worstOverlap, d)
+      else worst = Math.max(worst, d)
+    }
+    return { widgets, alone, changed, count: result.count, worst, worstOverlap }
+  }
+
+  /**
+   * The bound on the channels that differ at all, as a share of those the widgets change on the
+   * page. The most measured over every form fixture, scale, rotation and region is 0.0264
+   * (form-shared-scripted at 2.37); this allows about twice that.
+   */
+  const SHARE = 0.05
+
+  /**
+   * Checks a comparison: something was drawn and changed the page, no pixel is more than one
+   * level off (two where a widget's soft edge lies on the page's own; the most measured is 2,
+   * at one pixel of form-fields), and few channels differ at all.
+   */
+  function within(result: Awaited<ReturnType<typeof compare>>, where: string) {
+    expect(result.alone.drawn.length, where).toBeGreaterThan(0)
+    expect(result.changed, where).toBeGreaterThan(0)
+    expect(result.worst, `${where}: ${result.count} channels differ`).toBeLessThanOrEqual(
+      1
+    )
+    expect(result.worstOverlap, where).toBeLessThanOrEqual(2)
+    expect(result.count, where).toBeLessThanOrEqual(result.changed * SHARE)
   }
 
   describe.each(formFixtures)('%s', (name) => {
@@ -580,10 +629,7 @@ describe('renderAnnotations', () => {
             for (const rotation of ROTATIONS) {
               const result = await compare(doc, page, { scale }, rotation)
               if (result.widgets.length === 0) continue
-              expect(
-                result.worst,
-                `page ${page}, rotation ${rotation}: ${result.count} channels differ`
-              ).toBeLessThanOrEqual(1)
+              within(result, `page ${page}, rotation ${rotation}`)
             }
         })
       },
@@ -598,10 +644,10 @@ describe('renderAnnotations', () => {
         for (let page = 0; page < doc.pageCount; page++) {
           const { box } = await doc.pageInfo(page)
           const region = {
-            x: box.x + 61.3,
-            y: box.y + 97.7,
-            width: box.width * 0.6,
-            height: box.height * 0.55,
+            x: box.x + 11.3,
+            y: box.y + 17.7,
+            width: box.width * 0.9,
+            height: box.height * 0.85,
           }
           const result = await compare(
             doc,
@@ -609,12 +655,40 @@ describe('renderAnnotations', () => {
             { region, size: { width: 517, height: 389 } },
             rotation
           )
-          expect(result.alone.drawn.length).toBeGreaterThan(0)
-          expect(result.worst, `page ${page}`).toBeLessThanOrEqual(1)
+          within(result, `page ${page}`)
         }
       })
     },
     60_000
+  )
+
+  test.each(ROTATIONS)(
+    'nothing past the page box is drawn, as in the page render, turned %s',
+    async (rotation) => {
+      // A square half off the corner of a 200 by 200 page.
+      const square = '0 0 1 rg 0 0 100 100 re f'
+      const bytes = onePage('[4 0 R]', [
+        '<< /Type /Annot /Subtype /Square /Rect [150 150 250 250] /AP << /N 5 0 R >> >>',
+        `<< /Type /XObject /Subtype /Form /BBox [0 0 100 100] /Length ${square.length} >>\nstream\n${square}\nendstream`,
+      ])
+      await opened(bytes, async (doc) => {
+        const result = await compare(
+          doc,
+          0,
+          {
+            region: { x: -50, y: -50, width: 300, height: 300 },
+            size: { width: 300, height: 300 },
+          },
+          rotation,
+          () => true
+        )
+        expect(result.alone.drawn).toEqual([0])
+        within(result, `rotation ${rotation}`)
+        // The square's quarter on the page, and none of the rest.
+        const opaque = result.alone.data.filter((v, i) => i % 4 === 3 && v === 255)
+        expect(opaque.length).toBe(50 * 50)
+      })
+    }
   )
 
   test('a checkbox drawn Off and in its on-state differ', async () => {
@@ -713,6 +787,37 @@ describe('renderAnnotations', () => {
       })
       expect((await alone).drawn).toEqual([0])
       expect((await render).width).toBe(1836)
+    })
+  })
+
+  test('a state past 65,535 bytes or a list past 1,000,000 entries rejects and the engine goes on', async () => {
+    await fixture('form-fields', async (doc) => {
+      const { box } = await doc.pageInfo(0)
+      const place = { region: box, size: { width: 10, height: 10 } }
+      await expect(
+        doc.renderAnnotations(0, {
+          ...place,
+          annotations: [{ index: 8, state: 'a'.repeat(200_000) }],
+        })
+      ).rejects.toBeInstanceOf(RangeError)
+      await expect(
+        doc.renderAnnotations(0, {
+          ...place,
+          annotations: Array.from({ length: 1_000_001 }, () => ({ index: 0 })),
+        })
+      ).rejects.toBeInstanceOf(RangeError)
+      await expect(
+        doc.renderPage(0, {
+          hide: Array.from({ length: 1_000_001 }, () => ({ index: 0 })),
+        })
+      ).rejects.toBeInstanceOf(RangeError)
+      // The longest state is taken; the widget has no such state.
+      const longest = await doc.renderAnnotations(0, {
+        ...place,
+        annotations: [{ index: 8, state: 'a'.repeat(65_535) }],
+      })
+      expect(longest.drawn).toEqual([])
+      expect((await doc.pageInfo(0)).width).toBe(612)
     })
   })
 

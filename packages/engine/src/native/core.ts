@@ -830,12 +830,22 @@ export class EngineCore {
           const ok =
             state === undefined
               ? fn.INK_Annot_Draw(bitmap, page, draw.index, 0, at)
-              : withBytes(this.#heap, Uint8Array.of(...state, 0), (name) =>
+              : withBytes(this.#heap, state, (name) =>
                   fn.INK_Annot_Draw(bitmap, page, draw.index, name, at)
                 )
           if (ok) drawn.push(draw.index)
         }
-        return { ...this.#copyPixels(bitmap, width, height, straight), drawn }
+        // A render clips to the page's rectangle in the bitmap; the draw does not, so the
+        // pixels past the page are cleared here.
+        const left = Math.max(geometry.startX, 0)
+        const top = Math.max(geometry.startY, 0)
+        const right = Math.min(geometry.startX + geometry.sizeX, width)
+        const bottom = Math.min(geometry.startY + geometry.sizeY, height)
+        const convert = (data: Uint8ClampedArray) => {
+          straight(data)
+          clearOutside(data, width, { left, top, right, bottom })
+        }
+        return { ...this.#copyPixels(bitmap, width, height, convert), drawn }
       } finally {
         if (!this.#stopped) {
           if (at !== 0) fn.free(at)
@@ -1368,5 +1378,25 @@ function straight(data: Uint8ClampedArray): void {
       pixel >>> 24 === 0
         ? 0
         : ((pixel & 0xff00ff00) | ((pixel & 0xff) << 16) | ((pixel >>> 16) & 0xff)) >>> 0
+  }
+}
+
+/** Clears, in place, every pixel of RGBA `data` outside `[left, right) × [top, bottom)`. */
+function clearOutside(
+  data: Uint8ClampedArray,
+  width: number,
+  clip: { left: number; top: number; right: number; bottom: number }
+): void {
+  const height = data.length / 4 / width
+  const row = width * 4
+  if (clip.left >= clip.right || clip.top >= clip.bottom) {
+    data.fill(0)
+    return
+  }
+  data.fill(0, 0, clip.top * row)
+  data.fill(0, clip.bottom * row, height * row)
+  for (let y = clip.top; y < clip.bottom; y++) {
+    data.fill(0, y * row, y * row + clip.left * 4)
+    data.fill(0, y * row + clip.right * 4, (y + 1) * row)
   }
 }

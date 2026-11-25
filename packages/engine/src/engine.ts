@@ -136,7 +136,9 @@ export interface EngineDocument {
    * Draws the annotations listed, each alone in its normal appearance, onto a transparent bitmap
    * of `size` pixels showing `region` after /Rotate and `rotation`. With the same region, size
    * and rotation, each lands on the pixels `renderPage` gives it, so laid over a page rendered
-   * without them it gives the page rendered with them. `drawn` says which were drawn; an entry
+   * without them it gives the page rendered with them, except for an annotation flagged NoView,
+   * or of an unknown type flagged Invisible, which this draws and `renderPage` skips. Pixels
+   * past the page box are left transparent. `drawn` says which were drawn; an entry
    * with nothing to draw is left out of it, and the call still resolves. Nothing is written to
    * the document: a widget with no appearance is drawn from its field's value or not at all, and
    * a later `save` is as it would have been. A bad index, list, state, region, size or rotation

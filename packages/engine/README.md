@@ -151,10 +151,10 @@ const tile = await doc.renderPage(0, {
 
 Drawing annotations alone:
 
-- `renderAnnotations(index, { annotations, region, size, rotation })` draws the annotations you list, each by its `index` in the page's `/Annots`, onto a transparent bitmap. It places them as `renderPage` places the page for the same `region`, `size` and `rotation`. Lay the result over a page you rendered with those annotations in `hide` and you get the page as `renderPage` draws it with them, to within one level per channel.
+- `renderAnnotations(index, { annotations, region, size, rotation })` draws the annotations you list, each by its `index` in the page's `/Annots`, onto a transparent bitmap. It places them as `renderPage` places the page for the same `region`, `size` and `rotation`. Lay the result over a page you rendered with those annotations in `hide` and you get the page as `renderPage` draws it with them, to within one level per channel, unless a flag the page render reads makes it skip one (see `drawn` below). The draw leaves out what falls past the page box, as `renderPage` does.
 - The data is straight RGBA. Pixels you did not draw on are all zero.
-- An entry's `state` picks a state of `/AP /N` to draw, such as `'Off'` or a checkbox's on-state, written one character per byte as `appearanceStates` gives it. Without one you get the state `/AS` selects.
-- `drawn` lists the places it drew. It leaves out an entry with nothing to draw: no dictionary at that place, a hidden annotation, a popup, a state `/AP /N` lacks, or a widget with no appearance the engine can make in memory. The call still resolves.
+- An entry's `state` picks a state of `/AP /N` to draw, such as `'Off'` or a checkbox's on-state, written one character per byte as `appearanceStates` gives it, up to 65,535 bytes. Without one you get the state `/AS` selects.
+- `drawn` lists the places it drew. It leaves out an entry with nothing to draw: no dictionary at that place, a hidden annotation, a popup, a state `/AP /N` lacks, or a widget with no appearance the engine can make in memory. The call still resolves. The engine reads no other flag: an annotation flagged NoView, or of an unknown type flagged Invisible, draws here though `renderPage` skips it. Leave it out yourself if you lay the draw over the page.
 - The engine writes nothing to the document, so a later `save` writes the same file. The call waits its turn in the queue behind a render of the same page, and `signal` cancels it as it cancels a render.
 
 ```ts

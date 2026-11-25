@@ -453,6 +453,7 @@ test('an aborted sliced render ends the render, frees what it took and keeps the
   expect(count('INK_Render_Continue')).toBe(3)
   expect(count('INK_Render_Close')).toBe(1)
   expect(count('FPDFBitmap_Destroy')).toBe(1)
+  expect(count('FPDFBitmap_Destroy')).toBe(count('FPDFBitmap_CreateEx'))
   expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))
   const allocated = calls.filter(([call]) => call === 'malloc').map(([, at]) => at)
   const freed = calls.filter(([call]) => call === 'free').map(([, at]) => at)
@@ -548,6 +549,7 @@ test('destroy during a sliced render stops it, then frees everything once', asyn
   expect(meanwhile.close).toBe('returned')
   expect(count('INK_Render_Close')).toBe(1)
   expect(count('FPDFBitmap_Destroy')).toBe(1)
+  expect(count('FPDFBitmap_Destroy')).toBe(count('FPDFBitmap_CreateEx'))
   expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))
   expect(core.openCount).toBe(0)
   expect(() => core.open(bytes)).toThrow(
@@ -573,5 +575,46 @@ test('other calls are refused while a sliced render runs', async () => {
   expect(refused).toMatchObject({ code: 'engine-failure' })
   expect(core.openCount).toBe(1)
   expect(core.pageInfo(id, 0)).toMatchObject({ width: 612 })
+  core.destroy()
+})
+
+test('an annotation draw aborted between annotations stops, frees what it took and rejects', async () => {
+  const native = await loadNative({ wasm })
+  const calls: string[] = []
+  let draws = 0
+  const fn = new Proxy(native.fn, {
+    get(target, key: keyof Native) {
+      const real = target[key]
+      return (...args: number[]) => {
+        calls.push(key)
+        if (key === 'INK_Annot_Draw') {
+          draws++
+          // Each draw outlasts a slice, so the draw returns to the event loop after it.
+          const until = performance.now() + 10
+          while (performance.now() < until);
+        }
+        return real(...args)
+      }
+    },
+  })
+  const core = new EngineCore(withFunctions(native, fn))
+  const { id } = core.open(await fixtureBytes('form-fields'))
+  const drawing = core.renderAnnotationsSliced(
+    id,
+    0,
+    {
+      annotations: Array.from({ length: 20 }, (_, index) => ({ index })),
+      region: { x: 0, y: 0, width: 612, height: 792 },
+      size: { width: 612, height: 792 },
+    },
+    () => draws >= 2
+  )
+  await expect(drawing).rejects.toMatchObject({ code: 'aborted' })
+  expect(draws).toBe(2)
+  const count = (name: string) => calls.filter((call) => call === name).length
+  expect(count('FPDFBitmap_Destroy')).toBe(count('FPDFBitmap_CreateEx'))
+  expect(count('FPDF_ClosePage')).toBe(count('FPDF_LoadPage'))
+  // The engine goes on.
+  expect(core.pageInfo(id, 0).width).toBe(612)
   core.destroy()
 })

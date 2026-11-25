@@ -243,10 +243,14 @@ export function parseScripts(text: string, pageCount: number): ScriptFacts {
       }
     }),
     documentActions: scripts(root.documentActions, what),
-    pageActions: array(root.pageActions, what, 'pageActions').map((raw) => {
+    pageActions: array(root.pageActions, what, 'pageActions').map((raw, i, all) => {
       const entry = object(raw, what, 'pageActions')
       const page = count(entry.page, what, 'page')
       if (page >= pageCount) throw bad(what, 'page', 'a page of the document')
+      // The report lists each page once, in page order.
+      const before = i > 0 ? (all[i - 1] as Json).page : -1
+      if (typeof before === 'number' && page <= before)
+        throw bad(what, 'page', 'pages in order, each once')
       return { page, scripts: scripts(entry.scripts, what) }
     }),
     truncated: boolean(root.truncated, what, 'truncated'),
