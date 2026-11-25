@@ -1981,14 +1981,82 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await reader.destroy()
   })
 
-  it("gives a page's annotations when a working engine cannot read the form, and the form read rejects", async () => {
+  it("gives a page's annotations, and no fields, when a working engine cannot read the form", async () => {
     const { reader } = await opened({
       traps: false,
       formFields: () => Promise.reject(engineError('engine-failure')),
     })
     await reader.pageInfo(0)
     await expect(reader.annotations(0)).resolves.toHaveLength(2)
+    await expect(reader.form()).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it('leaves out the widgets of a page whose annotations a working engine cannot read', async () => {
+    const { reader } = await opened({
+      traps: false,
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.form()).resolves.toEqual([])
+    await expect(reader.annotations(0)).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it("gives no title or author when a working engine cannot read the file's facts, and the last encrypted", async () => {
+    let fail = false
+    const { reader } = await opened({
+      traps: false,
+      documentFacts: () =>
+        fail
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve({ title: 'Report', encrypted: true }),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.facts()).resolves.toEqual({ title: 'Report', encrypted: true })
+    fail = true
+    await expect(reader.facts()).resolves.toEqual({ encrypted: true })
+    await reader.destroy()
+    const never = await opened({
+      traps: false,
+      documentFacts: () => Promise.reject(engineError('engine-failure')),
+    })
+    await never.reader.pageInfo(0)
+    await expect(never.reader.facts()).resolves.toEqual({ encrypted: false })
+    await never.reader.destroy()
+  })
+
+  it("shares each page's annotations read with the form until forgetAnnotations", async () => {
+    const { t, reader } = await opened()
+    const first = await reader.annotations(0)
+    // Each caller gets its own.
+    first[0]!.rect[0] = 99
+    await reader.form()
+    await expect(reader.annotations(0)).resolves.toMatchObject([
+      { rect: [0, 0, 10, 10] },
+      {},
+    ])
+    expect(t.engines[0]!.doc.pageAnnotations).toHaveBeenCalledTimes(1)
+    reader.forgetAnnotations()
+    await reader.annotations(0)
+    expect(t.engines[0]!.doc.pageAnnotations).toHaveBeenCalledTimes(2)
+    await reader.destroy()
+  })
+
+  it('rejects when no engine can answer, rather than giving nothing', async () => {
+    const { reader } = await opened(
+      {
+        documentFacts: () => Promise.reject(engineError('engine-failure')),
+        formFields: () => Promise.reject(engineError('engine-failure')),
+        pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+      },
+      false
+    )
+    await reader.pageInfo(0)
+    // Each engine stops on the read and so does the one that replaces it.
+    await expect(reader.facts()).rejects.toMatchObject({ code: 'engine-failure' })
     await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.annotations(0)).rejects.toMatchObject({ code: 'engine-failure' })
     await reader.destroy()
   })
 

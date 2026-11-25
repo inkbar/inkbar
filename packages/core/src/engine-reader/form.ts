@@ -4,6 +4,7 @@
 import {
   annotationId,
   borderOf,
+  defaultAppearanceText,
   F_HIDDEN,
   F_NO_VIEW,
   knownFlags,
@@ -99,9 +100,11 @@ export function widgetContexts(form: FormFactsShape): Map<number, PageFormContex
     const drawnFromValue = form.needAppearances && rawValue(field) !== null
     for (const w of field.widgets) {
       if (w.page < 0) continue
-      const da = w.defaultAppearance ?? form.defaultAppearance
       ;(context(w.page).widgets as Map<number, WidgetContext>).set(w.index, {
-        ...(da !== undefined ? { defaultAppearance: da } : {}),
+        defaultAppearance: defaultAppearanceText(
+          w.defaultAppearance,
+          form.defaultAppearance
+        ),
         drawnFromValue,
       })
     }
@@ -121,7 +124,8 @@ interface Placed {
 /**
  * @internal The form's terminal fields as `FileField`s, in the order and with the values the PDF.js
  * reader gives. `listed` gives a page's annotations as the reader lists them: a widget's `at` is
- * its place among them, and a widget it does not list is left out, as is a widget on no page. Fields
+ * its place among them (one widget for each place it is listed at), and a widget it does not list
+ * is left out, as is a widget on no page. Fields
  * go in the order of their first widgets by page and place, and their widgets in that order too.
  * A field of a kind PDF.js does not read is left out; a ResetForm reference to one of its widgets
  * becomes its name. A form refused for its size has no fields.
@@ -133,22 +137,30 @@ export async function fileFieldsFromEngine(
   const pages = [
     ...new Set(form.fields.flatMap((f) => f.widgets.map((w) => w.page))),
   ].filter((p) => p >= 0)
-  const places = new Map<number, Map<string, number>>()
+  // Every place each id is listed at: a widget `/Annots` names twice is listed twice, and PDF.js
+  // gives its field a widget for each.
+  const places = new Map<number, Map<string, number[]>>()
   for (const page of pages.sort((a, b) => a - b)) {
-    const ids = new Map<string, number>()
+    const ids = new Map<string, number[]>()
     ;(await listed(page)).forEach((a, at) => {
-      if (!ids.has(a.id)) ids.set(a.id, at)
+      const ats = ids.get(a.id)
+      if (ats) ats.push(at)
+      else ids.set(a.id, [at])
     })
     places.set(page, ids)
   }
   const placed: Placed[] = []
-  for (const field of form.fields)
+  for (const field of form.fields) {
+    const seen = new Set<string>()
     for (const widget of field.widgets) {
       if (widget.page < 0) continue
       const id = annotationId(widget.page, widget)
-      const at = places.get(widget.page)?.get(id)
-      if (at !== undefined) placed.push({ field, widget, id, page: widget.page, at })
+      if (seen.has(id)) continue
+      seen.add(id)
+      for (const at of places.get(widget.page)?.get(id) ?? [])
+        placed.push({ field, widget, id, page: widget.page, at })
     }
+  }
   placed.sort((a, b) => a.page - b.page || a.at - b.at)
 
   const groups = new Map<FieldFactsShape, Placed[]>()
@@ -299,8 +311,9 @@ function widgetOf(
     field.kind === 'text'
       ? (alignmentOf(w.alignment) ?? alignmentOf(form.alignment))
       : undefined
-  const daText = w.defaultAppearance ?? form.defaultAppearance
-  const da = parseDefaultAppearance(daText === undefined ? '' : textOf(daText))
+  const da = parseDefaultAppearance(
+    defaultAppearanceText(w.defaultAppearance, form.defaultAppearance)
+  )
   return {
     id,
     page,

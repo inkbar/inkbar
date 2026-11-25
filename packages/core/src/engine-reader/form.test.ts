@@ -270,6 +270,30 @@ describe('fileFieldsFromEngine', () => {
       defaultAppearance: { fontName: 'Helv', fontSize: 9, color: [255, 0, 0] },
     })
   })
+
+  it('gives a widget /Annots lists twice a widget for each place, as PDF.js does', async () => {
+    const [f] = await fileFieldsFromEngine(
+      form([field('name', [widget(0)])]),
+      listedAs({ 0: ['20R', '20R'] })
+    )
+    expect(f!.widgets.map((w) => [w.id, w.at])).toEqual([
+      ['20R', 0],
+      ['20R', 1],
+    ])
+  })
+
+  it("takes a widget's /DA from the form when its own is empty", async () => {
+    const [f] = await fileFieldsFromEngine(
+      form([field('name', [widget(0, { defaultAppearance: '' })])], {
+        defaultAppearance: '/Helv 9 Tf',
+      }),
+      listedAs({ 0: ['20R'] })
+    )
+    expect(f!.widgets[0]!.defaultAppearance).toMatchObject({
+      fontName: 'Helv',
+      fontSize: 9,
+    })
+  })
 })
 
 describe('widgetContexts', () => {

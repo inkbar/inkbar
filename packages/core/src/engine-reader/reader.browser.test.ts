@@ -22,9 +22,29 @@ import { searchableText } from '../model/search-text'
 
 import { expectSameLinks, linksAsSeen } from './test-utils'
 
+import type * as ReaderModule from './reader'
 import type { Point, Rect } from '../model/geometry'
 
 const flag = globalThis as { __INKBAR_READER__?: unknown }
+
+/** How many engine readers were made, and how many times one turned to its fallback. */
+const fellBack = vi.hoisted(() => ({ made: 0, count: 0 }))
+vi.mock('./reader', async (importOriginal) => {
+  const real = await importOriginal<typeof ReaderModule>()
+  return {
+    ...real,
+    createEngineReader: (options: Parameters<typeof real.createEngineReader>[0]) => {
+      fellBack.made++
+      return real.createEngineReader({
+        ...options,
+        onFallback: () => {
+          fellBack.count++
+          options.onFallback?.()
+        },
+      })
+    },
+  }
+})
 
 let cleanup: (() => void)[] = []
 beforeEach(() => {
@@ -713,14 +733,78 @@ function mapStrings<T>(value: T, map: (s: string) => string): T {
   return value
 }
 
+/** `read` with `change` applied to each annotation of each page. */
+const eachAnnotation = (
+  read: FileRead,
+  change: (a: Record<string, unknown>) => Record<string, unknown>
+): FileRead => ({
+  ...read,
+  pages: read.pages.map((page) => ({
+    ...page,
+    annotations: page.annotations.map((a) => change(a as Record<string, unknown>)),
+  })),
+})
+
+/** A PDF of the numbered objects given, object 1 the catalog, with a cross-reference table. */
+function buildPdf(objects: Record<number, string>): Uint8Array {
+  const numbers = Object.keys(objects).map(Number)
+  const size = Math.max(...numbers) + 1
+  let out = '%PDF-1.7\n'
+  const offsets = new Map<number, number>()
+  for (const n of numbers) {
+    offsets.set(n, out.length)
+    out += `${n} 0 obj\n${objects[n]}\nendobj\n`
+  }
+  const xref = out.length
+  out += `xref\n0 ${size}\n`
+  for (let n = 0; n < size; n++) {
+    const at = offsets.get(n)
+    out +=
+      at === undefined
+        ? '0000000000 65535 f \n'
+        : `${String(at).padStart(10, '0')} 00000 n \n`
+  }
+  out += `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return new TextEncoder().encode(out)
+}
+
 /**
- * Differences between the two readers that are known, each with its cause and the fixtures it
- * shows on. Each is applied to both readers' reads of those fixtures before they are compared, so
- * the rest of the read is still held equal; a fixture listed whose reads no longer differ fails.
+ * Popups shown by their parents' flags, one whose parent is on no page, a group reply and its
+ * popup, a widget `/Annots` lists twice, a widget with `/T` that `/AcroForm /Fields` does not
+ * reach, and an empty `/DA` on a widget and a FreeText.
+ */
+const BUILT = {
+  'popups-and-widgets': buildPdf({
+    1: '<< /Type /Catalog /Pages 2 0 R /AcroForm 20 0 R >>',
+    2: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    3: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Annots [4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R] >>',
+    4: '<< /Type /Annot /Subtype /Square /Rect [10 10 50 50] /F 4 /T (Ann) /Contents (Hello) /C [1 0 0] /M (D:1) /CreationDate (D:0) /Popup 5 0 R >>',
+    5: '<< /Type /Annot /Subtype /Popup /Rect [60 60 160 160] /F 32 /Parent 4 0 R >>',
+    6: '<< /Type /Annot /Subtype /Popup /Rect [60 60 160 160] /F 32 /Parent 30 0 R >>',
+    7: '<< /Type /Annot /Subtype /Square /Rect [10 100 50 150] /F 4 /T (Bob) /Contents (Mine) /RT /Group /IRT 4 0 R /CreationDate (D:7) >>',
+    8: '<< /Type /Annot /Subtype /Popup /Rect [60 200 160 300] /Parent 7 0 R >>',
+    9: '<< /Type /Annot /Subtype /Popup /Rect [60 300 160 400] /F 32 /Parent 13 0 R >>',
+    10: '<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /DA () /Rect [200 10 300 30] /F 4 >>',
+    11: '<< /Type /Annot /Subtype /Widget /FT /Tx /T (orphan) /Rect [200 40 300 60] /F 4 >>',
+    12: '<< /Type /Annot /Subtype /FreeText /DA () /Rect [200 100 300 130] /F 4 /Contents (x) >>',
+    13: '<< /Type /Annot /Subtype /Square /Rect [10 300 50 350] /F 32 >>',
+    14: '<< /Type /Annot /Subtype /Popup /Rect [60 400 160 500] /F 32 /Parent 15 0 R >>',
+    15: '<< /Type /Annot /Subtype /Square /Rect [10 400 50 450] /F 1 >>',
+    20: '<< /Fields [10 0 R] /DA (/Helv 9 Tf 0 0 1 rg) >>',
+    30: '<< /Type /Annot /Subtype /Square /Rect [10 10 50 50] /F 4 /T (Zed) /Contents (Off page) /C [0 1 0] >>',
+  }),
+}
+type BuiltName = keyof typeof BUILT
+type FileName = FixtureName | BuiltName
+
+/**
+ * Differences between the two readers that are known, each with its cause and the files it
+ * shows on. Each is applied to both readers' reads of those files before they are compared, so
+ * the rest of the read is still held equal; a file listed whose reads no longer differ fails.
  */
 const EXCEPTIONS: Record<
   string,
-  { cause: string; fixtures: readonly FixtureName[]; apply: (read: FileRead) => FileRead }
+  { cause: string; fixtures: readonly FileName[]; apply: (read: FileRead) => FileRead }
 > = {
   'direct-object ids': {
     cause:
@@ -733,25 +817,33 @@ const EXCEPTIONS: Record<
     cause:
       "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA.",
     fixtures: ['saved-annotations', 'saved-incremental'],
-    apply: (read) => ({
-      ...read,
-      pages: read.pages.map((page) => ({
-        ...page,
-        annotations: page.annotations.map((a) => {
-          const { subtype, hasAppearance, defaultAppearance } = a as {
-            subtype: string
-            hasAppearance: boolean
-            defaultAppearance?: { fontName?: string }
-          }
-          return subtype === 'FreeText' && hasAppearance && defaultAppearance
-            ? {
-                ...(a as object),
-                defaultAppearance: { fontName: defaultAppearance.fontName },
-              }
-            : a
-        }),
-      })),
-    }),
+    apply: (read) =>
+      eachAnnotation(read, (a) => {
+        const da = a.defaultAppearance as { fontName?: string } | undefined
+        return a.subtype === 'FreeText' && a.hasAppearance && da
+          ? { ...a, defaultAppearance: { fontName: da.fontName } }
+          : a
+      }),
+  },
+  "a popup's parent on no page": {
+    cause:
+      "PDF.js reads a popup's text, dates and colour from its /Parent wherever it is; the engine reports only the page's own annotations, so a parent on no page gives none.",
+    fixtures: ['popups-and-widgets'],
+    apply: (read) =>
+      eachAnnotation(read, (a) =>
+        a.id === '6R' ? { id: a.id, subtype: a.subtype, rect: a.rect } : a
+      ),
+  },
+  'group replies': {
+    cause:
+      'An annotation with /RT /Group shows the text, dates and colour of the one its /IRT names, and so does its popup; the engine does not report /RT.',
+    fixtures: ['popups-and-widgets'],
+    apply: (read) =>
+      eachAnnotation(read, (a) =>
+        a.id === '7R' || a.id === '8R'
+          ? { id: a.id, subtype: a.subtype, rect: a.rect }
+          : a
+      ),
   },
 }
 
@@ -811,47 +903,64 @@ describe("the engine reader's file facts, annotations and form", () => {
     }
   }
 
-  /** What the reader selected now gives for `name`'s file. */
-  async function readFile(name: FixtureName): Promise<FileRead & { kind: string }> {
-    const password = manifest[name].password
+  /** What the reader selected now gives for the file. */
+  async function readFile(name: FileName): Promise<FileRead & { kind: string }> {
     asked = []
-    const doc = await open(name, {
-      engine: noting,
-      ...(password === undefined ? {} : { password }),
-    })
-    const reader = doc._reader
-    const pages: FileRead['pages'] = []
-    for (let page = 0; page < reader.pageCount; page++)
-      pages.push({
-        annotations: await reader.annotations(page),
-        tabOrder: await reader.tabOrder(page),
+    let doc: InkDocument
+    if (name in BUILT) {
+      doc = await openDocument(BUILT[name as BuiltName].slice(), {
+        assets: browserAssets(),
+        engine: noting,
       })
-    const read = {
-      kind: reader.kind,
-      facts: await reader.facts(),
-      pages,
-      form: await reader.form(),
+      await doc.ready
+    } else {
+      const password = manifest[name as FixtureName].password
+      doc = await openFixtureInBrowser(name as FixtureName, {
+        engine: noting,
+        ...(password === undefined ? {} : { password }),
+      })
     }
-    doc.destroy()
-    return read
+    try {
+      const reader = doc._reader
+      const pages: FileRead['pages'] = []
+      for (let page = 0; page < reader.pageCount; page++)
+        pages.push({
+          annotations: await reader.annotations(page),
+          tabOrder: await reader.tabOrder(page),
+        })
+      return {
+        kind: reader.kind,
+        facts: await reader.facts(),
+        pages,
+        form: await reader.form(),
+      }
+    } finally {
+      doc.destroy()
+    }
   }
 
-  it.each(FIXTURE_NAMES.filter((name) => manifest[name].opens))(
+  it.each([
+    ...FIXTURE_NAMES.filter((name) => manifest[name].opens),
+    ...(Object.keys(BUILT) as BuiltName[]),
+  ])(
     'gives the same facts, annotations, fields and tab order as PDF.js, on %s',
     async (name) => {
+      fellBack.made = 0
+      fellBack.count = 0
       const { kind: engineKind, ...engine } = await readFile(name)
+      expect(fellBack.made, 'the engine reader is the one spied on').toBe(1)
       // The engine answered: the reads did not come from the fallback.
       expect(new Set(asked)).toEqual(new Set(FILE_READS))
+      expect(fellBack.count).toBe(0)
       delete flag.__INKBAR_READER__
       const { kind: pdfjsKind, ...pdfjs } = await readFile(name)
       expect([engineKind, pdfjsKind]).toEqual(['engine', 'pdfjs'])
       const known = Object.values(EXCEPTIONS).filter((e) => e.fixtures.includes(name))
+      const near = withRectsFrom(engine, pdfjs) as FileRead
       if (known.length > 0)
-        expect(withRectsFrom(engine, pdfjs), 'a listed exception shows').not.toEqual(
-          pdfjs
-        )
+        expect(near, 'a listed exception shows').not.toStrictEqual(pdfjs)
       const apply = (read: FileRead) => known.reduce((r, e) => e.apply(r), read)
-      expect(apply(withRectsFrom(engine, pdfjs) as FileRead)).toEqual(apply(pdfjs))
+      expect(apply(near)).toStrictEqual(apply(pdfjs))
     }
   )
 })

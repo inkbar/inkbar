@@ -17,8 +17,8 @@ const ESCAPE = new RegExp(`${ESC}[^${ESC}]*(?:${ESC}|$)`, 'g')
  * they decode, else PDFDocEncoding byte by byte), escape sequences dropped either way.
  */
 export function textOf(text: FileTextShape): string {
-  const decoded = typeof text === 'string' ? text : pdfString(text.bytes)
-  return decoded.includes(ESC) ? decoded.replace(ESCAPE, '') : decoded
+  if (typeof text !== 'string') return pdfString(text.bytes, true)
+  return text.includes(ESC) ? text.replace(ESCAPE, '') : text
 }
 
 /** One colour component as PDF.js stores it: times 255 in a `Uint8ClampedArray`. */
@@ -104,6 +104,26 @@ function cmyk(c: number, m: number, y: number, k: number): void {
     k * (-22.33816807309886 * k - 180.12613974708367)
 }
 
+/**
+ * @internal The `/DA` PDF.js reads: the inherited one unless it is empty, else `/AcroForm /DA`,
+ * else none. Its bytes as they are: `/DA` is not a text string.
+ */
+export function defaultAppearanceText(
+  inherited: FileTextShape | undefined,
+  acroForm: FileTextShape | undefined
+): string {
+  const raw = (t: FileTextShape | undefined): string =>
+    t === undefined ? '' : typeof t === 'string' ? t : latin1(t.bytes)
+  return raw(inherited) || raw(acroForm)
+}
+
+/** One character per byte. */
+function latin1(bytes: Uint8Array): string {
+  let out = ''
+  for (const byte of bytes) out += String.fromCharCode(byte)
+  return out
+}
+
 /** @internal What `/DA` sets, as PDF.js's `parseDefaultAppearance` reads it. */
 export interface DefaultAppearance {
   fontSize: number
@@ -114,29 +134,85 @@ export interface DefaultAppearance {
 type Token =
   { kind: 'cmd'; cmd: string } | { kind: 'value'; value: unknown } | { kind: 'end' }
 
-/** The operators PDF.js's preprocessor knows that `/DA` uses, with their argument counts. */
-const DA_OPS: ReadonlyMap<string, number> = new Map([
-  ['Tf', 2],
-  ['rg', 3],
-  ['g', 1],
-  ['k', 4],
+/** The operators PDF.js's preprocessor knows (its `opMap`), with the arguments each takes. */
+const OPERATORS: ReadonlyMap<string, number> = new Map([
+  ['w', 1],
+  ['J', 1],
+  ['j', 1],
+  ['M', 1],
+  ['d', 2],
+  ['ri', 1],
+  ['i', 1],
+  ['gs', 1],
   ['q', 0],
   ['Q', 0],
-  // Others a `/DA` may hold, read past as PDF.js does.
+  ['cm', 6],
+  ['m', 2],
+  ['l', 2],
+  ['c', 6],
+  ['v', 4],
+  ['y', 4],
+  ['h', 0],
+  ['re', 4],
+  ['S', 0],
+  ['s', 0],
+  ['f', 0],
+  ['F', 0],
+  ['f*', 0],
+  ['B', 0],
+  ['B*', 0],
+  ['b', 0],
+  ['b*', 0],
+  ['n', 0],
+  ['W', 0],
+  ['W*', 0],
   ['BT', 0],
   ['ET', 0],
   ['Tc', 1],
   ['Tw', 1],
   ['Tz', 1],
   ['TL', 1],
-  ['Ts', 1],
+  ['Tf', 2],
   ['Tr', 1],
-  ['RG', 3],
-  ['G', 1],
-  ['K', 4],
-  ['w', 1],
-  ['cs', 1],
+  ['Ts', 1],
+  ['Td', 2],
+  ['TD', 2],
+  ['Tm', 6],
+  ['T*', 0],
+  ['Tj', 1],
+  ['TJ', 1],
+  ["'", 1],
+  ['"', 3],
+  ['d0', 2],
+  ['d1', 6],
   ['CS', 1],
+  ['cs', 1],
+  ['G', 1],
+  ['g', 1],
+  ['RG', 3],
+  ['rg', 3],
+  ['K', 4],
+  ['k', 4],
+  ['sh', 1],
+  ['BI', 0],
+  ['ID', 0],
+  ['EI', 1],
+  ['Do', 1],
+  ['MP', 1],
+  ['DP', 2],
+  ['BMC', 1],
+  ['BDC', 2],
+  ['EMC', 0],
+  ['BX', 0],
+  ['EX', 0],
+])
+
+/** The operators that take any number of arguments up to the count. */
+const VARIABLE_OPERATORS: ReadonlyMap<string, number> = new Map([
+  ['SC', 4],
+  ['SCN', 33],
+  ['sc', 4],
+  ['scn', 33],
 ])
 
 /** A PDF name's characters, `#xx` decoded: one character per byte. */
@@ -265,7 +341,11 @@ export function parseDefaultAppearance(da: string): DefaultAppearance {
       if (args.length > 33) break
       continue
     }
-    const count = DA_OPS.get(token.cmd)
+    if (VARIABLE_OPERATORS.has(token.cmd)) {
+      args = []
+      continue
+    }
+    const count = OPERATORS.get(token.cmd)
     // An operator PDF.js does not know is skipped, its arguments kept for the next.
     if (count === undefined) continue
     while (args.length > count) leftOver.push(args.shift())

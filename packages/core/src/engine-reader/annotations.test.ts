@@ -140,6 +140,42 @@ describe('fileAnnotationsFromEngine', () => {
     expect(square!.id).toBe('10R')
   })
 
+  it("lists a popup its own flags hide when its parent's flags show it, as PDF.js does", () => {
+    // Values from PDF.js 6.4.299 over the same dictionaries.
+    const parentOf = (objectNumber: number) => ({ objectNumber, generation: 0 })
+    const listed = read([
+      annot(0, { contents: 'Hello', author: 'Ann', color: [1, 0, 0] }),
+      annot(1, { subtype: 'Popup', flags: 32, parent: parentOf(10) }), // parent shown: listed
+      annot(2, { subtype: 'Popup', flags: 32, parent: parentOf(30) }), // parent off the page: listed
+      annot(3, { flags: 32 }), // no view
+      annot(4, { subtype: 'Popup', flags: 32, parent: parentOf(13) }), // parent no view: left out
+      annot(5, { flags: 1 }), // invisible: listed itself, as a kind PDF.js knows
+      annot(6, { subtype: 'Popup', flags: 32, parent: parentOf(15) }), // parent invisible: left out
+      annot(7, { subtype: 'Popup', flags: 32 }), // no parent: left out
+    ])
+    expect(listed.map((a) => a.id)).toEqual(['10R', '15R', '11R', '12R'])
+    expect(listed[2]).toMatchObject({
+      contents: 'Hello',
+      author: 'Ann',
+      color: [255, 0, 0],
+    })
+    // A parent off the page gives no text: the engine reports only the page's annotations.
+    expect(listed[3]).toMatchObject({ contents: '', color: [0, 0, 0] })
+  })
+
+  it("takes a FreeText's /DA from the form when its own is empty", () => {
+    const [freeText] = fileAnnotationsFromEngine(
+      0,
+      page([annot(0, { subtype: 'FreeText', defaultAppearance: '' })]),
+      { defaultAppearance: '/Helv 9 Tf 0 0 1 rg', widgets: new Map() }
+    )
+    expect(freeText!.defaultAppearance).toEqual({
+      fontName: 'Helv',
+      fontSize: 9,
+      color: [0, 0, 255],
+    })
+  })
+
   it("gives the box PDF.js draws for markup without an appearance: a squiggly's wave", () => {
     const [squiggly] = read([
       annot(0, {
@@ -191,6 +227,12 @@ describe('textOf', () => {
     expect(textOf({ bytes: new Uint8Array([0xfe, 0xff, 0xd8, 0x00]) })).toBe('þÿØ\0')
     expect(textOf({ bytes: new Uint8Array([0x41, 0x80, 0x9f]) })).toBe('A•\x9f')
   })
+
+  it('drops escape sequences from bytes before PDFDocEncoding, where 0x1b is a character too', () => {
+    // PDF.js: "\033en\033Bob" followed by 0x80 is "Bob•".
+    const bytes = new Uint8Array([0x1b, 0x65, 0x6e, 0x1b, 0x42, 0x6f, 0x62, 0x80])
+    expect(textOf({ bytes })).toBe('Bob•')
+  })
 })
 
 describe('parseDefaultAppearance', () => {
@@ -210,5 +252,14 @@ describe('parseDefaultAppearance', () => {
       fontSize: 0,
       color: [0, 0, 0],
     })
+  })
+
+  it('takes the arguments each operator PDF.js knows takes, so none reach the next', () => {
+    // `cm` takes six: `g` then has none to borrow and is skipped.
+    expect(parseDefaultAppearance('/Helv 12 Tf 1 2 3 4 5 6 cm g').color).toEqual([
+      0, 0, 0,
+    ])
+    // An operator PDF.js does not know leaves its arguments to the next.
+    expect(parseDefaultAppearance('/Helv 12 Tf 1 zz g').color).toEqual([255, 255, 255])
   })
 })

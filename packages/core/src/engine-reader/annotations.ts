@@ -3,6 +3,9 @@
 import {
   annotationId,
   borderOf,
+  defaultAppearanceText,
+  F_INVISIBLE,
+  F_NO_VIEW,
   fileNumber,
   parseDefaultAppearance,
   rectOf,
@@ -57,8 +60,8 @@ const NOTE_ICON_SIZE = 22
 
 /** @internal What the form tells the page's widgets: what PDF.js reads along `/Parent` and from `/AcroForm`. */
 export interface WidgetContext {
-  /** `/DA`, inherited, else `/AcroForm /DA`. */
-  defaultAppearance?: FileTextShape
+  /** `/DA`, inherited, else `/AcroForm /DA`, as `defaultAppearanceText` picks it. */
+  defaultAppearance: string
   /** `/AcroForm /NeedAppearances` is true and the field has a value: PDF.js then counts an appearance. */
   drawnFromValue: boolean
 }
@@ -84,12 +87,39 @@ export const listedAnnotation = (a: AnnotationFactsShape): boolean =>
     quadsOk: quadsOk(a.quads),
   })
 
+/** The page's annotations by object number, the first of each. */
+function byObjectNumber(page: PageAnnotationsShape): Map<number, AnnotationFactsShape> {
+  const byObject = new Map<number, AnnotationFactsShape>()
+  for (const a of page.annotations)
+    if (a.objectNumber !== undefined && !byObject.has(a.objectNumber))
+      byObject.set(a.objectNumber, a)
+  return byObject
+}
+
+/**
+ * Whether PDF.js lists a popup its own flags keep off the screen: it takes its parent's flags
+ * when those have neither Invisible nor NoView (no `/F` at all included). A parent that is not
+ * on the page is taken to have such flags: the engine reports only the page's annotations.
+ */
+function shownByParent(
+  a: AnnotationFactsShape,
+  byObject: ReadonlyMap<number, AnnotationFactsShape>
+): boolean {
+  if (a.subtype !== 'Popup' || a.parent === undefined) return false
+  const parent = byObject.get(a.parent.objectNumber)
+  return !parent || (parent.flags & (F_INVISIBLE | F_NO_VIEW)) === 0
+}
+
 /**
  * @internal The page's annotations in the order PDF.js lists them: the listed ones other than
- * widgets and popups in `/Annots` order, then the widgets, then the popups.
+ * widgets and popups in `/Annots` order, then the widgets, then the popups. A popup is also
+ * listed when its parent's flags show it (`shownByParent`).
  */
 export function listedInOrder(page: PageAnnotationsShape): AnnotationFactsShape[] {
-  const shown = page.annotations.filter(listedAnnotation)
+  const byObject = byObjectNumber(page)
+  const shown = page.annotations.filter(
+    (a) => listedAnnotation(a) || shownByParent(a, byObject)
+  )
   return [
     ...shown.filter((a) => a.subtype !== 'Widget' && a.subtype !== 'Popup'),
     ...shown.filter((a) => a.subtype === 'Widget'),
@@ -147,8 +177,8 @@ function inkPath(path: readonly (number | null)[]): number[] {
 const opacityOf = (a: AnnotationFactsShape): number =>
   (typeof a.opacity === 'number' && fileNumber(a.opacity)) || 1
 
-const daOf = (text: FileTextShape | undefined) => {
-  const da = parseDefaultAppearance(text === undefined ? '' : textOf(text))
+const daOf = (text: string) => {
+  const da = parseDefaultAppearance(text)
   return { fontSize: da.fontSize, fontName: da.fontName, color: da.color }
 }
 
@@ -173,10 +203,7 @@ export function fileAnnotationsFromEngine(
   facts: PageAnnotationsShape,
   form?: PageFormContext
 ): FileAnnotation[] {
-  const byObject = new Map<number, AnnotationFactsShape>()
-  for (const a of facts.annotations)
-    if (a.objectNumber !== undefined && !byObject.has(a.objectNumber))
-      byObject.set(a.objectNumber, a)
+  const byObject = byObjectNumber(facts)
   return listedInOrder(facts).map((a) => fileAnnotationOf(page, a, byObject, form))
 }
 
@@ -231,11 +258,13 @@ function fileAnnotationOf(
     const widget = form?.widgets.get(a.index)
     if (widget?.drawnFromValue) hasAppearance = true
     defaultAppearance = daOf(
-      widget?.defaultAppearance ?? a.defaultAppearance ?? form?.defaultAppearance
+      widget
+        ? widget.defaultAppearance
+        : defaultAppearanceText(a.defaultAppearance, form?.defaultAppearance)
     )
   }
   if (kind === 'FreeText') {
-    const da = daOf(a.defaultAppearance ?? form?.defaultAppearance)
+    const da = daOf(defaultAppearanceText(a.defaultAppearance, form?.defaultAppearance))
     // PDF.js sizes the text of a FreeText it draws itself at 10 when `/DA` sets no size.
     if (!hasAppearance) da.fontSize ||= 10
     defaultAppearance = da
