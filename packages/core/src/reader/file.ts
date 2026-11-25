@@ -152,11 +152,43 @@ export interface FileScripts {
   /** Document actions by event: `OpenAction`, `WillClose`, `WillSave`, `DidSave`, `WillPrint`, `DidPrint`. */
   documentActions: Record<string, string[]>
   /**
-   * The fields `/AcroForm /Fields` reaches that have widgets of a kind the form reads, in the
-   * order a walk of that tree first reaches each name: the full name, the id of the field's own
-   * dictionary when it is not one of its widgets, and its widgets' ids in the order the field
-   * lists them. A field or widget written as a direct object is not reached. The sandbox's field
-   * objects are built from these and the fields' facts.
+   * The dictionaries a walk of `/AcroForm /Fields` reaches that PDF.js gives the sandbox an object
+   * for, grouped by the name the walk gives them, names in the order the walk first reaches each.
+   * The walk follows references only, each once, and skips a Link dictionary with what lies under
+   * it; a dictionary is named by the names above it in the walk and its own `/T`.
+   *
+   * One entry for each dictionary with `/Kids` that is not a widget (`id` and `container` given),
+   * followed by the ids of the widgets after it under the name; and one entry, with no `id`, for
+   * widgets under a name before any such dictionary. A name can repeat: two dictionaries of one
+   * full name are two entries. An entry may list no widgets: a parent whose kids are fields. The
+   * sandbox's field objects are built from these and the fields' facts.
    */
-  fields: { name: string; id?: string; widgets: string[] }[]
+  fields: {
+    name: string
+    id?: string
+    widgets: string[]
+    /** The facts of the dictionary `id` names, present exactly when `id` is. */
+    container?: FileFieldContainer
+  }[]
+}
+
+/**
+ * @internal A field-tree dictionary with `/Kids` that is not a widget, as PDF.js reads it for the
+ * sandbox. Colours are RGB, each 0–255.
+ */
+export interface FileFieldContainer {
+  /** Its full name: its own `/T` and each `/T` up its `/Parent` chain, an empty one kept. */
+  fullName: string
+  /** The ids of its `/Kids` entries written as references, in order. */
+  kids: string[]
+  /** JavaScript by event name: `/AA` merged along `/Parent`, and `Action` for its own `/A`. */
+  scripts?: Record<string, string[]>
+  /** The page `/P` names, -1 when it names none. */
+  page: number
+  /** Its own `/MK /BC`. */
+  borderColor?: [number, number, number]
+  /** Its own `/MK /BG`. */
+  backgroundColor?: [number, number, number]
+  /** `/MK /R` when it has `/MK`, else `/Rotate`: a whole multiple of 90 in 0–270, else 0. */
+  rotation: number
 }

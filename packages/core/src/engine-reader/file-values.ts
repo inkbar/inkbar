@@ -474,3 +474,27 @@ export const F_NO_VIEW = 32
  */
 export const knownFlags = (flags: number): number =>
   (Number.isInteger(flags) && flags > 0 ? flags : 0) & ~F_INVISIBLE
+
+/**
+ * @internal A widget's or container's rotation as PDF.js's `setRotation` keeps it: `/MK /R` when
+ * the dictionary has `/MK`, else its `/Rotate`; a whole multiple of 90 in 0–270, else 0. The
+ * engine reports `/MK` through its keys, so an `/MK` holding none of `/BC`, `/BG`, `/R` and `/CA`
+ * reads as none.
+ */
+export function rotationOf(facts: {
+  borderColor?: unknown
+  backgroundColor?: unknown
+  rotation?: number | null
+  caption?: unknown
+  rotate?: number | null
+}): number {
+  const hasMk =
+    facts.borderColor !== undefined ||
+    facts.backgroundColor !== undefined ||
+    facts.rotation !== undefined ||
+    facts.caption !== undefined
+  const r = hasMk ? facts.rotation : facts.rotate
+  if (typeof r !== 'number' || !Number.isInteger(r) || r === 0) return 0
+  const angle = ((r % 360) + 360) % 360
+  return angle % 90 === 0 ? angle : 0
+}

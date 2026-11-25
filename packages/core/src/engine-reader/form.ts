@@ -12,6 +12,7 @@ import {
   rectOf,
   refId,
   rgbOf,
+  rotationOf,
   textOf,
 } from './file-values'
 import { widgetScripts } from './scripts'
@@ -21,8 +22,10 @@ import type { PageFormContext, WidgetContext } from './annotations'
 import type {
   FieldActionShape,
   FieldFactsShape,
+  FieldTreeEntryShape,
   FieldValueKindShape,
   FieldValueShape,
+  FileTextShape,
   FormFactsShape,
   WidgetFactsShape,
 } from './types'
@@ -177,12 +180,109 @@ export async function fileFieldsFromEngine(
   for (const [field, group] of groups)
     if (field.kind === 'unknown') for (const p of group) leftOut.set(p.id, field.name)
 
+  const tree = toggleTree(form)
   const fields: FileField[] = []
   for (const [field, group] of groups) {
     if (field.kind === 'unknown' || field.name === '') continue
-    fields.push(fieldOf(form, field, group, leftOut))
+    fields.push(fieldOf(form, field, group, leftOut, tree))
   }
   return fields
+}
+
+/** What PDF.js's `_getOptInfo` reads of the field tree around a toggle widget. */
+interface ToggleTree {
+  /** The `/Kids` of the dictionary each reference's `/Parent` names, by id. */
+  siblings: Map<string, readonly FieldTreeEntryShape[]>
+  /** The first state of `/AP /N` that is not `Off`, of each widget, by id. */
+  onStates: Map<string, string | undefined>
+}
+
+function toggleTree(form: FormFactsShape): ToggleTree {
+  const siblings = new Map<string, readonly FieldTreeEntryShape[]>()
+  for (const g of form.groups)
+    for (const kid of g.kids)
+      if (kid.ref && kid.otherParent !== true && !siblings.has(refId(kid.ref)))
+        siblings.set(refId(kid.ref), g.kids)
+  const onStates = new Map<string, string | undefined>()
+  for (const f of form.fields)
+    for (const w of f.widgets) {
+      if (w.objectNumber === undefined) continue
+      const id = refId({ objectNumber: w.objectNumber, generation: w.generation ?? 0 })
+      if (!onStates.has(id)) onStates.set(id, firstOnState(w))
+    }
+  return { siblings, onStates }
+}
+
+/** The first state of `/AP /N` that is not `Off`, as PDF.js's `_getOnStateName` gives it. */
+const firstOnState = (w: WidgetFactsShape): string | undefined =>
+  w.appearanceStates.find((s) => s !== 'Off')
+
+/** PDF.js's `_getOptInfo`: a toggle widget's `/Opt`, its place and its siblings' on-states'. */
+interface OptInfo {
+  current: number | null
+  opt: readonly (FileTextShape | { name: string } | null)[]
+  stateToIndex: Map<string, number>
+}
+
+function optInfoOf(
+  field: FieldFactsShape,
+  w: WidgetFactsShape,
+  onState: string | undefined,
+  tree: ToggleTree
+): OptInfo | null {
+  // `/Opt` looked up from the widget, then along `/Parent`: the field's is inherited the same way.
+  const opt = w.toggleOptions !== undefined ? w.toggleOptions : field.toggleOptions
+  if (!Array.isArray(opt)) return null
+  const id =
+    w.objectNumber === undefined
+      ? undefined
+      : refId({ objectNumber: w.objectNumber, generation: w.generation ?? 0 })
+  const kids = id === undefined ? undefined : tree.siblings.get(id)
+  const stateToIndex = new Map<string, number>()
+  let current: number | null = null
+  if (kids) {
+    for (let i = 0; i < Math.min(kids.length, opt.length); i++) {
+      const kid = kids[i]!
+      if (kid.ref && refId(kid.ref) === id) current = i
+      if (!kid.dictionary || !kid.ref) continue
+      const state = tree.onStates.get(refId(kid.ref))
+      if (state !== undefined && !stateToIndex.has(state)) stateToIndex.set(state, i)
+    }
+  } else if (opt.length === 1 && onState !== undefined) {
+    current = 0
+    stateToIndex.set(onState, 0)
+  }
+  return { current, opt, stateToIndex }
+}
+
+/** PDF.js's `_getExportValueForOptIndex`: the `/Opt` entry at `index` when it is text or a name. */
+function optAt(info: OptInfo, index: number | null | undefined): string | null {
+  if (typeof index !== 'number' || !Number.isInteger(index)) return null
+  if (index < 0 || index >= info.opt.length) return null
+  const entry = info.opt[index]
+  if (entry === null || entry === undefined) return null
+  return typeof entry === 'object' && 'name' in entry ? entry.name : textOf(entry)
+}
+
+/** PDF.js's `_getExportValue`: a state mapped through `/Opt`, for a widget whose on-state is `onState`. */
+function exportValueOf(
+  state: Value,
+  info: OptInfo | null,
+  onState: string | undefined
+): Value {
+  if (!info || typeof state !== 'string' || state === 'Off') return state
+  if (state === onState) {
+    const value = optAt(info, info.current)
+    if (value !== null) return value
+  }
+  if (info.stateToIndex.has(state)) {
+    const value = optAt(info, info.stateToIndex.get(state))
+    if (value !== null) return value
+  }
+  const index = parseInt(state, 10)
+  return Number.isInteger(index) && String(index) === state
+    ? optAt(info, index) || state
+    : state
 }
 
 /**
@@ -203,53 +303,33 @@ export function toggleOnStates(
       if (w.page !== page) continue
       const id = annotationId(page, w)
       if (toggles.has(id)) continue
-      toggles.set(id, field.kind === 'checkbox' ? checkboxOn(w, raw).onState : w.onState)
+      toggles.set(id, field.kind === 'checkbox' ? checkboxOn(w, raw) : w.onState)
     }
   }
   return toggles
 }
 
-/** A checkbox widget's on-state and export value as PDF.js picks them, with the field's value `value`. */
-function checkboxOn(
-  w: WidgetFactsShape,
-  value: Value
-): { onState: string; exportValue: string } {
+/** A checkbox widget's on-state as PDF.js picks it, with the field's value `value`. */
+function checkboxOn(w: WidgetFactsShape, value: Value): string {
   const own = w.appearanceState !== undefined ? w.appearanceState : value
   const yes = typeof own === 'string' && own !== 'Off' ? own : 'Yes'
   const states = w.appearanceStates
-  let onState: string
-  if (states.length === 0) onState = yes
-  else if (states.length === 1) onState = states[0] === 'Off' ? yes : states[0]!
-  else if (states.includes(yes)) onState = yes
-  else onState = states.find((s) => s !== 'Off')!
-  // The engine maps its own on-state through `/Opt`; PDF.js's is the same unless the file
-  // names a state the appearance does not have.
-  const exportValue =
-    onState === w.onState && w.exportValue !== undefined ? w.exportValue : onState
-  return { onState, exportValue }
+  if (states.length === 0) return yes
+  if (states.length === 1) return states[0] === 'Off' ? yes : states[0]!
+  if (states.includes(yes)) return yes
+  return states.find((s) => s !== 'Off')!
 }
 
 function fieldOf(
   form: FormFactsShape,
   field: FieldFactsShape,
   group: readonly Placed[],
-  leftOut: ReadonlyMap<string, string>
+  leftOut: ReadonlyMap<string, string>,
+  tree: ToggleTree
 ): FileField {
   const raw = rawValue(field)
   const defaultRaw = decode(field.defaultValueKind, field.defaultValue)
   const first = group[0]!.widget
-  // A state's export value, as PDF.js's `_getExportValue` maps one through the widgets' on-states.
-  const exported = (
-    state: Value,
-    on?: { onState: string; exportValue: string }
-  ): Value => {
-    if (typeof state !== 'string' || state === 'Off') return state
-    if (on && state === on.onState) return on.exportValue
-    for (const { widget } of group)
-      if (widget.onState === state && widget.exportValue !== undefined)
-        return widget.exportValue
-    return state
-  }
 
   let value: Value = raw
   let defaultValue: Value = defaultRaw
@@ -265,42 +345,64 @@ function fieldOf(
         Number.isInteger(field.maxLength) && field.maxLength! > 0 ? field.maxLength : 0
       break
     case 'checkbox': {
-      // PDF.js reads each widget's value from its own `/AS`, else the field's `/V`.
-      const valueOf = (widget: WidgetFactsShape): Value => {
-        const on = checkboxOn(widget, raw)
+      // PDF.js's `_processCheckBox`, for each widget: its value from its own `/AS`, else the
+      // field's `/V`, and its values mapped through `/Opt`.
+      const read = (widget: WidgetFactsShape) => {
+        const onState = checkboxOn(widget, raw)
+        const info = optInfoOf(field, widget, onState, tree)
+        const exportValue = exportValueOf(onState, info, onState) as string
         const own = widget.appearanceState !== undefined ? widget.appearanceState : raw
-        return own === 'Off' || own === on.onState || own === on.exportValue
-          ? exported(own, on)
-          : 'Off'
+        const kept = own === 'Off' || own === onState || own === exportValue ? own : 'Off'
+        return {
+          exportValue,
+          value: exportValueOf(kept, info, onState),
+          defaultValue: exportValueOf(defaultRaw, info, onState) ?? 'Off',
+        }
       }
       for (const { widget } of group) {
-        onValues.set(widget, checkboxOn(widget, raw).exportValue)
-        const own = valueOf(widget)
-        if (typeof own === 'string') widgetValues.set(widget, own)
+        const each = read(widget)
+        onValues.set(widget, each.exportValue)
+        if (typeof each.value === 'string') widgetValues.set(widget, each.value)
       }
-      value = valueOf(first)
-      defaultValue = exported(defaultRaw, checkboxOn(first, raw)) ?? 'Off'
+      ;({ value, defaultValue } = read(first))
       break
     }
-    case 'radio':
-      for (const { widget } of group)
-        if (widget.exportValue !== undefined) onValues.set(widget, widget.exportValue)
-      value = exported(raw)
-      defaultValue = exported(defaultRaw) ?? 'Off'
+    case 'radio': {
+      // PDF.js's `_processRadioButton`, for each widget: with no dictionary of states it has no
+      // on value and its field's values stay as read.
+      const read = (widget: WidgetFactsShape) => {
+        if (widget.appearance !== 'states') return undefined
+        const onState = firstOnState(widget)
+        const info = optInfoOf(field, widget, onState, tree)
+        return {
+          onValue: onState === undefined ? null : exportValueOf(onState, info, onState),
+          value: exportValueOf(raw, info, onState),
+          defaultValue: exportValueOf(defaultRaw, info, onState) ?? 'Off',
+        }
+      }
+      for (const { widget } of group) {
+        const onValue = read(widget)?.onValue
+        if (typeof onValue === 'string') onValues.set(widget, onValue)
+      }
+      const own = read(first)
+      if (own) ({ value, defaultValue } = own)
       break
+    }
     case 'combo':
     case 'list': {
-      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`: the field's
-      // reaches the value only when the field and its first widget are one dictionary.
+      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`. A separate widget gives its own `/I`; a widget that is the field's dictionary has the
+      // field's `/I` only when that dictionary holds it, not when it is inherited.
       const merged =
         field.objectNumber !== undefined &&
         first.objectNumber === field.objectNumber &&
         first.generation === field.generation
-      const list = choiceValue(
-        raw,
-        merged ? field.selectedIndices : undefined,
-        field.options ?? []
-      )
+      const indices =
+        'selectedIndices' in first
+          ? first.selectedIndices
+          : merged && field.selectedIndicesOwn === true
+            ? field.selectedIndices
+            : undefined
+      const list = choiceValue(raw, indices, field.options ?? [])
       value = list
       options = field.options?.length
         ? field.options
@@ -338,13 +440,6 @@ function fieldOf(
 const alignmentOf = (q: number | null | undefined): number | undefined =>
   typeof q === 'number' && Number.isInteger(q) && q >= 0 && q <= 2 ? q : undefined
 
-/** `/MK /R` as PDF.js keeps it: a whole multiple of 90 in 0–270, else 0. */
-function rotationOf(r: number | null | undefined): number {
-  if (typeof r !== 'number' || !Number.isInteger(r) || r === 0) return 0
-  const angle = ((r % 360) + 360) % 360
-  return angle % 90 === 0 ? angle : 0
-}
-
 function widgetOf(
   form: FormFactsShape,
   field: FieldFactsShape,
@@ -381,7 +476,7 @@ function widgetOf(
     border,
     ...(borderColor ? { borderColor } : {}),
     ...(backgroundColor ? { backgroundColor } : {}),
-    rotation: rotationOf(w.rotation),
+    rotation: rotationOf(w),
     ...(alignment !== undefined ? { alignment } : {}),
     tooltip: w.tooltip === undefined ? '' : textOf(w.tooltip),
     defaultAppearance: { fontSize: da.fontSize, fontName: da.fontName, color: da.color },

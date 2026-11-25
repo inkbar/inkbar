@@ -144,6 +144,8 @@ const emptyForm: FormResult = {
   kind: 'none',
   needAppearances: false,
   fields: [],
+  groups: [],
+  fieldsRoot: [],
   calculationOrderRefs: [],
   tooLarge: false,
   truncated: false,
@@ -2151,6 +2153,14 @@ describe("the file's facts, annotations, form and Tab order", () => {
               objectNumber: 20,
               generation: 0,
               widgets: [{ ...field.widgets[0]!, scripts: { K: ['event.rc = true'] } }],
+            },
+          ],
+          fieldsRoot: [
+            {
+              ref: { objectNumber: 20, generation: 0 },
+              dictionary: true,
+              hasKids: false,
+              partialName: 'name',
             },
           ],
         }),

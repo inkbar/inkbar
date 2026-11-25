@@ -23,7 +23,12 @@
 // - `strokeColor` and `fillColor` as PDF.js keeps colours, three bytes in a typed array, which
 //   reach the sandbox as an object of indices: what scripts reading them get with PDF.js too.
 // - `defaultValue`: a text field's empty when it has none, every other kind's `null`.
-import type { FileField, FileScripts, FileWidget } from '../reader/file'
+import type {
+  FileField,
+  FileFieldContainer,
+  FileScripts,
+  FileWidget,
+} from '../reader/file'
 
 /** `/Ff` bits. */
 const FF_READ_ONLY = 1
@@ -61,13 +66,13 @@ export const DATE_TIME =
   /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 /**
- * The field objects of `fields` as PDF.js gives the sandbox them, by field name in the order of
- * `scripts.fields`: for each entry, the field's own dictionary when it is not one of its widgets
- * (only its `id` and `type`: with a widget object beside it the sandbox reads nothing else of it),
- * then an object for each widget, in the order the field lists them. Entries that share a name
- * (two dictionaries of one full name) go into that name's list one after the other, as PDF.js
- * gives them. Each widget is found by its id among all of `fields`; one that `fields` does not
- * hold is left out, and with it an entry left with no widget. `null` when there are none, as
+ * The field objects of `fields` as PDF.js gives the sandbox them, by name in the order of
+ * `scripts.fields`: for each entry, its dictionary's container object when it has one (PDF.js's
+ * base `Annotation.getFieldObject`, for a field-tree dictionary with `/Kids` that is not a
+ * widget), then an object for each widget, in the order the entry lists them. Entries that share
+ * a name (two dictionaries of one full name) go into that name's list one after the other, as
+ * PDF.js gives them. Each widget is found by its id among all of `fields`; one that `fields` does
+ * not hold is left out, and with it an entry left with no object. `null` when there are none, as
  * PDF.js gives.
  *
  * @internal
@@ -87,14 +92,34 @@ export function sandboxFieldObjects(
       const found = byId.get(id)
       if (found) objects.push(widgetObject(found.field, found.widget))
     }
+    if (entry.id !== undefined && entry.container)
+      objects.unshift(containerObject(entry.id, entry.container))
     if (objects.length === 0) continue
-    if (entry.id !== undefined) objects.unshift({ id: entry.id, type: '' })
     const list = out.get(entry.name)
     if (list) list.push(...objects)
     else out.set(entry.name, objects)
   }
   return out.size > 0 ? out : null
 }
+
+/** A container's object: `kidIds`, its actions, page, colours and rotation, and type `''`. */
+function containerObject(id: string, c: FileFieldContainer): Record<string, unknown> {
+  return {
+    id,
+    actions: c.scripts ? eventScripts(c.scripts) : null,
+    name: c.fullName,
+    strokeColor: c.borderColor ? new Uint8ClampedArray(c.borderColor) : null,
+    fillColor: c.backgroundColor ? new Uint8ClampedArray(c.backgroundColor) : null,
+    type: '',
+    kidIds: [...c.kids],
+    page: c.page,
+    rotation: c.rotation,
+  }
+}
+
+/** Scripts by event as the sandbox takes them, built from entries so `__proto__` stays a key. */
+const eventScripts = (scripts: Record<string, string[]>): Record<string, string[]> =>
+  Object.fromEntries(Object.entries(scripts).map(([event, list]) => [event, [...list]]))
 
 function widgetObject(field: FileField, w: FileWidget): Record<string, unknown> {
   if (field.kind === 'signature')
@@ -106,12 +131,7 @@ function widgetObject(field: FileField, w: FileWidget): Record<string, unknown> 
     name: field.name,
     rect: [...w.rect],
     hidden: (w.flags & (F_HIDDEN | F_NO_VIEW)) !== 0,
-    // Built from entries, so an event named like `__proto__` stays the file's own.
-    actions: scripts
-      ? Object.fromEntries(
-          Object.entries(scripts).map(([event, list]) => [event, [...list]])
-        )
-      : null,
+    actions: scripts ? eventScripts(scripts) : null,
     page: w.page,
     strokeColor: w.borderColor ? new Uint8ClampedArray(w.borderColor) : null,
     fillColor: w.backgroundColor ? new Uint8ClampedArray(w.backgroundColor) : null,

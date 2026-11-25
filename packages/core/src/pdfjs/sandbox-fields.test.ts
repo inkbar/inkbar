@@ -7,7 +7,12 @@ import { expectSameRead, sandboxView } from '../test-support/sandbox-view'
 import { nodeAssets } from './node-assets'
 import { sandboxFieldObjects } from './sandbox-fields'
 
-import type { FileField, FileScripts, FileWidget } from '../reader/file'
+import type {
+  FileField,
+  FileFieldContainer,
+  FileScripts,
+  FileWidget,
+} from '../reader/file'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const opened: InkDocument[] = []
@@ -91,6 +96,14 @@ const textField = (
   ],
 })
 
+const container = (kids: string[], over: Partial<FileFieldContainer> = {}) => ({
+  fullName: 'c',
+  kids,
+  page: -1,
+  rotation: 0,
+  ...over,
+})
+
 const objectOf = (field: FileField): Record<string, unknown> => {
   const objects = sandboxFieldObjects([field], scriptsFor([field]))
   return objects!.get(field.name)![0] as Record<string, unknown>
@@ -168,8 +181,8 @@ describe('sandboxFieldObjects', () => {
       [first, second],
       scriptsFor([], {
         fields: [
-          { name: 'twin', id: '31R', widgets: ['32R'] },
-          { name: 'twin', id: '33R', widgets: ['34R'] },
+          { name: 'twin', id: '31R', widgets: ['32R'], container: container(['32R']) },
+          { name: 'twin', id: '33R', widgets: ['34R'], container: container(['34R']) },
         ],
       })
     )
@@ -226,7 +239,14 @@ describe('sandboxFieldObjects', () => {
     const objects = sandboxFieldObjects(
       [field],
       scriptsFor([field], {
-        fields: [{ name: 'pick', id: '10R', widgets: ['12R', '11R'] }],
+        fields: [
+          {
+            name: 'pick',
+            id: '10R',
+            widgets: ['12R', '11R'],
+            container: container(['12R', '11R']),
+          },
+        ],
       })
     )
     expect(
@@ -238,6 +258,50 @@ describe('sandboxFieldObjects', () => {
       { id: '10R', type: '' },
       { id: '12R', type: 'radiobutton', exportValues: 'b' },
       { id: '11R', type: 'radiobutton', exportValues: 'a' },
+    ])
+  })
+
+  it('gives a parent whose kids are fields an object of its own, before them', () => {
+    const child: FileField = {
+      name: 'total.a',
+      kind: 'text',
+      flags: 0,
+      value: '1',
+      widgets: [widget({ id: '11R' })],
+    }
+    const objects = sandboxFieldObjects(
+      [child],
+      scriptsFor([], {
+        fields: [
+          {
+            name: 'total',
+            id: '10R',
+            widgets: [],
+            container: container(['11R', '12R3'], {
+              fullName: 'total',
+              scripts: { Focus: ['f()'] },
+              page: 0,
+              borderColor: [255, 0, 0],
+              rotation: 90,
+            }),
+          },
+          { name: 'total.a', widgets: ['11R'] },
+        ],
+      })
+    )
+    expect([...objects!.keys()]).toEqual(['total', 'total.a'])
+    expect(objects!.get('total')).toStrictEqual([
+      {
+        id: '10R',
+        actions: { Focus: ['f()'] },
+        name: 'total',
+        strokeColor: new Uint8ClampedArray([255, 0, 0]),
+        fillColor: null,
+        type: '',
+        kidIds: ['11R', '12R3'],
+        page: 0,
+        rotation: 90,
+      },
     ])
   })
 })

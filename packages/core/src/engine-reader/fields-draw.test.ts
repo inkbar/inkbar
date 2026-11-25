@@ -49,6 +49,8 @@ const form = (fields: FieldFactsShape[]): FormFactsShape => ({
   kind: 'acroform',
   needAppearances: false,
   fields,
+  groups: [],
+  fieldsRoot: [],
   calculationOrderRefs: [],
   tooLarge: false,
   truncated: false,

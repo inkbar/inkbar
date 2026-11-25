@@ -4,15 +4,18 @@
 // every source of each action's chain as written; each rule here is PDF.js's.
 import { DATE_TIME } from '../pdfjs/sandbox-fields'
 
-import { refId, textOf } from './file-values'
+import { refId, rgbOf, rotationOf, textOf } from './file-values'
 
 import type {
   FieldFactsShape,
+  FieldGroupFactsShape,
+  FieldTreeEntryShape,
+  FileTextShape,
   FormFactsShape,
   ScriptFactsShape,
   WidgetFactsShape,
 } from './types'
-import type { FileScripts } from '../reader/file'
+import type { FileFieldContainer, FileScripts } from '../reader/file'
 
 /** A widget's additional-action keys by the event names PDF.js gives them, and `A` its own `/A`. */
 const WIDGET_EVENTS: ReadonlyMap<string, string> = new Map([
@@ -127,12 +130,116 @@ export function widgetScripts(
   return { scripts, keystrokeInFormat }
 }
 
-/** The widgets of `field` PDF.js builds field objects for: those written as indirect objects. */
-function reached(field: FieldFactsShape): WidgetFactsShape[] {
-  // PDF.js walks `/Fields` by reference: a field or widget written inline is not reached.
-  if (field.origin !== 'acroform' || field.objectNumber === undefined) return []
-  if (field.kind === 'unknown') return []
-  return field.widgets.filter((w) => w.objectNumber !== undefined)
+/**
+ * The dictionaries PDF.js's `#collectFieldObjects` gives the sandbox an object for, as
+ * `FileScripts.fields`, from the field tree the engine reports. As PDF.js does, it walks
+ * `/Fields` depth first, each list in the file's order, following references only and each once,
+ * and skips a Link dictionary with what lies under it. A dictionary with `/T` is named by the name
+ * above it in the walk and its own `/T`; one without is named as the one above it (PDF.js looks up
+ * `/Parent` then, which the walk has already named unless `/Parent` leads elsewhere). A dictionary
+ * with `/Kids` written as references and no Widget `/Subtype` gives a container object; a widget
+ * of a field of a kind PDF.js reads gives a widget object; any other gives none. `ids` gets each
+ * object's name by id, the first one only.
+ */
+function walkFieldObjects(
+  form: FormFactsShape,
+  ids: Map<string, string>
+): { fields: FileScripts['fields']; widgets: Map<string, ReachedWidget> } {
+  const groups = new Map<string, FieldGroupFactsShape>()
+  for (const g of form.groups)
+    if (g.objectNumber !== undefined)
+      groups.set(
+        refId({ objectNumber: g.objectNumber, generation: g.generation ?? 0 }),
+        g
+      )
+  const widgets = new Map<string, ReachedWidget>()
+  for (const field of form.fields) {
+    if (field.kind === 'unknown') continue
+    for (const widget of field.widgets) {
+      if (widget.objectNumber === undefined) continue
+      const id = refId({
+        objectNumber: widget.objectNumber,
+        generation: widget.generation ?? 0,
+      })
+      if (!widgets.has(id)) widgets.set(id, { field, widget })
+    }
+  }
+
+  // The entries of each name, names in the order the walk first reaches them.
+  const byName = new Map<string, FileScripts['fields']>()
+  const reached = new Map<string, ReachedWidget>()
+  const visited = new Set<string>()
+  const walk = (
+    entry: FieldTreeEntryShape,
+    above: string,
+    parentParts: string[] | null
+  ): void => {
+    if (!entry.ref) return
+    const id = refId(entry.ref)
+    if (visited.has(id)) return
+    visited.add(id)
+    if (!entry.dictionary) return
+    const group = groups.get(id)
+    if (group?.subtype === 'Link') return
+    const t = entry.partialName === undefined ? undefined : partOf(entry.partialName)
+    const name = t === undefined ? above : above === '' ? t : `${above}.${t}`
+    let list = byName.get(name)
+    if (!list) byName.set(name, (list = []))
+    // Its own `/T` and those up its `/Parent` chain, while that chain is the walk's.
+    const own =
+      entry.otherParent === true || parentParts === null
+        ? null
+        : [...parentParts, ...(t === undefined ? [] : [t])]
+    const kids = group?.kids.flatMap((k) => (k.ref ? [refId(k.ref)] : [])) ?? []
+    const widget = widgets.get(id)
+    if (group && group.subtype !== 'Widget' && kids.length > 0) {
+      list.push({ name, id, widgets: [], container: containerOf(group, kids, own) })
+      if (!ids.has(id)) ids.set(id, name)
+    } else if (widget) {
+      const last = list.at(-1)
+      if (last) last.widgets.push(id)
+      else list.push({ name, widgets: [id] })
+      reached.set(id, widget)
+      if (!ids.has(id)) ids.set(id, name)
+    }
+    for (const kid of group?.kids ?? []) walk(kid, name, own)
+  }
+  for (const entry of form.fieldsRoot)
+    walk(entry, '', entry.otherParent === true ? null : [])
+  return { fields: [...byName.values()].flat(), widgets: reached }
+}
+
+/** A widget PDF.js's walk reaches, with its field. */
+interface ReachedWidget {
+  field: FieldFactsShape
+  widget: WidgetFactsShape
+}
+
+/** A `/T` as PDF.js's `stringToPDFString` reads it; one that is no string reads as empty. */
+const partOf = (t: FileTextShape | null): string => (t === null ? '' : textOf(t))
+
+/**
+ * A container's facts as PDF.js reads them. Its full name is its own `/T` and each up its
+ * `/Parent` chain (`parts`, when that chain is the walk's), else the engine's name, which leaves
+ * an empty `/T` out where PDF.js keeps it.
+ */
+function containerOf(
+  group: FieldGroupFactsShape,
+  kids: string[],
+  parts: string[] | null
+): FileFieldContainer {
+  const scripts = Object.fromEntries(byEvent(group.scripts, WIDGET_EVENTS))
+  const borderColor = rgbOf(group.borderColor, null)
+  const backgroundColor = rgbOf(group.backgroundColor, null)
+  return {
+    fullName: parts ? parts.join('.') : group.name,
+    kids,
+    ...(Object.keys(scripts).length > 0 ? { scripts } : {}),
+    page: group.page ?? -1,
+    ...(borderColor ? { borderColor } : {}),
+    ...(backgroundColor ? { backgroundColor } : {}),
+    rotation: rotationOf(group),
+  }
 }
 
 /**
@@ -179,30 +286,19 @@ export function fileScriptsFromEngine(
     else for (const source of sources) document.push({ name, source })
   }
 
-  const fields: FileScripts['fields'] = []
   const names = new Map<string, string>()
-  let fieldScripts = false
-  for (const field of form?.fields ?? []) {
-    const widgets = reached(field)
-    if (widgets.length === 0) continue
-    const own = refId({
-      objectNumber: field.objectNumber!,
-      generation: field.generation ?? 0,
-    })
-    const ids = widgets.map((w) =>
-      refId({ objectNumber: w.objectNumber!, generation: w.generation ?? 0 })
+  const walked = form
+    ? walkFieldObjects(form, names)
+    : { fields: [], widgets: new Map<string, ReachedWidget>() }
+  // PDF.js counts the actions of every object it builds: a container's, and a widget's of a
+  // kind it builds one with actions for.
+  const fieldScripts =
+    walked.fields.some((e) => e.container?.scripts !== undefined) ||
+    [...walked.widgets.values()].some(
+      ({ field, widget }) =>
+        SCRIPTED_KINDS.has(field.kind) &&
+        Object.keys(widgetScripts(field.kind, widget).scripts).length > 0
     )
-    const id = ids.includes(own) ? undefined : own
-    fields.push({ name: field.name, ...(id !== undefined ? { id } : {}), widgets: ids })
-    for (const each of id !== undefined ? [id, ...ids] : ids)
-      if (!names.has(each)) names.set(each, field.name)
-    if (
-      !fieldScripts &&
-      SCRIPTED_KINDS.has(field.kind) &&
-      widgets.some((w) => Object.keys(widgetScripts(field.kind, w).scripts).length > 0)
-    )
-      fieldScripts = true
-  }
 
   const calculationOrderIds = (form?.calculationOrderRefs ?? []).flatMap((ref) =>
     ref ? [refId(ref)] : []
@@ -213,7 +309,7 @@ export function fileScriptsFromEngine(
       calculationOrderIds,
       document,
       documentActions,
-      fields,
+      fields: walked.fields,
     },
     hasScripts: fieldScripts || actions.size > 0,
   }
