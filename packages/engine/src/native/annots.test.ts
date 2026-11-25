@@ -113,6 +113,41 @@ test('a name the budget cut is null only in a cut entry', () => {
   expect(page.annotations[0]?.subtype).toBe('')
 })
 
+test('dashes are read as written, an invalid one included', () => {
+  const page = parsePageAnnotations(
+    report([
+      annot({ borderStyle: { width: 0.4, style: 'D', dash: [3, 2] } }),
+      annot({ border: [0, 0, 1], borderDash: [4, 2] }),
+      annot({
+        borderStyle: { width: null, style: null, dash: [-1, null, 0] },
+        border: [0, 0, 1],
+        borderDash: null,
+      }),
+      annot({ borderStyle: { width: 1, style: 'S', dash: null }, border: [0, 0, 1] }),
+      annot({ borderStyle: { width: 1, style: 'S' }, border: [0, 0, 1], borderDash: [] }),
+    ])
+  )
+  expect(
+    page.annotations.map(({ borderStyle, border, borderDash }) => ({
+      borderStyle,
+      border,
+      borderDash,
+    }))
+  ).toEqual([
+    { borderStyle: { width: 0.4, style: 'D', dash: [3, 2] } },
+    { border: [0, 0, 1], borderDash: [4, 2] },
+    {
+      borderStyle: { width: null, style: null, dash: [-1, null, 0] },
+      border: [0, 0, 1],
+      borderDash: null,
+    },
+    { borderStyle: { width: 1, style: 'S', dash: null }, border: [0, 0, 1] },
+    { borderStyle: { width: 1, style: 'S' }, border: [0, 0, 1], borderDash: [] },
+  ])
+  expect('dash' in page.annotations[1]!).toBe(false)
+  expect('borderDash' in page.annotations[0]!).toBe(false)
+})
+
 test.each([
   ['tabs missing', JSON.stringify({ annots: [], truncated: false }), 'tabs:'],
   ['truncated missing', JSON.stringify({ tabs: null, annots: [] }), 'truncated:'],
@@ -149,6 +184,22 @@ test.each([
   ['inReplyTo of one number', report([annot({ inReplyTo: [3] })]), 'inReplyTo:'],
   ['pmd false', report([annot({ pmd: false })]), 'pmd:'],
   ['an ink path of strings', report([annot({ inkLists: [['1']] })]), 'inkLists:'],
+  [
+    'a dash that is a number',
+    report([annot({ borderStyle: { width: 1, style: 'D', dash: 3 } })]),
+    'borderStyle.dash:',
+  ],
+  [
+    'a dash entry that is a string',
+    report([annot({ borderStyle: { width: 1, style: 'D', dash: ['3'] } })]),
+    'borderStyle.dash:',
+  ],
+  [
+    'a border dash of a name',
+    report([annot({ border: [0, 0, 1], borderDash: 'D' })]),
+    'borderDash:',
+  ],
+  ['a border dash without a border', report([annot({ borderDash: [3] })]), 'borderDash:'],
 ])('%s comes from another module and throws an EngineError', (_, text, key) => {
   expect(() => parsePageAnnotations(text)).toThrow(
     expect.objectContaining({

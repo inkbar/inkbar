@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { fileAnnotationsFromEngine } from './annotations'
-import { parseDefaultAppearance, textOf } from './file-values'
+import { borderOf, parseDefaultAppearance, textOf } from './file-values'
 
 import type { AnnotationFactsShape, PageAnnotationsShape } from './types'
 
@@ -207,13 +207,60 @@ describe('fileAnnotationsFromEngine', () => {
     })
   })
 
-  it('reads numbers the engine gives as 32-bit floats as the file writes them', () => {
+  it('takes the numbers the engine gives as they are: each the shortest decimal of its float', () => {
     const [ink] = read([
-      annot(0, { subtype: 'Ink', opacity: 0.400000006, inkLists: [[1, 2, 3]] }),
+      annot(0, { subtype: 'Ink', opacity: 0.4, inkLists: [[1, 2, 3]] }),
     ])
     expect(ink).toMatchObject({ opacity: 0.4, inkLists: [[1, 2, 0]] })
     // Absent or 0: 1, as PDF.js reads it.
     expect(read([annot(0, { subtype: 'Ink', opacity: 0 })])[0]!.opacity).toBe(1)
+  })
+})
+
+describe('borderOf', () => {
+  const rect = [0, 0, 100, 100]
+  const style = (
+    width: number | null,
+    s: string | null,
+    dash?: (number | null)[] | null
+  ) => ({
+    borderStyle: { width, style: s, ...(dash === undefined ? {} : { dash }) },
+  })
+
+  it('keeps the width for a /BS /D PDF.js takes: empty, or numbers from 0 with one above 0', () => {
+    expect(borderOf(style(2, 'D', [3, 2]), rect)).toEqual({ width: 2, style: 2 })
+    expect(borderOf(style(2, 'S', []), rect)).toEqual({ width: 2, style: 1 })
+    expect(borderOf(style(2, 'S', [0, 3]), rect)).toEqual({ width: 2, style: 1 })
+  })
+
+  it('gives width 0 for a /BS /D PDF.js refuses: negative, all zero, not a number, not a list', () => {
+    for (const dash of [[-1, 2], [0, 0], [3, null], null])
+      expect(borderOf(style(2, 'D', dash), rect)).toEqual({ width: 0, style: 2 })
+  })
+
+  it("reads /Border's dash as /BS /D, and a dash it takes makes the style dashed", () => {
+    expect(borderOf({ border: [0, 0, 1], borderDash: [4, 2] }, rect)).toEqual({
+      width: 1,
+      style: 2,
+    })
+    expect(borderOf({ border: [0, 0, 1], borderDash: [] }, rect)).toEqual({
+      width: 1,
+      style: 2,
+    })
+    expect(borderOf({ border: [0, 0, 1], borderDash: [4, -2] }, rect)).toEqual({
+      width: 0,
+      style: 1,
+    })
+    expect(borderOf({ border: [0, 0, 1], borderDash: null }, rect)).toEqual({
+      width: 0,
+      style: 1,
+    })
+  })
+
+  it('reads no dash from /Border when /BS is there', () => {
+    expect(
+      borderOf({ ...style(3, null), border: [0, 0, 1], borderDash: [-1] }, rect)
+    ).toEqual({ width: 3, style: 1 })
   })
 })
 

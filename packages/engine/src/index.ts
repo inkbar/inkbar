@@ -21,6 +21,7 @@ export type {
   FieldFacts,
   FieldValue,
   FieldValueKind,
+  FieldValueName,
   FileAction,
   FileDestination,
   FileTarget,

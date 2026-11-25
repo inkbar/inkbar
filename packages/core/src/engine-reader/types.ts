@@ -112,10 +112,16 @@ export interface AppearanceFactsShape {
   appearanceStates: string[]
   /** `/AS`, when it is a name. */
   appearanceState?: string
-  /** `/BS`: its `/W` and `/S`. */
-  borderStyle?: { width: number | null; style: string | null }
+  /** `/BS`: its `/W` and `/S`, and `/D` as written (`null` when it is not a list). */
+  borderStyle?: {
+    width: number | null
+    style: string | null
+    dash?: (number | null)[] | null
+  }
   /** `/Border`'s first three entries. */
   border?: (number | null)[]
+  /** `/Border`'s fourth entry as written, when it has one; `null` when that is not a list. */
+  borderDash?: (number | null)[] | null
 }
 
 /** @internal One dictionary of a page's `/Annots`. */
@@ -160,6 +166,14 @@ export interface FieldActionShape {
   uri?: Uint8Array
   name?: string
   reset?: { fields: FileTextShape[]; refs: ObjectRefShape[]; flags: number }
+  /** What a Launch's or GoToR's `/F` is; absent when it is absent or null. */
+  fileKind?: 'string' | 'spec' | 'other'
+  /** `/F`'s bytes, when it is a string. */
+  file?: Uint8Array
+  /** The file specification's `/F`, when it is a string. */
+  specFile?: Uint8Array
+  /** The file specification's `/UF`, when it is a string. */
+  specUnicodeFile?: Uint8Array
 }
 
 /** @internal One widget of a field. */
@@ -188,8 +202,8 @@ export interface WidgetFactsShape extends AppearanceFactsShape {
   truncated?: true
 }
 
-/** @internal A field's `/V` or `/DV`. */
-export type FieldValueShape = FileTextShape | (FileTextShape | null)[]
+/** @internal A field's `/V` or `/DV`: a list holds text, names as `{ name }`, and `null`. */
+export type FieldValueShape = FileTextShape | (FileTextShape | { name: string } | null)[]
 
 /** @internal How a field's `/V` or `/DV` is written. */
 export type FieldValueKindShape = 'none' | 'string' | 'name' | 'array' | 'other'
@@ -206,8 +220,14 @@ export interface FieldFactsShape {
   flags: number
   valueKind: FieldValueKindShape
   value?: FieldValueShape
+  /** Present, and true, when `/V` is written as null. */
+  valueNull?: true
   defaultValueKind: FieldValueKindShape
   defaultValue?: FieldValueShape
+  /** Present, and true, when `/DV` is written as null. */
+  defaultValueNull?: true
+  /** `/I`, inherited as `/V` is; `null` when it is not a list. */
+  selectedIndices?: (number | null)[] | null
   options?: { exportValue: string; displayValue: string }[]
   /** `/MaxLen`, when it is not 0. */
   maxLength?: number

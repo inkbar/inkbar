@@ -167,6 +167,113 @@ describe('fileFieldsFromEngine', () => {
     expect(defaulted).toMatchObject({ value: 'x', defaultValue: 'x' })
   })
 
+  it('reads no /DV for a /V written as null, and decodes names in a value list', async () => {
+    const [nulled, absent, listed] = await fileFieldsFromEngine(
+      form([
+        field('nulled', [widget(0)], {
+          valueNull: true,
+          defaultValueKind: 'string',
+          defaultValue: 'd',
+        }),
+        field('absent', [widget(1)], { defaultValueKind: 'string', defaultValue: 'd' }),
+        field('listed', [widget(2)], {
+          kind: 'list',
+          valueKind: 'array',
+          value: [{ name: 'B#20c' }, 'text', null, { name: '\x1ben\x1b' }],
+        }),
+      ]),
+      listedAs({ 0: ['20R', '21R', '22R'] })
+    )
+    expect(nulled).toMatchObject({ value: '', defaultValue: 'd' })
+    expect(absent).toMatchObject({ value: 'd', defaultValue: 'd' })
+    expect(listed).toMatchObject({
+      value: ['B#20c', 'text', '\x1ben\x1b'],
+      options: [
+        { exportValue: 'B#20c', displayValue: 'B#20c' },
+        { exportValue: 'text', displayValue: 'text' },
+        { exportValue: '\x1ben\x1b', displayValue: '\x1ben\x1b' },
+      ],
+    })
+  })
+
+  it("prefers a choice field's /I to its /V, as PDF.js does, keeping whole indices in range", async () => {
+    const options = ['a', 'b', 'c'].map((v) => ({
+      exportValue: v,
+      displayValue: v.toUpperCase(),
+    }))
+    const [picked, empty, none] = await fileFieldsFromEngine(
+      form([
+        field('picked', [widget(0)], {
+          kind: 'list',
+          valueKind: 'string',
+          value: 'a',
+          selectedIndices: [2, null, 1.5, 3, -1, 1],
+          options,
+        }),
+        field('empty', [widget(1)], {
+          kind: 'combo',
+          valueKind: 'string',
+          value: 'a',
+          selectedIndices: [],
+          options,
+        }),
+        field('none', [widget(2)], {
+          kind: 'combo',
+          valueKind: 'string',
+          value: 'b',
+          selectedIndices: null,
+          options,
+        }),
+      ]),
+      listedAs({ 0: ['20R', '21R', '22R'] })
+    )
+    expect(picked!.value).toEqual(['c', 'b'])
+    expect(empty!.value).toEqual(['a'])
+    expect(none!.value).toEqual(['b'])
+  })
+
+  it("gives a push button's Launch or GoToR file as its address when PDF.js would", async () => {
+    const bytes = (text: string) => new TextEncoder().encode(text)
+    const button = (index: number, action: NonNullable<WidgetFactsShape['action']>) =>
+      field(`b${index}`, [widget(index, { action })], { kind: 'button' })
+    const fields = await fileFieldsFromEngine(
+      form([
+        button(0, {
+          kind: 'Launch',
+          fileKind: 'string',
+          file: bytes('https://example.com/a b'),
+        }),
+        button(1, {
+          kind: 'GoToR',
+          fileKind: 'spec',
+          specFile: bytes('other.pdf'),
+          specUnicodeFile: bytes('ftp://example.com\\x.pdf'),
+        }),
+        button(2, {
+          kind: 'GoToR',
+          fileKind: 'spec',
+          specFile: bytes('mailto:a@example.com'),
+        }),
+        button(3, { kind: 'Launch', fileKind: 'string', file: bytes('file:///etc/app') }),
+        button(4, { kind: 'Launch', fileKind: 'string', file: bytes('app.exe') }),
+        button(5, { kind: 'Launch', fileKind: 'other' }),
+        button(6, { kind: 'GoToR', fileKind: 'spec' }),
+        button(7, { kind: 'URI', uri: bytes('javascript:alert(1)') }),
+      ]),
+      listedAs({ 0: ['20R', '21R', '22R', '23R', '24R', '25R', '26R', '27R'] })
+    )
+    expect(fields.map((f) => f.widgets[0]!.actions)).toEqual([
+      { url: 'https://example.com/a%20b' },
+      { url: 'ftp://example.com/x.pdf' },
+      { url: 'mailto:a@example.com' },
+      {},
+      {},
+      {},
+      {},
+      {},
+    ])
+  })
+
   it('converts /MK colours as PDF.js does: five components give none', async () => {
     const [f] = await fileFieldsFromEngine(
       form([

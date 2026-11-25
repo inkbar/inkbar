@@ -31,6 +31,8 @@ import type {
   FieldFacts,
   FieldValue,
   FieldValueKind,
+  FieldValueName,
+  FileText,
   FormFacts,
   ScriptFacts,
   WidgetFacts,
@@ -94,9 +96,61 @@ function value(
     if (raw === null && item.truncated === true) return { kind }
     return { kind, value: name(raw, what, key) }
   }
-  return {
-    kind,
-    value: array(raw, what, key).map((v) => (v === null ? null : fileText(v, what, key))),
+  return { kind, value: array(raw, what, key).map((v) => listEntry(v, what, key)) }
+}
+
+/**
+ * An entry of a `/V` or `/DV` list: text, `{ name }`, or `null` for any other entry (a name the
+ * report's budget could not take included, which marks the field `truncated`).
+ */
+function listEntry(
+  raw: unknown,
+  what: string,
+  key: string
+): FileText | FieldValueName | null {
+  if (raw === null) return null
+  if (typeof raw === 'object' && !Array.isArray(raw) && 'name' in raw) {
+    if (Object.keys(raw).length !== 1) throw bad(what, key, 'text, { name } or null')
+    return { name: name(raw.name, what, key) }
+  }
+  return fileText(raw, what, key)
+}
+
+/** `/V`'s or `/DV`'s `valueNull`: `true` only beside a value of kind `none`. */
+function nullValue(item: Json, key: string, kind: FieldValueKind, what: string): boolean {
+  const isNull = onlyTrue(item[key], what, key)
+  if (isNull && kind !== 'none')
+    throw bad(what, key, 'true only for a value of kind none')
+  return isNull
+}
+
+const FILE_KINDS = ['string', 'spec', 'other'] as const
+
+/**
+ * A Launch or GoToR action's `/F`, into `result`. In a cut widget (`cut`) the action's kind may
+ * be the empty name the budget left.
+ */
+function launchFile(item: Json, result: FieldAction, what: string, cut: boolean): void {
+  const keys = ['fileKind', 'fileHex', 'fileSpecFHex', 'fileSpecUFHex']
+  if (!present(item.fileKind)) {
+    const stray = keys.find((k) => k in item)
+    if (stray) throw bad(what, stray, 'no file without fileKind')
+    return
+  }
+  const kindCut = cut && result.kind === ''
+  if (result.kind !== 'Launch' && result.kind !== 'GoToR' && !kindCut)
+    throw bad(what, 'fileKind', 'a file only in a Launch or GoToR action')
+  const kind = oneOf(FILE_KINDS, item.fileKind, what, 'fileKind')
+  result.fileKind = kind
+  if (kind === 'string') result.file = hexBytes(item.fileHex, what, 'fileHex')
+  else if ('fileHex' in item) throw bad(what, 'fileHex', 'bytes only for a string /F')
+  for (const [key, out] of [
+    ['fileSpecFHex', 'specFile'],
+    ['fileSpecUFHex', 'specUnicodeFile'],
+  ] as const) {
+    if (!(key in item)) continue
+    if (kind !== 'spec') throw bad(what, key, 'bytes only for a file specification')
+    result[out] = hexBytes(item[key], what, key)
   }
 }
 
@@ -113,6 +167,7 @@ function action(raw: unknown, what: string, cut: boolean): FieldAction {
     const named = cutName(item, 'name', what, cut)
     if (named !== undefined) result.name = named
   }
+  launchFile(item, result, what, cut)
   if (result.kind === 'ResetForm' || 'fields' in item)
     result.reset = {
       fields: array(item.fields, what, 'fields').map((f) => fileText(f, what, 'fields')),
@@ -179,7 +234,12 @@ function field(raw: unknown, what: string): FieldFacts {
     widgets: array(item.widgets, what, 'widgets').map((w) => widget(w, what)),
   }
   if (v.value !== undefined) entry.value = v.value
+  if (nullValue(item, 'valueNull', v.kind, what)) entry.valueNull = true
   if (dv.value !== undefined) entry.defaultValue = dv.value
+  if (nullValue(item, 'defaultValueNull', dv.kind, what)) entry.defaultValueNull = true
+  if (present(item.selectedIndices))
+    entry.selectedIndices = numbers(item.selectedIndices, what, 'selectedIndices')
+  else if (item.selectedIndices === null) entry.selectedIndices = null
   if (present(item.options))
     entry.options = array(item.options, what, 'options').map((raw) => {
       const option = object(raw, what, 'options')

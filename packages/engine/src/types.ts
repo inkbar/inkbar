@@ -312,10 +312,24 @@ export interface AppearanceFacts {
   appearanceStates: string[]
   /** `/AS`, when it is a name. */
   appearanceState?: string
-  /** `/BS`: its `/W` and `/S`, each `null` when absent or of the wrong type. */
-  borderStyle?: { width: number | null; style: string | null }
+  /**
+   * `/BS`: its `/W` and `/S`, each `null` when absent or of the wrong type, and `dash`, its `/D`.
+   * `dash` is present when `/D` is there and not null: its entries as written, an empty, negative
+   * or all-zero list included, each `null` when it is not a number; `null` when `/D` is not a
+   * list.
+   */
+  borderStyle?: {
+    width: number | null
+    style: string | null
+    dash?: (number | null)[] | null
+  }
   /** `/Border`'s first three entries. */
   border?: (number | null)[]
+  /**
+   * `/Border`'s fourth entry, its dash, read as `borderStyle.dash` is: present when `/Border` has
+   * a fourth entry, `null` when that entry is not a list.
+   */
+  borderDash?: (number | null)[] | null
 }
 
 /**
@@ -399,6 +413,17 @@ export interface FieldAction {
    * references in `refs` (whatever they refer to), and `/Flags`.
    */
   reset?: { fields: FileText[]; refs: ObjectRef[]; flags: number }
+  /**
+   * What a Launch or GoToR action's `/F` is: a string, a file specification dictionary, or
+   * anything else. Absent when `/F` is absent or null.
+   */
+  fileKind?: 'string' | 'spec' | 'other'
+  /** `/F`'s bytes, when it is a string. */
+  file?: Uint8Array
+  /** The file specification's `/F`, when `/F` is one and its `/F` is a string. */
+  specFile?: Uint8Array
+  /** The file specification's `/UF`, when `/F` is one and its `/UF` is a string. */
+  specUnicodeFile?: Uint8Array
 }
 
 /**
@@ -446,8 +471,19 @@ export interface WidgetFacts extends AppearanceFacts {
   truncated?: true
 }
 
-/** A text string, a name, or a list of text strings, as `FieldFacts.valueKind` says. */
-export type FieldValue = FileText | (FileText | null)[]
+/**
+ * A name inside a field's value list, told apart from text by its key. Its characters are the
+ * name's bytes, U+0000 to U+00FF, as a single name value's are.
+ */
+export interface FieldValueName {
+  name: string
+}
+
+/**
+ * A text string, a name, or a list, as `FieldFacts.valueKind` says. A list holds text strings,
+ * names as `{ name }`, and `null` for any other entry.
+ */
+export type FieldValue = FileText | (FileText | FieldValueName | null)[]
 
 /** How a field's `/V` or `/DV` is written: absent or null, a string, a name, a list, or other. */
 export type FieldValueKind = 'none' | 'string' | 'name' | 'array' | 'other'
@@ -469,13 +505,28 @@ export interface FieldFacts {
   flags: number
   valueKind: FieldValueKind
   /**
-   * `/V`, inherited: the text of a string, the name, or a list whose strings are text and whose
-   * other entries are `null`. Absent for `none` and `other`.
+   * `/V`, inherited: the text of a string, the name, or a list whose strings are text, whose
+   * names are `{ name }` and whose other entries are `null`. Absent for `none` and `other`. A
+   * name the report's 16 MB could not take is left out of a single value and `null` in a list,
+   * and the field says `truncated`.
    */
   value?: FieldValue
+  /**
+   * Present, and true, when `/V` is there and null: the nearest dictionary along `/Parent` that
+   * has `/V` gives null. `valueKind` is then `'none'`; without this key a `'none'` value is absent.
+   */
+  valueNull?: true
   defaultValueKind: FieldValueKind
   /** `/DV`, read as `value` is. */
   defaultValue?: FieldValue
+  /** Present, and true, when `/DV` is there and null, as `valueNull` is for `/V`. */
+  defaultValueNull?: true
+  /**
+   * `/I`, read along `/Parent` as `/V` is, for a field of any kind: its entries as written, each
+   * `null` when it is not a number; `null` when `/I` is not a list. Absent when no dictionary has
+   * `/I` or it is null. Nothing reconciles it with `value` or `options`.
+   */
+  selectedIndices?: (number | null)[] | null
   /** A choice field's `/Opt`. */
   options?: { exportValue: string; displayValue: string }[]
   /** A text field's `/MaxLen`, when it is not 0. */
