@@ -34,6 +34,8 @@ const form = (fields: object[], extra: object = {}) =>
     kind: 'acroform',
     needAppearances: false,
     fields,
+    groups: [],
+    fieldsRoot: [],
     calculationOrder: [],
     calculationOrderRefs: [],
     fieldTreeDepth: 1,
@@ -115,6 +117,8 @@ test('every key the fork writes is read, in its public name', () => {
     fieldTreeRevisits: true,
     tooLarge: false,
     truncated: true,
+    groups: [],
+    fieldsRoot: [],
     fields: [
       {
         name: 'f',
@@ -244,6 +248,7 @@ test('names in a value list, null values and /I are read', () => {
         defaultValueKind: 'array',
         defaultValue: [{ name: 'D#1\u00e9' }],
         selectedIndices: [1, null, 2.5, -1],
+        selectedIndicesOwn: true,
       }),
       field({
         valueKind: 'none',
@@ -251,6 +256,7 @@ test('names in a value list, null values and /I are read', () => {
         defaultValueKind: 'none',
         defaultValueNull: true,
         selectedIndices: null,
+        selectedIndicesOwn: false,
       }),
     ])
   ).fields
@@ -258,6 +264,7 @@ test('names in a value list, null values and /I are read', () => {
     value: [{ name: 'Nm' }, 'str', null, { bytes: new Uint8Array([0xff]) }],
     defaultValue: [{ name: 'D#1é' }],
     selectedIndices: [1, null, 2.5, -1],
+    selectedIndicesOwn: true,
   })
   expect(list).not.toHaveProperty('valueNull')
   expect(empty).toMatchObject({
@@ -265,10 +272,16 @@ test('names in a value list, null values and /I are read', () => {
     valueNull: true,
     defaultValueNull: true,
     selectedIndices: null,
+    selectedIndicesOwn: false,
   })
   expect(empty).not.toHaveProperty('value')
   const plain = parseForm(form([field()])).fields[0]!
-  for (const key of ['valueNull', 'defaultValueNull', 'selectedIndices'])
+  for (const key of [
+    'valueNull',
+    'defaultValueNull',
+    'selectedIndices',
+    'selectedIndicesOwn',
+  ])
     expect(plain).not.toHaveProperty(key)
 })
 
@@ -307,7 +320,281 @@ test("a Launch or GoToR action's file is read as bytes", () => {
   expect(actionOf({ s: 'Launch' })).toEqual({ kind: 'Launch' })
 })
 
+/** A `/Kids` or `/Fields` entry as the fork writes it. */
+const kid = (extra: object = {}) => ({
+  ref: [10, 0],
+  dictionary: true,
+  hasT: false,
+  hasKids: false,
+  ...extra,
+})
+
+/** A group as the fork writes it. */
+const groupOf = (extra: object = {}) => ({
+  name: 'g',
+  objectNumber: 8,
+  generation: 0,
+  walkIndex: 0,
+  kids: [kid()],
+  scripts: {},
+  ...extra,
+})
+
+test('the field tree, its walk, toggle /Opt and own /I and /Rotate are read', () => {
+  const result = parseForm(
+    form(
+      [
+        field({
+          name: 'g.r',
+          kind: 'radio',
+          objectNumber: 11,
+          walkIndex: 1,
+          t: 'r',
+          opt: ['Alpha', { bytes: 'ff' }, { name: 'Nm' }, null],
+          selectedIndices: [1],
+          selectedIndicesOwn: false,
+          widgets: [
+            widget({ rotate: 90, opt: ['W'] }),
+            widget({ rotate: null, opt: null }),
+          ],
+        }),
+        field({
+          name: 'orphan',
+          objectNumber: 13,
+          walkIndex: 3,
+          t: null,
+          parentIsWalkParent: false,
+          widgets: [
+            widget({ selectedIndices: [2, null] }),
+            widget({ selectedIndices: null }),
+          ],
+        }),
+      ],
+      {
+        groups: [
+          groupOf({
+            walkIndex: 0,
+            t: { bytes: 'ff' },
+            subtype: 'Widget',
+            kids: [
+              kid({ ref: [11, 0], hasT: true, t: 'r', hasKids: true }),
+              { ref: null, dictionary: false },
+              kid({ ref: [12, 3], hasT: true, t: null, parentIsWalkParent: false }),
+            ],
+            borderColor: [1, 0, null],
+            backgroundColor: [],
+            rotation: 90,
+            caption: 'C',
+            rotate: null,
+            page: -1,
+            scripts: { K: ['k()'] },
+            truncated: true,
+          }),
+          groupOf({ name: 'g.r', objectNumber: 11, walkIndex: 1, field: 0, t: '' }),
+        ],
+        fieldsRoot: [
+          kid({ ref: [8, 0], hasKids: true }),
+          kid({ parentIsWalkParent: false }),
+        ],
+      }
+    )
+  )
+  expect(result.groups).toEqual([
+    {
+      name: 'g',
+      objectNumber: 8,
+      generation: 0,
+      walkIndex: 0,
+      partialName: { bytes: new Uint8Array([0xff]) },
+      subtype: 'Widget',
+      kids: [
+        {
+          ref: { objectNumber: 11, generation: 0 },
+          dictionary: true,
+          hasKids: true,
+          partialName: 'r',
+        },
+        { ref: null, dictionary: false },
+        {
+          ref: { objectNumber: 12, generation: 3 },
+          dictionary: true,
+          hasKids: false,
+          partialName: null,
+          otherParent: true,
+        },
+      ],
+      borderColor: [1, 0, null],
+      backgroundColor: [],
+      rotation: 90,
+      caption: 'C',
+      rotate: null,
+      page: -1,
+      scripts: { K: ['k()'] },
+      truncated: true,
+    },
+    {
+      name: 'g.r',
+      objectNumber: 11,
+      generation: 0,
+      walkIndex: 1,
+      field: 0,
+      partialName: '',
+      kids: [
+        { ref: { objectNumber: 10, generation: 0 }, dictionary: true, hasKids: false },
+      ],
+      scripts: {},
+    },
+  ])
+  expect(result.fieldsRoot).toEqual([
+    { ref: { objectNumber: 8, generation: 0 }, dictionary: true, hasKids: true },
+    {
+      ref: { objectNumber: 10, generation: 0 },
+      dictionary: true,
+      hasKids: false,
+      otherParent: true,
+    },
+  ])
+  const [radio, orphan] = result.fields
+  expect(radio).toMatchObject({
+    walkIndex: 1,
+    partialName: 'r',
+    toggleOptions: ['Alpha', { bytes: new Uint8Array([0xff]) }, { name: 'Nm' }, null],
+    selectedIndices: [1],
+    selectedIndicesOwn: false,
+  })
+  expect(radio).not.toHaveProperty('otherParent')
+  expect(radio?.widgets[0]).toMatchObject({ rotate: 90, toggleOptions: ['W'] })
+  expect(radio?.widgets[1]).toMatchObject({ rotate: null, toggleOptions: null })
+  expect(orphan).toMatchObject({ walkIndex: 3, partialName: null, otherParent: true })
+  expect(orphan?.widgets.map((w) => w.selectedIndices)).toEqual([[2, null], null])
+  // A field the walk did not reach, and a widget with none of the new keys.
+  const plain = parseForm(form([field()])).fields[0]!
+  for (const key of ['walkIndex', 'partialName', 'otherParent', 'toggleOptions'])
+    expect(plain).not.toHaveProperty(key)
+  for (const key of ['rotate', 'toggleOptions', 'selectedIndices'])
+    expect(plain.widgets[0]).not.toHaveProperty(key)
+})
+
 test.each([
+  ['groups missing', form([], { groups: undefined }), 'groups:'],
+  ['a group that is no object', form([], { groups: [1] }), 'groups:'],
+  [
+    'a group without a place',
+    form([], { groups: [groupOf({ walkIndex: -1 })] }),
+    'walkIndex:',
+  ],
+  ['a group without kids', form([], { groups: [groupOf({ kids: undefined })] }), 'kids:'],
+  [
+    'a group without scripts',
+    form([], { groups: [groupOf({ scripts: null })] }),
+    'scripts:',
+  ],
+  ['a group name that is no text', form([], { groups: [groupOf({ name: 1 })] }), 'name:'],
+  ['a /T that is a number', form([], { groups: [groupOf({ t: 1 })] }), 't:'],
+  [
+    'parentIsWalkParent true',
+    form([], { groups: [groupOf({ parentIsWalkParent: true })] }),
+    'parentIsWalkParent:',
+  ],
+  [
+    'a subtype past one byte',
+    form([], { groups: [groupOf({ subtype: 'Ā' })] }),
+    'subtype:',
+  ],
+  [
+    'a subtype cut in a group not cut',
+    form([], { groups: [groupOf({ subtype: null })] }),
+    'subtype:',
+  ],
+  ['a page of -2', form([], { groups: [groupOf({ page: -2 })] }), 'page:'],
+  ['a rotate that is text', form([], { groups: [groupOf({ rotate: '90' })] }), 'rotate:'],
+  [
+    'a colour that is no list',
+    form([], { groups: [groupOf({ borderColor: 1 })] }),
+    'borderColor:',
+  ],
+  [
+    'a group field past the fields',
+    form([], { groups: [groupOf({ field: 0 })] }),
+    'field:',
+  ],
+  [
+    "a group field at another field's place",
+    form([field({ walkIndex: 2 })], { groups: [groupOf({ walkIndex: 1, field: 0 })] }),
+    'field:',
+  ],
+  [
+    'two dictionaries at one place',
+    form([field({ walkIndex: 0 })], { groups: [groupOf({ walkIndex: 0 })] }),
+    'walkIndex:',
+  ],
+  [
+    'groups beside tooLarge',
+    form([], { tooLarge: true, groups: [groupOf()] }),
+    'groups:',
+  ],
+  ['fieldsRoot missing', form([], { fieldsRoot: undefined }), 'fieldsRoot:'],
+  ['a kid ref of one number', form([], { fieldsRoot: [kid({ ref: [1] })] }), 'ref:'],
+  [
+    'a kid with no dictionary fact',
+    form([], { fieldsRoot: [kid({ dictionary: 1 })] }),
+    'dictionary:',
+  ],
+  [
+    'facts of a kid that is no dictionary',
+    form([], { fieldsRoot: [kid({ dictionary: false })] }),
+    'hasT:',
+  ],
+  [
+    'a kid without hasKids',
+    form([], { fieldsRoot: [kid({ hasKids: undefined })] }),
+    'hasKids:',
+  ],
+  ['a kid /T without hasT', form([], { fieldsRoot: [kid({ t: 'a' })] }), 't:'],
+  ['hasT without a /T', form([], { fieldsRoot: [kid({ hasT: true })] }), 't:'],
+  [
+    'a kid parentIsWalkParent true',
+    form([], { fieldsRoot: [kid({ parentIsWalkParent: true })] }),
+    'parentIsWalkParent:',
+  ],
+  ['a field place that is text', form([field({ walkIndex: '1' })]), 'walkIndex:'],
+  ['a field /T without a place', form([field({ t: 'a' })]), 't:'],
+  [
+    'a field parentIsWalkParent without a place',
+    form([field({ parentIsWalkParent: false })]),
+    'parentIsWalkParent:',
+  ],
+  [
+    'selectedIndices without selectedIndicesOwn',
+    form([field({ selectedIndices: [1] })]),
+    'selectedIndicesOwn:',
+  ],
+  [
+    'selectedIndicesOwn without selectedIndices',
+    form([field({ selectedIndicesOwn: true })]),
+    'selectedIndicesOwn:',
+  ],
+  ['an /Opt that is no list', form([field({ opt: 'A' })]), 'opt:'],
+  [
+    'an /Opt name with another key',
+    form([field({ opt: [{ name: 'a', x: 1 }] })]),
+    'opt:',
+  ],
+  [
+    "a widget's /Opt entry that is a number",
+    form([field({ widgets: [widget({ opt: [1] })] })]),
+    'opt:',
+  ],
+  [
+    "a widget's own /I of a number",
+    form([field({ widgets: [widget({ selectedIndices: 1 })] })]),
+    'selectedIndices:',
+  ],
+  [
+    "a widget's /Rotate that is text",
+    form([field({ widgets: [widget({ rotate: 'x' })] })]),
+    'rotate:',
+  ],
   ['an unknown kind', form([], { kind: 'pdf' }), 'kind:'],
   ['tooLarge missing', form([], { tooLarge: undefined }), 'tooLarge:'],
   ['fields beside tooLarge', form([field()], { tooLarge: true }), 'fields:'],
@@ -385,12 +672,12 @@ test.each([
   ],
   [
     'selected indices of a number',
-    form([field({ selectedIndices: 1 })]),
+    form([field({ selectedIndices: 1, selectedIndicesOwn: true })]),
     'selectedIndices:',
   ],
   [
     'a selected index that is a string',
-    form([field({ selectedIndices: ['1'] })]),
+    form([field({ selectedIndices: ['1'], selectedIndicesOwn: true })]),
     'selectedIndices:',
   ],
   [

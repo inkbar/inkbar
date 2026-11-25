@@ -19,6 +19,8 @@ export type {
   ExplicitDestination,
   FieldAction,
   FieldFacts,
+  FieldGroupFacts,
+  FieldTreeEntry,
   FieldValue,
   FieldValueKind,
   FieldValueName,

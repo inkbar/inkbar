@@ -222,6 +222,8 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
             ],
           },
         ],
+        groups: [{ name: 'g', walkIndex: 0, t: bytesOf, kids: [], scripts: {} }],
+        fieldsRoot: [],
         calculationOrder: [0],
         calculationOrderRefs: [null],
         fieldTreeDepth: 0,
@@ -240,6 +242,7 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
       scripts: { A: ['go()'] },
       action: { kind: 'URI', uri: new TextEncoder().encode('hi') },
     })
+    expect(result.form.groups[0]?.partialName).toEqual(expected)
     expect(result.facts).toEqual({ title: expected, encrypted: false, openedAs: 'none' })
   })
 
@@ -269,6 +272,8 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
           ],
         },
       ],
+      groups: [],
+      fieldsRoot: [],
       calculationOrder: [],
       calculationOrderRefs: [],
       fieldTreeDepth: 1,
@@ -465,6 +470,8 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
       kind: 'none',
       needAppearances: false,
       fields: [],
+      groups: [],
+      fieldsRoot: [],
       calculationOrder: [],
       calculationOrderRefs: [],
       fieldTreeDepth: 0,

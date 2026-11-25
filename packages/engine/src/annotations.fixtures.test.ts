@@ -204,6 +204,75 @@ test('form-tree reports the inherited kind, flags and value under the full name'
   })
 })
 
+test('form-tree lists its non-terminal dictionaries, their kids and the walk from /Fields', async () => {
+  const form = await fixture('form-tree', (doc) => doc.formFields())
+  const ref = (objectNumber: number) => ({ objectNumber, generation: 0 })
+  expect(form.fieldsRoot).toEqual([
+    { ref: ref(7), dictionary: true, hasKids: true, partialName: 'group' },
+  ])
+  expect(form.groups).toEqual([
+    {
+      name: 'group',
+      ...ref(7),
+      walkIndex: 0,
+      partialName: 'group',
+      kids: [{ ref: ref(9), dictionary: true, hasKids: true, partialName: 'sub' }],
+      scripts: {},
+    },
+    {
+      name: 'group.sub',
+      ...ref(9),
+      walkIndex: 1,
+      partialName: 'sub',
+      kids: [
+        { ref: ref(8), dictionary: true, hasKids: false, partialName: 'a' },
+        { ref: ref(10), dictionary: true, hasKids: false, partialName: 'b' },
+      ],
+      scripts: {},
+    },
+  ])
+  expect(form.fields.map((f) => [f.name, f.walkIndex, f.partialName])).toEqual([
+    ['group.sub.a', 2, 'a'],
+    ['group.sub.b', 3, 'b'],
+  ])
+})
+
+test("form-scripted-kinds lists a field's own dictionary and a second dictionary of its name", async () => {
+  const form = await fixture('form-scripted-kinds', (doc) => doc.formFields())
+  const byNumber = (n: number) => form.groups.find((g) => g.objectNumber === n)
+  // pick, the radio parent, is its field's own dictionary.
+  const pick = form.fields.findIndex((f) => f.name === 'pick')
+  expect(byNumber(15)).toMatchObject({ name: 'pick', field: pick, partialName: 'pick' })
+  expect(byNumber(15)?.kids.map((k) => k.ref?.objectNumber)).toEqual([17, 16])
+  // The two dictionaries named twin: the first is the field's, the second only a group.
+  const twin = form.fields.findIndex((f) => f.name === 'twin')
+  expect(byNumber(31)).toMatchObject({ name: 'twin', field: twin })
+  expect(byNumber(33)).toMatchObject({
+    name: 'twin',
+    scripts: { F: ['var secondTwin = true'] },
+  })
+  expect(byNumber(33)).not.toHaveProperty('field')
+  // person has no field of its own.
+  expect(byNumber(22)).toMatchObject({ name: 'person', partialName: 'person' })
+  expect(byNumber(22)).not.toHaveProperty('field')
+  expect(form.fieldsRoot.map((e) => e.ref?.objectNumber)).toEqual([
+    7, 8, 9, 10, 11, 12, 15, 18, 21, 22, 24, 31, 33, 35, 38,
+  ])
+})
+
+test("form-values reports a checkbox's /Opt and whether a list's /I is its own", async () => {
+  const form = await fixture('form-values', (doc) => doc.formFields())
+  const byName = (name: string) => form.fields.find((f) => f.name === name)
+  expect(byName('consent')).toMatchObject({
+    toggleOptions: ['Agreed', 'Declined', 'Maybe'],
+  })
+  expect(byName('kidlist')).toMatchObject({
+    selectedIndices: [2],
+    selectedIndicesOwn: true,
+  })
+  expect(byName('kidlist')?.widgets[0]).not.toHaveProperty('selectedIndices')
+})
+
 test("form-rollover's checkbox lists the state with a space in its name", async () => {
   const form = await fixture('form-rollover', (doc) => doc.formFields())
   const [go, agree] = form.fields
@@ -309,6 +378,8 @@ test('a file with no form gives kind none and no fields', async () => {
     kind: 'none',
     needAppearances: false,
     fields: [],
+    groups: [],
+    fieldsRoot: [],
     calculationOrder: [],
     calculationOrderRefs: [],
     fieldTreeDepth: 0,
@@ -456,6 +527,8 @@ describe('a form whose shape is odd', () => {
     )
     expect(result).toMatchObject({
       fields: [],
+      groups: [],
+      fieldsRoot: [],
       tooLarge: true,
       calculationOrder: [-1],
       calculationOrderRefs: [{ objectNumber: 4, generation: 0 }],

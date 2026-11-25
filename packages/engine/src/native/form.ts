@@ -29,6 +29,8 @@ import type {
   DocumentFacts,
   FieldAction,
   FieldFacts,
+  FieldGroupFacts,
+  FieldTreeEntry,
   FieldValue,
   FieldValueKind,
   FieldValueName,
@@ -190,6 +192,82 @@ function scripts(raw: unknown, what: string): Record<string, string[]> {
   )
 }
 
+/** A checkbox's or radio's `/Opt`: entries as a value list's, or `null` when it is no list. */
+function toggleOptions(
+  raw: unknown,
+  what: string,
+  key: string
+): (FileText | FieldValueName | null)[] | null {
+  return raw === null ? null : array(raw, what, key).map((v) => listEntry(v, what, key))
+}
+
+/** `/I`: numbers as written, each `null` when it is no number, or `null` when it is no list. */
+const indices = (raw: unknown, what: string, key: string): (number | null)[] | null =>
+  raw === null ? null : numbers(raw, what, key)
+
+/** `t` and `parentIsWalkParent`, which the fork writes alike on groups, fields and kids. */
+function nameFacts(
+  item: Json,
+  what: string
+): { partialName?: FileText | null; otherParent?: true } {
+  const facts: { partialName?: FileText | null; otherParent?: true } = {}
+  if ('t' in item)
+    facts.partialName = item.t === null ? null : fileText(item.t, what, 't')
+  if ('parentIsWalkParent' in item) {
+    if (item.parentIsWalkParent !== false)
+      throw bad(what, 'parentIsWalkParent', 'false or no key')
+    facts.otherParent = true
+  }
+  return facts
+}
+
+/** An entry of `/Kids` or of `/Fields`. */
+function treeEntry(raw: unknown, what: string, key: string): FieldTreeEntry {
+  const item = object(raw, what, key)
+  const entry: FieldTreeEntry = {
+    ref: item.ref === null ? null : ref(item.ref, what, 'ref'),
+    dictionary: boolean(item.dictionary, what, 'dictionary'),
+  }
+  const facts = ['hasT', 'hasKids', 't', 'parentIsWalkParent']
+  if (!entry.dictionary) {
+    const stray = facts.find((k) => k in item)
+    if (stray) throw bad(what, stray, 'no facts for an entry that is no dictionary')
+    return entry
+  }
+  const hasT = boolean(item.hasT, what, 'hasT')
+  if (hasT !== 't' in item) throw bad(what, 't', 'present exactly when hasT')
+  return {
+    ...entry,
+    hasKids: boolean(item.hasKids, what, 'hasKids'),
+    ...nameFacts(item, what),
+  }
+}
+
+function group(raw: unknown, what: string): FieldGroupFacts {
+  const item = object(raw, what, 'groups')
+  const entry: FieldGroupFacts = {
+    name: string(item.name, what, 'name'),
+    ...objectId(item, what),
+    walkIndex: count(item.walkIndex, what, 'walkIndex'),
+    ...nameFacts(item, what),
+    kids: array(item.kids, what, 'kids').map((k) => treeEntry(k, what, 'kids')),
+    scripts: scripts(item.scripts, what),
+  }
+  if (present(item.field)) entry.field = count(item.field, what, 'field')
+  if ('subtype' in item) {
+    const subtype = cutName(item, 'subtype', what)
+    if (subtype !== undefined) entry.subtype = subtype
+  }
+  for (const key of ['borderColor', 'backgroundColor'] as const)
+    if (present(item[key])) entry[key] = numbers(item[key], what, key)
+  if ('rotation' in item) entry.rotation = numberOrNull(item.rotation, what, 'rotation')
+  if (present(item.caption)) entry.caption = fileText(item.caption, what, 'caption')
+  if ('rotate' in item) entry.rotate = numberOrNull(item.rotate, what, 'rotate')
+  if (present(item.page)) entry.page = indexOrNone(item.page, what, 'page')
+  if (onlyTrue(item.truncated, what, 'truncated')) entry.truncated = true
+  return entry
+}
+
 function widget(raw: unknown, what: string): WidgetFacts {
   const item = object(raw, what, 'widgets')
   const page = indexOrNone(item.page, what, 'page')
@@ -209,6 +287,10 @@ function widget(raw: unknown, what: string): WidgetFacts {
     if (present(item[key])) entry[key] = numbers(item[key], what, key)
   if ('rotation' in item) entry.rotation = numberOrNull(item.rotation, what, 'rotation')
   if (present(item.caption)) entry.caption = fileText(item.caption, what, 'caption')
+  if ('rotate' in item) entry.rotate = numberOrNull(item.rotate, what, 'rotate')
+  if ('opt' in item) entry.toggleOptions = toggleOptions(item.opt, what, 'opt')
+  if ('selectedIndices' in item)
+    entry.selectedIndices = indices(item.selectedIndices, what, 'selectedIndices')
   if ('q' in item) entry.alignment = numberOrNull(item.q, what, 'q')
   if (present(item.tooltip)) entry.tooltip = fileText(item.tooltip, what, 'tooltip')
   if (present(item.da)) entry.defaultAppearance = fileText(item.da, what, 'da')
@@ -237,9 +319,23 @@ function field(raw: unknown, what: string): FieldFacts {
   if (nullValue(item, 'valueNull', v.kind, what)) entry.valueNull = true
   if (dv.value !== undefined) entry.defaultValue = dv.value
   if (nullValue(item, 'defaultValueNull', dv.kind, what)) entry.defaultValueNull = true
-  if (present(item.selectedIndices))
-    entry.selectedIndices = numbers(item.selectedIndices, what, 'selectedIndices')
-  else if (item.selectedIndices === null) entry.selectedIndices = null
+  if ('selectedIndices' in item) {
+    entry.selectedIndices = indices(item.selectedIndices, what, 'selectedIndices')
+    entry.selectedIndicesOwn = boolean(
+      item.selectedIndicesOwn,
+      what,
+      'selectedIndicesOwn'
+    )
+  } else if ('selectedIndicesOwn' in item)
+    throw bad(what, 'selectedIndicesOwn', 'only beside selectedIndices')
+  if ('opt' in item) entry.toggleOptions = toggleOptions(item.opt, what, 'opt')
+  if (present(item.walkIndex)) {
+    entry.walkIndex = count(item.walkIndex, what, 'walkIndex')
+    Object.assign(entry, nameFacts(item, what))
+  } else {
+    const stray = ['t', 'parentIsWalkParent'].find((k) => k in item)
+    if (stray) throw bad(what, stray, 'only beside walkIndex')
+  }
   if (present(item.options))
     entry.options = array(item.options, what, 'options').map((raw) => {
       const option = object(raw, what, 'options')
@@ -274,10 +370,33 @@ export function parseForm(text: string): FormFacts {
     throw bad(what, 'calculationOrderRefs', 'one entry for each of calculationOrder')
   const tooLarge = boolean(root.tooLarge, what, 'tooLarge')
   if (tooLarge && fields.length > 0) throw bad(what, 'fields', 'none when tooLarge')
+  const groups = array(root.groups, what, 'groups').map((g) => group(g, what))
+  const fieldsRoot = array(root.fieldsRoot, what, 'fieldsRoot').map((e) =>
+    treeEntry(e, what, 'fieldsRoot')
+  )
+  if (tooLarge && groups.length + fieldsRoot.length > 0)
+    throw bad(what, 'groups', 'none when tooLarge')
+  // Each dictionary takes one place in the walk; a group that is a field's own dictionary has
+  // that field's place.
+  const places = new Set<number>()
+  for (const { walkIndex } of [
+    ...fields,
+    ...groups.filter((g) => g.field === undefined),
+  ]) {
+    if (walkIndex === undefined) continue
+    if (places.has(walkIndex))
+      throw bad(what, 'walkIndex', 'one place for each dictionary')
+    places.add(walkIndex)
+  }
+  for (const g of groups)
+    if (g.field !== undefined && fields[g.field]?.walkIndex !== g.walkIndex)
+      throw bad(what, 'field', "the index of a field at the group's place in the walk")
   const form: FormFacts = {
     kind: oneOf(FORM_KINDS, root.kind, what, 'kind'),
     needAppearances: boolean(root.needAppearances, what, 'needAppearances'),
     fields,
+    groups,
+    fieldsRoot,
     calculationOrder,
     calculationOrderRefs,
     fieldTreeDepth: count(root.fieldTreeDepth, what, 'fieldTreeDepth'),

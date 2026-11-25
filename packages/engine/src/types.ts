@@ -451,6 +451,18 @@ export interface WidgetFacts extends AppearanceFacts {
   rotation?: number | null
   /** `/MK /CA`. */
   caption?: FileText
+  /** The widget's own `/Rotate`: a number, or `null` when it is something else. */
+  rotate?: number | null
+  /**
+   * The widget's own `/Opt`, for a checkbox's or radio's widget whose dictionary is not the
+   * field's, read as `FieldFacts.toggleOptions` is. Absent when it has none.
+   */
+  toggleOptions?: (FileText | FieldValueName | null)[] | null
+  /**
+   * The widget's own `/I`, not inherited, for a list's or combo box's widget whose dictionary is
+   * not the field's, read as `FieldFacts.selectedIndices` is. Absent when it has none.
+   */
+  selectedIndices?: (number | null)[] | null
   /** `/Q`, inherited along `/Parent`. */
   alignment?: number | null
   /** The widget's own `/TU`. */
@@ -527,17 +539,112 @@ export interface FieldFacts {
    * `/I` or it is null. Nothing reconciles it with `value` or `options`.
    */
   selectedIndices?: (number | null)[] | null
+  /**
+   * Beside `selectedIndices`: whether the field's own dictionary holds `/I`. `false` when it came
+   * from a dictionary up `/Parent`.
+   */
+  selectedIndicesOwn?: boolean
   /** A choice field's `/Opt`. */
   options?: { exportValue: string; displayValue: string }[]
+  /**
+   * A checkbox's or radio's `/Opt`, read along `/Parent` as `/V` is: its text strings as text,
+   * its names as `{ name }`, any other entry `null`, at most 1,000,000 entries. `null` when `/Opt`
+   * is not a list; absent when no dictionary has it or it is null.
+   */
+  toggleOptions?: (FileText | FieldValueName | null)[] | null
   /** A text field's `/MaxLen`, when it is not 0. */
   maxLength?: number
   /** A list box's `/TI`. */
   topIndex?: number
   /** The field dictionary's own `/TU`. */
   tooltip?: FileText
+  /**
+   * The place of the field's dictionary in the walk of the field tree `FormFacts.groups`
+   * describes. Absent when the walk did not reach it: a recovered field, or one past a cap.
+   */
+  walkIndex?: number
+  /** The field dictionary's own `/T`, as `FieldTreeEntry.partialName`; only with `walkIndex`. */
+  partialName?: FileText | null
+  /** As `FieldTreeEntry.otherParent`, for the entry the walk reached it through. */
+  otherParent?: true
   /** The widgets, in the order the field lists them. */
   widgets: WidgetFacts[]
   /** Present, and true, when this entry or one of its widgets was cut. */
+  truncated?: true
+}
+
+/**
+ * One entry of a field dictionary's `/Kids`, or of `/AcroForm /Fields`, as the file lists it.
+ * The keys after `dictionary` are present only when the entry resolves to a dictionary.
+ */
+export interface FieldTreeEntry {
+  /** The entry as a reference; `null` when it is written as a direct object. */
+  ref: ObjectRef | null
+  /** Whether the entry resolves to a dictionary. */
+  dictionary: boolean
+  /** Whether the dictionary has the key `/Kids`, whatever it holds. */
+  hasKids?: boolean
+  /**
+   * The dictionary's own `/T`, present whenever it has the key: its text when it is a string
+   * (`''` for an empty one), `null` when it is anything else, a reference to an object the file
+   * lacks included.
+   */
+  partialName?: FileText | null
+  /**
+   * Present, and true, when the dictionary's `/Parent` is not the dictionary whose `/Kids` lists
+   * it, no `/Parent` included. For an entry of `/Fields`: when it has a `/Parent` at all.
+   */
+  otherParent?: true
+}
+
+/**
+ * A dictionary of the field tree that has a `/Kids` list: a parent of fields, a field's own
+ * dictionary above its widgets, a dictionary the form leaves out (with no name, or past its 33
+ * levels), or a second dictionary of a full name the form already has, which the form merges into
+ * the first. An optional key is present only when the file has the entry in the right type.
+ */
+export interface FieldGroupFacts {
+  /** The full name: the `/T` of the dictionary and of its `/Parent` chain, empty ones left out. */
+  name: string
+  /** Absent for a dictionary written as a direct object. */
+  objectNumber?: number
+  /** The generation of the dictionary's object; present with `objectNumber`. */
+  generation?: number
+  /**
+   * Its place in the walk: `/Fields` depth first, each list in the file's order, a dictionary
+   * then its `/Kids`, each dictionary the first time it is reached, widgets and direct entries
+   * included. The `walkIndex` values of the groups and the fields, sorted, give the order.
+   */
+  walkIndex: number
+  /** The index in `FormFacts.fields` of the field whose own dictionary this is. */
+  field?: number
+  /** The dictionary's own `/T`, as `FieldTreeEntry.partialName`. */
+  partialName?: FileText | null
+  /** As `FieldTreeEntry.otherParent`, for the entry the walk reached it through. */
+  otherParent?: true
+  /** `/Subtype`, when it is a name. */
+  subtype?: string
+  /** `/Kids` in the file's order, at most 50,000 entries. */
+  kids: FieldTreeEntry[]
+  /** Its own `/MK /BC`, any number of components. */
+  borderColor?: (number | null)[]
+  /** Its own `/MK /BG`, any number of components. */
+  backgroundColor?: (number | null)[]
+  /** Its own `/MK /R`. */
+  rotation?: number | null
+  /** Its own `/MK /CA`. */
+  caption?: FileText
+  /** Its own `/Rotate`: a number, or `null` when it is something else. */
+  rotate?: number | null
+  /** The index of the page `/P` names, -1 when that is no page of the file. Absent without `/P`. */
+  page?: number
+  /**
+   * JavaScript sources by additional-action key, read as a widget's are: each key from the
+   * nearest dictionary along `/Parent`, this one first, whose action under it holds JavaScript,
+   * and `A` for its own `/A`. Its kids' scripts are not in it.
+   */
+  scripts: Record<string, string[]>
+  /** Present, and true, when this entry was cut: its `/Kids` past 50,000, or the report spent. */
   truncated?: true
 }
 
@@ -556,6 +663,16 @@ export interface FormFacts {
    * `/Annots` reaches. A field with no name is left out. Empty when `tooLarge`.
    */
   fields: FieldFacts[]
+  /**
+   * Every dictionary of the field tree that has a `/Kids` list, in the order of the walk
+   * `FieldGroupFacts.walkIndex` describes. Empty when `tooLarge`.
+   */
+  groups: FieldGroupFacts[]
+  /**
+   * `/AcroForm /Fields` in the file's order, at most 50,000 entries, so the walk can be done again
+   * from the root. Empty without `/Fields`, and when `tooLarge`.
+   */
+  fieldsRoot: FieldTreeEntry[]
   /**
    * One entry for each entry of `/AcroForm /CO`: the index in `fields` of the field whose full
    * name it has, or -1.
