@@ -204,6 +204,12 @@ describe('form scripts', () => {
     const doc = await open('form-fields')
     expect(doc.form.fields.get().length).toBeGreaterThan(0)
     expect(load).not.toHaveBeenCalled()
+    // A page's own actions do not count: PDF.js runs no scripts for a file with only those.
+    const pageOnly = await open('script-page-only')
+    expect(await pageOnly._reader.pageScripts(0)).toStrictEqual({
+      PageOpen: ["app.alert('page opened')"],
+    })
+    expect(load).not.toHaveBeenCalled()
     await open('form-scripted')
     expect(load).toHaveBeenCalledTimes(1)
   })

@@ -29,6 +29,7 @@ const field = (
   over: Partial<FieldFactsShape> = {}
 ): FieldFactsShape => ({
   name: kind,
+  origin: 'acroform',
   kind,
   flags: 0,
   valueKind: 'none',
@@ -48,6 +49,7 @@ const form = (fields: FieldFactsShape[]): FormFactsShape => ({
   kind: 'acroform',
   needAppearances: false,
   fields,
+  calculationOrderRefs: [],
   tooLarge: false,
   truncated: false,
 })

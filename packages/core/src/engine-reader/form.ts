@@ -14,6 +14,7 @@ import {
   rgbOf,
   textOf,
 } from './file-values'
+import { widgetScripts } from './scripts'
 import { cleanAddress, cleanUri, latin1, specFileName, urlInScript } from './targets'
 
 import type { PageFormContext, WidgetContext } from './annotations'
@@ -31,31 +32,6 @@ import type {
   FileWidget,
   FileWidgetActions,
 } from '../reader/file'
-
-/**
- * The event names PDF.js gives a widget's scripts (its `AnnotationActionEventType`), by the
- * `/AA` key they are under, and `Action` for the widget's own `/A`. A key not here is not read.
- */
-const EVENTS: ReadonlyMap<string, string> = new Map([
-  ['A', 'Action'],
-  ['E', 'Mouse Enter'],
-  ['X', 'Mouse Exit'],
-  ['D', 'Mouse Down'],
-  ['U', 'Mouse Up'],
-  ['Fo', 'Focus'],
-  ['Bl', 'Blur'],
-  ['PO', 'PageOpen'],
-  ['PC', 'PageClose'],
-  ['PV', 'PageVisible'],
-  ['PI', 'PageInvisible'],
-  ['K', 'Keystroke'],
-  ['F', 'Format'],
-  ['V', 'Validate'],
-  ['C', 'Calculate'],
-])
-
-/** The date and time scripts PDF.js turns into one Format list for its own date input. */
-const DATE_TIME = /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 type Value = string | string[] | null
 
@@ -397,35 +373,10 @@ function widgetOf(
 
 /** A widget's actions as PDF.js reads them. */
 function actionsOf(field: FieldFactsShape, w: WidgetFactsShape): FileWidgetActions {
-  // Built from entries, so a key such as `__proto__` is kept as the file's own.
-  const scripts: Record<string, string[]> = Object.fromEntries(
-    Object.entries(w.scripts).flatMap(([key, sources]) => {
-      const event = EVENTS.get(key)
-      return event && sources.length > 0 ? [[event, [...sources]]] : []
-    })
-  )
-  if (field.kind === 'text') dateTimeFormat(scripts)
+  const scripts = widgetScripts(field.kind, w)
   const out: FileWidgetActions = Object.keys(scripts).length > 0 ? { scripts } : {}
   if (field.kind === 'button') Object.assign(out, buttonAction(w))
   return out
-}
-
-/**
- * PDF.js gives a text field with one date or time Keystroke script and one Format script both
- * under Format, for its own date input.
- */
-function dateTimeFormat(scripts: Record<string, string[]>): void {
-  const format = Object.hasOwn(scripts, 'Format') ? scripts.Format : undefined
-  const keystroke = Object.hasOwn(scripts, 'Keystroke') ? scripts.Keystroke : undefined
-  if (
-    format?.length === 1 &&
-    keystroke?.length === 1 &&
-    DATE_TIME.test(format[0]!) &&
-    DATE_TIME.test(keystroke[0]!)
-  ) {
-    delete scripts.Keystroke
-    scripts.Format = [...format, ...keystroke]
-  }
 }
 
 /**

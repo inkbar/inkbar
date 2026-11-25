@@ -84,8 +84,9 @@ export default defineConfig({
         },
       },
       browserProject('browser', { include: ['src/**/*.browser.test.ts'] }),
-      // The tests that read text, search, links and the outline, with the engine reading the
-      // file: the setup file switches the reader and passes every document the engine.
+      // The tests that read text, search, links, the outline, the form and its scripts, with the
+      // engine reading the file: the setup file switches the reader, passes every document the
+      // engine, and fails a test whose engine reader passed a script read to its fallback.
       browserProject('browser-engine', {
         include: [
           'src/dom/text-layer.browser.test.ts',
@@ -100,6 +101,7 @@ export default defineConfig({
           'src/dom/overlay.browser.test.ts',
           'src/dom/form-layer.browser.test.ts',
           'src/dom/viewer/create-viewer.browser.test.ts',
+          'src/model/form/scripting.browser.test.ts',
         ],
         setupFiles: ['src/test-support/engine-reader-setup.ts'],
       }),

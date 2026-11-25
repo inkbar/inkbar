@@ -105,6 +105,24 @@ const FORMS = {
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },
   'form-range': { widgets: 3, fields: ['clear', 'note', 'score'] },
   'form-structure': { widgets: 3, fields: ['first', 'second', 'third'] },
+  'form-scripted-kinds': {
+    widgets: 14,
+    fields: [
+      'amount',
+      'colours',
+      'due',
+      'extras',
+      'go',
+      'note',
+      // PDF.js also reports the non-terminal parent of person.first.
+      'person',
+      'person.first',
+      'pick',
+      'sig',
+      'size',
+      'start',
+    ],
+  },
   'form-goto': {
     widgets: 7,
     fields: [

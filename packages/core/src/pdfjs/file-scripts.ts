@@ -36,11 +36,24 @@ export async function fileScriptsFromPdfjs(
   if (!hasFieldScripts && !hasEntries(actions)) return undefined
 
   const names = new Map<string, string>()
-  for (const [name, list] of objects ?? [])
+  const fields: FileScripts['fields'] = []
+  for (const [name, list] of objects ?? []) {
+    let container: string | undefined
+    const widgets: string[] = []
     for (const o of list) {
-      const id = (o as { id?: unknown }).id
-      if (typeof id === 'string' && !names.has(id)) names.set(id, name)
+      const { id, type } = o as { id?: unknown; type?: unknown }
+      if (typeof id !== 'string') continue
+      if (!names.has(id)) names.set(id, name)
+      if (type !== '') widgets.push(id)
+      else container ??= id
     }
+    if (widgets.length > 0)
+      fields.push({
+        name,
+        ...(container !== undefined ? { id: container } : {}),
+        widgets,
+      })
+  }
   const document: FileScripts['document'] = []
   const documentActions: FileScripts['documentActions'] = {}
   for (const [name, sources] of actions ?? []) {
@@ -52,6 +65,7 @@ export async function fileScriptsFromPdfjs(
     calculationOrderIds: [...(ids ?? [])],
     document,
     documentActions,
+    fields,
   }
 }
 

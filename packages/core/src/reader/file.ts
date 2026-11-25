@@ -140,4 +140,12 @@ export interface FileScripts {
   document: { name: string; source: string }[]
   /** Document actions by event: `OpenAction`, `WillClose`, `WillSave`, `DidSave`, `WillPrint`, `DidPrint`. */
   documentActions: Record<string, string[]>
+  /**
+   * The fields `/AcroForm /Fields` reaches that have widgets of a kind the form reads, in the
+   * order a walk of that tree first reaches each name: the full name, the id of the field's own
+   * dictionary when it is not one of its widgets, and its widgets' ids in the order the field
+   * lists them. A field or widget written as a direct object is not reached. The sandbox's field
+   * objects are built from these and the fields' facts.
+   */
+  fields: { name: string; id?: string; widgets: string[] }[]
 }

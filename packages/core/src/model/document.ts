@@ -449,12 +449,11 @@ export async function openDocument(
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
   /**
-   * With the internal switch on, pages are drawn and their text, links, outline, destinations,
-   * and the file's facts, annotations, form fields and Tab order read by an engine reader over
-   * the file PDF.js opened; PDF.js still reads the file's scripts, draws the fields' appearances
-   * and builds the sandbox's fields. Its module loads only then. When an engine started to
-   * replace one that stopped cannot start, the PDF.js reader answers for the rest of the
-   * document's life.
+   * With the internal switch on, pages and the fields' appearances are drawn and their text,
+   * links, outline, destinations, and the file's facts, annotations, form fields, Tab order and
+   * scripts read by an engine reader over the file PDF.js opened, which also builds the sandbox's
+   * fields. Its module loads only then. When an engine started to replace one that stopped
+   * cannot start, the PDF.js reader answers for the rest of the document's life.
    */
   const engineReader =
     readerKind() === 'engine'

@@ -71,6 +71,8 @@ export interface ReaderEngineDocument {
   pageAnnotations(index: number): Promise<PageAnnotationsShape>
   /** The form's fields with their widgets. */
   formFields(): Promise<FormFactsShape>
+  /** The file's JavaScript outside its form fields, as source text. */
+  scripts(): Promise<ScriptFactsShape>
   /** The object numbers of the page's annotations in the order its structure tree reaches them. */
   structureOrder(index: number): Promise<StructureOrderShape>
   close(): Promise<void>
@@ -214,6 +216,8 @@ export interface FieldFactsShape {
   name: string
   objectNumber?: number
   generation?: number
+  /** `'acroform'` when `/Fields` reaches it, `'recovered'` when only a page's widget does. */
+  origin: 'acroform' | 'recovered'
   kind:
     'text' | 'checkbox' | 'radio' | 'button' | 'combo' | 'list' | 'signature' | 'unknown'
   /** `/Ff`, inherited. */
@@ -244,8 +248,25 @@ export interface FormFactsShape {
   /** `/AcroForm /Q`. */
   alignment?: number | null
   fields: FieldFactsShape[]
+  /** Each entry of `/AcroForm /CO` as a reference; `null` for one that is not a reference. */
+  calculationOrderRefs: (ObjectRefShape | null)[]
   /** The form was refused for its size: `fields` is empty. */
   tooLarge: boolean
+  truncated: boolean
+}
+
+/**
+ * @internal The file's JavaScript outside its form fields, as source text that nothing runs. Keys
+ * are the file's own: `OpenAction` for the catalog's open action, and each additional-action key
+ * as written. Each list holds every source of the action's chain: the action's own, then its
+ * `/Next`.
+ */
+export interface ScriptFactsShape {
+  /** The `/Names /JavaScript` tree in its order, one entry for each source of each name's chain. */
+  document: { name: FileTextShape | null; source: string }[]
+  documentActions: Record<string, string[]>
+  /** Each page whose `/AA` holds JavaScript, with its sources by key. */
+  pageActions: { page: number; scripts: Record<string, string[]> }[]
   truncated: boolean
 }
 

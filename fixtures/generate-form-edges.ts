@@ -10,8 +10,9 @@
  * attributes from a non-terminal ancestor, `form-rollover` has appearances with no normal state,
  * `script-page-only` runs JavaScript from a page's /AA and nowhere else, `form-values` holds
  * field values written in ways readers disagree on (/I beside /V, /V null, names in a value list,
- * Launch and GoToR files, an /Opt index as a value), and `border-dashes` holds dash arrays a
- * reader may take or refuse.
+ * Launch and GoToR files, an /Opt index as a value), `border-dashes` holds dash arrays a
+ * reader may take or refuse, and `form-scripted-kinds` holds JavaScript on fields of every kind
+ * and in every place a file holds it.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -295,6 +296,81 @@ function writeFormValues() {
   )
 }
 
+function writeScriptedKinds() {
+  /** A JavaScript action, `rest` its other entries. */
+  const js = (source: string, rest = '') => `<< /S /JavaScript /JS (${source}) ${rest}>>`
+  const row = (i: number, width = 200) =>
+    `[72 ${700 - i * 45} ${72 + width} ${725 - i * 45}]`
+  // Objects 7 on are the fields and widgets in this order; the looks of the toggles are 28 and 29,
+  // and every other widget shows the box at 30.
+  const at = (rect: string, look = '/AP << /N 30 0 R >>') =>
+    `/P 4 0 R /Rect ${rect} /F 4 ${look}`
+  const on = (state: string) => `/AP << /N << /${state} 28 0 R /Off 29 0 R >> >>`
+  write(
+    'form-scripted-kinds',
+    buildPdf([
+      // 1: the catalog, with document scripts (alpha's action has a /Next), an open action with a
+      // /Next, and document actions.
+      `<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC ${js('var closing = true;')} /WS ${js('var saving = true;')} /DP ${js('var printed = true;')} >> >>`,
+      INFO,
+      PAGES,
+      page(
+        `/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R] /AA << /O ${js("var pageOpened = 'yes';")} /C ${js('var pageClosed = true;')} >>`
+      ),
+      stream(label(['Fields of every kind with scripts, and scripts of every place'])),
+      HELVETICA,
+      // 7: a comb text field with keystroke, format, validate (with white space around it) and
+      // calculate scripts.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (amount) /Ff 16777216 /MaxLen 6 ${at(row(0))} /AA << /K ${js('AFNumber_Keystroke(0, 0, 0, 0, "", true)')} /F ${js('AFNumber_Format(0, 0, 0, 0, "", true)')} /V ${js('  event.rc = event.value < 1000000;  ')} /C ${js('event.value = 7')} >> >>`,
+      // 8: a time field, by the number of a standard format.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (start) ${at(row(1))} /AA << /K ${js('AFTime_Keystroke(2);')} /F ${js('AFTime_Format(2);')} >> >>`,
+      // 9: a date field with a format script and no keystroke script.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (due) ${at(row(2))} /AA << /F ${js('AFDate_FormatEx("mmm d, yyyy");')} >> >>`,
+      // 10: a combo box with keystroke and validate scripts.
+      `<< /Type /Annot /Subtype /Widget /FT /Ch /T (size) /Ff 131072 /Opt [(S) (M) (L)] /V (M) ${at(row(3))} /AA << /K ${js('event.rc = true')} /V ${js("event.rc = event.value != 'L'")} >> >>`,
+      // 11: a multi-select list with export and display values and a focus script.
+      `<< /Type /Annot /Subtype /Widget /FT /Ch /T (colours) /Ff 2097152 /Opt [[(r) (Red)] [(g) (Green)] [(b) (Blue)]] /V [(r) (g)] ${at(row(4))} /AA << /Fo ${js('var focused = true')} >> >>`,
+      // 12 to 14: a multiline text field with a blur script and two widgets, the second with a
+      // focus script of its own.
+      `<< /FT /Tx /T (note) /Ff 4096 /V (two places) /Kids [13 0 R 14 0 R] /AA << /Bl ${js('var blurred = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 12 0 R ${at(row(5))} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 12 0 R ${at('[300 475 400 500]')} /AA << /Fo ${js('var noteFocused = true')} >> >>`,
+      // 15 to 17: a radio group whose /Kids lists the b widget before the a widget, which /Annots
+      // lists first; b has a mouse-up script.
+      `<< /FT /Btn /T (pick) /Ff 49152 /V /b /Kids [17 0 R 16 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 15 0 R ${at('[72 430 92 450]', '')} /AS /Off ${on('a')} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 15 0 R ${at('[102 430 122 450]', '')} /AS /b ${on('b')} /AA << /U ${js('var pickedB = true')} >> >>`,
+      // 18 to 20: a checkbox field with two widgets of different on-states, y with a mouse-down
+      // script.
+      `<< /FT /Btn /T (extras) /V /x /Kids [19 0 R 20 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 18 0 R ${at('[72 385 92 405]', '')} /AS /x ${on('x')} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 18 0 R ${at('[102 385 122 405]', '')} /AS /Off ${on('y')} /AA << /D ${js('var pressedY = true')} >> >>`,
+      // 21: a signature field.
+      `<< /Type /Annot /Subtype /Widget /FT /Sig /T (sig) ${at(row(7))} >>`,
+      // 22 and 23: a non-terminal field over a text field with a keystroke script.
+      `<< /T (person) /Kids [23 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (first) /Parent 22 0 R ${at(row(8))} /AA << /K ${js('event.change = event.change.toUpperCase()')} >> >>`,
+      // 24: a push button whose JavaScript action has a /Next, and a page-open script.
+      `<< /Type /Annot /Subtype /Widget /FT /Btn /Ff 65536 /T (go) ${at(row(9, 100))} /A ${js("app.alert('go')", `/Next ${js('var went = true')}`)} /AA << /PO ${js('var shown = true')} >> >>`,
+      // 25 and 26: the document scripts; alpha's action has a /Next, beta has white space.
+      js('var alpha = 1;', `/Next ${js('var alphaNext = 1;')}`),
+      js('  var beta = 2;  '),
+      // 27: the open action, with a /Next.
+      js('var started = true;', `/Next ${js('var startedNext = true;')}`),
+      look(20, 20, '0 g 4 4 12 12 re f'),
+      look(20, 20, '0 G 0.5 0.5 19 19 re S'),
+      boxLook(200, 25),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Form fields of every kind with JavaScript, and scripts in every place a file holds them; every widget has a normal appearance stream. amount is a comb text field (/MaxLen 6) with keystroke, format, validate (written with white space around it) and calculate scripts; start a time field with AFTime_Keystroke(2) and AFTime_Format(2); due a date field with only AFDate_FormatEx("mmm d, yyyy"). size is a combo (/Opt S M L, /V M) with keystroke and validate scripts; colours a multi-select list with export and display values, /V [r g] and a focus script. note is a multiline text field with a blur script on the field and two widgets, the second with a focus script of its own. pick is a radio group (/V b) whose /Kids lists its b widget before its a widget, the other way round from /Annots, with a mouse-up script on b; extras a checkbox field (/V x) with widgets of on-states x and y, a mouse-down script on y. sig is a signature field. person is a non-terminal field over person.first, a text field with a keystroke script. go is a push button whose JavaScript action has a JavaScript /Next and whose widget has a page-open script. The document has scripts alpha (its action with a JavaScript /Next) and beta (written with white space around it), an open action with a JavaScript /Next, will-close, will-save and did-print actions, and /CO [amount person note]. The page has open and close scripts',
+      annotations: { Widget: 14 },
+    }
+  )
+}
+
 function writeBorderDashes() {
   const square = (y: number, ap: number, keys: string) =>
     `<< /Type /Annot /Subtype /Square /Rect [72 ${y} 172 ${y + 50}] /C [0 0 1] /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
@@ -345,6 +421,7 @@ writeFormRollover()
 writeScriptPageOnly()
 writeFormValues()
 writeBorderDashes()
+writeScriptedKinds()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,
