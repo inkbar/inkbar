@@ -41,7 +41,174 @@ export interface ReaderEngineDocument {
   outline(): Promise<OutlineShape>
   /** The destination the file holds for the name's bytes, `undefined` when it has none. */
   namedDestination(name: Uint8Array): Promise<FileDestinationShape | undefined>
+  /** What the file's trailer and `/Info` say about it. */
+  documentFacts(): Promise<DocumentFactsShape>
+  /** Every annotation dictionary of the page's `/Annots`, with its facts. */
+  pageAnnotations(index: number): Promise<PageAnnotationsShape>
+  /** The form's fields with their widgets. */
+  formFields(): Promise<FormFactsShape>
+  /** The object numbers of the page's annotations in the order its structure tree reaches them. */
+  structureOrder(index: number): Promise<StructureOrderShape>
   close(): Promise<void>
+}
+
+/**
+ * @internal A text string of the file: a string when its bytes are text, else the bytes as the
+ * file holds them.
+ */
+export type FileTextShape = string | { bytes: Uint8Array }
+
+/** @internal A reference to an object of the file. */
+export interface ObjectRefShape {
+  objectNumber: number
+  generation: number
+}
+
+/** @internal What the trailer and `/Info` say. */
+export interface DocumentFactsShape {
+  title?: FileTextShape
+  author?: FileTextShape
+  encrypted: boolean
+  truncated?: true
+}
+
+/**
+ * @internal The facts an annotation and a widget share. A number the file writes as something
+ * else is `null`.
+ */
+export interface AppearanceFactsShape {
+  /** `/Rect`'s first four entries as written; `null` when it is not a list. */
+  rect: (number | null)[] | null
+  /** Whether `/Rect` is exactly four finite numbers. */
+  rectOk: boolean
+  /** `/F`, 0 when absent. */
+  flags: number
+  hasAppearance: boolean
+  /** The names of `/AP /N`'s states, in byte order. */
+  appearanceStates: string[]
+  /** `/AS`, when it is a name. */
+  appearanceState?: string
+  /** `/BS`: its `/W` and `/S`. */
+  borderStyle?: { width: number | null; style: string | null }
+  /** `/Border`'s first three entries. */
+  border?: (number | null)[]
+}
+
+/** @internal One dictionary of a page's `/Annots`. */
+export interface AnnotationFactsShape extends AppearanceFactsShape {
+  /** Its place in `/Annots`. */
+  index: number
+  subtype: string
+  /** Absent for an annotation written as a direct object. */
+  objectNumber?: number
+  generation?: number
+  quads?: (number | null)[]
+  color?: (number | null)[]
+  interiorColor?: (number | null)[]
+  opacity?: number | null
+  contents?: FileTextShape
+  author?: FileTextShape
+  created?: FileTextShape
+  modified?: FileTextShape
+  icon?: string
+  inReplyTo?: ObjectRefShape
+  intent?: string
+  line?: (number | null)[]
+  lineEndings?: (string | null)[]
+  vertices?: (number | null)[]
+  inkLists?: ((number | null)[] | null)[]
+  defaultAppearance?: FileTextShape
+  paperMetadata?: true
+  /** `/Parent`, when it is a reference: a popup's annotation. */
+  parent?: ObjectRefShape
+  truncated?: true
+}
+
+/** @internal A page's annotation dictionaries, in `/Annots` order. */
+export interface PageAnnotationsShape {
+  annotations: readonly AnnotationFactsShape[]
+  truncated: boolean
+}
+
+/** @internal A widget's own `/A`, its first action. */
+export interface FieldActionShape {
+  kind: string
+  uri?: Uint8Array
+  name?: string
+  reset?: { fields: FileTextShape[]; refs: ObjectRefShape[]; flags: number }
+}
+
+/** @internal One widget of a field. */
+export interface WidgetFactsShape extends AppearanceFactsShape {
+  /** The page whose `/Annots` holds it, or -1. */
+  page: number
+  /** Its place in that page's `/Annots`, or -1. */
+  index: number
+  objectNumber?: number
+  generation?: number
+  onState?: string
+  /** A checkbox's or radio's export value: its `/Opt` entry, else `onState`. */
+  exportValue?: string
+  borderColor?: (number | null)[]
+  backgroundColor?: (number | null)[]
+  rotation?: number | null
+  /** `/Q`, inherited. */
+  alignment?: number | null
+  tooltip?: FileTextShape
+  /** `/DA`, inherited. */
+  defaultAppearance?: FileTextShape
+  paperMetadata?: true
+  /** JavaScript sources by additional-action key, and `A` for the widget's own `/A`. */
+  scripts: Record<string, string[]>
+  action?: FieldActionShape
+  truncated?: true
+}
+
+/** @internal A field's `/V` or `/DV`. */
+export type FieldValueShape = FileTextShape | (FileTextShape | null)[]
+
+/** @internal How a field's `/V` or `/DV` is written. */
+export type FieldValueKindShape = 'none' | 'string' | 'name' | 'array' | 'other'
+
+/** @internal One field of the form. */
+export interface FieldFactsShape {
+  /** The full name. */
+  name: string
+  objectNumber?: number
+  generation?: number
+  kind:
+    'text' | 'checkbox' | 'radio' | 'button' | 'combo' | 'list' | 'signature' | 'unknown'
+  /** `/Ff`, inherited. */
+  flags: number
+  valueKind: FieldValueKindShape
+  value?: FieldValueShape
+  defaultValueKind: FieldValueKindShape
+  defaultValue?: FieldValueShape
+  options?: { exportValue: string; displayValue: string }[]
+  /** `/MaxLen`, when it is not 0. */
+  maxLength?: number
+  widgets: WidgetFactsShape[]
+  truncated?: true
+}
+
+/** @internal The file's form. */
+export interface FormFactsShape {
+  kind: 'none' | 'acroform' | 'xfa'
+  needAppearances: boolean
+  /** `/AcroForm /DA`. */
+  defaultAppearance?: FileTextShape
+  /** `/AcroForm /Q`. */
+  alignment?: number | null
+  fields: FieldFactsShape[]
+  /** The form was refused for its size: `fields` is empty. */
+  tooLarge: boolean
+  truncated: boolean
+}
+
+/** @internal The order a page's structure tree gives its annotations, by object number. */
+export interface StructureOrderShape {
+  order: number[]
+  truncated: boolean
 }
 
 /**

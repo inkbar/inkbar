@@ -1,4 +1,10 @@
-import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
+import manifestJson from '@inkbar/fixtures/manifest.json'
+import {
+  browserAssets,
+  FIXTURE_NAMES,
+  fixtureUrl,
+  type FixtureName,
+} from '@inkbar/fixtures/urls'
 import { fontUrls } from '@inkbar/fonts'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -687,4 +693,165 @@ describe("the engine reader's links and outline", () => {
       { page: 2, fit: 'fit' },
     ])
   })
+})
+
+/** What a reader tells the document about the file: its facts, each page's annotations and Tab order, and the form. */
+interface FileRead {
+  facts: unknown
+  pages: { annotations: unknown[]; tabOrder: string[] }[]
+  form: unknown[]
+}
+
+/** Every string anywhere in `value` passed through `map`. */
+function mapStrings<T>(value: T, map: (s: string) => string): T {
+  if (typeof value === 'string') return map(value) as T
+  if (Array.isArray(value)) return value.map((v: unknown) => mapStrings(v, map)) as T
+  if (typeof value === 'object' && value !== null)
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, mapStrings(v, map)])
+    ) as T
+  return value
+}
+
+/**
+ * Differences between the two readers that are known, each with its cause and the fixtures it
+ * shows on. Each is applied to both readers' reads of those fixtures before they are compared, so
+ * the rest of the read is still held equal; a fixture listed whose reads no longer differ fails.
+ */
+const EXCEPTIONS: Record<
+  string,
+  { cause: string; fixtures: readonly FixtureName[]; apply: (read: FileRead) => FileRead }
+> = {
+  'direct-object ids': {
+    cause:
+      'An annotation written as a direct object has no object number: PDF.js invents `annot_p<page>_<n>` from a counter, the engine reader gives `p<page>i<index>`, its place in /Annots.',
+    fixtures: ['annot-direct', 'link-order'],
+    apply: (read) =>
+      mapStrings(read, (s) => (/^(annot_p\d+_\d+|p\d+i\d+)$/.test(s) ? 'direct' : s)),
+  },
+  'drawn FreeText text': {
+    cause:
+      "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA.",
+    fixtures: ['saved-annotations', 'saved-incremental'],
+    apply: (read) => ({
+      ...read,
+      pages: read.pages.map((page) => ({
+        ...page,
+        annotations: page.annotations.map((a) => {
+          const { subtype, hasAppearance, defaultAppearance } = a as {
+            subtype: string
+            hasAppearance: boolean
+            defaultAppearance?: { fontName?: string }
+          }
+          return subtype === 'FreeText' && hasAppearance && defaultAppearance
+            ? {
+                ...(a as object),
+                defaultAppearance: { fontName: defaultAppearance.fontName },
+              }
+            : a
+        }),
+      })),
+    }),
+  },
+}
+
+const manifest = manifestJson as unknown as Record<
+  FixtureName,
+  { opens: boolean; password?: string }
+>
+
+/** Each `rect` in `engine` replaced by `pdfjs`'s where every number is within 0.01 of it. */
+function withRectsFrom(engine: unknown, pdfjs: unknown): unknown {
+  if (Array.isArray(engine) && Array.isArray(pdfjs))
+    return engine.map((e: unknown, i) => withRectsFrom(e, pdfjs[i]))
+  if (typeof engine !== 'object' || engine === null) return engine
+  if (typeof pdfjs !== 'object' || pdfjs === null) return engine
+  const other = pdfjs as Record<string, unknown>
+  return Object.fromEntries(
+    Object.entries(engine).map(([key, value]) => {
+      const theirs = other[key]
+      if (
+        key === 'rect' &&
+        Array.isArray(value) &&
+        Array.isArray(theirs) &&
+        value.length === theirs.length &&
+        value.every((n, i) => Math.abs((n as number) - (theirs[i] as number)) <= 0.01)
+      )
+        return [key, theirs]
+      return [key, withRectsFrom(value, theirs)]
+    })
+  )
+}
+
+describe("the engine reader's file facts, annotations and form", () => {
+  /** The file reads asked of the engine, by name. */
+  const FILE_READS = ['documentFacts', 'pageAnnotations', 'formFields', 'structureOrder']
+  let asked: string[] = []
+  /** The real engine, with each file read it is asked noted in `asked`. */
+  const noting: EngineLoader = async () => {
+    const real = await import('@inkbar/engine')
+    return {
+      createEngine: async () => {
+        const engine = await real.createEngine()
+        const opening = engine.open.bind(engine)
+        engine.open = async (...args) => {
+          const doc = await opening(...args)
+          const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
+          for (const name of FILE_READS) {
+            const read = methods[name]!.bind(doc)
+            methods[name] = (...a) => {
+              asked.push(name)
+              return read(...a)
+            }
+          }
+          return doc
+        }
+        return engine
+      },
+    }
+  }
+
+  /** What the reader selected now gives for `name`'s file. */
+  async function readFile(name: FixtureName): Promise<FileRead & { kind: string }> {
+    const password = manifest[name].password
+    asked = []
+    const doc = await open(name, {
+      engine: noting,
+      ...(password === undefined ? {} : { password }),
+    })
+    const reader = doc._reader
+    const pages: FileRead['pages'] = []
+    for (let page = 0; page < reader.pageCount; page++)
+      pages.push({
+        annotations: await reader.annotations(page),
+        tabOrder: await reader.tabOrder(page),
+      })
+    const read = {
+      kind: reader.kind,
+      facts: await reader.facts(),
+      pages,
+      form: await reader.form(),
+    }
+    doc.destroy()
+    return read
+  }
+
+  it.each(FIXTURE_NAMES.filter((name) => manifest[name].opens))(
+    'gives the same facts, annotations, fields and tab order as PDF.js, on %s',
+    async (name) => {
+      const { kind: engineKind, ...engine } = await readFile(name)
+      // The engine answered: the reads did not come from the fallback.
+      expect(new Set(asked)).toEqual(new Set(FILE_READS))
+      delete flag.__INKBAR_READER__
+      const { kind: pdfjsKind, ...pdfjs } = await readFile(name)
+      expect([engineKind, pdfjsKind]).toEqual(['engine', 'pdfjs'])
+      const known = Object.values(EXCEPTIONS).filter((e) => e.fixtures.includes(name))
+      if (known.length > 0)
+        expect(withRectsFrom(engine, pdfjs), 'a listed exception shows').not.toEqual(
+          pdfjs
+        )
+      const apply = (read: FileRead) => known.reduce((r, e) => e.apply(r), read)
+      expect(apply(withRectsFrom(engine, pdfjs) as FileRead)).toEqual(apply(pdfjs))
+    }
+  )
 })

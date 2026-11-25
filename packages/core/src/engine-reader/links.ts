@@ -22,14 +22,47 @@ const NO_VIEW = 32
 const NEEDS_QUADS = new Set(['Highlight', 'Underline', 'Squiggly', 'StrikeOut'])
 
 /**
- * Whether PDF.js's `getAnnotations` lists the annotation: the `viewable` test. A widget always
- * is; any other is unless its flags, when not 0, have Invisible or NoView, or it is text markup
- * without /QuadPoints or with ones not well formed. Hidden does not count here.
+ * The kinds PDF.js reads with a class of their own. It clears Invisible from such an
+ * annotation's flags: the flag is for kinds a reader does not know.
  */
-function listed(entry: PageAnnotationEntryShape): boolean {
+const KNOWN_KINDS = new Set([
+  'Link',
+  'Text',
+  'Widget',
+  'Popup',
+  'FreeText',
+  'Line',
+  'Square',
+  'Circle',
+  'PolyLine',
+  'Polygon',
+  'Caret',
+  'Ink',
+  'Highlight',
+  'Underline',
+  'Squiggly',
+  'StrikeOut',
+  'Stamp',
+  'FileAttachment',
+  'RichMedia',
+  'Screen',
+  'Sound',
+])
+
+/**
+ * @internal Whether PDF.js's `getAnnotations` lists the annotation: the `viewable` test. A widget
+ * always is; any other is unless its flags have NoView, or Invisible for a kind PDF.js does not
+ * know, or it is text markup without /QuadPoints or with ones not well formed. Flags that are not
+ * a whole number above 0 count as 0. Hidden does not count here.
+ */
+export function listed(
+  entry: Pick<PageAnnotationEntryShape, 'subtype' | 'flags' | 'hasQuads' | 'quadsOk'>
+): boolean {
   if (entry.subtype === 'Widget') return true
   if (NEEDS_QUADS.has(entry.subtype) && !(entry.hasQuads && entry.quadsOk)) return false
-  return entry.flags === 0 || (entry.flags & (INVISIBLE | NO_VIEW)) === 0
+  const flags = Number.isInteger(entry.flags) && entry.flags > 0 ? entry.flags : 0
+  const hiding = KNOWN_KINDS.has(entry.subtype) ? NO_VIEW : INVISIBLE | NO_VIEW
+  return (flags & hiding) === 0
 }
 
 /**

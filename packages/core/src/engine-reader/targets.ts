@@ -234,7 +234,10 @@ function specFileName(bytes: Uint8Array): string {
 const URL_CALL =
   /^\s*(app\.launchURL|window\.open|xfa\.host\.gotoURL)\((?:'|")([^'"]*)(?:'|")(?:,\s*(\w+)\)|\))/i
 
-function urlInScript(script: string): { url: string; newWindow: boolean } | undefined {
+/** @internal The address and window flag of the one script shape PDF.js reads an address from. */
+export function urlInScript(
+  script: string
+): { url: string; newWindow: boolean } | undefined {
   const found = URL_CALL.exec(script)
   if (!found?.[2]) return undefined
   return { url: found[2], newWindow: found[1] === 'app.launchURL' && found[3] === 'true' }
@@ -243,8 +246,10 @@ function urlInScript(script: string): { url: string; newWindow: boolean } | unde
 /**
  * PDF.js's clean-up of an address: `http://` before one that starts `www.` and has a second dot,
  * a UTF-8 decode when the characters are UTF-8 bytes, then the URL parser's `href`.
+ *
+ * @internal
  */
-function cleanAddress(address: string): string | undefined {
+export function cleanAddress(address: string): string | undefined {
   let url = address
   if (url.startsWith('www.') && url.indexOf('.', 4) !== -1) url = `http://${url}`
   const utf8 = utf8Of(url)
@@ -314,8 +319,10 @@ const DECODERS = {
  * A byte string decoded as PDF.js's `stringToPDFString` decodes one, escape sequences kept:
  * UTF-16 or UTF-8 after a byte-order mark (an odd last byte of UTF-16 dropped), else, or when
  * that does not decode, PDFDocEncoding (over the bytes left after that drop).
+ *
+ * @internal
  */
-function pdfString(bytes: Uint8Array): string {
+export function pdfString(bytes: Uint8Array): string {
   const encoding =
     bytes[0] === 0xfe && bytes[1] === 0xff
       ? 'utf-16be'
