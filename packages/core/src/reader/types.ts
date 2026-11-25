@@ -18,6 +18,7 @@ import type { TextContent } from '../model/text'
 export interface HiddenAppearance {
   id: string
   objectNumber?: number
+  /** Its place in `/Annots` on the page drawn, for one written as a direct object; used only without `objectNumber`. */
   index?: number
 }
 

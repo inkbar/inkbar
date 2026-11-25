@@ -225,6 +225,22 @@ describe('field appearances drawn by the engine', () => {
             expect(worstInside, at).toBeLessThanOrEqual(2)
             expect(differing / fieldPixels, at).toBeLessThanOrEqual(0.01)
             expect(byTwo / fieldPixels, at).toBeLessThanOrEqual(0.0005)
+
+            // The same fields drawn over the whole page, one pass per look: every channel within 1.
+            const whole = await drawPage(doc, page, t, dpr, ids)
+            const all = { x: 0, y: 0, width: whole.width, height: whole.height }
+            for (const look of ['own', 'checked', 'unchecked'] as const) {
+              const of = widgets.filter((w) => w.look === look).map((w) => w.widget.id)
+              if (of.length === 0) continue
+              const { canvas } = await drawFields(doc, page, t, dpr, all, of, look)
+              whole.getContext('2d')!.drawImage(canvas, 0, 0)
+            }
+            const over = pixels(whole)
+            let worstWhole = 0
+            for (let i = 0; i < over.length; i += 4)
+              for (let c = 0; c < 3; c++)
+                worstWhole = Math.max(worstWhole, Math.abs(over[i + c]! - want[i + c]!))
+            expect(worstWhole, `whole page, ${at}`).toBeLessThanOrEqual(1)
           }
     }
   )
