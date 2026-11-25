@@ -1,7 +1,7 @@
 // What the document and the DOM layer ask of whatever reads the PDF: the file's facts, the facts
 // of each page, its pixels, its text, links and annotations, and the document's outline and
-// destinations.
-import type { FileAnnotation, FileFacts } from './file'
+// destinations, its form fields and Tab order.
+import type { FileAnnotation, FileFacts, FileField } from './file'
 import type { Destination, RawDestination } from '../model/destination'
 import type { Rect } from '../model/geometry'
 import type { PageLink } from '../model/links'
@@ -73,6 +73,17 @@ export interface DocumentReader {
    * parsed has none; a read that rejects is not kept, so the next call reads the page again.
    */
   annotations(page: number): Promise<FileAnnotation[]>
+  /**
+   * The terminal fields of the widgets `annotations` lists, in the order of each field's first
+   * widget, page by page. A widget with no field name, or whose field is none of the kinds, is
+   * left out.
+   */
+  form(): Promise<FileField[]>
+  /**
+   * The page's annotation ids in its structure tree's order. `[]` when the page has no structure
+   * order or it cannot be read.
+   */
+  tabOrder(page: number): Promise<string[]>
   /**
    * The outline, every destination resolved. `[]` when the file has none. Rejects when it could
    * not be read; the document then reads it again on the next call.

@@ -5,7 +5,6 @@ import { destinationPage } from '../pdfjs/destinations'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createPdfjsReader, type PdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
-import { structureAnnotationOrder } from '../pdfjs/structure'
 import { createTextReads, type TextReads } from '../pdfjs/text-reads'
 import { readerKind } from '../reader/select'
 
@@ -33,7 +32,7 @@ import { isThreadRoot } from './annotations/threads'
 import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
-import { buildFormFields, type RawWidget } from './form/structure'
+import { buildFormFields } from './form/structure'
 import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
@@ -520,20 +519,35 @@ export async function openDocument(
 
     const importedAt = new Date().toISOString()
     const opened = reader
-    const perPage = await mapInOrder(proxy.numPages, EMBEDDED_CONCURRENCY, async (i) => {
-      const annotations = await opened.annotations(i)
-      // Widgets and links keep their place in `/Annots`, which Tab order shares between them.
-      const widgets = (await fromPdfjs.pdfjsAnnotations(i)).flatMap(
-        (data, at): RawWidget[] =>
-          data.subtype === 'Widget' ? [{ page: i, data, at }] : []
+    const read = (async () => {
+      const perPage = await mapInOrder(
+        proxy.numPages,
+        EMBEDDED_CONCURRENCY,
+        async (i) => {
+          const annotations = await opened.annotations(i)
+          const hasWidgets = annotations.some((d) => d.subtype === 'Widget')
+          const links = await opened.links(i)
+          // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
+          const others = annotations.flatMap((d) =>
+            d.subtype !== 'Widget' && d.subtype !== 'Link'
+              ? [[d.id, d.subtype] as const]
+              : []
+          )
+          return {
+            ...importEmbeddedPage(i, annotations, importedAt),
+            hasWidgets,
+            links,
+            others,
+          }
+        }
       )
-      const links = await opened.links(i)
-      // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
-      const others = annotations.flatMap((d) =>
-        d.subtype !== 'Widget' && d.subtype !== 'Link' ? [[d.id, d.subtype] as const] : []
-      )
-      return { ...importEmbeddedPage(i, annotations, importedAt), widgets, links, others }
-    }).finally(() => {
+      // The form is read from the same page reads, before they are let go.
+      const fileFields = perPage.some((r) => r.hasWidgets)
+        ? await opened.form()
+        : undefined
+      return { perPage, fileFields }
+    })()
+    const { perPage, fileFields } = await read.finally(() => {
       // Nothing reads them after the open, so they are not held: a later read asks PDF.js again.
       fromPdfjs.forgetAnnotations()
     })
@@ -549,8 +563,9 @@ export async function openDocument(
     targets.push(...perPage.flatMap((r) => r.targets))
     if (fromFile.length > 0) store._setEmbedded(fromFile)
 
-    const widgets = perPage.flatMap((r) => r.widgets)
-    if (widgets.length > 0) {
+    // A file with widgets reads its page `/Tabs`, which order its links too, whether or not any
+    // widget makes a field.
+    if (fileFields) {
       // PDF.js has detached the bytes it was given, so the file's objects are read from a copy.
       const objs = await proxy
         .getData()
@@ -558,10 +573,10 @@ export async function openDocument(
         .catch(() => undefined)
       formData.extras = await readFormExtras(
         objs,
-        widgets.map((w) => w.data.id),
+        fileFields.flatMap((f) => f.widgets.map((w) => w.id)),
         { destinationPage: (name) => destinationPage(proxy, name) }
       )
-      formData.fields = buildFormFields(widgets, formData.extras)
+      formData.fields = buildFormFields(fileFields, formData.extras)
       // A page whose `/Tabs` is `S` and that holds fields is read in its structure tree's
       // order. Tagged files often set S on every page, so pages without fields are skipped.
       const withFields = new Set(
@@ -570,10 +585,8 @@ export async function openDocument(
       const structured = [...formData.extras.tabs].flatMap(([page, order]) =>
         order === 'S' && withFields.has(page) ? [page] : []
       )
-      const orders = await mapInOrder(
-        structured.length,
-        EMBEDDED_CONCURRENCY,
-        async (i) => structureAnnotationOrder(await getPage(structured[i]!))
+      const orders = await mapInOrder(structured.length, EMBEDDED_CONCURRENCY, (i) =>
+        opened.tabOrder(structured[i]!)
       )
       structured.forEach((page, i) => formData.structure.set(page, orders[i]!))
     }
