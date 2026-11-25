@@ -2062,7 +2062,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
   {
     "annotations": [],
     "counts": {
-      "Widget": 14,
+      "Widget": 19,
     },
     "targets": [],
   },

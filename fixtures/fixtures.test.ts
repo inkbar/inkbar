@@ -106,12 +106,13 @@ const FORMS = {
   'form-range': { widgets: 3, fields: ['clear', 'note', 'score'] },
   'form-structure': { widgets: 3, fields: ['first', 'second', 'third'] },
   'form-scripted-kinds': {
-    widgets: 14,
+    widgets: 19,
     fields: [
       'amount',
       'colours',
       'due',
       'extras',
+      'flags',
       'go',
       'note',
       // PDF.js also reports the non-terminal parent of person.first.
@@ -120,7 +121,9 @@ const FORMS = {
       'pick',
       'sig',
       'size',
+      'stamp',
       'start',
+      'twin',
     ],
   },
   'form-goto': {

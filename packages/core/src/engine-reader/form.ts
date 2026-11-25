@@ -256,6 +256,8 @@ function fieldOf(
   let options: FileField['options']
   let maxLength: number | undefined
   const onValues = new Map<WidgetFactsShape, string>()
+  /** Each checkbox widget's own value. */
+  const widgetValues = new Map<WidgetFactsShape, string>()
   switch (field.kind) {
     case 'text':
       value = typeof raw === 'string' ? raw : ''
@@ -263,15 +265,21 @@ function fieldOf(
         Number.isInteger(field.maxLength) && field.maxLength! > 0 ? field.maxLength : 0
       break
     case 'checkbox': {
-      for (const { widget } of group)
-        onValues.set(widget, checkboxOn(widget, raw).exportValue)
-      const on = checkboxOn(first, raw)
-      const own = first.appearanceState !== undefined ? first.appearanceState : raw
-      value =
-        own === 'Off' || own === on.onState || own === on.exportValue
+      // PDF.js reads each widget's value from its own `/AS`, else the field's `/V`.
+      const valueOf = (widget: WidgetFactsShape): Value => {
+        const on = checkboxOn(widget, raw)
+        const own = widget.appearanceState !== undefined ? widget.appearanceState : raw
+        return own === 'Off' || own === on.onState || own === on.exportValue
           ? exported(own, on)
           : 'Off'
-      defaultValue = exported(defaultRaw, on) ?? 'Off'
+      }
+      for (const { widget } of group) {
+        onValues.set(widget, checkboxOn(widget, raw).exportValue)
+        const own = valueOf(widget)
+        if (typeof own === 'string') widgetValues.set(widget, own)
+      }
+      value = valueOf(first)
+      defaultValue = exported(defaultRaw, checkboxOn(first, raw)) ?? 'Off'
       break
     }
     case 'radio':
@@ -313,7 +321,15 @@ function fieldOf(
     ...(options ? { options } : {}),
     ...(maxLength !== undefined ? { maxLength } : {}),
     widgets: group.map((p) =>
-      widgetOf(form, field, p, onValues.get(p.widget), drawnFromValue, leftOut)
+      widgetOf(
+        form,
+        field,
+        p,
+        onValues.get(p.widget),
+        widgetValues.get(p.widget),
+        drawnFromValue,
+        leftOut
+      )
     ),
   }
 }
@@ -334,6 +350,7 @@ function widgetOf(
   field: FieldFactsShape,
   { widget: w, id, page, at }: Placed,
   onValue: string | undefined,
+  value: string | undefined,
   drawnFromValue: boolean,
   leftOut: ReadonlyMap<string, string>
 ): FileWidget {
@@ -360,6 +377,7 @@ function widgetOf(
     flags,
     hasAppearance: w.hasAppearance || drawnFromValue,
     ...(onValue !== undefined ? { onValue } : {}),
+    ...(value !== undefined ? { value } : {}),
     border,
     ...(borderColor ? { borderColor } : {}),
     ...(backgroundColor ? { backgroundColor } : {}),
@@ -373,8 +391,11 @@ function widgetOf(
 
 /** A widget's actions as PDF.js reads them. */
 function actionsOf(field: FieldFactsShape, w: WidgetFactsShape): FileWidgetActions {
-  const scripts = widgetScripts(field.kind, w)
-  const out: FileWidgetActions = Object.keys(scripts).length > 0 ? { scripts } : {}
+  const { scripts, keystrokeInFormat } = widgetScripts(field.kind, w)
+  const out: FileWidgetActions =
+    Object.keys(scripts).length > 0
+      ? { scripts, ...(keystrokeInFormat ? { keystrokeInFormat: true as const } : {}) }
+      : {}
   if (field.kind === 'button') Object.assign(out, buttonAction(w))
   return out
 }

@@ -311,11 +311,11 @@ function writeScriptedKinds() {
     buildPdf([
       // 1: the catalog, with document scripts (alpha's action has a /Next), an open action with a
       // /Next, and document actions.
-      `<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC ${js('var closing = true;')} /WS ${js('var saving = true;')} /DP ${js('var printed = true;')} >> >>`,
+      `<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R 31 0 R 33 0 R 35 0 R 38 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC ${js('var closing = true;')} /WS ${js('var saving = true;')} /DP ${js('var printed = true;')} >> >>`,
       INFO,
       PAGES,
       page(
-        `/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R] /AA << /O ${js("var pageOpened = 'yes';")} /C ${js('var pageClosed = true;')} >>`
+        `/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R 32 0 R 34 0 R 36 0 R 37 0 R 38 0 R] /AA << /O ${js("var pageOpened = 'yes';")} /C ${js('var pageClosed = true;')} >>`
       ),
       stream(label(['Fields of every kind with scripts, and scripts of every place'])),
       HELVETICA,
@@ -360,13 +360,26 @@ function writeScriptedKinds() {
       look(20, 20, '0 g 4 4 12 12 re f'),
       look(20, 20, '0 G 0.5 0.5 19 19 re S'),
       boxLook(200, 25),
+      // 31 to 34: two fields both named twin, each a dictionary over one widget, with a keystroke
+      // and a format script.
+      `<< /FT /Tx /T (twin) /Kids [32 0 R] /AA << /K ${js('var firstTwin = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 31 0 R ${at('[300 655 400 680]')} >>`,
+      `<< /FT /Tx /T (twin) /Kids [34 0 R] /AA << /F ${js('var secondTwin = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 33 0 R ${at('[300 610 400 635]')} >>`,
+      // 35 to 37: a checkbox field (/V q) whose /Kids lists its unchecked widget r before its
+      // checked widget q, the other way round from /Annots.
+      `<< /FT /Btn /T (flags) /V /q /Kids [37 0 R 36 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 35 0 R ${at('[300 385 320 405]', '')} /AS /q ${on('q')} /AA << /U ${js('var flagged = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 35 0 R ${at('[330 385 350 405]', '')} /AS /Off ${on('r')} >>`,
+      // 38: a date field whose one Format action has a date /Next, and no keystroke script.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (stamp) ${at('[300 565 400 590]')} /AA << /F ${js('AFDate_FormatEx("dd/mm/yyyy");', `/Next ${js('AFDate_FormatEx("mm/dd/yyyy");')}`)} >> >>`,
     ]),
     {
       pages: 1,
       opens: true,
       describes:
-        'Form fields of every kind with JavaScript, and scripts in every place a file holds them; every widget has a normal appearance stream. amount is a comb text field (/MaxLen 6) with keystroke, format, validate (written with white space around it) and calculate scripts; start a time field with AFTime_Keystroke(2) and AFTime_Format(2); due a date field with only AFDate_FormatEx("mmm d, yyyy"). size is a combo (/Opt S M L, /V M) with keystroke and validate scripts; colours a multi-select list with export and display values, /V [r g] and a focus script. note is a multiline text field with a blur script on the field and two widgets, the second with a focus script of its own. pick is a radio group (/V b) whose /Kids lists its b widget before its a widget, the other way round from /Annots, with a mouse-up script on b; extras a checkbox field (/V x) with widgets of on-states x and y, a mouse-down script on y. sig is a signature field. person is a non-terminal field over person.first, a text field with a keystroke script. go is a push button whose JavaScript action has a JavaScript /Next and whose widget has a page-open script. The document has scripts alpha (its action with a JavaScript /Next) and beta (written with white space around it), an open action with a JavaScript /Next, will-close, will-save and did-print actions, and /CO [amount person note]. The page has open and close scripts',
-      annotations: { Widget: 14 },
+        'Form fields of every kind with JavaScript, and scripts in every place a file holds them; every widget has a normal appearance stream. amount is a comb text field (/MaxLen 6) with keystroke, format, validate (written with white space around it) and calculate scripts; start a time field with AFTime_Keystroke(2) and AFTime_Format(2); due a date field with only AFDate_FormatEx("mmm d, yyyy"). size is a combo (/Opt S M L, /V M) with keystroke and validate scripts; colours a multi-select list with export and display values, /V [r g] and a focus script. note is a multiline text field with a blur script on the field and two widgets, the second with a focus script of its own. pick is a radio group (/V b) whose /Kids lists its b widget before its a widget, the other way round from /Annots, with a mouse-up script on b; extras a checkbox field (/V x) with widgets of on-states x and y, a mouse-down script on y. sig is a signature field. person is a non-terminal field over person.first, a text field with a keystroke script. go is a push button whose JavaScript action has a JavaScript /Next and whose widget has a page-open script. The document has scripts alpha (its action with a JavaScript /Next) and beta (written with white space around it), an open action with a JavaScript /Next, will-close, will-save and did-print actions, and /CO [amount person note]. The page has open and close scripts. twin is two fields of that one name, each a dictionary over one widget, the first with a keystroke script and the second with a format script. flags is a checkbox field (/V q) whose /Kids lists its unchecked widget (on-state r) before its checked one (q), the other way round from /Annots, with a mouse-up script on q. stamp is a date field whose one Format action has a date /Next and which has no keystroke script',
+      annotations: { Widget: 19 },
     }
   )
 }

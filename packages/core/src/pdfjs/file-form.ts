@@ -55,6 +55,7 @@ function actionsOf(d: PdfjsAnnotationData): FileWidgetActions {
       : { ...actions }
   return {
     ...(scripts ? { scripts } : {}),
+    ...(scripts && d.datetimeType ? { keystrokeInFormat: true as const } : {}),
     ...(typeof d.url === 'string' ? { url: d.url } : {}),
     ...(d.newWindow !== undefined ? { newWindow: d.newWindow } : {}),
     ...(typeof d.action === 'string' ? { named: d.action } : {}),
@@ -78,6 +79,8 @@ function widgetOf(page: number, at: number, d: PdfjsAnnotationData): FileWidget 
     flags: flagsOf(d),
     hasAppearance: d.hasAppearance === true,
     ...(typeof onValue === 'string' ? { onValue } : {}),
+    // PDF.js reads each checkbox widget's value from its own `/AS`.
+    ...(d.checkBox && typeof d.fieldValue === 'string' ? { value: d.fieldValue } : {}),
     ...(d.borderStyle
       ? {
           border: {

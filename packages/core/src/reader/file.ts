@@ -53,6 +53,12 @@ export interface FileAnnotation {
 export interface FileWidgetActions {
   /** JavaScript sources by event name (`Action`, `Keystroke`, `Format`, `Validate`, `Calculate`, …). */
   scripts?: Record<string, string[]>
+  /**
+   * Present, and true, when the widget's one date or time Keystroke script is given after its one
+   * date or time Format script under `Format`, and not under `Keystroke`, as PDF.js gives them for
+   * its own date input.
+   */
+  keystrokeInFormat?: true
   /** A URI action's address, or the one a JavaScript `/A` opens with `app.launchURL`. */
   url?: string
   /** The `app.launchURL` call that gave `url` asks for a new window. */
@@ -77,6 +83,11 @@ export interface FileWidget {
   hasAppearance: boolean
   /** A checkbox's or radio's on value, mapped through `/Opt`. */
   onValue?: string
+  /**
+   * A checkbox widget's own value, from its `/AS` (else the field's `/V`): its on value, mapped
+   * through `/Opt`, or `Off`. `FileField.value` is its first widget's.
+   */
+  value?: string
   border?: { width: number; style?: number }
   /** `/MK /BC`. */
   borderColor?: [number, number, number]

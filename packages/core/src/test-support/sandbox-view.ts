@@ -59,6 +59,8 @@ export const SANDBOX_EXCEPTIONS: Record<
   {
     cause: string
     fixtures: readonly string[]
+    /** The comparisons it shows in. */
+    in: readonly Comparison[]
     apply: (read: SandboxRead) => SandboxRead
   }
 > = {
@@ -66,6 +68,7 @@ export const SANDBOX_EXCEPTIONS: Record<
     cause:
       'PDF.js gives a field dictionary with no widgets below it in its name (one whose kids are fields, such as person over person.first) an object of its own, which the sandbox makes a field of, and names a /CO entry for it by it. The form core reads has only terminal fields, and the engine reports no other field dictionary, so neither reader can build it.',
     fixtures: ['form-fields', 'form-tree', 'saved-signed', 'form-scripted-kinds'],
+    in: ['builder', 'engine'],
     apply: ({ fields, scripts, ...rest }) => {
       const kept =
         fields && fields.filter(([, objects]) => objects.some((o) => o.type !== ''))
@@ -84,6 +87,7 @@ export const SANDBOX_EXCEPTIONS: Record<
     cause:
       "PDF.js reads a checkbox's or radio's value that is a whole number written as text or a name, and matches no on-state, as the /Opt entry at that index; the engine does not report a toggle's /Opt, so the engine reader keeps the number.",
     fixtures: ['form-values'],
+    in: ['engine'],
     apply: (read) => ({
       ...read,
       fields:
@@ -94,19 +98,50 @@ export const SANDBOX_EXCEPTIONS: Record<
         ]),
     }),
   },
+  'a second dictionary of one name': {
+    cause:
+      "PDF.js gives each field dictionary of one full name its own container object, one after another under the name (twin's 31R and 33R). The engine reports the dictionaries of one name as one field with the first one's reference, so the engine reader gives no container for the second, and an event or /CO entry naming it reaches no field.",
+    fixtures: ['form-scripted-kinds'],
+    in: ['engine'],
+    apply: ({ fields, scripts, ...rest }) => {
+      // A name's entries as one, with the first's id and every widget.
+      const merged: FileScripts['fields'] = []
+      for (const entry of scripts?.fields ?? []) {
+        const first = merged.find((e) => e.name === entry.name)
+        if (first) first.widgets.push(...entry.widgets)
+        else merged.push({ ...entry, widgets: [...entry.widgets] })
+      }
+      return {
+        ...rest,
+        fields:
+          fields &&
+          fields.map(([name, objects]) => [
+            name,
+            objects.filter(
+              (o, i) => o.type !== '' || !objects.slice(0, i).some((p) => p.type !== '')
+            ),
+          ]),
+        scripts: scripts && { ...scripts, fields: merged },
+      }
+    },
+  },
 }
 
+/** A comparison with PDF.js: the builder over PDF.js's own shapes, or the engine reader. */
+export type Comparison = 'builder' | 'engine'
+
 /**
- * `read` and `other` held equal with the exceptions `SANDBOX_EXCEPTIONS` lists for `fixture`
- * applied to both, after checking each listed exception still shows.
+ * `read` and `other` held equal with the exceptions `SANDBOX_EXCEPTIONS` lists for `fixture` in
+ * `comparison` applied to both, after checking each listed exception still shows.
  */
 export function expectSameRead(
   read: SandboxRead,
   other: SandboxRead,
-  fixture: string
+  fixture: string,
+  comparison: Comparison
 ): void {
-  const known = Object.values(SANDBOX_EXCEPTIONS).filter((e) =>
-    e.fixtures.includes(fixture)
+  const known = Object.values(SANDBOX_EXCEPTIONS).filter(
+    (e) => e.fixtures.includes(fixture) && e.in.includes(comparison)
   )
   const applying = (list: typeof known) => (r: SandboxRead) =>
     list.reduce((acc, e) => e.apply(acc), r)

@@ -8,16 +8,18 @@
 //   with a number naming an entry of PDF.js's standard date or time list.
 // - A text field's `hasDatetimeHTML`: whether PDF.js gives it its own date or time input, which
 //   it does for one date or time Keystroke script beside one Format script. The reader gives those
-//   two as one Format list, the Format first (`FileWidgetActions.scripts`), so it is told from
-//   that list. The sandbox then parses and prints the field's value with `datetimeFormat`, and
-//   core's scripting takes the formatted text of what it sends back.
+//   two as one Format list, the Format first, and says so (`FileWidgetActions.keystrokeInFormat`).
+//   The sandbox then parses and prints the field's value with `datetimeFormat`, and core's
+//   scripting takes the formatted text of what it sends back.
 // - A text field's `comb`: the Comb flag, without Multiline, Password or FileSelect, with a
 //   maximum length.
-// - A checkbox's or radio's `value` of `Off` when it has none; its `exportValues`, the widget's
-//   on value (`FileWidget.onValue`), or `null` for a radio widget without one.
+// - A checkbox's or radio's `value` of `Off` when it has none, a checkbox widget's its own
+//   (`FileWidget.value`, from its `/AS`); its `exportValues`, the widget's on value
+//   (`FileWidget.onValue`), or `null` for a radio widget without one.
 // - A choice field's `value`, its first selected value or `null`, and `numItems`, the number of
 //   values selected (not of options: PDF.js's, and the sandbox never reads it).
-// - `hidden`, from the Hidden or NoView flag; `editable`, without ReadOnly.
+// - `hidden`, from the Hidden or NoView flag (a text widget with `/PMD` has Hidden among the
+//   reader's flags, as PDF.js hides it); `editable`, without ReadOnly.
 // - `strokeColor` and `fillColor` as PDF.js keeps colours, three bytes in a typed array, which
 //   reach the sandbox as an object of indices: what scripts reading them get with PDF.js too.
 // - `defaultValue`: a text field's empty when it has none, every other kind's `null`.
@@ -54,15 +56,18 @@ const DATE_FORMATS = [
 ]
 const TIME_FORMATS = ['HH:MM', 'h:MM tt', 'HH:MM:ss', 'h:MM:ss tt']
 
-/** A standard date or time script, as PDF.js matches one. */
-const DATE_TIME = /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
+/** @internal A standard date or time script, as PDF.js matches one. */
+export const DATE_TIME =
+  /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 /**
  * The field objects of `fields` as PDF.js gives the sandbox them, by field name in the order of
- * `scripts.fields`: for each name, the field's own dictionary when it is not one of its widgets
+ * `scripts.fields`: for each entry, the field's own dictionary when it is not one of its widgets
  * (only its `id` and `type`: with a widget object beside it the sandbox reads nothing else of it),
- * then an object for each widget, in the order the field lists them. A name or widget
- * `scripts.fields` gives that `fields` does not hold is left out. `null` when there are none, as
+ * then an object for each widget, in the order the field lists them. Entries that share a name
+ * (two dictionaries of one full name) go into that name's list one after the other, as PDF.js
+ * gives them. Each widget is found by its id among all of `fields`; one that `fields` does not
+ * hold is left out, and with it an entry left with no widget. `null` when there are none, as
  * PDF.js gives.
  *
  * @internal
@@ -71,21 +76,22 @@ export function sandboxFieldObjects(
   fields: readonly FileField[],
   scripts: FileScripts
 ): Map<string, unknown[]> | null {
-  const byName = new Map(fields.map((f) => [f.name, f]))
+  const byId = new Map<string, { field: FileField; widget: FileWidget }>()
+  for (const field of fields)
+    for (const widget of field.widgets)
+      if (!byId.has(widget.id)) byId.set(widget.id, { field, widget })
   const out = new Map<string, unknown[]>()
   for (const entry of scripts.fields) {
-    const field = byName.get(entry.name)
-    if (!field) continue
-    const widgets = new Map<string, FileWidget>()
-    for (const w of field.widgets) if (!widgets.has(w.id)) widgets.set(w.id, w)
     const objects: unknown[] = []
     for (const id of entry.widgets) {
-      const w = widgets.get(id)
-      if (w) objects.push(widgetObject(field, w))
+      const found = byId.get(id)
+      if (found) objects.push(widgetObject(found.field, found.widget))
     }
     if (objects.length === 0) continue
     if (entry.id !== undefined) objects.unshift({ id: entry.id, type: '' })
-    out.set(entry.name, objects)
+    const list = out.get(entry.name)
+    if (list) list.push(...objects)
+    else out.set(entry.name, objects)
   }
   return out.size > 0 ? out : null
 }
@@ -131,7 +137,7 @@ function widgetObject(field: FileField, w: FileWidget): Record<string, unknown> 
           !password &&
           (flags & FF_FILE_SELECT) === 0 &&
           maxLength !== 0,
-        ...dateTime(scripts),
+        ...dateTime(scripts, w.actions.keystrokeInFormat === true),
         type: 'text',
       }
     }
@@ -140,7 +146,8 @@ function widgetObject(field: FileField, w: FileWidget): Record<string, unknown> 
     case 'button':
       return {
         ...common,
-        value: field.value || 'Off',
+        value:
+          (field.kind === 'checkbox' ? (w.value ?? field.value) : field.value) || 'Off',
         defaultValue,
         exportValues: field.kind === 'button' ? undefined : (w.onValue ?? null),
         type:
@@ -169,20 +176,18 @@ function widgetObject(field: FileField, w: FileWidget): Record<string, unknown> 
 
 /**
  * A text field's date or time format and whether PDF.js gives it its own input, from its scripts
- * as the reader gives them.
+ * as the reader gives them and whether its Keystroke script is among its Format scripts.
  */
-function dateTime(scripts: Record<string, string[]> | undefined): {
+function dateTime(
+  scripts: Record<string, string[]> | undefined,
+  input: boolean
+): {
   datetimeFormat: string | undefined
   hasDatetimeHTML: boolean
 } {
   const format = scripts && Object.hasOwn(scripts, 'Format') ? scripts.Format : undefined
   const keystroke =
     scripts && Object.hasOwn(scripts, 'Keystroke') ? scripts.Keystroke : undefined
-  // PDF.js moves one date or time Keystroke script after the one Format script, for its input.
-  const input =
-    keystroke === undefined &&
-    format?.length === 2 &&
-    format.every((source) => DATE_TIME.test(source))
   for (const source of [...(format ?? []), ...(keystroke ?? [])]) {
     const m = DATE_TIME.exec(source)
     if (!m) continue

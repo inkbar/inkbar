@@ -1,6 +1,6 @@
 %PDF-1.7
 1 0 obj
-<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC << /S /JavaScript /JS (var closing = true;) >> /WS << /S /JavaScript /JS (var saving = true;) >> /DP << /S /JavaScript /JS (var printed = true;) >> >> >>
+<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R 31 0 R 33 0 R 35 0 R 38 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC << /S /JavaScript /JS (var closing = true;) >> /WS << /S /JavaScript /JS (var saving = true;) >> /DP << /S /JavaScript /JS (var printed = true;) >> >> >>
 endobj
 2 0 obj
 << /Title (Form edge fixture) /Producer (Inkbar fixtures) >>
@@ -9,7 +9,7 @@ endobj
 << /Type /Pages /Kids [4 0 R] /Count 1 >>
 endobj
 4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R] /AA << /O << /S /JavaScript /JS (var pageOpened = 'yes';) >> /C << /S /JavaScript /JS (var pageClosed = true;) >> >> >>
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R 32 0 R 34 0 R 36 0 R 37 0 R 38 0 R] /AA << /O << /S /JavaScript /JS (var pageOpened = 'yes';) >> /C << /S /JavaScript /JS (var pageClosed = true;) >> >> >>
 endobj
 5 0 obj
 <<  /Length 93 >>
@@ -102,41 +102,73 @@ stream
 0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S
 endstream
 endobj
+31 0 obj
+<< /FT /Tx /T (twin) /Kids [32 0 R] /AA << /K << /S /JavaScript /JS (var firstTwin = true) >> >> >>
+endobj
+32 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 31 0 R /P 4 0 R /Rect [300 655 400 680] /F 4 /AP << /N 30 0 R >> >>
+endobj
+33 0 obj
+<< /FT /Tx /T (twin) /Kids [34 0 R] /AA << /F << /S /JavaScript /JS (var secondTwin = true) >> >> >>
+endobj
+34 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 33 0 R /P 4 0 R /Rect [300 610 400 635] /F 4 /AP << /N 30 0 R >> >>
+endobj
+35 0 obj
+<< /FT /Btn /T (flags) /V /q /Kids [37 0 R 36 0 R] >>
+endobj
+36 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 35 0 R /P 4 0 R /Rect [300 385 320 405] /F 4  /AS /q /AP << /N << /q 28 0 R /Off 29 0 R >> >> /AA << /U << /S /JavaScript /JS (var flagged = true) >> >> >>
+endobj
+37 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 35 0 R /P 4 0 R /Rect [330 385 350 405] /F 4  /AS /Off /AP << /N << /r 28 0 R /Off 29 0 R >> >> >>
+endobj
+38 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (stamp) /P 4 0 R /Rect [300 565 400 590] /F 4 /AP << /N 30 0 R >> /AA << /F << /S /JavaScript /JS (AFDate_FormatEx("dd/mm/yyyy");) /Next << /S /JavaScript /JS (AFDate_FormatEx("mm/dd/yyyy");) >>>> >> >>
+endobj
 xref
-0 31
+0 39
 0000000000 65535 f 
 0000000009 00000 n 
-0000000490 00000 n 
-0000000566 00000 n 
-0000000623 00000 n 
-0000000971 00000 n 
-0000001115 00000 n 
-0000001212 00000 n 
-0000001626 00000 n 
-0000001862 00000 n 
-0000002059 00000 n 
-0000002339 00000 n 
-0000002600 00000 n 
-0000002747 00000 n 
-0000002871 00000 n 
-0000003060 00000 n 
-0000003139 00000 n 
-0000003293 00000 n 
-0000003506 00000 n 
-0000003577 00000 n 
-0000003729 00000 n 
-0000003945 00000 n 
-0000004072 00000 n 
-0000004121 00000 n 
-0000004346 00000 n 
-0000004634 00000 n 
-0000004743 00000 n 
-0000004804 00000 n 
-0000004923 00000 n 
-0000005081 00000 n 
-0000005243 00000 n 
+0000000518 00000 n 
+0000000594 00000 n 
+0000000651 00000 n 
+0000001034 00000 n 
+0000001178 00000 n 
+0000001275 00000 n 
+0000001689 00000 n 
+0000001925 00000 n 
+0000002122 00000 n 
+0000002402 00000 n 
+0000002663 00000 n 
+0000002810 00000 n 
+0000002934 00000 n 
+0000003123 00000 n 
+0000003202 00000 n 
+0000003356 00000 n 
+0000003569 00000 n 
+0000003640 00000 n 
+0000003792 00000 n 
+0000004008 00000 n 
+0000004135 00000 n 
+0000004184 00000 n 
+0000004409 00000 n 
+0000004697 00000 n 
+0000004806 00000 n 
+0000004867 00000 n 
+0000004986 00000 n 
+0000005144 00000 n 
+0000005306 00000 n 
+0000005496 00000 n 
+0000005612 00000 n 
+0000005737 00000 n 
+0000005854 00000 n 
+0000005979 00000 n 
+0000006049 00000 n 
+0000006262 00000 n 
+0000006418 00000 n 
 trailer
-<< /Size 31 /Root 1 0 R /Info 2 0 R >>
+<< /Size 39 /Root 1 0 R /Info 2 0 R >>
 startxref
-5433
+6681
 %%EOF

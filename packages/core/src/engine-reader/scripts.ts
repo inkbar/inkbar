@@ -2,6 +2,8 @@
 // document's scripts and actions, each page's actions, each widget's scripts, `/CO`, the fields
 // the sandbox is started with, and whether the file has any JavaScript at all. The engine gives
 // every source of each action's chain as written; each rule here is PDF.js's.
+import { DATE_TIME } from '../pdfjs/sandbox-fields'
+
 import { refId, textOf } from './file-values'
 
 import type {
@@ -52,9 +54,6 @@ const ACTION_EVENTS: ReadonlySet<string> = new Set([
   ...DOCUMENT_EVENTS.values(),
 ])
 
-/** The date and time scripts PDF.js turns into one Format list for its own date input. */
-const DATE_TIME = /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
-
 /** The field kinds PDF.js builds a field object with actions for. */
 const SCRIPTED_KINDS: ReadonlySet<FieldFactsShape['kind']> = new Set([
   'text',
@@ -98,17 +97,19 @@ function byEvent(
 }
 
 /**
- * @internal A widget's scripts by event as PDF.js gives them. A text field with one date or time
- * Keystroke script and one Format script has both under Format, the Format first, as PDF.js gives
- * them for its own date input. Built from entries, so a key such as `__proto__` stays an own key.
+ * @internal A widget's scripts by event as PDF.js gives them, and whether its Keystroke script is
+ * among its Format scripts: a text field with one date or time Keystroke script and one Format
+ * script has both under Format, the Format first, as PDF.js gives them for its own date input.
+ * Built from entries, so a key such as `__proto__` stays an own key.
  */
 export function widgetScripts(
   kind: FieldFactsShape['kind'],
   w: WidgetFactsShape
-): Record<string, string[]> {
+): { scripts: Record<string, string[]>; keystrokeInFormat: boolean } {
   const scripts: Record<string, string[]> = Object.fromEntries(
     byEvent(w.scripts, WIDGET_EVENTS)
   )
+  let keystrokeInFormat = false
   if (kind === 'text') {
     const format = Object.hasOwn(scripts, 'Format') ? scripts.Format : undefined
     const keystroke = Object.hasOwn(scripts, 'Keystroke') ? scripts.Keystroke : undefined
@@ -120,9 +121,10 @@ export function widgetScripts(
     ) {
       delete scripts.Keystroke
       scripts.Format = [...format, ...keystroke]
+      keystrokeInFormat = true
     }
   }
-  return scripts
+  return { scripts, keystrokeInFormat }
 }
 
 /** The widgets of `field` PDF.js builds field objects for: those written as indirect objects. */
@@ -197,7 +199,7 @@ export function fileScriptsFromEngine(
     if (
       !fieldScripts &&
       SCRIPTED_KINDS.has(field.kind) &&
-      widgets.some((w) => Object.keys(widgetScripts(field.kind, w)).length > 0)
+      widgets.some((w) => Object.keys(widgetScripts(field.kind, w).scripts).length > 0)
     )
       fieldScripts = true
   }

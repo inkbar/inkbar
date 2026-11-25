@@ -107,7 +107,8 @@ describe("the engine reader's scripts", () => {
       expectSameRead(
         { scripts: engine.scripts, fields: engine.fields },
         { scripts: pdfjs.scripts, fields: pdfjs.fields },
-        name
+        name,
+        'engine'
       )
     }
   )

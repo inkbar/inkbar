@@ -41,7 +41,8 @@ describe('the field objects the sandbox is started with', () => {
       expectSameRead(
         { fields: sandboxView(built) },
         { fields: sandboxView(theirs) },
-        name
+        name,
+        'builder'
       )
     }
   )
@@ -70,7 +71,12 @@ const scriptsFor = (
   ...over,
 })
 
-const textField = (format: string[], keystroke?: string[]): FileField => ({
+/** A text field with `format` and `keystroke` scripts; `merged` when the reader merged them. */
+const textField = (
+  format: string[],
+  keystroke?: string[],
+  merged = false
+): FileField => ({
   name: 'when',
   kind: 'text',
   flags: 0,
@@ -79,6 +85,7 @@ const textField = (format: string[], keystroke?: string[]): FileField => ({
     widget({
       actions: {
         scripts: { Format: format, ...(keystroke ? { Keystroke: keystroke } : {}) },
+        ...(merged ? { keystrokeInFormat: true as const } : {}),
       },
     }),
   ],
@@ -97,12 +104,22 @@ describe('sandboxFieldObjects', () => {
   it('reads a date or time format as PDF.js does, its number from the standard list', () => {
     // One date keystroke and one format, merged by the reader into Format: PDF.js's date input.
     const merged = objectOf(
-      textField(['AFDate_FormatEx("dd/mm/yyyy");', 'AFDate_KeystrokeEx("dd/mm/yyyy");'])
+      textField(
+        ['AFDate_FormatEx("dd/mm/yyyy");', 'AFDate_KeystrokeEx("dd/mm/yyyy");'],
+        undefined,
+        true
+      )
     )
     expect(merged).toMatchObject({ datetimeFormat: 'dd/mm/yyyy', hasDatetimeHTML: true })
+    // The same two scripts written in the file as one Format chain: no date input.
+    expect(
+      objectOf(
+        textField(['AFDate_FormatEx("dd/mm/yyyy");', 'AFDate_FormatEx("mm/dd/yyyy");'])
+      )
+    ).toMatchObject({ datetimeFormat: 'dd/mm/yyyy', hasDatetimeHTML: false })
     // A numbered format names an entry of the standard list.
     expect(
-      objectOf(textField(['AFTime_Format(2);', 'AFTime_Keystroke(2);']))
+      objectOf(textField(['AFTime_Format(2);', 'AFTime_Keystroke(2);'], undefined, true))
     ).toMatchObject({ datetimeFormat: 'HH:MM:ss', hasDatetimeHTML: true })
     expect(objectOf(textField(['AFDate_FormatEx("12");']))).toMatchObject({
       datetimeFormat: 'm/d/yy h:MM tt',
@@ -135,6 +152,67 @@ describe('sandboxFieldObjects', () => {
     const view = sandboxView(sandboxFieldObjects([field], scriptsFor([field])))
     expect(view?.map(([name]) => name)).toEqual(['__proto__'])
     expect(view?.[0]?.[1][0]?.actions).toStrictEqual({ Keystroke: ['event.rc = true'] })
+  })
+
+  it('gives two dictionaries of one name one after the other, each widget found by its id', () => {
+    // Two fields of one name, as a reader may give them apart.
+    const first: FileField = {
+      name: 'twin',
+      kind: 'text',
+      flags: 0,
+      value: 'a',
+      widgets: [widget({ id: '32R', actions: { scripts: { Keystroke: ['k()'] } } })],
+    }
+    const second: FileField = { ...first, value: 'b', widgets: [widget({ id: '34R' })] }
+    const objects = sandboxFieldObjects(
+      [first, second],
+      scriptsFor([], {
+        fields: [
+          { name: 'twin', id: '31R', widgets: ['32R'] },
+          { name: 'twin', id: '33R', widgets: ['34R'] },
+        ],
+      })
+    )
+    expect(
+      objects?.get('twin')?.map((o) => {
+        const { id, type, value } = o as Record<string, unknown>
+        return { id, type, value }
+      })
+    ).toEqual([
+      { id: '31R', type: '' },
+      { id: '32R', type: 'text', value: 'a' },
+      { id: '33R', type: '' },
+      { id: '34R', type: 'text', value: 'b' },
+    ])
+  })
+
+  it("gives each checkbox widget its own value, and the field's to a widget without one", () => {
+    const field: FileField = {
+      name: 'flags',
+      kind: 'checkbox',
+      flags: 0,
+      value: 'q',
+      widgets: [
+        widget({ id: '36R', onValue: 'q', value: 'q' }),
+        widget({ id: '37R', onValue: 'r', value: 'Off' }),
+        widget({ id: '38R', onValue: 's' }),
+      ],
+    }
+    const objects = sandboxFieldObjects(
+      [field],
+      scriptsFor([field], { fields: [{ name: 'flags', widgets: ['37R', '36R', '38R'] }] })
+    )
+    expect(objects?.get('flags')?.map((o) => (o as { value: unknown }).value)).toEqual([
+      'Off',
+      'q',
+      'q',
+    ])
+  })
+
+  it('hides a widget whose flags say Hidden or NoView', () => {
+    const hidden = (flags: number) =>
+      objectOf({ name: 'f', kind: 'text', flags: 0, widgets: [widget({ flags })] }).hidden
+    expect([hidden(4), hidden(2), hidden(32)]).toEqual([false, true, true])
   })
 
   it('puts the field dictionary first, then the widgets in the order the field lists them', () => {

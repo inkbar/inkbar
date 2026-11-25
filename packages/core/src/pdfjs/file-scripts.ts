@@ -38,21 +38,17 @@ export async function fileScriptsFromPdfjs(
   const names = new Map<string, string>()
   const fields: FileScripts['fields'] = []
   for (const [name, list] of objects ?? []) {
-    let container: string | undefined
-    const widgets: string[] = []
+    // PDF.js lists each dictionary of the name in turn: its container, then its widgets.
+    const entries: FileScripts['fields'] = []
     for (const o of list) {
       const { id, type } = o as { id?: unknown; type?: unknown }
       if (typeof id !== 'string') continue
       if (!names.has(id)) names.set(id, name)
-      if (type !== '') widgets.push(id)
-      else container ??= id
+      if (type === '') entries.push({ name, id, widgets: [] })
+      else if (entries.length > 0) entries.at(-1)!.widgets.push(id)
+      else entries.push({ name, widgets: [id] })
     }
-    if (widgets.length > 0)
-      fields.push({
-        name,
-        ...(container !== undefined ? { id: container } : {}),
-        widgets,
-      })
+    fields.push(...entries.filter((e) => e.widgets.length > 0))
   }
   const document: FileScripts['document'] = []
   const documentActions: FileScripts['documentActions'] = {}
