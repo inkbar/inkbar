@@ -251,6 +251,283 @@ export interface Outline {
   truncated: boolean
 }
 
+/**
+ * A text string of the file. A string when its bytes are text: PDFDocEncoding, or UTF-16 or UTF-8
+ * with a byte order mark. Otherwise `{ bytes }`, the bytes as the file holds them, for the caller
+ * to decode or skip. Text is cut after 1,048,576 bytes written as UTF-8 with JSON escapes, and
+ * bytes after 524,288; the entry that holds a cut string says `truncated`.
+ */
+export type FileText = string | { bytes: Uint8Array }
+
+/**
+ * A reference to an object of the file: its number, and the generation of the object the file
+ * holds under that number (0 when it holds none).
+ */
+export interface ObjectRef {
+  objectNumber: number
+  generation: number
+}
+
+/**
+ * What the file's trailer and `/Info` say about it. Read from the file as it stands: after a
+ * `redact`, which removes the metadata, the title and author are gone.
+ */
+export interface DocumentFacts {
+  /** `/Info`'s `/Title`, when it is a string. */
+  title?: FileText
+  /** `/Info`'s `/Author`, when it is a string. */
+  author?: FileText
+  /** Whether the trailer has `/Encrypt`. */
+  encrypted: boolean
+  /**
+   * Which password opened the file: `'none'` for a file with no encryption, `'owner'` when the
+   * owner password did (an empty one included), `'user'` otherwise. It says how the file was
+   * opened, before the engine lifted the permission flags for its own writes.
+   */
+  openedAs: 'none' | 'user' | 'owner'
+  /** Present, and true, only when the title or author was cut. */
+  truncated?: true
+}
+
+/**
+ * The facts an annotation and a form widget share, as the dictionary writes them. Numbers that
+ * the file writes as something other than a finite number are `null`. Names are strings of one
+ * character per byte of the name, U+0000 to U+00FF.
+ */
+export interface AppearanceFacts {
+  /** `/Rect`'s first four entries as written, corners not put in order. `null` when it is not a list. */
+  rect: (number | null)[] | null
+  /** Whether `/Rect` is exactly four finite numbers. */
+  rectOk: boolean
+  /** `/F`, 0 when absent. */
+  flags: number
+  /**
+   * Whether there is a normal appearance to draw: `/AP /N` is a stream, or a dictionary whose
+   * entry under `/AS` is one.
+   */
+  hasAppearance: boolean
+  /** How `/AP /N` is written: one stream, or a dictionary of states. Absent when it is neither. */
+  appearance?: 'stream' | 'states'
+  /** The names of the states of `/AP /N`, in byte order; empty unless it is a dictionary of states. */
+  appearanceStates: string[]
+  /** `/AS`, when it is a name. */
+  appearanceState?: string
+  /** `/BS`: its `/W` and `/S`, each `null` when absent or of the wrong type. */
+  borderStyle?: { width: number | null; style: string | null }
+  /** `/Border`'s first three entries. */
+  border?: (number | null)[]
+}
+
+/**
+ * One annotation dictionary of a page's `/Annots`, whatever its kind. The engine lists every one
+ * and decides nothing: which to show, what a flag means and what a colour of five components is
+ * are the caller's. An optional key is present only when the file has the entry in the right type.
+ */
+export interface AnnotationFacts extends AppearanceFacts {
+  /** The annotation's place in `/Annots`, counting entries that are not dictionaries. */
+  index: number
+  /** `/Subtype`; empty when it has none, or when the report's 16 MB ran out before it. */
+  subtype: string
+  /** Absent for an annotation stored as a direct object. */
+  objectNumber?: number
+  /** The generation of the annotation's object; present with `objectNumber`. */
+  generation?: number
+  /** `/QuadPoints`, flat, as written. */
+  quads?: (number | null)[]
+  /** `/C`, any number of components. */
+  color?: (number | null)[]
+  /** `/IC`, any number of components. */
+  interiorColor?: (number | null)[]
+  /** `/CA`. */
+  opacity?: number | null
+  /** `/Contents`. */
+  contents?: FileText
+  /** `/T`. */
+  author?: FileText
+  /** `/CreationDate`, as written. */
+  created?: FileText
+  /** `/M`, as written. */
+  modified?: FileText
+  /** `/Name`. */
+  icon?: string
+  /** `/IRT`, when it is a reference. It may name the annotation itself. */
+  inReplyTo?: ObjectRef
+  /** `/IT`. */
+  intent?: string
+  /** `/L`. */
+  line?: (number | null)[]
+  /** `/LE`; an entry that is not a name is `null`. */
+  lineEndings?: (string | null)[]
+  /** `/Vertices`, flat. */
+  vertices?: (number | null)[]
+  /** `/InkList`, each path flat; a path that is not a list is `null`. */
+  inkLists?: ((number | null)[] | null)[]
+  /** `/DA`, the annotation's own. */
+  defaultAppearance?: FileText
+  /** `/Q`, the annotation's own. */
+  alignment?: number | null
+  /** Present, and true, when the annotation has `/PMD`. */
+  paperMetadata?: true
+  /** `/Parent`, when it is a reference. */
+  parent?: ObjectRef
+  /**
+   * Present, and true, when this entry was cut: a string past its cap, `/QuadPoints`,
+   * `/Vertices` and `/InkList` past 1,000,000 numbers in all, or the report's 16 MB spent.
+   */
+  truncated?: true
+}
+
+export interface PageAnnotations {
+  /** The page's `/Tabs`, when it is a name. */
+  tabs?: string
+  /** One entry for each dictionary in `/Annots`, in order. */
+  annotations: AnnotationFacts[]
+  /** The list was cut short: past 200,000 annotations or 16 MB of report. */
+  truncated: boolean
+}
+
+/** A widget's own `/A`, its first action only. */
+export interface FieldAction {
+  /** `/S`. */
+  kind: string
+  /** A URI action's `/URI`: its bytes, empty when it is neither a string nor a name. */
+  uri?: Uint8Array
+  /** A Named action's `/N`, empty when it is not a name. */
+  name?: string
+  /**
+   * A ResetForm action: `/Fields` entries written as strings in `fields`, those written as
+   * references in `refs` (whatever they refer to), and `/Flags`.
+   */
+  reset?: { fields: FileText[]; refs: ObjectRef[]; flags: number }
+}
+
+/**
+ * One widget of a field: the annotation the field is drawn and filled through. An optional key is
+ * present only when the file has the entry in the right type.
+ */
+export interface WidgetFacts extends AppearanceFacts {
+  /** The index of the page whose `/Annots` holds the widget, or -1 when no page does. */
+  page: number
+  /** The widget's place in that page's `/Annots`, or -1 when no page holds it. */
+  index: number
+  /** Absent for a widget stored as a direct object. */
+  objectNumber?: number
+  /** The generation of the widget's object; present with `objectNumber`. */
+  generation?: number
+  /** A checkbox's or radio's on-state: the first state of `/AP /N` that is not `Off`. */
+  onState?: string
+  /** A checkbox's or radio's export value: its `/Opt` entry when the field has `/Opt`, else `onState`. */
+  exportValue?: string
+  /** `/MK /BC`, any number of components. */
+  borderColor?: (number | null)[]
+  /** `/MK /BG`, any number of components. */
+  backgroundColor?: (number | null)[]
+  /** `/MK /R`. */
+  rotation?: number | null
+  /** `/MK /CA`. */
+  caption?: FileText
+  /** `/Q`, inherited along `/Parent`. */
+  alignment?: number | null
+  /** The widget's own `/TU`. */
+  tooltip?: FileText
+  /** `/DA`, inherited along `/Parent`. */
+  defaultAppearance?: FileText
+  /** Present, and true, when the widget has `/PMD`. */
+  paperMetadata?: true
+  /**
+   * JavaScript sources by additional-action key (`K`, `F`, `V`, `C`, `Fo`, `Bl`, `D`, `U`, …),
+   * each in the order its action chain gives them, and `A` for the widget's own `/A`. A key is
+   * taken from the nearest dictionary along `/Parent`, the widget first, whose action under it
+   * holds JavaScript. Nothing runs them.
+   */
+  scripts: Record<string, string[]>
+  action?: FieldAction
+  /** Present, and true, when this entry was cut: a string or script past its cap, or the report spent. */
+  truncated?: true
+}
+
+/** A text string, a name, or a list of text strings, as `FieldFacts.valueKind` says. */
+export type FieldValue = FileText | (FileText | null)[]
+
+/** How a field's `/V` or `/DV` is written: absent or null, a string, a name, a list, or other. */
+export type FieldValueKind = 'none' | 'string' | 'name' | 'array' | 'other'
+
+/** One field of the form, with its widgets. */
+export interface FieldFacts {
+  /** The full name, its parts joined with dots. */
+  name: string
+  /** Absent for a field stored as a direct object. */
+  objectNumber?: number
+  /** The generation of the field's object; present with `objectNumber`. */
+  generation?: number
+  /** `'acroform'` when `/Fields` reaches it, `'recovered'` when only a page's widget does. */
+  origin: 'acroform' | 'recovered'
+  /** The kind `/FT` and `/Ff` give it, inherited. */
+  kind:
+    'text' | 'checkbox' | 'radio' | 'button' | 'combo' | 'list' | 'signature' | 'unknown'
+  /** `/Ff`, inherited. */
+  flags: number
+  valueKind: FieldValueKind
+  /**
+   * `/V`, inherited: the text of a string, the name, or a list whose strings are text and whose
+   * other entries are `null`. Absent for `none` and `other`.
+   */
+  value?: FieldValue
+  defaultValueKind: FieldValueKind
+  /** `/DV`, read as `value` is. */
+  defaultValue?: FieldValue
+  /** A choice field's `/Opt`. */
+  options?: { exportValue: string; displayValue: string }[]
+  /** A text field's `/MaxLen`, when it is not 0. */
+  maxLength?: number
+  /** A list box's `/TI`. */
+  topIndex?: number
+  /** The field dictionary's own `/TU`. */
+  tooltip?: FileText
+  /** The widgets, in the order the field lists them. */
+  widgets: WidgetFacts[]
+  /** Present, and true, when this entry or one of its widgets was cut. */
+  truncated?: true
+}
+
+/** The file's interactive form. */
+export interface FormFacts {
+  /** `'none'` without `/AcroForm`, `'xfa'` when it has `/XFA`, else `'acroform'`. */
+  kind: 'none' | 'acroform' | 'xfa'
+  /** `/AcroForm /NeedAppearances`. */
+  needAppearances: boolean
+  /** `/AcroForm /DA`. */
+  defaultAppearance?: FileText
+  /** `/AcroForm /Q`. */
+  alignment?: number | null
+  /**
+   * The fields: the `/Fields` tree merged by full name, then fields whose widgets only a page's
+   * `/Annots` reaches. A field with no name is left out. Empty when `tooLarge`.
+   */
+  fields: FieldFacts[]
+  /**
+   * One entry for each entry of `/AcroForm /CO`: the index in `fields` of the field whose full
+   * name it has, or -1.
+   */
+  calculationOrder: number[]
+  /** The same entries as references; `null` for one that is not a reference. */
+  calculationOrderRefs: (ObjectRef | null)[]
+  /** The deepest level of `/Fields` and `/Kids`, 1 for a top-level field. */
+  fieldTreeDepth: number
+  /** Whether the field tree reaches a dictionary or a `/Kids` list twice: a loop, or one shared. */
+  fieldTreeRevisits: boolean
+  /**
+   * The form was refused, not cut short: its tree, with the widgets outside it, holds more than
+   * 50,000 fields. `fields` is empty; `/CO` is still read.
+   */
+  tooLarge: boolean
+  /**
+   * The report was cut short: past 50,000 fields or `/CO` entries, past 1,000 levels of tree,
+   * past its share of 16 MB, or past the work it may spend reading scripts.
+   */
+  truncated: boolean
+}
+
 /** Options for `EngineDocument.renderPage`. */
 export interface RenderOptions {
   /**

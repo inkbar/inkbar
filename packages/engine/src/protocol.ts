@@ -17,6 +17,9 @@ export type Request =
   | { op: 'pageInfo'; doc: number; index: number }
   | { op: 'pageText'; doc: number; index: number }
   | { op: 'pageLinks'; doc: number; index: number }
+  | { op: 'documentFacts'; doc: number }
+  | { op: 'pageAnnotations'; doc: number; index: number }
+  | { op: 'formFields'; doc: number }
   | { op: 'outline'; doc: number }
   | { op: 'namedDestination'; doc: number; name: Uint8Array }
   | { op: 'renderPage'; doc: number; index: number; options: RenderRequestOptions }

@@ -188,6 +188,32 @@ const { items } = await doc.outline()
 const target = await doc.namedDestination(new TextEncoder().encode('chapter-2'))
 ```
 
+File facts, annotations and the form:
+
+- Each of these calls reports what the file holds and applies no rule of its own. You decide which annotations to list, what a flag means and what to do with a colour of five components. None of them changes what `save` writes.
+- A text string from the file comes back as a string when its bytes are PDFDocEncoding, or UTF-16 or UTF-8 with a byte order mark. Other bytes come back as `{ bytes }`, a `Uint8Array`, for you to decode or skip. A name comes back as a string with one character per byte, U+0000 to U+00FF. A number the file writes as something other than a finite number comes back as `null`.
+- A string is cut after 1,048,576 bytes of UTF-8 (524,288 bytes for `{ bytes }`), and its entry then has `truncated: true`.
+
+`documentFacts()` gives `{ title, author, encrypted, openedAs }`. `title` and `author` come from `/Info` when they are strings. `encrypted` says whether the trailer has `/Encrypt`. `openedAs` is `'none'` for a file with no encryption, `'owner'` when the owner password opened it (an empty one included) and `'user'` otherwise. The engine lifts a file's permission flags so it can write to it; `openedAs` reports the password, read before that.
+
+`pageAnnotations(index)` gives `{ tabs, annotations, truncated }` for a page. `annotations` holds one entry for each dictionary in the page's `/Annots`, in order: hidden annotations, popups and widgets included. Each entry has its `index` in `/Annots`, `subtype`, `objectNumber` and `generation` (both absent for a direct object), `rect` as written with `rectOk` true only for four finite numbers, `flags`, and its appearance: `hasAppearance`, `appearance` (`'stream'` or `'states'`), `appearanceStates` and `appearanceState` (`/AS`). The rest are present when the file has them in the right type: `quads`, `color`, `interiorColor`, `opacity`, `contents`, `author`, `created`, `modified`, `icon`, `inReplyTo`, `intent`, `line`, `lineEndings`, `vertices`, `inkLists`, `borderStyle`, `border`, `defaultAppearance`, `alignment`, `paperMetadata` and `parent`. Lists of numbers keep every entry the file writes, so a colour may have 5 components. `inReplyTo` may name the annotation itself. `/QuadPoints`, `/Vertices` and `/InkList` give up to 1,000,000 numbers in all. A page index outside the document is a `RangeError`. The call reads `/Annots` without loading the page, so it loads no font. `truncated` is true past 200,000 annotations or 16 MB of report.
+
+`formFields()` gives the form: its `kind` (`'none'`, `'acroform'` or `'xfa'`), `needAppearances`, `defaultAppearance`, `alignment` and its `fields`. Each field has its full `name`, `kind`, inherited `flags`, `valueKind` and `value`, `defaultValueKind` and `defaultValue`, `options`, `maxLength`, `topIndex`, `tooltip`, `origin` and `widgets`. `origin` is `'recovered'` for a field that only a page's widget reaches, outside `/Fields`. A field with no name is left out. Each widget has the same `rect` and appearance facts as an annotation, its `page` and `index` in that page's `/Annots` (both -1 when no page holds it), and, as the file has them, `onState` and `exportValue` for a checkbox or radio, `borderColor`, `backgroundColor`, `rotation`, `caption`, `alignment`, `tooltip` and `defaultAppearance`. `scripts` holds the JavaScript sources by key (`K`, `F`, `V`, `C` and the rest, and `A` for the widget's own action) as text, and the engine never runs them. `action` describes the widget's own `/A`: its `kind`, a URI action's `uri` bytes, a Named action's `name`, or a ResetForm action's `reset`.
+
+- `calculationOrder` has one entry for each entry of `/CO`: the index in `fields` of the field it names, or -1. `calculationOrderRefs` gives the same entries as `{ objectNumber, generation }`, `null` where the entry is no reference.
+- `fieldTreeDepth` is the deepest level of `/Kids`, and `fieldTreeRevisits` is true when the tree reaches a dictionary twice, through a loop or a shared kid. The engine reads each dictionary once and stops 1,000 levels down.
+- `tooLarge` is true for a form of more than 50,000 fields. The engine refuses it whole: `fields` is empty, and `/CO` is still read. Loading such a form takes PDFium tens of seconds.
+- `truncated` is true when a cap cut the report short: 50,000 fields, 1,000 levels of tree, the report's share of 16 MB, or the work it may spend reading scripts. A field or widget cut by a cap has `truncated: true` and ends the list.
+
+```ts
+const facts = await doc.documentFacts()
+const { annotations } = await doc.pageAnnotations(0)
+const notes = annotations.filter((a) => a.subtype === 'Text')
+const form = await doc.formFields()
+if (form.tooLarge) console.log('The form has more than 50,000 fields.')
+for (const field of form.fields) console.log(field.name, field.kind, field.value)
+```
+
 Writing:
 
 - `write({ remove, annotations, fields })` sets each form value in `fields` and redraws its widgets, removes the annotations in `remove`, by page and object number, then appends each annotation to its page in the order given.

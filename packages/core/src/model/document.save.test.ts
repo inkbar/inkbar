@@ -65,6 +65,9 @@ function realEngine() {
           pageLinks: (i) => d.pageLinks(i),
           outline: () => d.outline(),
           namedDestination: (n) => d.namedDestination(n),
+          documentFacts: () => d.documentFacts(),
+          pageAnnotations: (i) => d.pageAnnotations(i),
+          formFields: () => d.formFields(),
           write(input) {
             writes.push(input)
             if (fail) {

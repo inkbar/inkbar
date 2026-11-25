@@ -1,5 +1,19 @@
-import { EngineError } from '../errors.ts'
-
+import {
+  array,
+  bad,
+  boolean,
+  count,
+  hexBytes,
+  number,
+  object,
+  oneOf,
+  onlyTrue,
+  parse,
+  present,
+  string,
+  takeJson,
+  type Json,
+} from './report.ts'
 import { withBytes } from './strings.ts'
 
 import type {
@@ -18,87 +32,6 @@ import type {
 } from '../types.ts'
 import type { Heap } from './strings.ts'
 
-type Json = Record<string, unknown>
-
-function fail(what: string, cause?: unknown): EngineError {
-  return new EngineError('engine-failure', `${what} could not be read.`, {
-    cause: cause ?? new Error('unexpected shape'),
-  })
-}
-
-/** A failure whose cause names the key at fault and what it should have held. */
-function bad(what: string, key: string, expected: string): EngineError {
-  return fail(what, new Error(`${key}: expected ${expected}`))
-}
-
-function parse(text: string, what: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch (cause) {
-    throw fail(what, cause)
-  }
-}
-
-function isObject(value: unknown): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function object(value: unknown, what: string, key: string): Json {
-  if (!isObject(value)) throw bad(what, key, 'an object')
-  return value
-}
-
-function array(value: unknown, what: string, key: string): unknown[] {
-  if (!Array.isArray(value)) throw bad(what, key, 'a list')
-  return value
-}
-
-function number(value: unknown, what: string, key: string): number {
-  if (typeof value !== 'number') throw bad(what, key, 'a number')
-  return value
-}
-
-function string(value: unknown, what: string, key: string): string {
-  if (typeof value !== 'string') throw bad(what, key, 'a string')
-  return value
-}
-
-function hexBytes(value: unknown, what: string, key: string): Uint8Array {
-  const text = string(value, what, key)
-  if (text.length % 2 !== 0 || /[^0-9a-f]/i.test(text))
-    throw bad(what, key, 'hex digits in pairs')
-  const bytes = new Uint8Array(text.length / 2)
-  for (let i = 0; i < bytes.length; i++)
-    bytes[i] = parseInt(text.slice(i * 2, i * 2 + 2), 16)
-  return bytes
-}
-
-const present = (value: unknown): boolean => value !== null && value !== undefined
-
-function boolean(value: unknown, what: string, key: string): boolean {
-  if (typeof value !== 'boolean') throw bad(what, key, 'a boolean')
-  return value
-}
-
-/** A whole number from 0. */
-function count(value: unknown, what: string, key: string): number {
-  const n = number(value, what, key)
-  if (!Number.isInteger(n) || n < 0) throw bad(what, key, 'a whole number from 0')
-  return n
-}
-
-/** One of `values`; any other string, or anything else, is malformed. */
-function oneOf<T extends string>(
-  values: readonly T[],
-  value: unknown,
-  what: string,
-  key: string
-): T {
-  if (!(values as readonly unknown[]).includes(value))
-    throw bad(what, key, `one of ${values.join(', ')}`)
-  return value as T
-}
-
 /**
  * A key the module writes on every action of its kind, as one of `values` or `null`. Absent, it
  * comes from a module that does not write it, and is malformed.
@@ -112,13 +45,6 @@ function kindOrNull<T extends string>(
   if (!(key in item)) throw bad(what, key, `one of ${values.join(', ')} or null`)
   const value = item[key]
   return value === null ? undefined : oneOf(values, value, what, key)
-}
-
-/** A key the fork writes only as `true`: absent, `null` or `true`. */
-function onlyTrue(value: unknown, what: string, key: string): boolean {
-  if (!present(value)) return false
-  if (value !== true) throw bad(what, key, 'true, null or no key')
-  return true
 }
 
 const ARG_KINDS: readonly DestinationArgKind[] = ['number', 'null', 'other']
@@ -286,22 +212,6 @@ export function parseNamedDestination(text: string): FileDestination | undefined
   const what = 'A named destination'
   const root = parse(text, what)
   return root === null ? undefined : destination(root, what)
-}
-
-/** Reads the call's JSON, then frees it. NULL means the call could not read. */
-function takeJson(heap: Heap, pointer: number, what: string): string {
-  if (pointer === 0)
-    throw new EngineError('engine-failure', `${what} could not be read.`, {
-      pdfiumError: heap.fn.FPDF_GetLastError(),
-    })
-  try {
-    const bytes = heap.native.HEAPU8
-    const end = bytes.indexOf(0, pointer)
-    if (end < 0) throw fail(what)
-    return new TextDecoder().decode(bytes.subarray(pointer, end))
-  } finally {
-    if (!heap.stopped) heap.fn.INK_Json_Free(pointer)
-  }
 }
 
 export function readPageLinks(heap: Heap, doc: number, index: number): PageLinks {
