@@ -1,5 +1,7 @@
-// What the document and the DOM layer ask of whatever reads the PDF: the facts of each page, its
-// pixels, its text and links, and the document's outline and destinations.
+// What the document and the DOM layer ask of whatever reads the PDF: the file's facts, the facts
+// of each page, its pixels, its text, links and annotations, and the document's outline and
+// destinations.
+import type { FileAnnotation, FileFacts } from './file'
 import type { Destination, RawDestination } from '../model/destination'
 import type { Rect } from '../model/geometry'
 import type { PageLink } from '../model/links'
@@ -35,10 +37,16 @@ export interface DrawRequest {
   hide: readonly HiddenAppearance[]
 }
 
-/** @internal Page facts, pixels, text, links, the outline and destinations. */
+/** @internal File and page facts, pixels, text, links, annotations, the outline and destinations. */
 export interface DocumentReader {
   readonly kind: 'pdfjs' | 'engine'
   readonly pageCount: number
+  /**
+   * The title, author and whether the file is encrypted. Metadata that cannot be read is left
+   * out. Rejects only when the reader could not answer at all (its engine stopped or could not
+   * start).
+   */
+  facts(): Promise<FileFacts>
   pageInfo(index: number): Promise<PageInfo>
   /**
    * Draws into `canvas` on white. Rejects with `signal.reason` once `signal` aborts; an aborted
@@ -59,6 +67,12 @@ export interface DocumentReader {
   ): Promise<TextContent>
   /** The page's visible links, in the order of the page's annotations. */
   links(page: number): Promise<PageLink[]>
+  /**
+   * The page's listed annotations, widgets and links included, in the order PDF.js lists them:
+   * `/Annots` order, with widgets and pop-ups after the rest. A page whose annotations cannot be
+   * parsed has none; a read that rejects is not kept, so the next call reads the page again.
+   */
+  annotations(page: number): Promise<FileAnnotation[]>
   /**
    * The outline, every destination resolved. `[]` when the file has none. Rejects when it could
    * not be read; the document then reads it again on the next call.

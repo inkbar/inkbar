@@ -1,6 +1,8 @@
-import { fixtureBytes } from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
+import { fileAnnotationFromPdfjs } from '../../pdfjs/file-annotations'
+import { loadPdfjs, openProxy } from '../../pdfjs/load'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
@@ -8,6 +10,7 @@ import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, pdfColorToHex, summarise } from './embedded'
 
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
+import type { FileAnnotation } from '../../reader/file'
 
 const NOW = '2026-10-12T00:00:00.000Z'
 const twin = sample.annotations[0]!
@@ -26,7 +29,9 @@ async function rawAnnotations(name: Parameters<typeof fixtureBytes>[0]) {
   })
   await doc.ready
   const page = await doc._pdfjs.getPage(0)
-  const raw = (await page.getAnnotations()) as unknown as PdfjsAnnotationData[]
+  const raw = ((await page.getAnnotations()) as unknown as PdfjsAnnotationData[]).map(
+    fileAnnotationFromPdfjs
+  )
   return { doc, raw }
 }
 
@@ -170,36 +175,23 @@ describe('embedded import', () => {
     form.doc.destroy()
   })
 
-  it('skips hidden or Popup annotations but still counts them', () => {
+  it('skips Popup annotations but still counts them', () => {
     const { annotations, counts } = importEmbeddedPage(
       0,
       [
-        { id: '1R', subtype: 'Popup', annotationType: 16, rect: [0, 0, 1, 1] },
-        {
-          id: '2R',
-          subtype: 'Square',
-          annotationType: 5,
-          rect: [0, 0, 1, 1],
-          hidden: true,
-        },
-        {
-          id: '3R',
-          subtype: 'Square',
-          annotationType: 5,
-          rect: [0, 0, 1, 1],
-          noView: true,
-        },
+        { id: '1R', subtype: 'Popup', rect: [0, 0, 1, 1], hasAppearance: false },
+        { id: '2R', subtype: 'Popup', rect: [0, 0, 1, 1], hasAppearance: true },
       ],
       NOW
     )
     expect(annotations).toEqual([])
-    expect(counts).toEqual({ Popup: 1, Square: 2 })
+    expect(counts).toEqual({ Popup: 2 })
   })
 
   it('normalises a reversed rect', () => {
     const { annotations } = importEmbeddedPage(
       2,
-      [{ id: '5R', subtype: 'Square', annotationType: 5, rect: [200, 300, 50, 100] }],
+      [{ id: '5R', subtype: 'Square', rect: [200, 300, 50, 100], hasAppearance: false }],
       NOW
     )
     expect(annotations[0]).toMatchObject({
@@ -212,18 +204,60 @@ describe('embedded import', () => {
   })
 })
 
+/** Every page's annotations as PDF.js gives them, page by page. */
+async function pdfjsPages(name: FixtureName): Promise<PdfjsAnnotationData[][]> {
+  const assets = nodeAssets()
+  const { task, proxy } = await openProxy(
+    await loadPdfjs(assets),
+    await fixtureBytes(name),
+    { assets, password: manifest[name].password, verbosity: 0 }
+  )
+  try {
+    const pages: PdfjsAnnotationData[][] = []
+    for (let i = 0; i < proxy.numPages; i++) {
+      const page = await proxy.getPage(i + 1)
+      // As the document reads them: a page PDF.js cannot parse has none.
+      pages.push(
+        await page.getAnnotations().then(
+          (raw) => raw as unknown as PdfjsAnnotationData[],
+          () => []
+        )
+      )
+    }
+    return pages
+  } finally {
+    await task.destroy()
+  }
+}
+
+describe('embedded import across the fixtures', () => {
+  const opening = (Object.keys(manifest) as FixtureName[]).filter(
+    (n) => manifest[n].opens
+  )
+
+  it.each(opening)(
+    'imports every fixture page the same from the shape as from PDF.js data: %s',
+    async (name) => {
+      const pages = await pdfjsPages(name)
+      // The snapshot was taken from PDF.js's data, before the import read core's shape.
+      expect(
+        pages.map((raw, i) =>
+          importEmbeddedPage(i, raw.map(fileAnnotationFromPdfjs), NOW)
+        )
+      ).toMatchSnapshot()
+    }
+  )
+})
+
 describe('embedded import of PDF names and callouts', () => {
-  const at = (
-    subtype: string,
-    extra: Partial<PdfjsAnnotationData> = {}
-  ): PdfjsAnnotationData => ({
+  const at = (subtype: string, extra: Partial<FileAnnotation> = {}): FileAnnotation => ({
     id: '9R',
     subtype,
-    annotationType: 0,
     rect: [50, 500, 300, 700],
+    hasAppearance: false,
     ...extra,
   })
-  const one = (d: PdfjsAnnotationData) => {
+  const one = (d: FileAnnotation) => {
     const { annotations } = importEmbeddedPage(0, [d], NOW)
     expect(annotations).toHaveLength(1)
     return annotations[0]!
@@ -231,23 +265,23 @@ describe('embedded import of PDF names and callouts', () => {
   const quad = [72, 715, 400, 715, 72, 695, 400, 695]
 
   it.each([
-    ['Highlight', { quadPoints: quad }, 'Custom'],
-    ['Underline', { quadPoints: quad }, 'Custom'],
-    ['StrikeOut', { quadPoints: quad }, 'Custom'],
-    ['Squiggly', { quadPoints: quad }, 'Custom'],
-    ['Text', { name: 'Comment' }, 'Custom'],
+    ['Highlight', { quads: quad }, 'Custom'],
+    ['Underline', { quads: quad }, 'Custom'],
+    ['StrikeOut', { quads: quad }, 'Custom'],
+    ['Squiggly', { quads: quad }, 'Custom'],
+    ['Text', { icon: 'Comment' }, 'Custom'],
     ['FreeText', {}, 'FreeTextTypeWriter'],
     ['Square', {}, 'Custom'],
     ['Circle', {}, 'Custom'],
-    ['Line', { lineCoordinates: [60, 520, 200, 600] }, 'LineArrow'],
+    ['Line', { line: [60, 520, 200, 600] }, 'LineArrow'],
     ['Polygon', { vertices: [0, 0, 10, 0, 5, 10] }, 'PolygonCloud'],
     ['PolyLine', { vertices: [0, 0, 10, 0, 5, 10] }, 'PolyLineDimension'],
     ['Ink', { inkLists: [[0, 0, 10, 10]] }, 'Custom'],
     ['Redact', {}, 'Custom'],
-  ] satisfies [string, Partial<PdfjsAnnotationData>, string][])(
+  ] satisfies [string, Partial<FileAnnotation>, string][])(
     'passes /IT through on %s',
     (subtype, extra, intent) => {
-      expect(one(at(subtype, { ...extra, it: intent }))).toMatchObject({ intent })
+      expect(one(at(subtype, { ...extra, intent }))).toMatchObject({ intent })
     }
   )
 
@@ -256,16 +290,16 @@ describe('embedded import of PDF names and callouts', () => {
   })
 
   it('imports note icons by their exact PDF name', () => {
-    expect(one(at('Text', { name: 'Comment' }))).toMatchObject({ icon: 'Comment' })
+    expect(one(at('Text', { icon: 'Comment' }))).toMatchObject({ icon: 'Comment' })
     // A name Inkbar does not know is kept.
-    expect(one(at('Text', { name: 'Check' }))).toMatchObject({ icon: 'Check' })
+    expect(one(at('Text', { icon: 'Check' }))).toMatchObject({ icon: 'Check' })
     // PDF names are case-sensitive: `/comment` is not `/Comment`.
-    expect(one(at('Text', { name: 'comment' }))).toMatchObject({ icon: 'comment' })
+    expect(one(at('Text', { icon: 'comment' }))).toMatchObject({ icon: 'comment' })
   })
 
   it('imports a note with no /Name, or a NoIcon one, with the default icon', () => {
     // PDF.js reports `NoIcon` for any note with an appearance stream; it is never stored.
-    expect(one(at('Text', { name: 'NoIcon' }))).toMatchObject({ icon: 'Note' })
+    expect(one(at('Text', { icon: 'NoIcon' }))).toMatchObject({ icon: 'Note' })
     expect(one(at('Text'))).toMatchObject({ icon: 'Note' })
   })
 
@@ -273,7 +307,7 @@ describe('embedded import of PDF names and callouts', () => {
     expect(
       one(
         at('Line', {
-          lineCoordinates: [60, 520, 200, 600],
+          line: [60, 520, 200, 600],
           lineEndings: ['ROpenArrow', 'Slash'],
         })
       )
@@ -282,7 +316,7 @@ describe('embedded import of PDF names and callouts', () => {
     expect(
       one(
         at('Line', {
-          lineCoordinates: [60, 520, 200, 600],
+          line: [60, 520, 200, 600],
           lineEndings: ['openarrow', 'Wavy'],
         })
       )
@@ -303,12 +337,12 @@ describe('embedded import of PDF names and callouts', () => {
 
   it('drops a name that is not a valid PDF name', () => {
     // `a b` holds whitespace, so it is not kept; the note takes the default icon.
-    expect(one(at('Text', { name: 'a b' }))).toMatchObject({ icon: 'Note' })
-    expect(one(at('Square', { it: 'a b' }))).not.toHaveProperty('intent')
+    expect(one(at('Text', { icon: 'a b' }))).toMatchObject({ icon: 'Note' })
+    expect(one(at('Square', { intent: 'a b' }))).not.toHaveProperty('intent')
     expect(
       one(
         at('Line', {
-          lineCoordinates: [60, 520, 200, 600],
+          line: [60, 520, 200, 600],
           lineEndings: ['a b', 'Slash'],
         })
       )

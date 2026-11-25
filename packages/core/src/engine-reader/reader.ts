@@ -1,7 +1,7 @@
 // The document reader over @inkbar/engine: page facts, pixels, text, links, the outline and
 // destinations from an engine of its own, loaded through the host's loader, with the file open
-// in it. Nothing here imports the engine: its shapes are declared in ./types and checked when
-// the file is opened.
+// in it; the file's facts and annotations from the fallback reader. Nothing here imports the
+// engine: its shapes are declared in ./types and checked when the file is opened.
 import {
   destinationFromArray,
   type Destination,
@@ -58,6 +58,8 @@ export interface EngineReaderOptions {
    * the fallback's item boundaries (the text the reader kept is dropped when it happens), and
    * where the two readers differ, pages read after it differ from pages read before. The page
    * facts the engine gave are kept, and links keep their ids, which both readers give alike.
+   * The file's facts and annotations always come from it; without it they reject with
+   * EngineUnavailable.
    */
   fallback?: DocumentReader
   /** Called once, when the reader turns to `fallback`. */
@@ -742,10 +744,24 @@ export async function createEngineReader(
     return outlineFromFacts(facts.items, resolve, refPages)
   }
 
+  /** `call` on the fallback, as the reader's own. */
+  const fromFallback = <T>(call: (reader: DocumentReader) => Promise<T>): Promise<T> => {
+    if (destroyed) return Promise.reject(destroyedError())
+    if (!options.fallback)
+      return Promise.reject(
+        new InkError(
+          'EngineUnavailable',
+          "Reading the file's facts and annotations needs the fallback reader"
+        )
+      )
+    return untilDestroyed(call(options.fallback))
+  }
+
   let destroying: Promise<void> | undefined
   return {
     kind: 'engine',
     pageCount,
+    facts: () => fromFallback((reader) => reader.facts()),
     pageInfo,
     draw,
     // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
@@ -776,6 +792,7 @@ export async function createEngineReader(
         signal
       ),
     links,
+    annotations: (page) => fromFallback((reader) => reader.annotations(page)),
     outline,
     resolveDestination,
     destroy() {

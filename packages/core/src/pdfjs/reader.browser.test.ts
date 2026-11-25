@@ -310,15 +310,12 @@ const stringsAndBoxes = (content: TextContent) =>
   content.items.map((i) => [i.str, i.rect.x, i.rect.y, i.rect.width, i.rect.height])
 
 describe('what the PDF.js reader reads besides pixels', () => {
-  /** A PDF.js reader over `doc`'s handles, reading annotations straight from PDF.js. */
+  /** A PDF.js reader over `doc`'s handles. */
   const readerOf = (doc: InkDocument) =>
-    createPdfjsReader(doc._pdfjs, {
-      measure: canvasMeasureChar(),
-      annotations: async (page) => (await doc._pdfjs.getPage(page)).getAnnotations(),
-    })
+    createPdfjsReader(doc._pdfjs, { measure: canvasMeasureChar() })
 
   async function openAny(
-    name: 'text-search' | 'links' | 'outline'
+    name: 'text-search' | 'links' | 'outline' | 'annotated-markup'
   ): Promise<InkDocument> {
     const doc = await openFixtureInBrowser(name)
     cleanup.push(() => void doc.destroy())
@@ -415,6 +412,51 @@ describe('what the PDF.js reader reads besides pixels', () => {
     const dest = await readerOf(doc).resolveDestination('chapter-2')
     expect(dest).toEqual({ page: 1, fit: 'xyz', left: 72, top: 500, zoom: undefined })
     expect(dest).toEqual(await doc.resolveDestination('chapter-2'))
+  })
+
+  it("reads the file's facts the document gives", async () => {
+    const doc = await openAny('text-search')
+    expect(await readerOf(doc).facts()).toEqual({
+      title: 'Inkbar fixture',
+      author: 'Inkbar',
+      encrypted: false,
+    })
+  })
+
+  it('carries on without the metadata when PDF.js cannot read it', async () => {
+    const doc = await openAny('text-search')
+    vi.spyOn(doc._pdfjs.proxy, 'getMetadata').mockRejectedValue(new Error('bad XMP'))
+    expect(await readerOf(doc).facts()).toEqual({ encrypted: false })
+  })
+
+  it("reads a page's annotations in core's shape, in PDF.js's order", async () => {
+    const doc = await openAny('annotated-markup')
+    const annotations = await readerOf(doc).annotations(0)
+    expect(annotations.map((a) => a.subtype)).toEqual([
+      'Highlight',
+      'Underline',
+      'StrikeOut',
+      'Squiggly',
+    ])
+    expect(annotations[0]).toMatchObject({
+      id: '7R',
+      author: 'Ed',
+      contents: 'highlighted',
+      color: [255, 255, 0],
+      opacity: 0.5,
+    })
+  })
+
+  it('reads a page again after a read that rejected', async () => {
+    const doc = await openAny('annotated-markup')
+    const getPage = vi.spyOn(doc._pdfjs, 'getPage')
+    getPage.mockRejectedValueOnce(new Error('page gone'))
+    const reader = readerOf(doc)
+    await expect(reader.annotations(0)).rejects.toThrow('page gone')
+    expect(await reader.annotations(0)).toHaveLength(4)
+    // A page read is kept: a second read asks for the page no more.
+    await reader.annotations(0)
+    expect(getPage).toHaveBeenCalledTimes(2)
   })
 
   it("reads each page's annotations once while it opens, for its own use and the reader's links", async () => {

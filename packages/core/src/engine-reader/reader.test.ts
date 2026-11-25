@@ -1478,46 +1478,55 @@ describe('links, the outline and destinations', () => {
   })
 })
 
-describe('an engine that cannot start', () => {
-  /** What the fallback reader answers, told apart from the engine's by its values. */
-  const fallbackText = { page: 0, items: [] }
-  const fallbackLink = {
-    id: 'pdf:0:1R',
-    page: 0,
-    rect: { x: 0, y: 0, width: 1, height: 1 },
-    target: { kind: 'named', action: 'NextPage' } as const,
-  }
-  const fallbackOutline = [
-    {
-      id: '0',
-      title: 'From the fallback',
-      target: { kind: 'named', action: 'FirstPage' } as const,
-      bold: false,
-      italic: false,
-      open: false,
-      children: [],
-    },
-  ]
-  const fallbackFacts = {
-    index: 0,
-    box: { x: 0, y: 0, width: 100, height: 100 },
-    rotate: 0,
-    userUnit: 1,
-    width: 100,
-    height: 100,
-  } as const
-  const fallback = () => ({
-    kind: 'pdfjs' as const,
-    pageCount: 2,
-    pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
-    draw: vi.fn(() => Promise.resolve()),
-    text: vi.fn(() => Promise.resolve(fallbackText)),
-    links: vi.fn(() => Promise.resolve([fallbackLink])),
-    outline: vi.fn(() => Promise.resolve(fallbackOutline)),
-    resolveDestination: vi.fn(() => Promise.resolve({ page: 1, fit: 'fit' as const })),
-    destroy: vi.fn(() => Promise.resolve()),
-  })
+/** What the fallback reader answers, told apart from the engine's by its values. */
+const fallbackText = { page: 0, items: [] }
+const fallbackLink = {
+  id: 'pdf:0:1R',
+  page: 0,
+  rect: { x: 0, y: 0, width: 1, height: 1 },
+  target: { kind: 'named', action: 'NextPage' } as const,
+}
+const fallbackOutline = [
+  {
+    id: '0',
+    title: 'From the fallback',
+    target: { kind: 'named', action: 'FirstPage' } as const,
+    bold: false,
+    italic: false,
+    open: false,
+    children: [],
+  },
+]
+const fallbackFacts = {
+  index: 0,
+  box: { x: 0, y: 0, width: 100, height: 100 },
+  rotate: 0,
+  userUnit: 1,
+  width: 100,
+  height: 100,
+} as const
+const fileFacts = { title: 'From the fallback', encrypted: false }
+const fileAnnotation = {
+  id: '9R',
+  subtype: 'Square',
+  rect: [0, 0, 10, 10] as [number, number, number, number],
+  hasAppearance: false,
+}
+const fallback = () => ({
+  kind: 'pdfjs' as const,
+  pageCount: 2,
+  facts: vi.fn(() => Promise.resolve(fileFacts)),
+  annotations: vi.fn((_: number) => Promise.resolve([fileAnnotation])),
+  pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
+  draw: vi.fn(() => Promise.resolve()),
+  text: vi.fn(() => Promise.resolve(fallbackText)),
+  links: vi.fn(() => Promise.resolve([fallbackLink])),
+  outline: vi.fn(() => Promise.resolve(fallbackOutline)),
+  resolveDestination: vi.fn(() => Promise.resolve({ page: 1, fit: 'fit' as const })),
+  destroy: vi.fn(() => Promise.resolve()),
+})
 
+describe('an engine that cannot start', () => {
   /**
    * A two-page file whose first engine stops on its first text read, and whose replacement
    * cannot start.
@@ -1709,6 +1718,45 @@ describe('an engine that cannot start', () => {
       notStarted
     )
     expect(t.createEngine).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("the file's facts and annotations", () => {
+  it("reads the file's facts and annotations from the fallback while the engine works", async () => {
+    const t = setup({ pageCount: 2 })
+    const instead = fallback()
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn: t.warn,
+      fallback: instead,
+    })
+    await expect(reader.facts()).resolves.toBe(fileFacts)
+    await expect(reader.annotations(1)).resolves.toEqual([fileAnnotation])
+    expect(instead.annotations).toHaveBeenCalledWith(1)
+    await reader.destroy()
+    await expect(reader.facts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.annotations(0)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    expect(instead.facts).toHaveBeenCalledTimes(1)
+    expect(instead.annotations).toHaveBeenCalledTimes(1)
+  })
+
+  it("without a fallback, the file's facts and annotations reject with EngineUnavailable", async () => {
+    const t = setup({ pageCount: 2 })
+    const reader = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+      password: undefined,
+      warn: t.warn,
+    })
+    await expect(reader.facts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.annotations(0)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
+    await reader.destroy()
   })
 })
 
