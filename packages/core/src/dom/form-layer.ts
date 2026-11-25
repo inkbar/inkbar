@@ -51,7 +51,7 @@ import type {
 } from '../model/form/types'
 import type { Rect } from '../model/geometry'
 import type { Readable } from '../model/readable'
-import type { AppearanceLook } from '../pdfjs/widget-appearance'
+import type { FieldLook } from '../reader/types'
 
 /** A signature field asked to be signed, anchored to its widget's box. */
 export interface SignFieldRequest {
@@ -207,11 +207,8 @@ const isToggle = (field: FormField) => field.type === 'checkbox' || field.type =
  * the file hides; a toggle's on and off looks where `/AP /N` holds them; any other widget's own
  * where the file has an `/AP`.
  */
-function expectedLooks(
-  field: FormField,
-  widget: FormWidget
-): ReadonlySet<AppearanceLook> {
-  const looks = new Set<AppearanceLook>()
+function expectedLooks(field: FormField, widget: FormWidget): ReadonlySet<FieldLook> {
+  const looks = new Set<FieldLook>()
   if (
     widget.hidden ||
     widget.printOnly ||

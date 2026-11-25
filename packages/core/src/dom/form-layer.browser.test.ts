@@ -440,6 +440,28 @@ describe('form layer', () => {
     expect(renders.all()).toBeLessThanOrEqual(8)
   })
 
+  it('draws field appearances through the reader', async () => {
+    const doc = await open('form-fields')
+    const drawn = vi.spyOn(doc._reader, 'drawFields')
+    const p = mountPage(doc, { zoom: 1.5 })
+    await settled(p)
+    const calls = drawn.mock.calls.map(([request]) => request)
+    expect(calls.map((request) => request.look).sort()).toEqual([
+      'checked',
+      'own',
+      'unchecked',
+    ])
+    const widgets = widgetsOnPage(doc, 0)
+    for (const request of calls) {
+      expect(request.page).toBe(0)
+      expect(request.zoom).toBe(1.5)
+      expect(request.ids.size).toBeGreaterThan(0)
+      for (const id of request.ids) expect(widgets.map((w) => w.id)).toContain(id)
+    }
+    const own = calls.find((request) => request.look === 'own')!
+    expect(own.ids).toContain(p.widgetOf('name').id)
+  })
+
   it('hides an appearance drawn at another rotation until its new one lands', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)

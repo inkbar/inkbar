@@ -10,7 +10,7 @@ import { readOutline } from './outline'
 import { structureAnnotationOrder } from './structure'
 import { readTextContent } from './text-content'
 import { textContentFromPdfjs } from './text-items'
-import { omitAppearances } from './widget-appearance'
+import { omitAppearances, renderAppearances } from './widget-appearance'
 
 import type { PdfjsAnnotationData, PdfjsPage } from './types'
 import type { InkDocument } from '../model/document'
@@ -79,6 +79,8 @@ export function createPdfjsReader(
       return pageInfoFromProxy(await handles.getPage(index), index)
     },
     draw: (request, canvas, signal) => draw(handles, request, canvas, signal),
+    drawFields: (request, canvas, signal) =>
+      renderAppearances(handles, request, canvas, signal),
     text: (page, { glyphs, signal }) => text(handles, deps.measure, page, glyphs, signal),
     async links(page) {
       const annotations = await pdfjsAnnotations(page)

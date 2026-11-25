@@ -18,16 +18,16 @@
 //
 // Inline styles are structural or geometric: the layer is `position:absolute; inset:0;
 // overflow:hidden` over the page, and each canvas is placed at its widget's rect.
-import { renderAppearances, type AppearanceLook } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
 
 import type { PageTransform } from './transform'
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
+import type { FieldLook } from '../reader/types'
 
 /** Which appearance a widget shows: its own, one of a toggle's two, or none. */
-export type WidgetLook = AppearanceLook | null
+export type WidgetLook = FieldLook | null
 
 export interface AppearanceWidget {
   /** Widget (annotation) id. */
@@ -41,7 +41,7 @@ export interface AppearanceWidget {
    * and with an appearance stream for the look. A pass that finds none of the widgets that
    * expect its look reports an error.
    */
-  expects: ReadonlySet<AppearanceLook>
+  expects: ReadonlySet<FieldLook>
 }
 
 export interface WidgetAppearancesOptions {
@@ -87,7 +87,7 @@ export const SCRATCH_BUDGET = 4_000_000
 /** Failed draws of one look at one geometry before the layer stops retrying it. */
 const ATTEMPTS = 2
 
-type Look = AppearanceLook
+type Look = FieldLook
 
 interface Geometry {
   x: number
@@ -480,19 +480,18 @@ export function createWidgetAppearances(
     scratch.height = u.height
     const rotation = transform.totalRotation
     try {
-      const found = await renderAppearances(
-        doc,
+      const found = await doc._reader.drawFields(
         {
           page,
           look,
           ids: new Set(members.map((m) => m.item.widget.id)),
-          canvas: scratch,
           zoom: transform.zoom,
           rotation,
-          devicePixelRatio: dpr,
+          pixelRatio: dpr,
           x: u.x,
           y: u.y,
         },
+        scratch,
         pass.abort.signal
       )
       if (destroyed) return

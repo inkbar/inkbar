@@ -765,6 +765,8 @@ export async function createEngineReader(
     facts: () => fromFallback((reader) => reader.facts()),
     pageInfo,
     draw,
+    drawFields: (request, canvas, signal) =>
+      fromFallback((reader) => reader.drawFields(request, canvas, signal)),
     // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
     // gets an object and list of its own, as the PDF.js reader gives: one that sorts or edits
     // them leaves the kept text as it was.
