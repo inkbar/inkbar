@@ -70,11 +70,13 @@ async function text(
   signal?.throwIfAborted()
   const p = await handles.getPage(page)
   signal?.throwIfAborted()
-  const tc = await readTextContent(p, signal)
+  const tc = await readTextContent(p, signal, handles.textReads)
   // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
   const placed =
     glyphs && tc.items.length > 0
-      ? await pageGlyphs(p, handles.module).catch(() => undefined)
+      ? await handles.textReads
+          .track(() => pageGlyphs(p, handles.module))
+          ?.catch(() => undefined)
       : undefined
   signal?.throwIfAborted()
   return textContentFromPdfjs(page, tc, measure, placed)
