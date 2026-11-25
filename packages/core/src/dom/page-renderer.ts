@@ -6,7 +6,7 @@ import { readonly, writable, type Readable } from '../model/readable'
 import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
-import { hiddenFromPdfjsIds } from './draw-request'
+import { hiddenFromIds, pageCanvasSize } from './draw-request'
 
 import type { PageTransform } from './transform'
 import type { InkDocument } from '../model/document'
@@ -152,9 +152,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
           rotation: transform.totalRotation,
           zoom: transform.zoom,
           pixelRatio: dpr,
-          width: Math.round(transform.cssWidth * dpr),
-          height: Math.round(transform.cssHeight * dpr),
-          hide: hiddenFromPdfjsIds(hidden),
+          ...pageCanvasSize(transform, dpr),
+          hide: hiddenFromIds(hidden, page),
         },
         canvas,
         ownController.signal

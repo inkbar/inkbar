@@ -1,18 +1,40 @@
-// Pieces of a reader's draw request that the page canvas and the loupe build alike.
+// Pieces of a reader's draw request that the page canvas, the loupe and the field appearances
+// build alike.
 import { refOfPdfjsId } from '../pdf/annotation-fields'
 
-import { createPageTransform, normalizeRotation } from './transform'
+import { createPageTransform, normalizeRotation, type PageTransform } from './transform'
 
 import type { Rect } from '../model/geometry'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { HiddenAppearance } from '../reader/types'
 
-/** The annotations PDF.js ids name, as a draw request leaves them out. */
-export function hiddenFromPdfjsIds(ids: Iterable<string>): HiddenAppearance[] {
+/** An id the engine reader gives an annotation written as a direct object: page, place in `/Annots`. */
+const DIRECT_ID = /^p(\d+)i(\d+)$/
+
+/**
+ * The annotations `ids` name, as a draw of page `page` leaves them out: by object number, or for
+ * one written as a direct object on that page by its place in `/Annots` when its id tells it.
+ */
+export function hiddenFromIds(ids: Iterable<string>, page: number): HiddenAppearance[] {
   return [...ids].map((id) => {
     const ref = refOfPdfjsId(id)
-    return ref ? { id, objectNumber: ref.num } : { id }
+    if (ref) return { id, objectNumber: ref.num }
+    const direct = DIRECT_ID.exec(id)
+    return direct && Number(direct[1]) === page
+      ? { id, index: Number(direct[2]) }
+      : { id }
   })
+}
+
+/** The page canvas's size in device pixels: the page's CSS size at `pixelRatio`, rounded. */
+export function pageCanvasSize(
+  transform: Pick<PageTransform, 'cssWidth' | 'cssHeight'>,
+  pixelRatio: number
+): { width: number; height: number } {
+  return {
+    width: Math.round(transform.cssWidth * pixelRatio),
+    height: Math.round(transform.cssHeight * pixelRatio),
+  }
 }
 
 /**

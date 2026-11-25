@@ -9,6 +9,7 @@ import { fontUrls } from '@inkbar/fonts'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { hiddenFromIds, pageCanvasSize } from '../dom/draw-request'
 import { createLoupeLayer } from '../dom/loupe-layer'
 import { createPageRenderer } from '../dom/page-renderer'
 import { mountContainer, openFixtureInBrowser, until } from '../dom/test-utils'
@@ -172,6 +173,50 @@ describe('the engine reader, behind the switch', () => {
     const canvas = lens.querySelector('canvas')!
     await until(() => canvas.width > 0)
     expect(darkPixels(canvas, 0, 0, canvas.width, canvas.height)).toBeGreaterThan(50)
+  })
+
+  it('leaves out an annotation written as a direct object, named by its place in /Annots', async () => {
+    const doc = await open('annot-direct')
+    const listed = await doc._reader.annotations(0)
+    expect(listed.map((a) => a.id)).toEqual([
+      expect.stringMatching(/^\d+R$/),
+      'p0i1',
+      'p0i2',
+    ])
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const draw = async (hide: string[]) => {
+      const canvas = document.createElement('canvas')
+      await doc._reader.draw(
+        {
+          page: 0,
+          rotation: t.totalRotation,
+          zoom: 1,
+          pixelRatio: 1,
+          ...pageCanvasSize(t, 1),
+          hide: hiddenFromIds(hide, 0),
+        },
+        canvas
+      )
+      return canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+    }
+    const all = await draw([])
+    const without = await draw(['p0i1'])
+    // The same place on another page names nothing here.
+    expect((await draw(['p1i1'])).data).toEqual(all.data)
+    // Only the inline square's pixels change, and they do.
+    const [x1, y1, x2, y2] = listed[1]!.rect
+    const box = t.toCssRect({ x: x1, y: y1, width: x2 - x1, height: y2 - y1 })
+    let inside = 0
+    for (let i = 0; i < all.data.length; i += 4) {
+      const same = [0, 1, 2].every((c) => all.data[i + c] === without.data[i + c])
+      if (same) continue
+      const x = (i / 4) % all.width
+      const y = Math.floor(i / 4 / all.width)
+      expect(x >= Math.floor(box.left) && x < Math.ceil(box.left + box.width)).toBe(true)
+      expect(y >= Math.floor(box.top) && y < Math.ceil(box.top + box.height)).toBe(true)
+      inside++
+    }
+    expect(inside).toBeGreaterThan(100)
   })
 
   it('opens an encrypted file with its password and draws it', async () => {

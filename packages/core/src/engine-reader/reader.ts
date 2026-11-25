@@ -12,6 +12,12 @@ import {
 import { InkError, isInkError } from '../model/errors'
 
 import { fileAnnotationsFromEngine } from './annotations'
+import {
+  fieldAnnotations,
+  fieldPlaces,
+  fieldRegion,
+  type FieldPlaces,
+} from './fields-draw'
 import { annotationId, textOf } from './file-values'
 import { fileFieldsFromEngine, widgetContexts } from './form'
 import { linksFromFacts, outlineFromFacts } from './links'
@@ -21,6 +27,7 @@ import { nameBytes, rawDestination, refKey, type RefPages } from './targets'
 import type {
   FileDestinationShape,
   FormFactsShape,
+  PageAnnotationsShape,
   ReaderEngine,
   ReaderEngineDocument,
 } from './types'
@@ -30,7 +37,7 @@ import type { PageInfo, PageRotation } from '../model/pages'
 import type { EngineLoader } from '../model/save/saver'
 import type { TextContent } from '../model/text'
 import type { FileAnnotation, FileFacts, FileField } from '../reader/file'
-import type { DocumentReader, DrawRequest } from '../reader/types'
+import type { DocumentReader, DrawRequest, FieldDrawRequest } from '../reader/types'
 
 /**
  * @internal The most pixels the engine draws in one bitmap. A larger canvas is drawn at the
@@ -69,9 +76,9 @@ export interface EngineReaderOptions {
    * with. A host can see the switch: text read again for a page has the fallback's item
    * boundaries (the text the reader kept is dropped when it happens), and where the two readers
    * differ, pages read after it differ from pages read before. The page facts the engine gave
-   * are kept, and links keep their ids, which both readers give alike. The file's scripts, its
-   * fields' appearances and the sandbox's fields always come from it; without it they reject
-   * with EngineUnavailable.
+   * are kept, and links keep their ids, which both readers give alike. Its fields' appearances
+   * come from it then too. The file's scripts and the sandbox's fields always come from it;
+   * without it they reject with EngineUnavailable.
    */
   fallback?: DocumentReader
   /** Called once, when the reader turns to `fallback`. */
@@ -470,8 +477,13 @@ export async function createEngineReader(
       const info = await pageInfo(page)
       let bitmap: Bitmap | undefined
       if (width >= 1 && height >= 1) {
-        const hide = request.hide.flatMap((h) =>
-          h.objectNumber === undefined ? [] : [h.objectNumber]
+        // One written as a direct object is named by its place in `/Annots`, when known.
+        const hide = request.hide.flatMap((h): (number | { index: number })[] =>
+          h.objectNumber !== undefined
+            ? [h.objectNumber]
+            : h.index !== undefined
+              ? [{ index: h.index }]
+              : []
         )
         bitmap = await run(
           (doc) =>
@@ -497,6 +509,78 @@ export async function createEngineReader(
       paint(canvas, bitmap, width, height)
     } catch (error) {
       // The caller tells a superseded draw by its own reason, so that one wins.
+      throw signal?.aborted ? signal.reason : destroyed ? destroyedError() : error
+    } finally {
+      signal?.removeEventListener('abort', stop)
+      stopped.signal.removeEventListener('abort', stop)
+    }
+  }
+
+  const drawFields = (
+    request: FieldDrawRequest,
+    canvas: HTMLCanvasElement,
+    signal?: AbortSignal
+  ): Promise<Set<string>> =>
+    orFallback(
+      () => engineDrawFields(request, canvas, signal),
+      (reader) => reader.drawFields(request, canvas, signal),
+      signal
+    )
+
+  /**
+   * Draws the pass's widgets with the engine in one call over the part of the page the canvas
+   * shows, at the page canvas's size and turn, so each lands on the pixels the page gives it. The
+   * canvas is left as it is until the engine answers, and when the pass has nothing to draw.
+   */
+  const engineDrawFields = async (
+    request: FieldDrawRequest,
+    canvas: HTMLCanvasElement,
+    signal?: AbortSignal
+  ): Promise<Set<string>> => {
+    const render = new AbortController()
+    const stop = (): void => render.abort()
+    signal?.addEventListener('abort', stop)
+    stopped.signal.addEventListener('abort', stop)
+    try {
+      if (destroyed) throw destroyedError()
+      signal?.throwIfAborted()
+      const { page } = request
+      const info = await pageInfo(page)
+      const { annotations, idAt } = fieldAnnotations(
+        await placesOf(page),
+        request.ids,
+        request.look
+      )
+      const { width, height } = canvas
+      const region =
+        annotations.length > 0 && width >= 1 && height >= 1
+          ? fieldRegion(info, request, width, height)
+          : undefined
+      const bitmap =
+        region &&
+        (await run(
+          (doc) =>
+            doc.renderAnnotations(page, {
+              annotations,
+              region,
+              size: fit(width, height),
+              rotation: normaliseRotation(request.rotation - info.rotate),
+              signal: render.signal,
+            }),
+          signal
+        ))
+      // Finished just as the caller moved on or the document went: the canvas is not touched.
+      if (destroyed) throw destroyedError()
+      signal?.throwIfAborted()
+      const found = new Set<string>()
+      if (!bitmap) return found
+      for (const index of bitmap.drawn) {
+        const id = idAt.get(index)
+        if (id !== undefined) found.add(id)
+      }
+      paint(canvas, bitmap, width, height)
+      return found
+    } catch (error) {
       throw signal?.aborted ? signal.reason : destroyed ? destroyedError() : error
     } finally {
       signal?.removeEventListener('abort', stop)
@@ -849,6 +933,27 @@ export async function createEngineReader(
   }
 
   /**
+   * Each page's widgets the page canvas shows, where `/Annots` holds them and their states, for
+   * drawing their appearances. Taken from the page's annotations read when the open reads them,
+   * and kept after `forgetAnnotations`: a few numbers a widget. A read that rejects is not kept.
+   */
+  const fieldReads = new Map<number, Promise<FieldPlaces>>()
+  const placesOf = (page: number): Promise<FieldPlaces> => {
+    let read = fieldReads.get(page)
+    if (!read) {
+      const made = pageFacts(page).then(({ facts, form }) =>
+        fieldPlaces(page, facts, form)
+      )
+      fieldReads.set(page, made)
+      made.catch(() => {
+        if (fieldReads.get(page) === made) fieldReads.delete(page)
+      })
+      read = made
+    }
+    return read
+  }
+
+  /**
    * A page's annotations from the engine, as the PDF.js reader lists them. A page with a widget
    * or a FreeText also takes what the form says about them; a form a working engine cannot read
    * leaves them without it. A page cut short at the engine's limit gives what was read.
@@ -857,6 +962,25 @@ export async function createEngineReader(
     page: number,
     onGone: () => void
   ): Promise<FileAnnotation[]> => {
+    const { facts, form } = await pageFacts(page, onGone)
+    if (!fieldReads.has(page))
+      fieldReads.set(page, Promise.resolve(fieldPlaces(page, facts, form)))
+    let context
+    if (form) {
+      contexts ??= widgetContexts(form)
+      context = contexts.get(page)
+    }
+    return fileAnnotationsFromEngine(page, facts, context)
+  }
+
+  /**
+   * A page's annotation facts and, for a page with a widget or a FreeText, the form's; a form a
+   * working engine cannot read is left out.
+   */
+  const pageFacts = async (
+    page: number,
+    onGone?: () => void
+  ): Promise<{ facts: PageAnnotationsShape; form: FormFactsShape | undefined }> => {
     const facts = await run(
       (doc) => doc.pageAnnotations(page),
       undefined,
@@ -866,22 +990,17 @@ export async function createEngineReader(
     const needsForm = facts.annotations.some(
       (a) => a.subtype === 'Widget' || a.subtype === 'FreeText'
     )
-    let context
-    if (needsForm) {
-      const form = await orElse<FormFactsShape | undefined>(
-        (gone) =>
-          formFacts(() => {
-            gone()
-            onGone()
-          }),
-        () => undefined
-      )
-      if (form) {
-        contexts ??= widgetContexts(form)
-        context = contexts.get(page)
-      }
-    }
-    return fileAnnotationsFromEngine(page, facts, context)
+    const form = needsForm
+      ? await orElse<FormFactsShape | undefined>(
+          (gone) =>
+            formFacts(() => {
+              gone()
+              onGone?.()
+            }),
+          () => undefined
+        )
+      : undefined
+    return { facts, form }
   }
 
   /**
@@ -1011,7 +1130,7 @@ export async function createEngineReader(
       return Promise.reject(
         new InkError(
           'EngineUnavailable',
-          "Reading the file's scripts and drawing its fields needs the fallback reader"
+          "Reading the file's scripts and the sandbox's fields needs the fallback reader"
         )
       )
     return untilDestroyed(call(options.fallback))
@@ -1024,8 +1143,7 @@ export async function createEngineReader(
     facts: fileFacts,
     pageInfo,
     draw,
-    drawFields: (request, canvas, signal) =>
-      fromFallback((reader) => reader.drawFields(request, canvas, signal)),
+    drawFields,
     // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
     // gets an object and list of its own, as the PDF.js reader gives: one that sorts or edits
     // them leaves the kept text as it was.
@@ -1072,6 +1190,7 @@ export async function createEngineReader(
       formRead = undefined
       contexts = undefined
       pageReads.clear()
+      fieldReads.clear()
       const last = current
       current = undefined
       // A session still starting frees itself when it finds the reader destroyed.
@@ -1137,7 +1256,7 @@ const CONTEXT: CanvasRenderingContext2DSettings = { willReadFrequently: true }
  */
 function paint(
   canvas: HTMLCanvasElement,
-  bitmap: Bitmap,
+  bitmap: Pick<Bitmap, 'width' | 'height' | 'data'>,
   width: number,
   height: number
 ): void {

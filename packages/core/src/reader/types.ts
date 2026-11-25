@@ -10,13 +10,15 @@ import type { PageInfo, PageRotation } from '../model/pages'
 import type { TextContent } from '../model/text'
 
 /**
- * An annotation the canvas leaves out. `objectNumber` is absent for one stored as a direct object.
+ * An annotation the canvas leaves out. `objectNumber` is absent for one stored as a direct object;
+ * `index`, its place in the page's `/Annots`, is then given when its id tells it.
  *
  * @internal
  */
 export interface HiddenAppearance {
   id: string
   objectNumber?: number
+  index?: number
 }
 
 /** @internal */

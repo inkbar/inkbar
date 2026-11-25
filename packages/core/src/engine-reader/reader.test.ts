@@ -7,10 +7,12 @@ import { explicitDest } from './test-utils'
 
 import type { ReaderEngine, ReaderEngineDocument } from './types'
 import type { EngineLoader } from '../model/save/saver'
-import type { DrawRequest } from '../reader/types'
+import type { DrawRequest, FieldDrawRequest } from '../reader/types'
 import type * as EngineModule from '@inkbar/engine'
 
 type RenderOptions = Parameters<ReaderEngineDocument['renderPage']>[1]
+type FieldRenderOptions = Parameters<ReaderEngineDocument['renderAnnotations']>[1]
+type FieldsRendered = Awaited<ReturnType<ReaderEngineDocument['renderAnnotations']>>
 type Rendered = Awaited<ReturnType<ReaderEngineDocument['renderPage']>>
 type PageTextResult = Awaited<ReturnType<ReaderEngineDocument['pageText']>>
 type PageLinksResult = Awaited<ReturnType<ReaderEngineDocument['pageLinks']>>
@@ -166,11 +168,22 @@ function setup(
     formFields?: (engine: EngineState) => Promise<FormResult>
     /** What `structureOrder` answers; by default no order. */
     structureOrder?: (index: number, engine: EngineState) => Promise<OrderResult>
+    /**
+     * What `renderAnnotations` answers; by default a bitmap of the size asked with every entry
+     * drawn. A rejection with `engine-failure` stops the engine.
+     */
+    renderAnnotations?: (
+      index: number,
+      options: FieldRenderOptions,
+      engine: EngineState
+    ) => Promise<FieldsRendered>
   } = {}
 ) {
   const engines: FakeEngine[] = []
   const states: EngineState[] = []
   const renders: { index: number; options: RenderOptions; engine: number }[] = []
+  const fieldRenders: { index: number; options: FieldRenderOptions; engine: number }[] =
+    []
   const render: RenderFn =
     opts.render ?? ((_, __, options) => Promise.resolve(bitmap(options)))
   const createEngine = vi.fn((): Promise<FakeEngine> => {
@@ -283,6 +296,21 @@ function setup(
             : { order: [], truncated: false }
         )
       ),
+      renderAnnotations: vi.fn<ReaderEngineDocument['renderAnnotations']>(
+        (index, options) => {
+          fieldRenders.push({ index, options, engine: state.index })
+          return stopping(() =>
+            opts.renderAnnotations
+              ? opts.renderAnnotations(index, options, state)
+              : {
+                  width: options.size.width,
+                  height: options.size.height,
+                  data: new Uint8ClampedArray(4),
+                  drawn: options.annotations.map((a) => a.index),
+                }
+          )
+        }
+      ),
       close: vi.fn(() => Promise.resolve()),
     }
     const engine: FakeEngine = {
@@ -305,7 +333,7 @@ function setup(
       password: undefined,
       warn,
     })
-  return { engines, states, renders, createEngine, loader, warn, open }
+  return { engines, states, renders, fieldRenders, createEngine, loader, warn, open }
 }
 
 /**
@@ -537,14 +565,20 @@ describe('drawing', () => {
     expect(context.drawImage).not.toHaveBeenCalled()
   })
 
-  it('hides the annotations it has object numbers for', async () => {
+  it('hides the annotations it has object numbers or places in /Annots for', async () => {
     const t = setup()
     const reader = await t.open()
     await reader.draw(
-      request({ hide: [{ id: '12R', objectNumber: 12 }, { id: 'annot_4' }] }),
+      request({
+        hide: [
+          { id: '12R', objectNumber: 12 },
+          { id: 'annot_4' },
+          { id: 'p0i3', index: 3 },
+        ],
+      }),
       fakeCanvas().canvas
     )
-    expect(t.renders[0]!.options.hide).toEqual([12])
+    expect(t.renders[0]!.options.hide).toEqual([12, { index: 3 }])
   })
 
   it('draws an oversized request smaller and stretches it onto the canvas', async () => {
@@ -1633,7 +1667,7 @@ describe('an engine that cannot start', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 
-  it("then text, links, the outline, names, pixels and the file's facts, annotations, form and Tab order come from the fallback, with no engine started again", async () => {
+  it("then text, links, the outline, names, pixels, field appearances and the file's facts, annotations, form and Tab order come from the fallback, with no engine started again", async () => {
     const { t, reader, instead } = await stopsThenCannotStart()
     await reader.text(0, { glyphs: false })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
@@ -1651,6 +1685,9 @@ describe('an engine that cannot start', () => {
       })
       const { canvas } = fakeCanvas()
       await reader.draw(request({ page: 1 }), canvas)
+      const fields = { ...fieldRequest, page: 1 }
+      await expect(reader.drawFields(fields, canvas)).resolves.toEqual(new Set(['9R']))
+      expect(instead.drawFields).toHaveBeenLastCalledWith(fields, canvas, undefined)
     }
     expect(instead.links).toHaveBeenCalledTimes(3)
     expect(instead.facts).toHaveBeenCalledTimes(3)
@@ -1660,6 +1697,7 @@ describe('an engine that cannot start', () => {
     expect(instead.outline).toHaveBeenCalledTimes(3)
     expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
     expect(instead.draw).toHaveBeenCalledTimes(3)
+    expect(instead.drawFields).toHaveBeenCalledTimes(3)
     // An explicit destination needs no reader.
     await expect(reader.resolveDestination([1, { name: 'Fit' }])).resolves.toEqual({
       page: 1,
@@ -2079,7 +2117,7 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await reader.destroy()
   })
 
-  it('without a fallback, the scripts, field drawing and sandbox fields reject with EngineUnavailable', async () => {
+  it('without a fallback, the scripts and sandbox fields reject with EngineUnavailable', async () => {
     const { reader } = await opened({}, false)
     await expect(reader.facts()).resolves.toMatchObject({ encrypted: true })
     await expect(reader.scripts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
@@ -2089,27 +2127,15 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await expect(reader.sandboxFields()).rejects.toMatchObject({
       code: 'EngineUnavailable',
     })
-    await expect(
-      reader.drawFields(fieldRequest, fakeCanvas().canvas)
-    ).rejects.toMatchObject({
-      code: 'EngineUnavailable',
-    })
     await reader.destroy()
   })
 
-  it('reads the scripts, draws the fields and gives the sandbox fields from the fallback', async () => {
+  it('reads the scripts and gives the sandbox fields from the fallback', async () => {
     const { reader, instead } = await opened()
     await expect(reader.scripts()).resolves.toBe(fileScripts)
     await expect(reader.pageScripts(1)).resolves.toBe(pageScripts)
     expect(instead.pageScripts).toHaveBeenCalledWith(1)
     await expect(reader.sandboxFields()).resolves.toBe(sandboxFields)
-    const fields = { ...fieldRequest }
-    const { canvas } = fakeCanvas()
-    const controller = new AbortController()
-    await expect(reader.drawFields(fields, canvas, controller.signal)).resolves.toEqual(
-      new Set(['9R'])
-    )
-    expect(instead.drawFields).toHaveBeenCalledWith(fields, canvas, controller.signal)
     await reader.destroy()
     await expect(reader.scripts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.pageScripts(0)).rejects.toMatchObject({
@@ -2118,13 +2144,10 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await expect(reader.sandboxFields()).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
-    await expect(reader.drawFields(fields, canvas)).rejects.toMatchObject({
-      code: 'DocumentDestroyed',
-    })
     expect(instead.scripts).toHaveBeenCalledTimes(1)
     expect(instead.pageScripts).toHaveBeenCalledTimes(1)
     expect(instead.sandboxFields).toHaveBeenCalledTimes(1)
-    expect(instead.drawFields).toHaveBeenCalledTimes(1)
+    expect(instead.drawFields).not.toHaveBeenCalled()
   })
 })
 
@@ -2158,5 +2181,187 @@ describe('superseded draws', () => {
     expect(t.renders.filter((r) => r.options.signal?.aborted)).toHaveLength(19)
     expect(context.putImageData).toHaveBeenCalledTimes(1)
     expect(t.createEngine).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('field appearances', () => {
+  /** A checkbox's widget, object 21, off, at /Annots place 1. */
+  const box: AnnotationsResult['annotations'][number] = {
+    index: 1,
+    subtype: 'Widget',
+    objectNumber: 21,
+    generation: 0,
+    rect: [100, 100, 120, 120],
+    rectOk: true,
+    flags: 4,
+    hasAppearance: true,
+    appearanceStates: ['Off', 'Yes'],
+    appearanceState: 'Off',
+  }
+  /** Page 0: the Square (object 9) at 0, the checkbox at 1 and the text field's widget (object 20) at 2. */
+  const page: AnnotationsResult = {
+    annotations: [
+      squareAndWidget.annotations[0]!,
+      box,
+      { ...squareAndWidget.annotations[1]!, index: 2 },
+    ],
+    truncated: false,
+  }
+  const form: FormResult = {
+    ...formWithText(2),
+    fields: [
+      textField(2),
+      {
+        name: 'agree',
+        kind: 'checkbox',
+        flags: 0,
+        valueKind: 'name',
+        value: 'Off',
+        defaultValueKind: 'none',
+        widgets: [{ ...box, page: 0, onState: 'Yes', scripts: {} }],
+      },
+    ],
+  }
+  const opened = async (over: Parameters<typeof setup>[0] = {}) => {
+    const t = setup({
+      pageAnnotations: () => Promise.resolve(page),
+      formFields: () => Promise.resolve(form),
+      ...over,
+    })
+    return { t, reader: await t.open() }
+  }
+  /** A pass at zoom 2 whose 300 × 150 canvas sits at device pixel (200, 1300). */
+  const pass = (over: Partial<FieldDrawRequest> = {}): FieldDrawRequest => ({
+    page: 0,
+    look: 'own',
+    ids: new Set(['20R', '21R', '9R']),
+    zoom: 2,
+    rotation: 0,
+    pixelRatio: 1,
+    x: 200,
+    y: 1300,
+    ...over,
+  })
+
+  it('draws a pass in one engine call over the part of the page its canvas shows', async () => {
+    const { t, reader } = await opened()
+    await reader.annotations(0)
+    const { canvas, context } = fakeCanvas()
+    await expect(reader.drawFields(pass(), canvas)).resolves.toEqual(
+      new Set(['20R', '21R'])
+    )
+    expect(t.fieldRenders).toHaveLength(1)
+    // The Square is no field; the widgets go in /Annots order.
+    expect(t.fieldRenders[0]!.options).toMatchObject({
+      annotations: [{ index: 1 }, { index: 2 }],
+      // Device pixels 200 to 500 across and 1300 to 1450 down, at 2 a point.
+      region: { x: 100, y: 67, width: 150, height: 75 },
+      size: { width: 300, height: 150 },
+      rotation: 0,
+    })
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    // The page's annotations are read once, for the list and for the draw.
+    expect(t.engines[0]!.doc.pageAnnotations).toHaveBeenCalledTimes(1)
+    await reader.destroy()
+  })
+
+  it('draws a toggle’s on-state for checked and Off for unchecked, and nothing of other fields', async () => {
+    const { t, reader } = await opened()
+    await reader.drawFields(pass({ look: 'checked' }), fakeCanvas().canvas)
+    await reader.drawFields(pass({ look: 'unchecked' }), fakeCanvas().canvas)
+    expect(t.fieldRenders.map((r) => r.options.annotations)).toEqual([
+      [{ index: 1, state: 'Yes' }],
+      [{ index: 1, state: 'Off' }],
+    ])
+    await reader.destroy()
+  })
+
+  it('resolves with the ids the engine drew', async () => {
+    const { reader } = await opened({
+      renderAnnotations: (_, options) =>
+        Promise.resolve({
+          width: options.size.width,
+          height: options.size.height,
+          data: new Uint8ClampedArray(4),
+          drawn: [2],
+        }),
+    })
+    await expect(reader.drawFields(pass(), fakeCanvas().canvas)).resolves.toEqual(
+      new Set(['20R'])
+    )
+    await reader.destroy()
+  })
+
+  it('asks nothing of the engine, and leaves the canvas, for a pass with nothing to draw', async () => {
+    const { t, reader } = await opened()
+    const { canvas, raw, context } = fakeCanvas()
+    await expect(
+      reader.drawFields(pass({ ids: new Set(['9R']) }), canvas)
+    ).resolves.toEqual(new Set())
+    expect(t.fieldRenders).toHaveLength(0)
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect([raw.width, raw.height]).toEqual([300, 150])
+    await reader.destroy()
+  })
+
+  /** An engine draw that waits until its signal aborts, then rejects as the engine does. */
+  const waitsForAbort = (_: number, options: FieldRenderOptions) =>
+    new Promise<FieldsRendered>((_resolve, reject) =>
+      options.signal?.addEventListener('abort', () => reject(engineError('aborted')), {
+        once: true,
+      })
+    )
+
+  it('rejects with the signal’s reason once it aborts mid-draw, the canvas untouched', async () => {
+    const { t, reader } = await opened({ renderAnnotations: waitsForAbort })
+    const { canvas, raw, context } = fakeCanvas()
+    const controller = new AbortController()
+    const reason = new Error('moved on')
+    const drawing = reader.drawFields(pass(), canvas, controller.signal)
+    await vi.waitFor(() => expect(t.fieldRenders).toHaveLength(1))
+    controller.abort(reason)
+    await expect(drawing).rejects.toBe(reason)
+    expect(t.fieldRenders[0]!.options.signal?.aborted).toBe(true)
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect([raw.width, raw.height]).toEqual([300, 150])
+    await reader.destroy()
+  })
+
+  it('rejects with DocumentDestroyed once destroyed mid-draw, the canvas untouched', async () => {
+    const { t, reader } = await opened({ renderAnnotations: waitsForAbort })
+    const { canvas, context } = fakeCanvas()
+    const drawing = reader.drawFields(pass(), canvas)
+    await vi.waitFor(() => expect(t.fieldRenders).toHaveLength(1))
+    await reader.destroy()
+    await expect(drawing).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    expect(context.putImageData).not.toHaveBeenCalled()
+    await expect(reader.drawFields(pass(), canvas)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+  })
+
+  it('draws again on a new engine once the engine stops under the draw, and rejects when that one stops too', async () => {
+    let stops = 1
+    const { t, reader } = await opened({
+      renderAnnotations: (_, options) =>
+        stops-- > 0
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve({
+              width: options.size.width,
+              height: options.size.height,
+              data: new Uint8ClampedArray(4),
+              drawn: [1],
+            }),
+    })
+    await expect(reader.drawFields(pass(), fakeCanvas().canvas)).resolves.toEqual(
+      new Set(['21R'])
+    )
+    expect(t.fieldRenders.map((r) => r.engine)).toEqual([0, 1])
+    stops = 2
+    await expect(reader.drawFields(pass(), fakeCanvas().canvas)).rejects.toMatchObject({
+      code: 'engine-failure',
+    })
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    await reader.destroy()
   })
 })

@@ -13,7 +13,7 @@ import { loupeRegion } from '../model/annotations/drawing/loupe'
 import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio, type DprWatch } from './dpr-watch'
-import { hiddenFromPdfjsIds, regionCanvasSize } from './draw-request'
+import { hiddenFromIds, regionCanvasSize } from './draw-request'
 import { drawingFor } from './drawing-context'
 
 import type { PageTransform } from './transform'
@@ -117,7 +117,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
           pixelRatio,
           ...regionCanvasSize(info, region, zoom * pixelRatio, rotation),
           region,
-          hide: hiddenFromPdfjsIds(hiddenAppearances(opts.document)),
+          hide: hiddenFromIds(hiddenAppearances(opts.document), page),
         },
         next,
         controller.signal

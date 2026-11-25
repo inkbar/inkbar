@@ -1,6 +1,6 @@
 // Test support only, never production code: browser tests import it. A region of a page drawn
 // as the loupe draws it, for a test to compare a lens or a page canvas against.
-import { hiddenFromPdfjsIds, regionCanvasSize } from '../dom/draw-request'
+import { hiddenFromIds, regionCanvasSize } from '../dom/draw-request'
 import { normalizeRotation } from '../dom/transform'
 import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
@@ -33,7 +33,7 @@ export function renderRegion(
       pixelRatio: 1,
       ...regionCanvasSize(info, userRect, scale, turn),
       region: userRect,
-      hide: hiddenFromPdfjsIds(hiddenAppearances(doc)),
+      hide: hiddenFromIds(hiddenAppearances(doc), page),
     },
     canvas,
     signal
