@@ -12,6 +12,99 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annot-direct 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "contents": "An indirect Square",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#0000FF",
+        "contents": "A Square written inline",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:annot_p0_1",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#FFFF00",
+        "contents": "A Highlight written inline",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:annot_p0_2",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 560,
+            },
+            "p2": {
+              "x": 272,
+              "y": 560,
+            },
+            "p3": {
+              "x": 72,
+              "y": 540,
+            },
+            "p4": {
+              "x": 272,
+              "y": 540,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 200,
+          "x": 72,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+    ],
+    "counts": {
+      "Highlight": 1,
+      "Square": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-markup 1`] = `
 [
   {
@@ -1850,6 +1943,18 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-rollover 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-scripted 1`] = `
 [
   {
@@ -1904,6 +2009,18 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 `;
 
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-timer 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-tree 1`] = `
 [
   {
     "annotations": [],
@@ -4493,6 +4610,16 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 `;
 
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: scanned-no-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: script-page-only 1`] = `
 [
   {
     "annotations": [],

@@ -9,6 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const scratchRoot = join(here, '.tmp')
 
 const SECONDARY = [
+  'generate-form-edges.ts',
   'generate-links.ts',
   'generate-redaction.ts',
   'generate-scripts.ts',

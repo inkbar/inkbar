@@ -1,0 +1,66 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 12 Tf 0 g) >> >>
+endobj
+2 0 obj
+<< /Title (Form edge fixture) /Producer (Inkbar fixtures) >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [7 0 R 8 0 R] >>
+endobj
+5 0 obj
+<<  /Length 108 >>
+stream
+BT /F1 12 Tf 72 760 Td (A push button with rollover and down looks only, a checkbox with no Off look) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Btn /Ff 65536 /T (go) /P 4 0 R /Rect [72 680 172 710] /F 4 /AP << /R 9 0 R /D 10 0 R >> >>
+endobj
+8 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Btn /T (agree) /P 4 0 R /Rect [72 620 102 650] /F 4 /V /Yes#20No /AS /Yes#20No /AP << /N << /Yes#20No 11 0 R >> >> >>
+endobj
+9 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 30] /Length 21 >>
+stream
+0.8 g 0 0 100 30 re f
+endstream
+endobj
+10 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 30] /Length 21 >>
+stream
+0.4 g 0 0 100 30 re f
+endstream
+endobj
+11 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 30 30] /Length 18 >>
+stream
+0 g 4 4 22 22 re f
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000152 00000 n 
+0000000228 00000 n 
+0000000285 00000 n 
+0000000433 00000 n 
+0000000593 00000 n 
+0000000690 00000 n 
+0000000834 00000 n 
+0000001005 00000 n 
+0000001125 00000 n 
+0000001246 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R /Info 2 0 R >>
+startxref
+1363
+%%EOF

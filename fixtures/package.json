@@ -17,6 +17,7 @@
   "scripts": {
     "generate": "tsx generate.ts",
     "generate:links": "tsx generate-links.ts",
+    "generate:form-edges": "tsx generate-form-edges.ts",
     "generate:scripts": "tsx generate-scripts.ts",
     "generate:redaction": "tsx generate-redaction.ts",
     "generate:unembedded": "tsx generate-unembedded.ts",

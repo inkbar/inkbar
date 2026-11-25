@@ -2137,5 +2137,39 @@
     "pages": 1,
     "opens": true,
     "describes": "A4 page: a column of Japanese (日本語のテキスト) written top to bottom at 28 pt from x 400, y 760, in a Type 0 font with /Identity-V (an embedded subset of Noto Sans JP Regular, CID-keyed CFF in OpenType, every glyph one em square with /DW2 [880 -1000], and a ToUnicode CMap), beside one horizontal Helvetica line at 20 pt"
+  },
+  "annot-direct": {
+    "file": "annot-direct.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One page whose /Annots holds three annotations in this order: indirect-square (a Square, an indirect object), direct-square (a Square written as a dictionary inline in the array) and direct-highlight (a Highlight written inline, with /QuadPoints), each with a normal appearance stream",
+    "annotations": {
+      "Square": 2,
+      "Highlight": 1
+    }
+  },
+  "form-tree": {
+    "file": "form-tree.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A field tree three levels deep: group (a non-terminal with /FT /Tx, /Ff 4096 for multiline, /DA and /V (inherited text)), its child sub (a non-terminal with only /T and /Kids) and two terminal widgets under sub, a and b, each with a normal appearance stream showing its value. a has none of /FT, /Ff, /DA or /V and inherits all four from group, two levels up; b inherits /FT, /Ff and /DA the same way but has its own /V (its own text). The fields are group.sub.a and group.sub.b",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "form-rollover": {
+    "file": "form-rollover.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two button widgets. go is a push button (/Ff 65536) whose /AP has /R (rollover) and /D (down) streams and no /N. agree is a checkbox whose /AP /N holds one stream, for the on-state named Yes No (written /Yes#20No) and no Off stream; its /V and /AS are /Yes#20No",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "script-page-only": {
+    "file": "script-page-only.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "No document-level script, no /OpenAction, no form: the one page's /AA /O holds a JavaScript action (app.alert('page opened')). PDF.js reports no script for a file like this, as its check for scripts ignores page actions"
   }
 }

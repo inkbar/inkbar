@@ -151,6 +151,18 @@
   "text-vertical": {
     "state": "same"
   },
+  "annot-direct": {
+    "state": "same"
+  },
+  "form-tree": {
+    "state": "same"
+  },
+  "form-rollover": {
+    "state": "same"
+  },
+  "script-page-only": {
+    "state": "same"
+  },
   "incremental-saved": {
     "state": "same"
   },

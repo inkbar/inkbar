@@ -2258,7 +2258,8 @@ async function main() {
     })
   )
   console.log(`wrote ${Object.keys(manifest).length} fixtures`)
-  // These four merge their entries into the manifest just written, as the other generators do.
+  // These five merge their entries into the manifest just written, as the other generators do.
+  await import('./generate-form-edges')
   await import('./generate-links')
   await import('./generate-redaction')
   await import('./generate-scripts')
