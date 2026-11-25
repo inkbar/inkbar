@@ -798,6 +798,9 @@ export async function createEngineReader(
     annotations: (page) => fromFallback((reader) => reader.annotations(page)),
     form: () => fromFallback((reader) => reader.form()),
     tabOrder: (page) => fromFallback((reader) => reader.tabOrder(page)),
+    scripts: () => fromFallback((reader) => reader.scripts()),
+    pageScripts: (page) => fromFallback((reader) => reader.pageScripts(page)),
+    sandboxFields: () => fromFallback((reader) => reader.sandboxFields()),
     outline,
     resolveDestination,
     destroy() {

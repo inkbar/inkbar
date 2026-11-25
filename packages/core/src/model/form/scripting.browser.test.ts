@@ -1,18 +1,20 @@
 import { browserAssets } from '@inkbar/fixtures/browser-assets'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { openFixtureInBrowser } from '../dom/test-utils'
-import { staticDefaults } from '../model/annotations/defaults'
-import { createHistory } from '../model/annotations/history'
-import { createAnnotationStore } from '../model/annotations/store'
-import { createFormController, type FormController } from '../model/form/controller'
+import { openFixtureInBrowser } from '../../dom/test-utils'
+import { createPdfjsReader } from '../../pdfjs/reader'
+import { sandboxLoader } from '../../pdfjs/sandbox'
+import { staticDefaults } from '../annotations/defaults'
+import { createHistory } from '../annotations/history'
+import { createAnnotationStore } from '../annotations/store'
 
-import { createFormScripting, sandboxLoader } from './scripting'
+import { createFormController, type FormController } from './controller'
+import { createFormScripting } from './scripting'
 
-import type { PdfjsDocument } from './types'
-import type { InkDocument } from '../model/document'
-import type { InkError } from '../model/errors'
-import type { ViewerAction, FormField, FormFieldType } from '../model/form/types'
+import type { ViewerAction, FormField, FormFieldType } from './types'
+import type { PdfjsDocument } from '../../pdfjs/types'
+import type { InkDocument } from '../document'
+import type { InkError } from '../errors'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const cleanup: (() => void)[] = []
@@ -181,7 +183,7 @@ describe('form scripts', () => {
   it("the sandbox's window is the shim", async () => {
     const doc = await open('form-scripted')
     const scripting = await createFormScripting({
-      proxy: doc._pdfjs.proxy,
+      reader: doc._reader,
       assets: browserAssets(),
       form: doc.form,
       info: doc.info,
@@ -383,14 +385,21 @@ function stage(
     getJSActions: () =>
       Promise.resolve(docActions ? new Map(Object.entries(docActions)) : null),
     getPage: () =>
-      Promise.resolve({ getJSActions: () => Promise.resolve(pageActions ?? null) }),
+      Promise.resolve({
+        getJSActions: () =>
+          Promise.resolve(pageActions ? new Map(Object.entries(pageActions)) : null),
+      }),
   } as unknown as PdfjsDocument
+  // The PDF.js reader over a stand-in document, so the scripts reach the sandbox as a file's do.
+  const reader = createPdfjsReader({ proxy } as unknown as InkDocument['_pdfjs'], {
+    measure: undefined,
+  })
   cleanup.push(() => {
     form._destroy()
     history.destroy()
   })
   const start = () =>
-    createFormScripting({ proxy, assets: browserAssets(), form, info: { pageCount: 1 } })
+    createFormScripting({ reader, assets: browserAssets(), form, info: { pageCount: 1 } })
   return { form, errors, start, history }
 }
 
