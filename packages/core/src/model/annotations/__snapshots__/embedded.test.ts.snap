@@ -2139,7 +2139,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
   {
     "annotations": [],
     "counts": {
-      "Widget": 9,
+      "Widget": 10,
     },
     "targets": [],
   },

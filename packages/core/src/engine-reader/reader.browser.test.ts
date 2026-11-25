@@ -926,9 +926,9 @@ const EXCEPTIONS: Record<
     apply: (read) =>
       eachAnnotation(read, (a) => (a.id === '6R' ? withoutParentText(a) : a)),
   },
-  "a toggle's value naming an /Opt index no widget has": {
+  "a toggle's value naming an /Opt index": {
     cause:
-      "A checkbox's or radio's value that is a whole number written as text, matching no on-state, is the /Opt entry at that index for PDF.js; the engine reports /Opt for a toggle only as each widget's export value, so an index past the widgets gives the number itself.",
+      "PDF.js reads a checkbox's or radio's value that is a whole number written as text or a name, and matches no on-state, as the /Opt entry at that index; the engine does not report a toggle's /Opt, so the engine reader keeps the number.",
     fixtures: ['form-values'],
     apply: (read) =>
       eachField(read, (f) => {

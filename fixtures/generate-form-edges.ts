@@ -213,17 +213,20 @@ const boxLook = (width: number, height: number, text = '') =>
   )
 
 function writeFormValues() {
-  // Objects 7 to 16 are the field widgets, in this order, each with its look at 17 to 27.
+  // Objects 7 to 16 are the field widgets, in this order, with their looks at 17 to 26; 27 to 29
+  // are a list field with a separate widget kid and its look.
   const widget = (rect: string, ap: number, keys: string) =>
     `<< /Type /Annot /Subtype /Widget /P 4 0 R /Rect ${rect} /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
   const row = (i: number) => `[72 ${700 - i * 50} 272 ${730 - i * 50}]`
   write(
     'form-values',
     buildPdf([
-      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) >> >>',
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 27 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) >> >>',
       INFO,
       PAGES,
-      page('/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 16 0 R]'),
+      page(
+        '/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 16 0 R 28 0 R]'
+      ),
       stream(label(['Field values written in ways readers disagree on'])),
       HELVETICA,
       // 7: a multi-select list whose /I names b and c while /V says a.
@@ -276,13 +279,18 @@ function writeFormValues() {
       boxLook(200, 30, 'Local'),
       look(30, 30, '0.9 g 0 0 30 30 re f 0 g 6 6 18 18 re f'),
       look(30, 30, '0.9 g 0 0 30 30 re f'),
+      // 27 and 28: a multi-select list whose /I [2] is on the field and whose widget is a
+      // separate kid without one, while /V says p.
+      '<< /FT /Ch /T (kidlist) /Ff 2097152 /Opt [(p) (q) (r)] /V (p) /I [2] /Kids [28 0 R] >>',
+      widget('[300 300 500 330]', 29, '/Parent 27 0 R'),
+      boxLook(200, 30, 'p'),
     ]),
     {
       pages: 1,
       opens: true,
       describes:
-        'Fields with explicit normal appearances whose values are written in ways readers disagree on. listbox (multi-select, /Opt a b c) has /V (a) and /I [1 2]; combo (/Opt x y z) has /V (x) and /I [2]. nulled is a text field with /V null and /DV (default text); unset has the same /DV and no /V. names is a multi-select list whose /V is [/Alpha (beta)]. launch is a push button with /A /Launch /F (https://example.com/launch.pdf), remote one with /A /GoToR whose /F is a file specification (/F other.pdf, /UF ftp://example.com/other.pdf), local one with /A /Launch /F (file:///usr/bin/app). consent is a checkbox field with /Opt [Agreed Declined Maybe], /V /Yes, /DV (2) and one widget with Yes and Off states',
-      annotations: { Widget: 9 },
+        'Fields with explicit normal appearances whose values are written in ways readers disagree on. listbox (multi-select, /Opt a b c) has /V (a) and /I [1 2]; combo (/Opt x y z) has /V (x) and /I [2]. nulled is a text field with /V null and /DV (default text); unset has the same /DV and no /V. names is a multi-select list whose /V is [/Alpha (beta)]. launch is a push button with /A /Launch /F (https://example.com/launch.pdf), remote one with /A /GoToR whose /F is a file specification (/F other.pdf, /UF ftp://example.com/other.pdf), local one with /A /Launch /F (file:///usr/bin/app). consent is a checkbox field with /Opt [Agreed Declined Maybe], /V /Yes, /DV (2) and one widget with Yes and Off states. kidlist is a multi-select list field with /Opt [p q r], /V (p) and /I [2] on the field dictionary, and one widget that is a separate kid with no /I',
+      annotations: { Widget: 10 },
     }
   )
 }

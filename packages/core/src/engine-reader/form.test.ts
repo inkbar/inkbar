@@ -196,7 +196,7 @@ describe('fileFieldsFromEngine', () => {
     })
   })
 
-  it("prefers a choice field's /I to its /V, as PDF.js does, keeping whole indices in range", async () => {
+  it("prefers a merged field-widget's /I to its /V, as PDF.js does, keeping whole indices in range", async () => {
     const options = ['a', 'b', 'c'].map((v) => ({
       exportValue: v,
       displayValue: v.toUpperCase(),
@@ -204,6 +204,8 @@ describe('fileFieldsFromEngine', () => {
     const [picked, empty, none] = await fileFieldsFromEngine(
       form([
         field('picked', [widget(0)], {
+          objectNumber: 20,
+          generation: 0,
           kind: 'list',
           valueKind: 'string',
           value: 'a',
@@ -211,6 +213,8 @@ describe('fileFieldsFromEngine', () => {
           options,
         }),
         field('empty', [widget(1)], {
+          objectNumber: 21,
+          generation: 0,
           kind: 'combo',
           valueKind: 'string',
           value: 'a',
@@ -218,6 +222,8 @@ describe('fileFieldsFromEngine', () => {
           options,
         }),
         field('none', [widget(2)], {
+          objectNumber: 22,
+          generation: 0,
           kind: 'combo',
           valueKind: 'string',
           value: 'b',
@@ -230,6 +236,25 @@ describe('fileFieldsFromEngine', () => {
     expect(picked!.value).toEqual(['c', 'b'])
     expect(empty!.value).toEqual(['a'])
     expect(none!.value).toEqual(['b'])
+  })
+
+  it("reads no /I for a field whose widget is a separate kid, as PDF.js reads only the widget's own", async () => {
+    const options = ['a', 'b'].map((v) => ({ exportValue: v, displayValue: v }))
+    const [kid] = await fileFieldsFromEngine(
+      form([
+        field('kid', [widget(0)], {
+          objectNumber: 9,
+          generation: 0,
+          kind: 'list',
+          valueKind: 'string',
+          value: 'a',
+          selectedIndices: [1],
+          options,
+        }),
+      ]),
+      listedAs({ 0: ['20R'] })
+    )
+    expect(kid!.value).toEqual(['a'])
   })
 
   it("gives a push button's Launch or GoToR file as its address when PDF.js would", async () => {

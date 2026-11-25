@@ -4973,6 +4973,68 @@ exports[`form building across the fixtures > builds every fixture's fields the s
       },
     ],
   },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": true,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "kidlist",
+    "options": [
+      {
+        "label": "p",
+        "value": "p",
+      },
+      {
+        "label": "q",
+        "value": "q",
+      },
+      {
+        "label": "r",
+        "value": "r",
+      },
+    ],
+    "type": "list",
+    "value": [
+      "p",
+    ],
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 10,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "28R",
+        "order": 9,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 30,
+          "width": 200,
+          "x": 300,
+          "y": 300,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
 ]
 `;
 

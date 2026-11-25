@@ -224,6 +224,12 @@ test('form-values reports /I, null values, names in a list and Launch and GoToR 
   const bytes = (text: string) => new TextEncoder().encode(text)
   expect(byName('listbox')).toMatchObject({ value: 'a', selectedIndices: [1, 2] })
   expect(byName('combo')).toMatchObject({ value: 'x', selectedIndices: [2] })
+  // /I sits on the field; its widget is a separate kid without one.
+  expect(byName('kidlist')).toMatchObject({
+    value: 'p',
+    selectedIndices: [2],
+    widgets: [{ objectNumber: 28 }],
+  })
   expect(byName('nulled')).toMatchObject({
     valueKind: 'none',
     valueNull: true,

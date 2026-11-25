@@ -306,7 +306,17 @@ function fieldOf(
       break
     case 'combo':
     case 'list': {
-      const list = choiceValue(raw, field.selectedIndices, field.options ?? [])
+      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`: the field's
+      // reaches the value only when the field and its first widget are one dictionary.
+      const merged =
+        field.objectNumber !== undefined &&
+        first.objectNumber === field.objectNumber &&
+        first.generation === field.generation
+      const list = choiceValue(
+        raw,
+        merged ? field.selectedIndices : undefined,
+        field.options ?? []
+      )
       value = list
       options = field.options?.length
         ? field.options
