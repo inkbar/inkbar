@@ -52,6 +52,17 @@ describe('form scripts', () => {
     expect(form.formatted.get().total).toBe('£7.50')
   })
 
+  it('sums the fields under a parent a calculation names, and lists them with getArray', async () => {
+    const { form } = await open('form-scripted-parents')
+    expect(form.set({ 'total.a': '10' }).applied).toEqual(['total.a'])
+    // AFSimple_Calculate("SUM", new Array("total")) over total.a, total.b and total.more.c.
+    expect(form.get('sum')).toBe('15')
+    // this.getField("total").getArray().length
+    expect(form.get('count')).toBe('3')
+    form.set({ 'total.more.c': '4' })
+    expect(form.get('sum')).toBe('16')
+  })
+
   it('formats a percent field and runs a hand-written calculation after the total', async () => {
     const { form } = await open('form-scripted')
     form.set({ qty: '4', price: '12.5' })

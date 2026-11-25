@@ -1,0 +1,126 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 13 0 R 7 0 R] >> >>
+endobj
+2 0 obj
+<< /Title (Form edge fixture) /Producer (Inkbar fixtures) >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [8 0 R 9 0 R 11 0 R 12 0 R 13 0 R 15 0 R 16 0 R] >>
+endobj
+5 0 obj
+<<  /Length 85 >>
+stream
+BT /F1 12 Tf 72 760 Td (A parent field over three text fields, summed by name) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /T (total) /Kids [8 0 R 9 0 R 10 0 R] /P 4 0 R /MK << /BC [1 0 0] /BG [0 0 1] >> /AA << /Fo << /S /JavaScript /JS (var totalFocused = true;) >> >> >>
+endobj
+8 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (a) /Parent 7 0 R /V (1) /P 4 0 R /Rect [72 700 272 725] /F 4 /AP << /N 17 0 R >> >>
+endobj
+9 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (b) /Parent 7 0 R /V (2) /P 4 0 R /Rect [72 655 272 680] /F 4 /AP << /N 18 0 R >> >>
+endobj
+10 0 obj
+<< /T (more) /Parent 7 0 R /Kids [11 0 R] >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (c) /Parent 10 0 R /V (3) /P 4 0 R /Rect [72 610 272 635] /F 4 /AP << /N 19 0 R >> >>
+endobj
+12 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (sum) /V (6) /AA << /C << /S /JavaScript /JS (AFSimple_Calculate("SUM", new Array("total"));) >> >> /P 4 0 R /Rect [72 565 272 590] /F 4 /AP << /N 20 0 R >> >>
+endobj
+13 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (count) /V (0) /AA << /C << /S /JavaScript /JS (event.value = this.getField("total").getArray().length;) >> >> /P 4 0 R /Rect [72 520 272 545] /F 4 /AP << /N 21 0 R >> >>
+endobj
+14 0 obj
+<< /FT /Btn /Ff 49152 /T (choice) /V /x /Kids [15 0 R 16 0 R] >>
+endobj
+15 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 14 0 R /P 4 0 R /Rect [72 430 92 450] /F 4 /AS /x /AP << /N << /x 22 0 R /Off 23 0 R >> >> >>
+endobj
+16 0 obj
+<< /Type /Annot /Subtype /Widget /Parent 14 0 R /P 4 0 R /Rect [102 430 122 450] /F 4 /AS /Off /AP << /N << /y 22 0 R /Off 23 0 R >> >> >>
+endobj
+17 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 25] /Resources << /Font << /Helv 6 0 R >> >> /Length 87 >>
+stream
+0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S BT /Helv 10 Tf 0 g 4 9.5 Td (1) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 25] /Resources << /Font << /Helv 6 0 R >> >> /Length 87 >>
+stream
+0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S BT /Helv 10 Tf 0 g 4 9.5 Td (2) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 25] /Resources << /Font << /Helv 6 0 R >> >> /Length 87 >>
+stream
+0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S BT /Helv 10 Tf 0 g 4 9.5 Td (3) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 25] /Resources << /Font << /Helv 6 0 R >> >> /Length 87 >>
+stream
+0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S BT /Helv 10 Tf 0 g 4 9.5 Td (6) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 25] /Resources << /Font << /Helv 6 0 R >> >> /Length 87 >>
+stream
+0.9 g 0 0 200 25 re f 0 G 1 w 0.5 0.5 199 24 re S BT /Helv 10 Tf 0 g 4 9.5 Td (0) Tj ET
+endstream
+endobj
+22 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Resources << /Font << /Helv 6 0 R >> >> /Length 18 >>
+stream
+0 g 4 4 12 12 re f
+endstream
+endobj
+23 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 20 20] /Resources << /Font << /Helv 6 0 R >> >> /Length 22 >>
+stream
+0 G 0.5 0.5 19 19 re S
+endstream
+endobj
+xref
+0 24
+0000000000 65535 f 
+0000000009 00000 n 
+0000000193 00000 n 
+0000000269 00000 n 
+0000000326 00000 n 
+0000000509 00000 n 
+0000000645 00000 n 
+0000000742 00000 n 
+0000000910 00000 n 
+0000001054 00000 n 
+0000001198 00000 n 
+0000001259 00000 n 
+0000001405 00000 n 
+0000001625 00000 n 
+0000001856 00000 n 
+0000001937 00000 n 
+0000002088 00000 n 
+0000002243 00000 n 
+0000002471 00000 n 
+0000002699 00000 n 
+0000002927 00000 n 
+0000003155 00000 n 
+0000003383 00000 n 
+0000003541 00000 n 
+trailer
+<< /Size 24 /Root 1 0 R /Info 2 0 R >>
+startxref
+3703
+%%EOF

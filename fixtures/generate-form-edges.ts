@@ -12,7 +12,8 @@
  * field values written in ways readers disagree on (/I beside /V, /V null, names in a value list,
  * Launch and GoToR files, an /Opt index as a value), `border-dashes` holds dash arrays a
  * reader may take or refuse, and `form-scripted-kinds` holds JavaScript on fields of every kind
- * and in every place a file holds it.
+ * and in every place a file holds it, and `form-scripted-parents` has scripts that name a parent
+ * field.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -384,6 +385,66 @@ function writeScriptedKinds() {
   )
 }
 
+function writeScriptedParents() {
+  /** A JavaScript action. */
+  const js = (source: string) => `<< /S /JavaScript /JS (${source}) >>`
+  /** A widget with `keys` in row `i`, its look at object `ap`. */
+  const widget = (keys: string, i: number, ap: number) =>
+    `<< /Type /Annot /Subtype /Widget ${keys} /P 4 0 R /Rect [72 ${700 - i * 45} 272 ${725 - i * 45}] /F 4 /AP << /N ${ap} 0 R >> >>`
+  const radio = (x: number, state: string, as: string) =>
+    `<< /Type /Annot /Subtype /Widget /Parent 14 0 R /P 4 0 R /Rect [${x} 430 ${x + 20} 450] /F 4 /AS /${as} /AP << /N << /${state} 22 0 R /Off 23 0 R >> >> >>`
+  write(
+    'form-scripted-parents',
+    buildPdf([
+      // 1: the catalog. /CO names the parent last: with either reader the sandbox calculates no
+      // field listed after a parent.
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 13 0 R 7 0 R] >> >>',
+      INFO,
+      PAGES,
+      page('/Annots [8 0 R 9 0 R 11 0 R 12 0 R 13 0 R 15 0 R 16 0 R]'),
+      stream(label(['A parent field over three text fields, summed by name'])),
+      HELVETICA,
+      // 7: total, a parent with its own /P, /MK and focus script over a, b and the parent more.
+      `<< /T (total) /Kids [8 0 R 9 0 R 10 0 R] /P 4 0 R /MK << /BC [1 0 0] /BG [0 0 1] >> /AA << /Fo ${js('var totalFocused = true;')} >> >>`,
+      widget('/FT /Tx /T (a) /Parent 7 0 R /V (1)', 0, 17),
+      widget('/FT /Tx /T (b) /Parent 7 0 R /V (2)', 1, 18),
+      // 10 and 11: more, a parent inside total, over c.
+      '<< /T (more) /Parent 7 0 R /Kids [11 0 R] >>',
+      widget('/FT /Tx /T (c) /Parent 10 0 R /V (3)', 2, 19),
+      // 12: sum adds up the fields under total, by the parent's name.
+      widget(
+        `/FT /Tx /T (sum) /V (6) /AA << /C ${js('AFSimple_Calculate("SUM", new Array("total"));')} >>`,
+        3,
+        20
+      ),
+      // 13: count gives the number of fields under total.
+      widget(
+        `/FT /Tx /T (count) /V (0) /AA << /C ${js('event.value = this.getField("total").getArray().length;')} >>`,
+        4,
+        21
+      ),
+      // 14 to 16: choice, a radio parent over its x and y widgets.
+      '<< /FT /Btn /Ff 49152 /T (choice) /V /x /Kids [15 0 R 16 0 R] >>',
+      radio(72, 'x', 'x'),
+      radio(102, 'y', 'Off'),
+      boxLook(200, 25, '1'),
+      boxLook(200, 25, '2'),
+      boxLook(200, 25, '3'),
+      boxLook(200, 25, '6'),
+      boxLook(200, 25, '0'),
+      look(20, 20, '0 g 4 4 12 12 re f'),
+      look(20, 20, '0 G 0.5 0.5 19 19 re S'),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate("SUM", new Array("total")); count (/V 0) calculates this.getField("total").getArray().length. /CO is [sum count total], naming the parent last. choice is a radio parent (/V x) over widgets with on-states x and y',
+      annotations: { Widget: 7 },
+    }
+  )
+}
+
 function writeBorderDashes() {
   const square = (y: number, ap: number, keys: string) =>
     `<< /Type /Annot /Subtype /Square /Rect [72 ${y} 172 ${y + 50}] /C [0 0 1] /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
@@ -435,6 +496,7 @@ writeScriptPageOnly()
 writeFormValues()
 writeBorderDashes()
 writeScriptedKinds()
+writeScriptedParents()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,

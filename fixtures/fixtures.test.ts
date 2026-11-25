@@ -126,6 +126,20 @@ const FORMS = {
       'twin',
     ],
   },
+  'form-scripted-parents': {
+    widgets: 7,
+    // PDF.js also reports the parents total and total.more, and the radio parent under choice.
+    fields: [
+      'choice',
+      'count',
+      'sum',
+      'total',
+      'total.a',
+      'total.b',
+      'total.more',
+      'total.more.c',
+    ],
+  },
   'form-goto': {
     widgets: 7,
     fields: [

@@ -172,6 +172,9 @@
   "form-scripted-kinds": {
     "state": "same"
   },
+  "form-scripted-parents": {
+    "state": "same"
+  },
   "incremental-saved": {
     "state": "same"
   },

@@ -2069,6 +2069,18 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-scripted-parents 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 7,
+    },
+    "targets": [],
+  },
+]
+`;
+
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-shared-scripted 1`] = `
 [
   {
