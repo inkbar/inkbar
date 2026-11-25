@@ -146,7 +146,7 @@
   "text-rtl": {
     "state": "different",
     "reason": "The digits and the Latin line are in Helvetica, not embedded, at 32 pt (64 px per em): the readers substitute different Helvetica outlines, and the digit 1 has a foot in the one PDF.js uses and none in the engine's, 56% of the worst 16 px block and 0.03% of the page; the Hebrew in embedded Noto Sans Hebrew matches",
-    "accepted": false
+    "accepted": true
   },
   "text-vertical": {
     "state": "same"
