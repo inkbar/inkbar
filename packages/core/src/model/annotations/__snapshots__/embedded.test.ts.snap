@@ -688,6 +688,96 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: border-dashes 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 650,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 570,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:9R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 490,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 410,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Square": 4,
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
 exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: callout-bad-xref 1`] = `
 [
   {
@@ -2038,6 +2128,18 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
     "annotations": [],
     "counts": {
       "Widget": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-values 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 9,
     },
     "targets": [],
   },

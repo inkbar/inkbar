@@ -163,6 +163,12 @@
   "script-page-only": {
     "state": "same"
   },
+  "form-values": {
+    "state": "same"
+  },
+  "border-dashes": {
+    "state": "same"
+  },
   "incremental-saved": {
     "state": "same"
   },

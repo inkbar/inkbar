@@ -50,6 +50,8 @@ export const FIXTURE_NAMES = [
   'form-tree',
   'form-rollover',
   'script-page-only',
+  'form-values',
+  'border-dashes',
   'incremental-saved',
   'object-streams',
   'encrypted-aes',

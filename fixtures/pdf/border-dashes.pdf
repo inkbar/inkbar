@@ -1,0 +1,114 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [11 0 R 12 0 R 13 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) >> >>
+endobj
+2 0 obj
+<< /Title (Form edge fixture) /Producer (Inkbar fixtures) >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R] >>
+endobj
+5 0 obj
+<<  /Length 101 >>
+stream
+BT /F1 12 Tf 72 760 Td (Squares on the left and text fields on the right, with dashed borders) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Square /Rect [72 650 172 700] /C [0 0 1] /F 4 /AP << /N 14 0 R >> /BS << /W 2 /S /D /D [3 2] >> >>
+endobj
+8 0 obj
+<< /Type /Annot /Subtype /Square /Rect [72 570 172 620] /C [0 0 1] /F 4 /AP << /N 15 0 R >> /Border [0 0 1 [4 2]] >>
+endobj
+9 0 obj
+<< /Type /Annot /Subtype /Square /Rect [72 490 172 540] /C [0 0 1] /F 4 /AP << /N 16 0 R >> /BS << /W 2 /S /D /D [-1 2] >> >>
+endobj
+10 0 obj
+<< /Type /Annot /Subtype /Square /Rect [72 410 172 460] /C [0 0 1] /F 4 /AP << /N 17 0 R >> /Border [0 0 1 [0 0]] >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (bs-dash) /P 4 0 R /Rect [300 650 500 680] /F 4 /AP << /N 18 0 R >> /BS << /W 1 /S /D /D [3 2] >> >>
+endobj
+12 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (border-dash) /P 4 0 R /Rect [300 570 500 600] /F 4 /AP << /N 19 0 R >> /Border [0 0 2 [4 2]] >>
+endobj
+13 0 obj
+<< /Type /Annot /Subtype /Widget /FT /Tx /T (bad-dash) /P 4 0 R /Rect [300 490 500 520] /F 4 /AP << /N 20 0 R >> /BS << /W 1 /D [-3] >> >>
+endobj
+14 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources << /Font << /Helv 6 0 R >> >> /Length 31 >>
+stream
+0 0 1 RG 1 w 0.5 0.5 99 49 re S
+endstream
+endobj
+15 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources << /Font << /Helv 6 0 R >> >> /Length 31 >>
+stream
+0 0 1 RG 1 w 0.5 0.5 99 49 re S
+endstream
+endobj
+16 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources << /Font << /Helv 6 0 R >> >> /Length 31 >>
+stream
+0 0 1 RG 1 w 0.5 0.5 99 49 re S
+endstream
+endobj
+17 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources << /Font << /Helv 6 0 R >> >> /Length 31 >>
+stream
+0 0 1 RG 1 w 0.5 0.5 99 49 re S
+endstream
+endobj
+18 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 30] /Resources << /Font << /Helv 6 0 R >> >> /Length 49 >>
+stream
+0.9 g 0 0 200 30 re f 0 G 1 w 0.5 0.5 199 29 re S
+endstream
+endobj
+19 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 30] /Resources << /Font << /Helv 6 0 R >> >> /Length 49 >>
+stream
+0.9 g 0 0 200 30 re f 0 G 1 w 0.5 0.5 199 29 re S
+endstream
+endobj
+20 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 200 30] /Resources << /Font << /Helv 6 0 R >> >> /Length 49 >>
+stream
+0.9 g 0 0 200 30 re f 0 G 1 w 0.5 0.5 199 29 re S
+endstream
+endobj
+xref
+0 21
+0000000000 65535 f 
+0000000009 00000 n 
+0000000161 00000 n 
+0000000237 00000 n 
+0000000294 00000 n 
+0000000476 00000 n 
+0000000629 00000 n 
+0000000726 00000 n 
+0000000866 00000 n 
+0000000998 00000 n 
+0000001139 00000 n 
+0000001272 00000 n 
+0000001433 00000 n 
+0000001590 00000 n 
+0000001745 00000 n 
+0000001917 00000 n 
+0000002089 00000 n 
+0000002261 00000 n 
+0000002433 00000 n 
+0000002623 00000 n 
+0000002813 00000 n 
+trailer
+<< /Size 21 /Root 1 0 R /Info 2 0 R >>
+startxref
+3003
+%%EOF
