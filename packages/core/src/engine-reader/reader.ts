@@ -774,10 +774,16 @@ export async function createEngineReader(
         gone = true
       })
     } catch (error) {
-      if (gone || destroyed || cannotStart) throw error
+      if (gone && typeof error === 'object' && error !== null) goneErrors.add(error)
+      if (gone || goneErrors.has(error as object) || destroyed || cannotStart) throw error
       return instead()
     }
   }
+  /**
+   * The errors of reads no engine could answer, so a read made of others (the form, of each
+   * page's annotations) rejects with them too rather than giving nothing.
+   */
+  const goneErrors = new WeakSet<object>()
 
   /** `encrypted` from the last facts the engine gave. */
   let knownEncrypted = false
@@ -794,6 +800,10 @@ export async function createEngineReader(
         () =>
           orElse(
             async (onGone) => {
+              // A page the engine has read lets `run` tell a stopped engine from a read the
+              // engine fails on its own: the open asks for the facts before any page.
+              if (knownPage === undefined && pageCount > 0)
+                await enginePageInfo(0).catch(() => undefined)
               const facts = await run(
                 (doc) => doc.documentFacts(),
                 undefined,

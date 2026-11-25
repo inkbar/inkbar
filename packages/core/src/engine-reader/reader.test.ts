@@ -2026,6 +2026,25 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await never.reader.destroy()
   })
 
+  it("answers the file's facts asked first, before any page, when a working engine cannot read them", async () => {
+    const { t, reader } = await opened({
+      traps: false,
+      documentFacts: () => Promise.reject(engineError('engine-failure')),
+    })
+    await expect(reader.facts()).resolves.toEqual({ encrypted: false })
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+    await reader.destroy()
+  })
+
+  it('rejects the form when a page read inside it finds no engine to answer', async () => {
+    const { reader } = await opened({
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
+    await reader.destroy()
+  })
+
   it("shares each page's annotations read with the form until forgetAnnotations", async () => {
     const { t, reader } = await opened()
     const first = await reader.annotations(0)

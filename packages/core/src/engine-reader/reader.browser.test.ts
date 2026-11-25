@@ -181,6 +181,33 @@ describe('the engine reader, behind the switch', () => {
     expect(darkPixels(canvas, 0, 0, canvas.width, canvas.height)).toBeGreaterThan(50)
   })
 
+  it('opens a file whose facts a working engine cannot read, with no title or author', async () => {
+    const failing: EngineLoader = async () => {
+      const real = await import('@inkbar/engine')
+      return {
+        createEngine: async () => {
+          const engine = await real.createEngine()
+          const opening = engine.open.bind(engine)
+          engine.open = async (...args) => {
+            const doc = await opening(...args)
+            // The engine's own failure: `engine-failure`, with the engine still working.
+            doc.documentFacts = () =>
+              Promise.reject(
+                Object.assign(new Error('no facts'), { code: 'engine-failure' })
+              )
+            return doc
+          }
+          return engine
+        },
+      }
+    }
+    const doc = await open('text-simple', { engine: failing })
+    expect(doc._reader.kind).toBe('engine')
+    expect(doc.info).toMatchObject({ pageCount: 3, isEncrypted: false })
+    expect(doc.info.title).toBeUndefined()
+    expect(doc.info.author).toBeUndefined()
+  })
+
   it('needs the engine option', async () => {
     const doc = await openDocument(fixtureUrl('text-simple'), { assets: browserAssets() })
     cleanup.push(() => doc.destroy())
@@ -797,6 +824,19 @@ const BUILT = {
 type BuiltName = keyof typeof BUILT
 type FileName = FixtureName | BuiltName
 
+/** An annotation without the text, dates and colour PDF.js reads from another annotation. */
+function withoutParentText(a: Record<string, unknown>): Record<string, unknown> {
+  const {
+    contents: _contents,
+    author: _author,
+    created: _created,
+    modified: _modified,
+    color: _color,
+    ...rest
+  } = a
+  return rest
+}
+
 /**
  * Differences between the two readers that are known, each with its cause and the files it
  * shows on. Each is applied to both readers' reads of those files before they are compared, so
@@ -830,9 +870,7 @@ const EXCEPTIONS: Record<
       "PDF.js reads a popup's text, dates and colour from its /Parent wherever it is; the engine reports only the page's own annotations, so a parent on no page gives none.",
     fixtures: ['popups-and-widgets'],
     apply: (read) =>
-      eachAnnotation(read, (a) =>
-        a.id === '6R' ? { id: a.id, subtype: a.subtype, rect: a.rect } : a
-      ),
+      eachAnnotation(read, (a) => (a.id === '6R' ? withoutParentText(a) : a)),
   },
   'group replies': {
     cause:
@@ -840,9 +878,7 @@ const EXCEPTIONS: Record<
     fixtures: ['popups-and-widgets'],
     apply: (read) =>
       eachAnnotation(read, (a) =>
-        a.id === '7R' || a.id === '8R'
-          ? { id: a.id, subtype: a.subtype, rect: a.rect }
-          : a
+        a.id === '7R' || a.id === '8R' ? withoutParentText(a) : a
       ),
   },
 }
@@ -957,9 +993,16 @@ describe("the engine reader's file facts, annotations and form", () => {
       expect([engineKind, pdfjsKind]).toEqual(['engine', 'pdfjs'])
       const known = Object.values(EXCEPTIONS).filter((e) => e.fixtures.includes(name))
       const near = withRectsFrom(engine, pdfjs) as FileRead
-      if (known.length > 0)
-        expect(near, 'a listed exception shows').not.toStrictEqual(pdfjs)
-      const apply = (read: FileRead) => known.reduce((r, e) => e.apply(r), read)
+      const applying = (exceptions: typeof known) => (read: FileRead) =>
+        exceptions.reduce((r, e) => e.apply(r), read)
+      // Each listed exception still shows: with all the others applied, the reads differ.
+      for (const exception of known) {
+        const others = applying(known.filter((e) => e !== exception))
+        expect(others(near), `${exception.cause} still shows`).not.toStrictEqual(
+          others(pdfjs)
+        )
+      }
+      const apply = applying(known)
       expect(apply(near)).toStrictEqual(apply(pdfjs))
     }
   )
