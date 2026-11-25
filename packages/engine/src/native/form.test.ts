@@ -197,6 +197,31 @@ test('every key the fork writes is read, in its public name', () => {
   })
 })
 
+test('a script key named __proto__ keeps its sources as an own key', () => {
+  const text = form([field({ widgets: [widget({ scripts: { K: ['k()'] } })] })]).replace(
+    '"scripts":{"K":["k()"]}',
+    '"scripts":{"__proto__":["hidden()"],"K":["k()"]}'
+  )
+  const scripts = parseForm(text).fields[0]?.widgets[0]?.scripts ?? {}
+  expect(Object.keys(scripts)).toEqual(['__proto__', 'K'])
+  expect(Object.getOwnPropertyDescriptor(scripts, '__proto__')?.value).toEqual([
+    'hidden()',
+  ])
+  expect(Object.getPrototypeOf(scripts)).toBe(Object.prototype)
+})
+
+test('a cut action keeps what the fork wrote and leaves out a cut name', () => {
+  const cut = (action: object) =>
+    parseForm(form([field({ widgets: [widget({ action, truncated: true })] })])).fields[0]
+      ?.widgets[0]?.action
+  expect(cut({ s: null, fields: ['a'], refs: [[9, 0]], flags: 1 })).toEqual({
+    kind: '',
+    reset: { fields: ['a'], refs: [{ objectNumber: 9, generation: 0 }], flags: 1 },
+  })
+  expect(cut({ s: 'Named', name: null })).toEqual({ kind: 'Named' })
+  expect(cut({ s: 'Named', name: '' })).toEqual({ kind: 'Named', name: '' })
+})
+
 test('a Named action gives its name', () => {
   const result = parseForm(
     form([field({ widgets: [widget({ action: { s: 'Named', name: 'Print' } })] })])
@@ -241,6 +266,16 @@ test.each([
     'a script that is not text',
     form([field({ widgets: [widget({ scripts: { K: [1] } })] })]),
     'scripts:',
+  ],
+  [
+    'an action kind cut in a widget not cut',
+    form([field({ widgets: [widget({ action: { s: null } })] })]),
+    's:',
+  ],
+  [
+    'an action name cut in a widget not cut',
+    form([field({ widgets: [widget({ action: { s: 'Named', name: null } })] })]),
+    'name:',
   ],
   [
     'a reset without refs',

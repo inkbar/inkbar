@@ -290,7 +290,12 @@ export class EngineCore {
     try {
       this.#native.HEAPU8.set(bytes, data)
       const password = options.password === '' ? undefined : options.password
-      const loaded = this.#load(data, bytes.length, password)
+      // Which password opened the file, read before `#load` lifts the permission flags: the
+      // module counts that as an owner's opening.
+      let openedAs: DocumentFacts['openedAs'] = 'none'
+      const loaded = this.#load(data, bytes.length, password, (opened) => {
+        openedAs = readDocumentFacts(this.#heap, opened).openedAs
+      })
       doc = loaded.doc
       const pageCount = fn.FPDF_GetPageCount(doc)
       if (pageCount <= 0)
@@ -305,7 +310,7 @@ export class EngineCore {
         written: false,
         redacted: false,
         encrypted: loaded.encrypted,
-        openedAs: loaded.openedAs,
+        openedAs,
         needs: new Map(),
       })
       return { id, pageCount }
@@ -320,14 +325,16 @@ export class EngineCore {
   }
 
   /**
-   * Loads a document from bytes already in engine memory, and says whether it is encrypted and
-   * which password opened it.
+   * Loads a document from bytes already in engine memory, and says whether it is encrypted.
+   * `beforeGrant` reads the document before its permission flags are lifted; when it throws, the
+   * document is closed.
    */
   #load(
     data: number,
     size: number,
-    password: string | undefined
-  ): { doc: number; encrypted: boolean; openedAs: DocumentFacts['openedAs'] } {
+    password: string | undefined,
+    beforeGrant?: (doc: number) => void
+  ): { doc: number; encrypted: boolean } {
     const fn = this.#fn
     const pointer = password === undefined ? 0 : this.#allocString(password)
     let doc: number
@@ -337,19 +344,18 @@ export class EngineCore {
       if (pointer !== 0 && !this.#stopped) fn.free(pointer)
     }
     if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), password !== undefined)
-    // Read before the permission flags are lifted below, which counts as an owner's opening.
-    let openedAs: DocumentFacts['openedAs']
-    try {
-      openedAs = readDocumentFacts(this.#heap, doc).openedAs
-    } catch (error) {
-      if (!this.#stopped) fn.FPDF_CloseDocument(doc)
-      throw error
-    }
+    if (beforeGrant)
+      try {
+        beforeGrant(doc)
+      } catch (error) {
+        if (!this.#stopped) fn.FPDF_CloseDocument(doc)
+        throw error
+      }
     // Writing ignores the file's permission flags, so every handle has owner permissions: parts
     // of PDFium that consult them would otherwise skip a write the caller asked for. The call
     // returns false only for a file with no encryption, which has no permission flags to lift.
     const encrypted = fn.EPDF_SetRuntimeOwnerPermissions(doc, 1) !== 0
-    return { doc, encrypted, openedAs }
+    return { doc, encrypted }
   }
 
   pageInfo(id: number, index: number): PageInfo {

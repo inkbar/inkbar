@@ -1,6 +1,6 @@
 // The form and the document's own facts, as the module's `INK_Form` and `INK_Doc_Facts` reports
 // give them.
-import { appearanceFacts } from './annots.ts'
+import { appearanceFacts, cutName } from './annots.ts'
 import {
   array,
   bad,
@@ -99,15 +99,20 @@ function value(
   }
 }
 
-function action(raw: unknown, what: string): FieldAction {
+/**
+ * The widget's own action. `cut` says the widget is marked `truncated`: only then may the report
+ * write a name as `null`, which is left out. The keys the fork writes for a kind are kept when
+ * the kind itself was cut.
+ */
+function action(raw: unknown, what: string, cut: boolean): FieldAction {
   const item = object(raw, what, 'action')
-  const result: FieldAction = {
-    kind: item.s === null ? '' : name(item.s, what, 's'),
-  }
+  const result: FieldAction = { kind: cutName(item, 's', what, cut) ?? '' }
   if (present(item.uriHex)) result.uri = hexBytes(item.uriHex, what, 'uriHex')
-  if ('name' in item)
-    result.name = item.name === null ? '' : name(item.name, what, 'name')
-  if (result.kind === 'ResetForm')
+  if ('name' in item) {
+    const named = cutName(item, 'name', what, cut)
+    if (named !== undefined) result.name = named
+  }
+  if (result.kind === 'ResetForm' || 'fields' in item)
     result.reset = {
       fields: array(item.fields, what, 'fields').map((f) => fileText(f, what, 'fields')),
       refs: array(item.refs, what, 'refs').map((r) => ref(r, what, 'refs')),
@@ -118,12 +123,14 @@ function action(raw: unknown, what: string): FieldAction {
 
 function scripts(raw: unknown, what: string): Record<string, string[]> {
   const item = object(raw, what, 'scripts')
-  const result: Record<string, string[]> = {}
-  for (const [key, sources] of Object.entries(item))
-    result[name(key, what, 'scripts')] = array(sources, what, 'scripts').map((s) =>
-      string(s, what, 'scripts')
-    )
-  return result
+  // Own properties only: an assignment to a key named `__proto__` would set the prototype and
+  // lose the key with its sources.
+  return Object.fromEntries(
+    Object.entries(item).map(([key, sources]) => [
+      name(key, what, 'scripts'),
+      array(sources, what, 'scripts').map((s) => string(s, what, 'scripts')),
+    ])
+  )
 }
 
 function widget(raw: unknown, what: string): WidgetFacts {
@@ -149,7 +156,8 @@ function widget(raw: unknown, what: string): WidgetFacts {
   if (present(item.tooltip)) entry.tooltip = fileText(item.tooltip, what, 'tooltip')
   if (present(item.da)) entry.defaultAppearance = fileText(item.da, what, 'da')
   if (onlyTrue(item.pmd, what, 'pmd')) entry.paperMetadata = true
-  if (present(item.action)) entry.action = action(item.action, what)
+  if (present(item.action))
+    entry.action = action(item.action, what, item.truncated === true)
   if (onlyTrue(item.truncated, what, 'truncated')) entry.truncated = true
   return entry
 }

@@ -243,6 +243,55 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
     expect(result.facts).toEqual({ title: expected, encrypted: false, openedAs: 'none' })
   })
 
+  test('a document facts report the module cannot give at open rejects it', async () => {
+    const engine = await engineWith(transport, () => ({ INK_Doc_Facts: () => 0 }))
+    try {
+      await expect(engine.open(bytes)).rejects.toMatchObject({ code: 'engine-failure' })
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a page, form or facts report the module cannot give rejects with engine-failure', async () => {
+    let facts = true
+    const engine = await engineWith(transport, (native) => ({
+      INK_Annots_Page: () => 0,
+      INK_Form: () => 0,
+      // The open reads the facts; later reads get none.
+      INK_Doc_Facts: (doc: number) => (facts ? native.fn.INK_Doc_Facts(doc) : 0),
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      facts = false
+      await expect(doc.pageAnnotations(0)).rejects.toMatchObject({
+        code: 'engine-failure',
+      })
+      await expect(doc.formFields()).rejects.toMatchObject({ code: 'engine-failure' })
+      await expect(doc.documentFacts()).rejects.toMatchObject({ code: 'engine-failure' })
+      // The document still answers.
+      expect((await doc.pageInfo(0)).width).toBeGreaterThan(0)
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a write reads no document facts', async () => {
+    let reads = 0
+    const engine = await engineWith(transport, (native) => ({
+      INK_Doc_Facts: (doc: number) => {
+        reads++
+        return native.fn.INK_Doc_Facts(doc)
+      },
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      await doc.write({})
+      expect(reads).toBe(1)
+    } finally {
+      await engine.destroy()
+    }
+  })
+
   test.each([
     ['annotations', 'pageAnnotations'],
     ['form', 'formFields'],

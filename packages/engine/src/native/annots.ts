@@ -27,12 +27,17 @@ const APPEARANCES = ['stream', 'states'] as const
 
 /**
  * A name the report writes as `null` only when its budget ran out. Then the entry says
- * `truncated`, and the name is left out.
+ * `truncated` (`cut`), and the name is left out.
  */
-function cutName(item: Json, key: string, what: string): string | undefined {
+export function cutName(
+  item: Json,
+  key: string,
+  what: string,
+  cut = item.truncated === true
+): string | undefined {
   const value = item[key]
   if (value !== null) return name(value, what, key)
-  if (item.truncated !== true) throw bad(what, key, 'a name, or null in a cut entry')
+  if (!cut) throw bad(what, key, 'a name, or null in a cut entry')
   return undefined
 }
 
@@ -51,8 +56,8 @@ export function appearanceFacts(item: Json, what: string): AppearanceFacts {
   if (!('appearance' in item)) throw bad(what, 'appearance', 'stream, states or null')
   if (item.appearance !== null)
     facts.appearance = oneOf(APPEARANCES, item.appearance, what, 'appearance')
-  if (present(item.states) && facts.appearance !== 'states')
-    throw bad(what, 'states', 'no list unless the appearance is states')
+  if (present(item.states) !== (facts.appearance === 'states'))
+    throw bad(what, 'states', 'a list exactly when the appearance is states')
   if ('as' in item) {
     const state = cutName(item, 'as', what)
     if (state !== undefined) facts.appearanceState = state

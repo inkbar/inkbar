@@ -41,7 +41,8 @@ export function array(value: unknown, what: string, key: string): unknown[] {
 }
 
 export function number(value: unknown, what: string, key: string): number {
-  if (typeof value !== 'number') throw bad(what, key, 'a number')
+  if (typeof value !== 'number' || !Number.isFinite(value))
+    throw bad(what, key, 'a finite number')
   return value
 }
 

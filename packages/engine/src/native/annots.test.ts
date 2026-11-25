@@ -127,6 +127,8 @@ test.each([
   ['rect a string', report([annot({ rect: 'x' })]), 'rect:'],
   ['appearance missing', report([annot({ appearance: undefined })]), 'appearance:'],
   ['an unknown appearance', report([annot({ appearance: 'dict' })]), 'appearance:'],
+  ['states missing beside states', report([annot({ appearance: 'states' })]), 'states:'],
+  ['an infinite flag', report([annot()]).replace('"flags":4', '"flags":1e999'), 'flags:'],
   [
     'states beside a stream',
     report([annot({ appearance: 'stream', states: [] })]),

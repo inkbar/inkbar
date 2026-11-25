@@ -5,9 +5,9 @@ export { TEXT_GEOMETRY_STRIDE } from './types.ts'
 export type { Engine, EngineDocument, EngineOptions } from './engine.ts'
 export type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
 export type {
+  AnnotationFacts,
   AnnotationRef,
   Appearance,
-  AnnotationFacts,
   AppearanceFacts,
   CheckRedactionOptions,
   DestinationArgKind,
@@ -49,8 +49,8 @@ export type {
   StandardFont,
   StandardFontName,
   TextFont,
+  WidgetFacts,
   WriteAnnotation,
   WriteField,
-  WidgetFacts,
   WriteInput,
 } from './types.ts'
