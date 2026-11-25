@@ -4,6 +4,7 @@ import { createWorkerTransport } from './transport/worker.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
+  AnnotationRenderOptions,
   CheckRedactionOptions,
   DocumentFacts,
   FileDestination,
@@ -19,9 +20,12 @@ import type {
   RedactInput,
   RedactionFindings,
   RedactResult,
+  RenderedAnnotations,
   RenderedPage,
   RenderOptions,
   SaveOptions,
+  ScriptFacts,
+  StructureOrder,
   WriteInput,
 } from './types.ts'
 /** Options for `createEngine`. */
@@ -95,6 +99,20 @@ export interface EngineDocument {
    */
   formFields(): Promise<FormFacts>
   /**
+   * The file's JavaScript outside its form fields: the `/Names /JavaScript` scripts, the
+   * catalog's open action and additional actions, and each page's additional actions, as source
+   * text that is never run. A file with none gives empty lists. Whether a file has any
+   * JavaScript at all also depends on its fields' scripts, in `formFields`. Reading them does
+   * not change what `save` writes.
+   */
+  scripts(): Promise<ScriptFacts>
+  /**
+   * The object numbers of a page's annotations in the order its structure tree reaches them.
+   * Annotations the tree does not reach are not listed. `index` counts from 0. An index that is
+   * not a whole number from 0 to `pageCount - 1` rejects with a `RangeError`.
+   */
+  structureOrder(index: number): Promise<StructureOrder>
+  /**
    * The document outline, nested, with each item's destination and actions as the file gives
    * them. A file with no outline gives no items. `truncated` is true when a loop, a nesting
    * depth past 64 or more than 100,000 items cut it short.
@@ -114,6 +132,21 @@ export interface EngineDocument {
    * caller.
    */
   renderPage(index: number, options?: RenderOptions): Promise<RenderedPage>
+  /**
+   * Draws the annotations listed, each alone in its normal appearance, onto a transparent bitmap
+   * of `size` pixels showing `region` after /Rotate and `rotation`. With the same region, size
+   * and rotation, each lands on the pixels `renderPage` gives it, so laid over a page rendered
+   * without them it gives the page rendered with them. `drawn` says which were drawn; an entry
+   * with nothing to draw is left out of it, and the call still resolves. Nothing is written to
+   * the document: a widget with no appearance is drawn from its field's value or not at all, and
+   * a later `save` is as it would have been. A bad index, list, state, region, size or rotation
+   * rejects with a `RangeError`, as does a bitmap above 268,435,456 pixels. The returned data
+   * belongs to the caller.
+   */
+  renderAnnotations(
+    index: number,
+    options: AnnotationRenderOptions
+  ): Promise<RenderedAnnotations>
   /**
    * Writes form values and annotations into the document: sets each of `fields` and redraws its
    * widgets, removes the annotations in `remove`, then appends each of `annotations` to its page,
@@ -277,6 +310,14 @@ class Document implements EngineDocument {
     return this.#call({ op: 'formFields', doc: this.id })
   }
 
+  scripts(): Promise<ScriptFacts> {
+    return this.#call({ op: 'scripts', doc: this.id })
+  }
+
+  structureOrder(index: number): Promise<StructureOrder> {
+    return this.#call({ op: 'structureOrder', doc: this.id, index })
+  }
+
   outline(): Promise<Outline> {
     return this.#call({ op: 'outline', doc: this.id })
   }
@@ -297,6 +338,21 @@ class Document implements EngineDocument {
     // with the DataCloneError the copy throws.
     const copy = structuredClone(rest)
     return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal)
+  }
+
+  async renderAnnotations(
+    index: number,
+    options: AnnotationRenderOptions
+  ): Promise<RenderedAnnotations> {
+    if (typeof options !== 'object' || options === null)
+      throw new ArgumentError('annotation render options must be an object')
+    const { signal, ...rest } = options
+    // A copy taken now, as in `renderPage`.
+    const copy = structuredClone(rest)
+    return this.#call(
+      { op: 'renderAnnotations', doc: this.id, index, options: copy },
+      signal
+    )
   }
 
   async write(input: WriteInput): Promise<void> {

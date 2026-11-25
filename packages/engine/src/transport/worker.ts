@@ -25,8 +25,8 @@ interface Pending {
   resolve: (value: unknown) => void
   reject: (reason: Error) => void
   /**
-   * Asks the worker to stop the call; set for the calls that can stop part way: a render, and a
-   * text read, write or redact while it waits for a fallback font.
+   * Asks the worker to stop the call; set for the calls that can stop part way: a render or
+   * annotation draw, and a text read, write or redact while it waits for a fallback font.
    */
   abort?: () => void
 }
@@ -72,6 +72,7 @@ class WorkerTransport implements Transport {
         const id = this.#nextId++
         const stoppable =
           request.op === 'renderPage' ||
+          request.op === 'renderAnnotations' ||
           request.op === 'pageText' ||
           request.op === 'write' ||
           request.op === 'redact'

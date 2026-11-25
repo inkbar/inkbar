@@ -68,6 +68,9 @@ function realEngine() {
           documentFacts: () => d.documentFacts(),
           pageAnnotations: (i) => d.pageAnnotations(i),
           formFields: () => d.formFields(),
+          scripts: () => d.scripts(),
+          structureOrder: (i) => d.structureOrder(i),
+          renderAnnotations: (i, o) => d.renderAnnotations(i, o),
           write(input) {
             writes.push(input)
             if (fail) {

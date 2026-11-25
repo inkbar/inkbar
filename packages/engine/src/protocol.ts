@@ -1,5 +1,6 @@
 import type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
 import type {
+  AnnotationRenderOptions,
   FontKey,
   OpenOptions,
   RedactInput,
@@ -12,6 +13,9 @@ import type {
 /** `RenderOptions` as they cross to the worker: everything but the signal. */
 export type RenderRequestOptions = Omit<RenderOptions, 'signal'>
 
+/** `AnnotationRenderOptions` as they cross to the worker: everything but the signal. */
+export type AnnotationRequestOptions = Omit<AnnotationRenderOptions, 'signal'>
+
 export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
   | { op: 'pageInfo'; doc: number; index: number }
@@ -20,9 +24,17 @@ export type Request =
   | { op: 'documentFacts'; doc: number }
   | { op: 'pageAnnotations'; doc: number; index: number }
   | { op: 'formFields'; doc: number }
+  | { op: 'scripts'; doc: number }
+  | { op: 'structureOrder'; doc: number; index: number }
   | { op: 'outline'; doc: number }
   | { op: 'namedDestination'; doc: number; name: Uint8Array }
   | { op: 'renderPage'; doc: number; index: number; options: RenderRequestOptions }
+  | {
+      op: 'renderAnnotations'
+      doc: number
+      index: number
+      options: AnnotationRequestOptions
+    }
   | { op: 'write'; doc: number; input: WriteInput }
   | { op: 'redact'; doc: number; input: RedactInput }
   | { op: 'save'; doc: number; mode?: SaveMode | undefined }
@@ -40,7 +52,8 @@ export interface Transport {
 
 /**
  * Messages between the page and the worker. `abort` asks the worker to stop call `id` if it is a
- * render still running, or a write or redact still waiting for a fallback font; for any other
+ * render or annotation draw still running, or a text read, write or redact still waiting for a
+ * fallback font; for any other
  * call it changes nothing.
  */
 export type ToWorker =

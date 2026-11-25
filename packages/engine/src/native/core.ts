@@ -3,19 +3,27 @@ import { createFontLoader, keysOf, type FontSources } from '../fonts.ts'
 import { anySignal } from '../signals.ts'
 
 import { writeAnnotation } from './annotations.ts'
-import { readPageAnnotations } from './annots.ts'
+import { readPageAnnotations, readStructureOrder } from './annots.ts'
 import { checkAppearance } from './appearance.ts'
 import { hasSignature, writeFields } from './fields.ts'
 import { pageNeeds, registerFont } from './fonts.ts'
-import { readDocumentFacts, readForm } from './form.ts'
+import { readDocumentFacts, readForm, readScripts } from './form.ts'
 import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
 import { readNamedDestination, readOutline, readPageLinks } from './links.ts'
 import { applyRedactions } from './redact.ts'
-import { hiddenObjects, renderGeometry } from './render.ts'
+import {
+  annotationDraws,
+  annotationMatrix,
+  hiddenAnnotations,
+  renderGeometry,
+  type AnnotationDraw,
+  type Hidden,
+} from './render.ts'
+import { withBytes } from './strings.ts'
 import { readPageText } from './text.ts'
 
-import type { RenderRequestOptions } from '../protocol.ts'
+import type { AnnotationRequestOptions, RenderRequestOptions } from '../protocol.ts'
 import type {
   DocumentFacts,
   FileDestination,
@@ -32,8 +40,11 @@ import type {
   RedactionFindings,
   RedactionRegion,
   RedactResult,
+  RenderedAnnotations,
   RenderedPage,
   SaveMode,
+  ScriptFacts,
+  StructureOrder,
   WriteInput,
 } from '../types.ts'
 import type { Native } from './functions.ts'
@@ -400,6 +411,17 @@ export class EngineCore {
     return this.#guard(() => readForm(this.#heap, entry.doc))
   }
 
+  scripts(id: number): ScriptFacts {
+    const entry = this.#get(id)
+    return this.#guard(() => readScripts(this.#heap, entry.doc, entry.pageCount))
+  }
+
+  structureOrder(id: number, index: number): StructureOrder {
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    return this.#guard(() => readStructureOrder(this.#heap, entry.doc, index))
+  }
+
   outline(id: number): Outline {
     const entry = this.#get(id)
     return this.#guard(() => readOutline(this.#heap, entry.doc))
@@ -529,6 +551,56 @@ export class EngineCore {
     signal?: AbortSignal
   ): Promise<RenderedPage> {
     const { entry, steps } = this.#renderSteps(id, index, options)
+    const { value, missingFonts } = await this.#sliced(
+      entry,
+      index,
+      steps,
+      aborted,
+      signal
+    )
+    return { ...value, missingFonts }
+  }
+
+  /**
+   * Draws the annotations listed, each alone in the order given, onto a transparent bitmap placed
+   * as `renderPageSliced` places the page for the same region, size and rotation. Like it, it
+   * first fetches the page's fallback fonts, returns to the event loop about every `SLICE_MS`
+   * between annotations, and stops with `aborted` once `aborted` says true.
+   */
+  async renderAnnotationsSliced(
+    id: number,
+    index: number,
+    options: AnnotationRequestOptions,
+    aborted: () => boolean,
+    signal?: AbortSignal
+  ): Promise<RenderedAnnotations> {
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    if (!isRecord(options)) throw new ArgumentError('the options must be an object')
+    const draws = annotationDraws(options.annotations)
+    // `renderGeometry` takes the whole page box for a missing region; here one is required.
+    if (options.region === undefined) throw new ArgumentError('region is required')
+    if (options.size === undefined) throw new ArgumentError('size is required')
+    const steps = this.#drawAnnotations(entry, index, options, draws)
+    return (await this.#sliced(entry, index, steps, aborted, signal)).value
+  }
+
+  /**
+   * Runs `steps` a step at a time, returning to the event loop between them. Before each step it
+   * asks `aborted`; once that says true, or `destroy()` has been called, it ends the steps, which
+   * free what they took, and rejects with `aborted`.
+   *
+   * Before the first step it fetches and registers the fallback fonts the page needs and has
+   * not had yet, so the page's first draw has every font it will ever get. `signal` stops that
+   * fetch; it should abort whenever `aborted` turns true.
+   */
+  async #sliced<T>(
+    entry: OpenDocument,
+    index: number,
+    steps: Generator<undefined, T>,
+    aborted: () => boolean,
+    signal: AbortSignal | undefined
+  ): Promise<{ value: T; missingFonts: FontKey[] }> {
     this.#rendering = true
     const stop = () => aborted() || this.#destroyAfterRender
     try {
@@ -537,13 +609,13 @@ export class EngineCore {
       for (;;) {
         if (stop()) throw new EngineError('aborted', 'The call was aborted.')
         const step = this.#guard(() => steps.next())
-        if (step.done) return { ...step.value, missingFonts }
+        if (step.done) return { value: step.value, missingFonts }
         await nextTask()
       }
     } finally {
-      // A render stopped part way runs its cleanup here: it ends the render, then frees the
-      // bitmap and the page. A finished or failed render has already done so. After a trap the
-      // module is not called again.
+      // Steps stopped part way run their cleanup here: a render ends, then the bitmap and the
+      // page are freed. Finished or failed steps have already done so. After a trap the module
+      // is not called again.
       try {
         if (!this.#stopped) this.#guard(() => steps.return(undefined as never))
       } finally {
@@ -567,7 +639,7 @@ export class EngineCore {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     if (!isRecord(options)) throw new ArgumentError('the options must be an object')
-    const hide = hiddenObjects(options.hide)
+    const hide = hiddenAnnotations(options.hide)
     return { entry, steps: this.#render(entry, index, options, hide) }
   }
 
@@ -633,7 +705,7 @@ export class EngineCore {
     entry: OpenDocument,
     index: number,
     options: RenderRequestOptions,
-    hide: readonly number[]
+    hide: Hidden
   ): Generator<undefined, Drawn> {
     const fn = this.#fn
     const page = this.#loadPage(entry, index)
@@ -648,18 +720,29 @@ export class EngineCore {
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
       let skip = 0
+      let skipAt = 0
       let render = 0
       try {
         // An empty page, not white paper: a blend mode mixes with what is under it, and under
         // the first thing drawn there is nothing. On white, Screen and SoftLight content
         // vanishes. `#copyBitmap` lays the result over white.
         fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0x00000000)
-        if (hide.length > 0) {
-          skip = fn.malloc(hide.length * 4)
+        const heap = this.#native.HEAPU8
+        if (hide.objects.length > 0) {
+          skip = fn.malloc(hide.objects.length * 4)
           if (skip === 0)
             throw new EngineError('out-of-memory', 'The engine ran out of memory.')
-          const heap = this.#native.HEAPU8
-          new Uint32Array(heap.buffer, heap.byteOffset + skip, hide.length).set(hide)
+          new Uint32Array(heap.buffer, heap.byteOffset + skip, hide.objects.length).set(
+            hide.objects
+          )
+        }
+        if (hide.places.length > 0) {
+          skipAt = fn.malloc(hide.places.length * 4)
+          if (skipAt === 0)
+            throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+          new Int32Array(heap.buffer, heap.byteOffset + skipAt, hide.places.length).set(
+            hide.places
+          )
         }
         render = fn.INK_Render_Start(
           bitmap,
@@ -671,9 +754,9 @@ export class EngineCore {
           geometry.rotate,
           flags,
           skip,
-          hide.length,
-          0,
-          0
+          hide.objects.length,
+          skipAt,
+          hide.places.length
         )
         if (render === 0)
           throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
@@ -690,6 +773,72 @@ export class EngineCore {
           // The render ends before the bitmap it draws into goes.
           fn.INK_Render_Close(render)
           if (skip !== 0) fn.free(skip)
+          if (skipAt !== 0) fn.free(skipAt)
+          fn.FPDFBitmap_Destroy(bitmap)
+        }
+      }
+    } finally {
+      if (!this.#stopped) fn.FPDF_ClosePage(page)
+    }
+  }
+
+  /**
+   * Draws each of `draws` alone through the module's annotation draw, onto a transparent bitmap
+   * placed as `#render` places the page. It pauses whenever a slice's time has passed between
+   * draws. The draw writes nothing to the document.
+   */
+  *#drawAnnotations(
+    entry: OpenDocument,
+    index: number,
+    options: AnnotationRequestOptions,
+    draws: readonly AnnotationDraw[]
+  ): Generator<undefined, RenderedAnnotations> {
+    const fn = this.#fn
+    const page = this.#loadPage(entry, index)
+    try {
+      const { region, size, rotation } = options
+      const geometry = renderGeometry(this.#info(page), {
+        region,
+        size,
+        ...(rotation !== undefined && { rotation }),
+      })
+      const { width, height } = geometry
+      const matrix = annotationMatrix(
+        geometry,
+        fn.FPDF_GetPageWidthF(page),
+        fn.FPDF_GetPageHeightF(page)
+      )
+      const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
+      if (bitmap === 0)
+        throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+      let at = 0
+      try {
+        fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0x00000000)
+        at = fn.malloc(matrix.length * 4)
+        if (at === 0)
+          throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+        // malloc returns blocks aligned for any type, so the index is whole.
+        this.#native.HEAPF32.set(matrix, at / 4)
+        const drawn: number[] = []
+        let sliceStart = performance.now()
+        for (const draw of draws) {
+          if (performance.now() - sliceStart >= SLICE_MS) {
+            yield
+            sliceStart = performance.now()
+          }
+          const { state } = draw
+          const ok =
+            state === undefined
+              ? fn.INK_Annot_Draw(bitmap, page, draw.index, 0, at)
+              : withBytes(this.#heap, Uint8Array.of(...state, 0), (name) =>
+                  fn.INK_Annot_Draw(bitmap, page, draw.index, name, at)
+                )
+          if (ok) drawn.push(draw.index)
+        }
+        return { ...this.#copyPixels(bitmap, width, height, straight), drawn }
+      } finally {
+        if (!this.#stopped) {
+          if (at !== 0) fn.free(at)
           fn.FPDFBitmap_Destroy(bitmap)
         }
       }
@@ -700,6 +849,19 @@ export class EngineCore {
 
   /** The bitmap's pixels as tightly packed RGBA rows over white, opaque, in memory the caller owns. */
   #copyBitmap(bitmap: number, width: number, height: number): Drawn {
+    return this.#copyPixels(bitmap, width, height, overWhite)
+  }
+
+  /**
+   * The bitmap's pixels as tightly packed rows, in memory the caller owns, with `convert` applied
+   * to PDFium's blue, green, red and alpha in place.
+   */
+  #copyPixels(
+    bitmap: number,
+    width: number,
+    height: number,
+    convert: (data: Uint8ClampedArray) => void
+  ): Drawn {
     const fn = this.#fn
     const stride = fn.FPDFBitmap_GetStride(bitmap)
     const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
@@ -720,7 +882,7 @@ export class EngineCore {
         const from = buffer + y * stride
         data.set(heap.subarray(from, from + row), y * row)
       }
-    overWhite(data)
+    convert(data)
     return { width, height, data }
   }
 
@@ -1191,5 +1353,20 @@ function overWhite(data: Uint8ClampedArray): void {
     const g = ((((pixel >>> 8) & 0xff) * alpha + white) / 255) | 0
     const r = ((((pixel >>> 16) & 0xff) * alpha + white) / 255) | 0
     pixels[i] = (0xff000000 | (b << 16) | (g << 8) | r) >>> 0
+  }
+}
+
+/**
+ * Turns PDFium's pixels (blue, green, red, alpha, with straight alpha) into straight RGBA, in
+ * place: blue and red change places, and a pixel with no alpha becomes all zero.
+ */
+function straight(data: Uint8ClampedArray): void {
+  const pixels = new Uint32Array(data.buffer, data.byteOffset, data.length >>> 2)
+  for (let i = 0; i < pixels.length; i++) {
+    const pixel = pixels[i]!
+    pixels[i] =
+      pixel >>> 24 === 0
+        ? 0
+        : ((pixel & 0xff00ff00) | ((pixel & 0xff) << 16) | ((pixel >>> 16) & 0xff)) >>> 0
   }
 }
