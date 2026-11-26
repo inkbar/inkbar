@@ -442,66 +442,58 @@ export function engineOver(transport: Transport): Engine {
   return new EngineImpl(new Session(transport))
 }
 
-const isNode = () =>
-  typeof process !== 'undefined' && typeof process.versions?.node === 'string'
-
-async function defaultWasm(): Promise<string | URL | Uint8Array> {
-  const url = new URL('./inkbar-pdfium.wasm', import.meta.url)
-  if (!isNode()) return url
-  try {
-    // A module import of a `node:` specifier would be resolved, and rejected, by a browser
-    // bundler. This branch runs only in Node, which has `getBuiltinModule` from 22.3.
-    const { readFile } = process.getBuiltinModule('node:fs/promises')
-    return new Uint8Array(await readFile(url))
-  } catch (cause) {
-    throw new EngineError(
-      'engine-failure',
-      `Could not read the PDF engine from ${url.href}.`,
-      {
-        cause,
-      }
-    )
-  }
+/**
+ * Where `createEngine` looks for the files the caller did not name. Only the main entry supplies
+ * these: they hold the `new URL('./…', import.meta.url)` forms a bundler follows and copies.
+ */
+export interface EngineDefaults {
+  /** The wasm location, for an engine in a worker, which fetches it. */
+  wasmUrl(): URL
+  /** The wasm for an engine in the calling thread. */
+  readWasm(): Promise<string | URL | Uint8Array>
+  /** A worker running the default script. */
+  startWorker(): Worker
+  /** The default script's URL, for messages. */
+  workerHref(): string
 }
 
-/**
- * The default worker's URL, for messages only. A bundler copies the file at a literal
- * `new URL('./…', import.meta.url)` as an asset, so only the `new Worker(...)` call below names
- * it literally; this one goes through a variable the bundler leaves alone.
- */
-const WORKER_FILE = './worker.mjs'
-const defaultWorkerHref = () => new URL(WORKER_FILE, import.meta.url).href
-
-function startWorker(worker: string | URL | Worker | undefined): {
-  worker: Worker
-  url?: string
-} {
+function startWorker(worker: string | URL | Worker): { worker: Worker; url?: string } {
   if (worker instanceof Worker) return { worker }
-  // The literal `new Worker(new URL(..., import.meta.url))` form is what bundlers look for.
-  if (worker === undefined)
-    return {
-      worker: new Worker(new URL('./worker.mjs', import.meta.url), { type: 'module' }),
-      url: defaultWorkerHref(),
-    }
   return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
 }
 
 /**
- * Starts an engine. It loads the WebAssembly module and, in a worker, the worker script. Later it
- * fetches only the `fallbackFonts` a page needs. It rejects with `engine-failure`, naming the
- * URL, when the module or the worker cannot be loaded, or a font URL is not valid.
+ * Starts an engine with default file locations for what `options` leaves out. With no defaults,
+ * `options.wasm` and `options.worker` are required.
  */
-export async function createEngine(options: EngineOptions = {}): Promise<Engine> {
+export async function createEngineWith(
+  options: EngineOptions,
+  defaults?: EngineDefaults
+): Promise<Engine> {
   const { worker, fallbackFonts } = options
+  if (defaults === undefined) {
+    if (options.wasm === undefined)
+      throw new TypeError('createEngine needs the `wasm` option: a URL or the bytes.')
+    if (worker === undefined)
+      throw new TypeError(
+        'createEngine needs the `worker` option: a URL, a Worker, or false.'
+      )
+  }
   if (worker !== false && typeof Worker !== 'undefined') {
-    const wasm = options.wasm ?? new URL('./inkbar-pdfium.wasm', import.meta.url)
-    let started: ReturnType<typeof startWorker>
+    const wasm = options.wasm ?? (defaults as EngineDefaults).wasmUrl()
+    let started: { worker: Worker; url?: string }
     try {
-      started = startWorker(worker)
+      started =
+        worker === undefined
+          ? {
+              worker: (defaults as EngineDefaults).startWorker(),
+              url: (defaults as EngineDefaults).workerHref(),
+            }
+          : startWorker(worker)
     } catch (cause) {
       const from =
         worker === undefined
-          ? ` from ${defaultWorkerHref()}`
+          ? ` from ${(defaults as EngineDefaults).workerHref()}`
           : worker instanceof Worker
             ? ''
             : ` from ${String(worker)}`
@@ -520,6 +512,6 @@ export async function createEngine(options: EngineOptions = {}): Promise<Engine>
       })
     )
   }
-  const wasm = options.wasm ?? (await defaultWasm())
+  const wasm = options.wasm ?? (await (defaults as EngineDefaults).readWasm())
   return engineOver(await createInThreadTransport({ wasm }, { fallbackFonts }))
 }
