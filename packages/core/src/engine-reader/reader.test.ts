@@ -669,9 +669,9 @@ describe('drawing', () => {
   it('reads a page whose text the engine cut short, and warns once for it', async () => {
     const t = setup({ pageText: () => Promise.resolve({ ...hiText(), truncated: true }) })
     const reader = await t.open()
-    const { items } = await reader.text(0, { glyphs: false })
+    const { items } = await reader.text(0)
     expect(items.map((i) => i.str)).toEqual(['Hi'])
-    await reader.text(0, { glyphs: true })
+    await reader.text(0)
     expect(t.warn).toHaveBeenCalledTimes(1)
     expect(t.warn).toHaveBeenCalledWith(
       'Inkbar: page 1 has more text than can be read; its text is read up to the first 1,000,000 characters.'
@@ -991,7 +991,7 @@ describe('text', () => {
   it("builds the page's runs from the engine's characters", async () => {
     const t = setup()
     const reader = await t.open()
-    const content = await reader.text(0, { glyphs: false })
+    const content = await reader.text(0)
     expect(content.page).toBe(0)
     expect(content.items).toMatchObject([
       { str: 'Hi', dir: 'ltr', fontName: 'Courier', fontSize: 12, hasEOL: true },
@@ -1003,8 +1003,8 @@ describe('text', () => {
   it('reads a page once for two reads of it, and for its families', async () => {
     const t = setup()
     const reader = await t.open()
-    const first = await reader.text(0, { glyphs: false })
-    const again = await reader.text(0, { glyphs: true })
+    const first = await reader.text(0)
+    const again = await reader.text(0)
     await reader.textFamilies(0)
     expect(again).toEqual(first)
     expect(t.engines[0]!.doc.pageText).toHaveBeenCalledTimes(1)
@@ -1013,12 +1013,12 @@ describe('text', () => {
   it('gives each read an object and list of its own, so a caller that edits them changes no other', async () => {
     const t = setup()
     const reader = await t.open()
-    const first = await reader.text(0, { glyphs: false })
+    const first = await reader.text(0)
     const kept = structuredClone(first)
     first.items.reverse()
     first.items.push(first.items[0]!)
     ;(first as { page: number }).page = 7
-    const again = await reader.text(0, { glyphs: false })
+    const again = await reader.text(0)
     expect(again).not.toBe(first)
     expect(again.items).not.toBe(first.items)
     expect(again).toEqual(kept)
@@ -1040,9 +1040,9 @@ describe('text', () => {
     it('rejects with the reason of a signal aborted before it, and asks the engine nothing', async () => {
       const { reader, pageText } = await gated()
       const reason = new Error('moved on')
-      await expect(
-        reader.text(0, { glyphs: false, signal: AbortSignal.abort(reason) })
-      ).rejects.toBe(reason)
+      await expect(reader.text(0, { signal: AbortSignal.abort(reason) })).rejects.toBe(
+        reason
+      )
       await expect(reader.textFamilies(0, AbortSignal.abort(reason))).rejects.toBe(reason)
       expect(pageText).not.toHaveBeenCalled()
     })
@@ -1051,12 +1051,12 @@ describe('text', () => {
       const { reader, gate, pageText, engineSignal } = await gated()
       const c = new AbortController()
       const reason = new Error('moved on')
-      const reading = reader.text(0, { glyphs: false, signal: c.signal })
+      const reading = reader.text(0, { signal: c.signal })
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
       c.abort(reason)
       await expect(reading).rejects.toBe(reason)
       expect(engineSignal().aborted).toBe(true)
-      const later = reader.text(0, { glyphs: false })
+      const later = reader.text(0)
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(2))
       gate.resolve()
       await expect(later).resolves.toMatchObject({ items: [{ str: 'Hi' }] })
@@ -1067,8 +1067,8 @@ describe('text', () => {
       const one = new AbortController()
       const two = new AbortController()
       const reason = new Error('moved on')
-      const first = reader.text(0, { glyphs: false, signal: one.signal })
-      const second = reader.text(0, { glyphs: false, signal: two.signal })
+      const first = reader.text(0, { signal: one.signal })
+      const second = reader.text(0, { signal: two.signal })
       const families = reader.textFamilies(0, two.signal)
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
       one.abort(reason)
@@ -1078,7 +1078,7 @@ describe('text', () => {
       await expect(second).resolves.toMatchObject({ items: [{ str: 'Hi' }] })
       await expect(families).resolves.toEqual(['monospace'])
       // The read was kept: the aborted caller did not spoil it for later ones.
-      await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+      await expect(reader.text(0)).resolves.toMatchObject({
         items: [{ str: 'Hi' }],
       })
       expect(pageText).toHaveBeenCalledTimes(1)
@@ -1088,7 +1088,7 @@ describe('text', () => {
       const { reader, gate, pageText, engineSignal } = await gated()
       const c = new AbortController()
       const plain = reader.textFamilies(0)
-      const signalled = reader.text(0, { glyphs: false, signal: c.signal })
+      const signalled = reader.text(0, { signal: c.signal })
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
       c.abort()
       await expect(signalled).rejects.toMatchObject({ name: 'AbortError' })
@@ -1101,7 +1101,7 @@ describe('text', () => {
       const { reader, gate, pageText, engineSignal } = await gated()
       const one = new AbortController()
       const two = new AbortController()
-      const first = reader.text(0, { glyphs: false, signal: one.signal })
+      const first = reader.text(0, { signal: one.signal })
       const second = reader.textFamilies(0, two.signal)
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
       one.abort()
@@ -1111,10 +1111,7 @@ describe('text', () => {
       await expect(second).rejects.toMatchObject({ name: 'AbortError' })
       expect(engineSignal().aborted).toBe(true)
       // A caller that comes after starts a read of its own.
-      const later = reader.text(0, {
-        glyphs: false,
-        signal: new AbortController().signal,
-      })
+      const later = reader.text(0, { signal: new AbortController().signal })
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(2))
       expect(engineSignal(1).aborted).toBe(false)
       gate.resolve()
@@ -1125,7 +1122,7 @@ describe('text', () => {
       const { t, reader, pageText } = await gated()
       await reader.pageInfo(0)
       const c = new AbortController()
-      const reading = reader.text(0, { glyphs: false, signal: c.signal })
+      const reading = reader.text(0, { signal: c.signal })
       await vi.waitFor(() => expect(pageText).toHaveBeenCalledTimes(1))
       c.abort()
       await expect(reading).rejects.toMatchObject({ name: 'AbortError' })
@@ -1137,9 +1134,9 @@ describe('text', () => {
     it('reads as with no signal when its signal does not abort', async () => {
       const t = setup()
       const reader = await t.open()
-      expect(
-        await reader.text(0, { glyphs: false, signal: new AbortController().signal })
-      ).toEqual(await reader.text(0, { glyphs: false }))
+      expect(await reader.text(0, { signal: new AbortController().signal })).toEqual(
+        await reader.text(0)
+      )
     })
   })
 
@@ -1147,18 +1144,18 @@ describe('text', () => {
     const t = setup({ pageCount: 10 })
     const reader = await t.open()
     const pageText = t.engines[0]!.doc.pageText
-    for (let page = 0; page < 9; page++) await reader.text(page, { glyphs: false })
+    for (let page = 0; page < 9; page++) await reader.text(page)
     expect(pageText).toHaveBeenCalledTimes(9)
     // Page 0 has gone; pages 1 to 8 are kept, and reading one keeps it longest.
-    await reader.text(8, { glyphs: false })
-    await reader.text(1, { glyphs: false })
+    await reader.text(8)
+    await reader.text(1)
     expect(pageText).toHaveBeenCalledTimes(9)
-    await reader.text(0, { glyphs: false })
+    await reader.text(0)
     expect(pageText).toHaveBeenCalledTimes(10)
     // Reading page 0 again let go of page 2, the one read longest ago; page 1 stayed.
-    await reader.text(1, { glyphs: false })
+    await reader.text(1)
     expect(pageText).toHaveBeenCalledTimes(10)
-    await reader.text(2, { glyphs: false })
+    await reader.text(2)
     expect(pageText).toHaveBeenCalledTimes(11)
   })
 
@@ -1172,8 +1169,8 @@ describe('text', () => {
     })
     const reader = await t.open()
     await reader.pageInfo(0)
-    await expect(reader.text(0, { glyphs: false })).rejects.toBe(cannot)
-    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+    await expect(reader.text(0)).rejects.toBe(cannot)
+    await expect(reader.text(0)).resolves.toMatchObject({
       items: [{ str: 'Hi' }],
     })
     expect(t.createEngine).toHaveBeenCalledTimes(1)
@@ -1182,7 +1179,7 @@ describe('text', () => {
   it('rejects with PageOutOfRange for a page the file does not have', async () => {
     const t = setup()
     const reader = await t.open()
-    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject({
+    await expect(reader.text(1)).rejects.toMatchObject({
       code: 'PageOutOfRange',
     })
     await expect(reader.textFamilies(-1)).rejects.toMatchObject({
@@ -1199,7 +1196,7 @@ describe('text', () => {
           : Promise.resolve(hiText()),
     })
     const reader = await t.open()
-    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({
+    await expect(reader.text(0)).resolves.toMatchObject({
       items: [{ str: 'Hi' }],
     })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
@@ -1213,7 +1210,7 @@ describe('text', () => {
   it('rejects on a second failure, without a third engine', async () => {
     const t = setup({ pageText: () => Promise.reject(engineError('engine-failure')) })
     const reader = await t.open()
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+    await expect(reader.text(0)).rejects.toMatchObject({
       code: 'EngineUnavailable',
     })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
@@ -1223,7 +1220,7 @@ describe('text', () => {
     const t = setup()
     const reader = await t.open()
     await reader.destroy()
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+    await expect(reader.text(0)).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
     await expect(reader.textFamilies(0)).rejects.toMatchObject({
@@ -1236,7 +1233,7 @@ describe('text', () => {
     const gate = deferred<void>()
     const t = setup({ pageText: () => gate.promise.then(() => hiText()) })
     const reader = await t.open()
-    const reading = reader.text(0, { glyphs: false })
+    const reading = reader.text(0)
     await vi.waitFor(() => expect(t.engines[0]!.doc.pageText).toHaveBeenCalled())
     const destroying = reader.destroy()
     gate.resolve()
@@ -1355,7 +1352,7 @@ describe('links, the outline and destinations', () => {
     await reader.draw(request({ page: 1 }), canvas)
     expect(context.putImageData).toHaveBeenCalledTimes(1)
     await expect(reader.tabOrder(1)).resolves.toEqual([])
-    await expect(reader.text(1, { glyphs: false })).resolves.toMatchObject({ page: 1 })
+    await expect(reader.text(1)).resolves.toMatchObject({ page: 1 })
     expect(reader.engineStopped.get()).toBe(false)
   })
 
@@ -1370,6 +1367,29 @@ describe('links, the outline and destinations', () => {
     await expect(reader.links(0)).resolves.toEqual([])
     for (let page = 1; page < 50; page++)
       await expect(reader.links(page)).resolves.toHaveLength(1)
+  })
+
+  it('asks for links again once the reader is started again by hand', async () => {
+    let trapping = true
+    const t = setup({
+      pageCount: 4,
+      pageLinks: () =>
+        trapping ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    for (let page = 0; page < 3; page++)
+      await expect(reader.links(page)).resolves.toEqual([])
+    // Three engines dropped in a row: link reads no longer ask.
+    trapping = false
+    await expect(reader.links(3)).resolves.toEqual([])
+    // The reader stops (the engine stops and none can start), and is started again by hand.
+    t.states.at(-1)!.stopped = true
+    t.createEngine.mockRejectedValueOnce(new Error('no wasm'))
+    await expect(reader.text(0)).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    expect(reader.engineStopped.get()).toBe(true)
+    await reader.restart()
+    await expect(reader.links(3)).resolves.toHaveLength(1)
   })
 
   it('counts only reads in a row: one that succeeds starts the count again', async () => {
@@ -1627,6 +1647,19 @@ describe('links, the outline and destinations', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(3)
   })
 
+  it("does not count an outline's lookups towards stopping the reader: they have a limit of their own", async () => {
+    // Three names apart, each stopping the engine it is looked up on, with lookups that work
+    // between them: as counted stops they would stop the reader.
+    const { t, reader } = await namedOutline((i) => i === 0 || i === 15 || i === 30)
+    const outline = await reader.outline()
+    expect(outline.filter((o) => o.target.kind === 'unsupported')).toHaveLength(3)
+    expect(reader.engineStopped.get()).toBe(false)
+    expect(t.createEngine.mock.calls.length).toBeGreaterThan(3)
+    await expect(reader.draw(request({ page: 1 }), fakeCanvas().canvas)).resolves.toBe(
+      undefined
+    )
+  })
+
   it('stops looking names up once lookups have stopped three engines in a row, within one outline read', async () => {
     const { t, reader } = await namedOutline(() => true)
     const outline = await reader.outline()
@@ -1707,19 +1740,19 @@ describe('an engine that cannot start', () => {
   it('a text read whose engine stopped and could not be replaced rejects with EngineUnavailable', async () => {
     const { t, reader } = await stopsThenCannotStart()
     expect(reader.unavailable()).toBeUndefined()
-    await expect(reader.text(1, { glyphs: true })).rejects.toMatchObject(unavailable)
+    await expect(reader.text(1)).rejects.toMatchObject(unavailable)
     expect(reader.unavailable()).toMatchObject(unavailable)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 
   it('then every call rejects with EngineUnavailable, kept answers included, with no engine started again', async () => {
     const { t, reader } = await stopsThenCannotStart()
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
+    await expect(reader.text(0)).rejects.toMatchObject(unavailable)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
     const { canvas } = fakeCanvas()
     for (let i = 0; i < 3; i++) {
       const calls: [string, Promise<unknown>][] = [
-        ['text', reader.text(0, { glyphs: false })],
+        ['text', reader.text(0)],
         ['textFamilies', reader.textFamilies(0)],
         ['textBaselines', reader.textBaselines(0)],
         // Page 0's facts were read before the engine stopped; page 1's never were.
@@ -1747,13 +1780,13 @@ describe('an engine that cannot start', () => {
 
   it('a call aborted, or made after destroy, rejects with its own reason', async () => {
     const { reader } = await stopsThenCannotStart()
-    await reader.text(0, { glyphs: false }).catch(() => undefined)
+    await reader.text(0).catch(() => undefined)
     const reason = new Error('moved on')
     const c = new AbortController()
     c.abort(reason)
-    await expect(reader.text(0, { glyphs: false, signal: c.signal })).rejects.toBe(reason)
+    await expect(reader.text(0, { signal: c.signal })).rejects.toBe(reason)
     await reader.destroy()
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
+    await expect(reader.text(0)).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
     await expect(reader.outline()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
@@ -1786,12 +1819,12 @@ describe('an engine that cannot start', () => {
     const reader = await t.open()
     await reader.pageInfo(0)
     // Page 0 is read by the engine and kept.
-    const engineText = await reader.text(0, { glyphs: false })
+    const engineText = await reader.text(0)
     expect(engineText.items.map((i) => i.str).join('')).toContain('Hi')
     t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
-    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject(unavailable)
+    await expect(reader.text(1)).rejects.toMatchObject(unavailable)
     // Page 0, read again, is not given from what was kept.
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
+    await expect(reader.text(0)).rejects.toMatchObject(unavailable)
     expect(t.engines[0]!.doc.pageText).toHaveBeenCalledTimes(2)
   })
 
@@ -1807,7 +1840,7 @@ describe('an engine that cannot start', () => {
     t.engines[0]!.doc.pageInfo.mockImplementationOnce(() => slow.promise)
     const first = reader.pageInfo(1)
     t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
+    await expect(reader.text(0)).rejects.toMatchObject(unavailable)
     // The engine cannot start; page 1's read on the stopped engine has not failed yet.
     const second = reader.pageInfo(1)
     slow.reject(engineError('engine-failure'))
@@ -2224,6 +2257,24 @@ describe("the file's facts, annotations, form and Tab order", () => {
     await reader.destroy()
   })
 
+  it("blocks no page when the file's scripts stop the engine, whichever page asked", async () => {
+    const { t, reader } = await opened({
+      scripts: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    // Asked for page 0's actions twice: two stops each time, none of them page 0's.
+    for (let i = 0; i < 2; i++)
+      await expect(reader.pageScripts(0)).rejects.toMatchObject({
+        code: 'EngineUnavailable',
+      })
+    await expect(reader.draw(request({ page: 0 }), fakeCanvas().canvas)).resolves.toBe(
+      undefined
+    )
+    await expect(reader.annotations(0)).resolves.toEqual(expect.any(Array))
+    expect(t.createEngine.mock.calls.length).toBeGreaterThan(1)
+    await reader.destroy()
+  })
+
   it('rejects the scripts when no engine can answer', async () => {
     const { reader } = await opened({
       scripts: () => Promise.reject(engineError('engine-failure')),
@@ -2477,7 +2528,7 @@ describe('lending its engine', () => {
     expect(engines[0]!.doc.close).toHaveBeenCalledTimes(1)
     // The next loan, and the next read, start the engine that replaces it.
     expect((await reader.borrowEngine()).engine).toBe(engines[1])
-    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({ page: 0 })
+    await expect(reader.text(0)).resolves.toMatchObject({ page: 0 })
     expect(engines).toHaveLength(2)
     expect(engines[1]!.open).toHaveBeenCalledTimes(1)
   })
@@ -2565,7 +2616,7 @@ describe('the stopped state', () => {
     return { t, reader }
   }
   const read = (reader: Awaited<ReturnType<typeof stopping>>['reader'], page: number) =>
-    reader.text(page, { glyphs: false })
+    reader.text(page)
 
   it('stops the document at the third restart within 60 seconds', async () => {
     const { t, reader } = await stopping(4, { once: [1, 2, 3] })

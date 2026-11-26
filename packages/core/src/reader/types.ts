@@ -96,14 +96,8 @@ export interface DocumentReader {
     canvas: HTMLCanvasElement,
     signal?: AbortSignal
   ): Promise<Set<string>>
-  /**
-   * The page's text. With `glyphs`, character boundaries are exact where the reader can make them
-   * so. Once `signal` aborts the read rejects with `signal.reason`.
-   */
-  text(
-    page: number,
-    options: { glyphs: boolean; signal?: AbortSignal }
-  ): Promise<TextContent>
+  /** The page's text. Once `signal` aborts the read rejects with `signal.reason`. */
+  text(page: number, options?: { signal?: AbortSignal }): Promise<TextContent>
   /** The page's visible links, in the order of the page's annotations. */
   links(page: number): Promise<PageLink[]>
   /**

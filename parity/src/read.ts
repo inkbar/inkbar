@@ -23,7 +23,7 @@ export type Part = (typeof PARTS)[number]
 async function text(doc: InkDocument): Promise<unknown> {
   const pages = []
   for (let page = 0; page < pagesChecked(doc); page++) {
-    const content = await doc._reader.text(page, { glyphs: true })
+    const content = await doc._reader.text(page)
     pages.push({
       page: page + 1,
       text: joinedText(content),

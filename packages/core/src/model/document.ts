@@ -272,10 +272,13 @@ export interface InkDocument {
   /**
    * Starts a new engine for a stopped document and opens the file in it again. Resolves when the
    * document reads again, and rejects with EngineUnavailable when it does not; it then stays
-   * stopped. Every page is read again, a page whose reads stopped the engine twice included. The
-   * session's annotations, form values and history are untouched either way. Calls made while one
-   * runs share it. Resolves at once, doing nothing, for a document that is not stopped. Rejects
-   * with DocumentDestroyed once the document is destroyed, also when that happens while it runs.
+   * stopped. Once it has restarted a stopped document, every page is read again, a page whose
+   * reads stopped the engine twice included. The session's annotations, form values and history
+   * are untouched either way. Calls made while one runs share it. Resolves at once, doing
+   * nothing, for a document that is not stopped: a page blocked while the document reads stays
+   * blocked. A blocked page's reads reject with EngineUnavailable, its `details.page` naming the
+   * page. Rejects with DocumentDestroyed once the document is destroyed, also when that happens
+   * while it runs.
    */
   restartEngine(): Promise<void>
   /**
@@ -397,8 +400,8 @@ export async function openDocument(
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
-  /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
-  const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
+  /** Each page's searchable text. */
+  const searchable = new Map<number, Promise<SearchableText>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
   let preserved: ForeignAnnotation[] = []
@@ -921,18 +924,16 @@ export async function openDocument(
   }
 
   /**
-   * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
-   * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
-   * decodes its images, so search does it only for pages with hits. Rejects with
+   * A page's text, its boundaries from the engine's character boxes. Rejects with
    * `DocumentDestroyed` once the document is destroyed, whether or not the read has finished.
    */
-  async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
+  async function pageContent(page: number): Promise<TextContent> {
     if (destroyed) throw destroyedError()
     if (!reader) throw statusError(status.get())
     // A read still running when the document is destroyed ends here with it, rejecting with
     // `DocumentDestroyed` whatever the reader does with it.
     const content = await Promise.race([
-      reader.text(page, { glyphs }),
+      reader.text(page),
       destroyedSignal.then(() => Promise.reject<TextContent>(destroyedError())),
     ])
     if (destroyed) throw destroyedError()
@@ -941,7 +942,7 @@ export async function openDocument(
 
   const abortError = (signal: AbortSignal | undefined): unknown =>
     signal?.reason ?? new DOMException('Aborted', 'AbortError')
-  const searchableFor = (page: number, placed: boolean): Promise<SearchableText> => {
+  const searchableFor = (page: number): Promise<SearchableText> => {
     // Once the engine is gone for good no page answers, so no kept page does either: a search
     // rejects rather than finding hits in some pages and failing on the others.
     const gone = reader?.unavailable()
@@ -949,27 +950,15 @@ export async function openDocument(
       searchable.clear()
       return Promise.reject(gone)
     }
-    let cached = searchable.get(page)
-    if (!cached) {
-      cached = pageContent(page, placed).then((c) => ({ st: searchableText(c), placed }))
-    } else if (placed) {
-      // Only the boundaries change, so hits found in the measured text keep their offsets.
-      cached = cached.then((c) =>
-        c.placed
-          ? c
-          : pageContent(page, true).then((pc) => ({
-              st: searchableText(pc),
-              placed: true,
-            }))
-      )
-    } else return cached.then((c) => c.st)
-    const entry = cached
+    const cached = searchable.get(page)
+    if (cached) return cached
+    const entry = pageContent(page).then(searchableText)
     searchable.set(page, entry)
     // A failed page is not cached: the next search asks again.
     entry.catch(() => {
       if (searchable.get(page) === entry) searchable.delete(page)
     })
-    return entry.then((c) => c.st)
+    return entry
   }
 
   async function* scan(
@@ -991,12 +980,7 @@ export async function openDocument(
       check()
       let hits: SearchHit[]
       try {
-        hits = matchPage(await searchableFor(order[n]!, false), query, matchOpts)
-        // Hit boxes are cut where the page draws its glyphs, read only for pages with hits.
-        if (hits.length > 0) {
-          check()
-          hits = matchPage(await searchableFor(order[n]!, true), query, matchOpts)
-        }
+        hits = matchPage(await searchableFor(order[n]!), query, matchOpts)
       } catch (error) {
         check()
         throw error
@@ -1031,7 +1015,7 @@ export async function openDocument(
     pages,
     info,
     text(page) {
-      return pageContent(page, true)
+      return pageContent(page)
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw

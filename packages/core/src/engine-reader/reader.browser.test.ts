@@ -259,7 +259,7 @@ describe('the engine reader', () => {
 
 /** A page's text joined as search joins it, with its whitespace collapsed. */
 async function joinedText(doc: InkDocument, page: number): Promise<string> {
-  const content = await doc._reader.text(page, { glyphs: false })
+  const content = await doc._reader.text(page)
   return searchableText(content).raw.replace(/\s+/gu, ' ').trim()
 }
 
@@ -280,7 +280,7 @@ describe("the engine reader's text", () => {
     'places each item of text-simple page %i where it placed it before',
     async (page) => {
       const doc = await open('text-simple')
-      const items = (await doc._reader.text(page, { glyphs: true })).items
+      const items = (await doc._reader.text(page)).items
       expect(items.length).toBeGreaterThan(0)
       // Each with its glyph boundaries.
       expect(items.every((i) => i.advances)).toBe(true)
@@ -294,10 +294,10 @@ describe("the engine reader's text", () => {
     const doc = await open('text-simple')
     const reason = new Error('moved on')
     const c = new AbortController()
-    const reading = doc._reader.text(0, { glyphs: false, signal: c.signal })
+    const reading = doc._reader.text(0, { signal: c.signal })
     c.abort(reason)
     await expect(reading).rejects.toBe(reason)
-    const { items } = await doc._reader.text(0, { glyphs: false })
+    const { items } = await doc._reader.text(0)
     expect(items.map((i) => i.str).join(' ')).toContain('Page 1')
   })
 
@@ -313,7 +313,7 @@ describe("the engine reader's text", () => {
   // joined as they stand must keep their spaces: across a font change, a gap and two columns.
   it('keeps the space between items on one line, on text-search', async () => {
     const lines = async (doc: InkDocument) => {
-      const { items } = await doc._reader.text(0, { glyphs: false })
+      const { items } = await doc._reader.text(0)
       const byLine = new Map<number, string>()
       for (const item of items) {
         const y = Math.round(item.quad.p3.y / 4)
@@ -348,7 +348,7 @@ describe("the engine reader's text", () => {
 
   it('reads right-to-left and vertical runs with their directions', async () => {
     const rtl = await open('text-rtl')
-    const rtlItems = (await rtl._reader.text(0, { glyphs: false })).items
+    const rtlItems = (await rtl._reader.text(0)).items
     expect(rtlItems.map((i) => [i.str, i.dir])).toEqual([
       ['שלום עולם', 'rtl'],
       ['abc ', 'ltr'],
@@ -357,7 +357,7 @@ describe("the engine reader's text", () => {
       ['Latin line in Helvetica', 'ltr'],
     ])
     const vertical = await open('text-vertical')
-    const verticalItems = (await vertical._reader.text(0, { glyphs: false })).items
+    const verticalItems = (await vertical._reader.text(0)).items
     expect(verticalItems.map((i) => [i.str, i.dir])).toEqual([
       ['日本語のテキスト', 'ttb'],
       ['Horizontal line beside the column', 'ltr'],
@@ -373,7 +373,7 @@ describe("the engine reader's text", () => {
   ] as const)('keeps every item inside the page box, on %s', async (name) => {
     const doc = await open(name)
     for (const info of doc.pages) {
-      const { items } = await doc._reader.text(info.index, { glyphs: false })
+      const { items } = await doc._reader.text(info.index)
       expect(items.length).toBeGreaterThan(0)
       const { box } = info
       for (const { rect } of items) {
@@ -389,7 +389,7 @@ describe("the engine reader's text", () => {
     'gives vertical runs the column the glyphs are drawn in, on %s',
     async (name) => {
       const doc = await open(name)
-      const items = (await doc._reader.text(0, { glyphs: true })).items.filter(
+      const items = (await doc._reader.text(0)).items.filter(
         (item) => item.dir === 'ttb' && item.str.trim() !== ''
       )
       expect(items.length).toBeGreaterThan(0)

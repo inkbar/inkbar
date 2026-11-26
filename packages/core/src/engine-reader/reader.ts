@@ -852,7 +852,8 @@ export async function createEngineReader(
   const named = new Map<string, Promise<Destination | undefined>>()
   /**
    * `limit`, for the lookup this call starts: `onStop` is told when it stops the engine, and
-   * `giveUp` is asked before it tries again on a new engine (see `run`).
+   * `giveUp` is asked before it tries again on a new engine (see `run`). A lookup with a limit of
+   * its own counts towards neither a page's block nor stopping the reader, as a link read does.
    */
   const lookUp = (
     name: string,
@@ -867,6 +868,7 @@ export async function createEngineReader(
           dest = await run((doc) => doc.namedDestination(nameBytes(name)), {
             onStop: limit?.onStop,
             giveUp: limit?.giveUp,
+            counts: limit === undefined,
             onGone: () => {
               gone = true
             },
@@ -1241,13 +1243,14 @@ export async function createEngineReader(
   /**
    * The engine's script facts, read once and kept, as the form's are. A read a working engine
    * cannot make gives none, as PDF.js gives none for JavaScript it cannot read. A failed read is
-   * not kept. A read a page's actions start counts its stops towards that page.
+   * not kept. The read is of the whole file, so its stops count towards no page, whichever page's
+   * actions asked for it.
    */
   let scriptRead: Promise<ScriptFactsShape> | undefined
-  const scriptFacts = (page?: number): Promise<ScriptFactsShape> => {
+  const scriptFacts = (): Promise<ScriptFactsShape> => {
     if (!scriptRead) {
       const made = orElse(
-        (onGone) => run((doc) => doc.scripts(), { page, onGone }),
+        (onGone) => run((doc) => doc.scripts(), { onGone }),
         (): ScriptFactsShape => ({
           document: [],
           documentActions: {},
@@ -1321,7 +1324,7 @@ export async function createEngineReader(
   const pageScripts = (page: number): Promise<Record<string, string[]>> =>
     ownCall(async () => {
       checkPage(page)
-      return pageScriptsFromEngine(await scriptFacts(page), page)
+      return pageScriptsFromEngine(await scriptFacts(), page)
     }, page)
 
   /**
@@ -1377,6 +1380,7 @@ export async function createEngineReader(
     if (!stoppedWith) return Promise.resolve()
     const attempt = (async () => {
       stops.clear()
+      linkStops = 0
       let s: Session
       try {
         s = await start()
@@ -1413,9 +1417,8 @@ export async function createEngineReader(
     pageInfo,
     draw,
     drawFields,
-    // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
-    // gets an object and list of its own: one that sorts or edits
-    // them leaves the kept text as it was.
+    // Each caller gets an object and list of its own: one that sorts or edits them leaves the
+    // kept text as it was.
     text: (page, options): Promise<TextContent> =>
       onEngine(
         () =>
