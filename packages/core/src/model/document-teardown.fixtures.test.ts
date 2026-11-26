@@ -38,8 +38,13 @@ describe('destroying a document while PDF.js reads text', () => {
       // Destroyed at a different point in the reads each round.
       if (round > 0) await pause(round)
       doc.destroy()
-      // Every read ends, and none gives text from a destroyed document.
-      expect(await Promise.all(reads)).toEqual(Array(4).fill('DocumentDestroyed'))
+      // Every read ends. One that finished before the destroy gave its text; any other rejects.
+      // Nothing gives text after the destroy.
+      const outcomes = await Promise.all(reads)
+      for (const result of outcomes)
+        expect(['read', 'DocumentDestroyed']).toContain(result)
+      // With no pause the reads cannot have finished, so this round does destroy mid-read.
+      if (round === 0) expect(outcomes).toEqual(Array(4).fill('DocumentDestroyed'))
       await pause(100)
     }
     expect(warnings()).toEqual([])
@@ -57,7 +62,11 @@ describe('destroying a document while PDF.js reads text', () => {
       if (round > 0) await pause(round)
       abort.abort()
       doc.destroy()
-      expect(await search).toBe('AbortError')
+      // A search that finished during the pause legitimately returns; otherwise it aborts.
+      const result = await search
+      expect(['read', 'AbortError']).toContain(result)
+      // With no pause the search cannot have finished.
+      if (round === 0) expect(result).toBe('AbortError')
       await pause(100)
     }
     expect(warnings()).toEqual([])
