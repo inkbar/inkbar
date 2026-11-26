@@ -1,7 +1,8 @@
-import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
-import { emptyFormExtras } from '../../pdf/form-fields'
+import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
+import { openPdfObjects } from '../../pdf/objects'
 import { fileFieldsFromPdfjs } from '../../pdfjs/file-form'
 import { formFieldsOf } from '../../test-support/form'
 import { nodeAssets } from '../../test-support/node-assets'
@@ -420,5 +421,47 @@ describe('a reset naming a widget of a field PDF.js cannot type', () => {
         include,
       })
     }
+  )
+})
+
+describe('form building across the fixtures', () => {
+  const opening = (Object.keys(manifest) as FixtureName[]).filter(
+    (n) => manifest[n].opens
+  )
+
+  it.each(opening)(
+    "builds every fixture's fields from the engine reader's data: %s",
+    async (name) => {
+      const doc = await openDocument(await fixtureBytes(name), {
+        assets: nodeAssets(),
+        password: manifest[name].password,
+      })
+      try {
+        await doc.ready
+        const reader = doc._reader
+        const fields = await reader.form()
+        if (fields.length === 0) {
+          expect(buildFormFields(fields, emptyFormExtras())).toEqual([])
+          return
+        }
+        // As the document builds them: the extras read from the file's objects, a named
+        // destination's page through the reader.
+        const extras = await readFormExtras(
+          await openPdfObjects(await fixtureBytes(name)),
+          fields.flatMap((f) => f.widgets.map((w) => w.id)),
+          {
+            destinationPage: (dest) =>
+              reader.resolveDestination(dest).then(
+                (d) => d?.page,
+                () => undefined
+              ),
+          }
+        )
+        expect(buildFormFields(fields, extras)).toMatchSnapshot()
+      } finally {
+        doc.destroy()
+      }
+    },
+    30_000
   )
 })

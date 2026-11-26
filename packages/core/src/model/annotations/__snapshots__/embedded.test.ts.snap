@@ -1,0 +1,5023 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: acroform-basic 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annot-direct 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "contents": "An indirect Square",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#0000FF",
+        "contents": "A Square written inline",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:p0i1",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#FFFF00",
+        "contents": "A Highlight written inline",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:p0i2",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 560,
+            },
+            "p2": {
+              "x": 272,
+              "y": 560,
+            },
+            "p3": {
+              "x": 72,
+              "y": 540,
+            },
+            "p4": {
+              "x": 272,
+              "y": 540,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 200,
+          "x": 72,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+    ],
+    "counts": {
+      "Highlight": 1,
+      "Square": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-markup 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "author": "Ed",
+        "color": "#FFFF00",
+        "contents": "highlighted",
+        "createdAt": "2026-10-12T12:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T12:00:00.000Z",
+        "opacity": 0.5,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 715,
+            },
+            "p2": {
+              "x": 400,
+              "y": 715,
+            },
+            "p3": {
+              "x": 72,
+              "y": 695,
+            },
+            "p4": {
+              "x": 400,
+              "y": 695,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 328,
+          "x": 72,
+          "y": 695,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 691,
+            },
+            "p2": {
+              "x": 400,
+              "y": 691,
+            },
+            "p3": {
+              "x": 72,
+              "y": 671,
+            },
+            "p4": {
+              "x": 400,
+              "y": 671,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 328,
+          "x": 72,
+          "y": 671,
+        },
+        "source": "pdf",
+        "type": "underline",
+      },
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:9R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 667,
+            },
+            "p2": {
+              "x": 400,
+              "y": 667,
+            },
+            "p3": {
+              "x": 72,
+              "y": 647,
+            },
+            "p4": {
+              "x": 400,
+              "y": 647,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 328,
+          "x": 72,
+          "y": 647,
+        },
+        "source": "pdf",
+        "type": "strikeout",
+      },
+      {
+        "color": "#008000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 643,
+            },
+            "p2": {
+              "x": 400,
+              "y": 643,
+            },
+            "p3": {
+              "x": 72,
+              "y": 623,
+            },
+            "p4": {
+              "x": 400,
+              "y": 623,
+            },
+          },
+        ],
+        "rect": {
+          "height": 13.333333333333258,
+          "width": 328,
+          "x": 72,
+          "y": 616.3333333333334,
+        },
+        "source": "pdf",
+        "type": "squiggly",
+      },
+    ],
+    "counts": {
+      "Highlight": 1,
+      "Squiggly": 1,
+      "StrikeOut": 1,
+      "Underline": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-notes-threaded 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "author": "Ed",
+        "color": "#F2C230",
+        "contents": "Root note",
+        "createdAt": "2026-10-12T11:00:00.000Z",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T11:05:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 400,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "author": "Sam",
+        "color": "#F2C230",
+        "contents": "First reply",
+        "createdAt": "2026-10-12T11:10:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:8R",
+        "inReplyTo": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T11:10:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 400,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "author": "Ed",
+        "color": "#F2C230",
+        "contents": "Second reply",
+        "createdAt": "2026-10-12T11:20:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:9R",
+        "inReplyTo": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T11:20:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 400,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "author": "Ed",
+        "color": "#F2C230",
+        "contents": "Standalone",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 72,
+          "y": 498,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+    ],
+    "counts": {
+      "Text": 4,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-redact 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 228,
+          "x": 72,
+          "y": 671,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:8R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 40,
+          "width": 128,
+          "x": 72,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Redact": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-shapes 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 100,
+          "width": 128,
+          "x": 72,
+          "y": 500,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 3,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 100,
+          "width": 100,
+          "x": 250,
+          "y": 500,
+        },
+        "source": "pdf",
+        "type": "circle",
+        "width": 1,
+      },
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 400,
+          "y": 450,
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:9R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 54,
+          "width": 332,
+          "x": 70,
+          "y": 398,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 72,
+          "y": 400,
+        },
+        "type": "line",
+        "width": 2,
+      },
+      {
+        "color": "#008000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 130,
+          "width": 228,
+          "x": 72,
+          "y": 250,
+        },
+        "source": "pdf",
+        "type": "polygon",
+        "vertices": [
+          {
+            "x": 72,
+            "y": 250,
+          },
+          {
+            "x": 300,
+            "y": 250,
+          },
+          {
+            "x": 186,
+            "y": 380,
+          },
+        ],
+        "width": 1,
+      },
+      {
+        "color": "#800080",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:11R",
+        "inklist": [
+          [
+            {
+              "x": 350,
+              "y": 250,
+            },
+            {
+              "x": 400,
+              "y": 380,
+            },
+            {
+              "x": 450,
+              "y": 250,
+            },
+            {
+              "x": 500,
+              "y": 380,
+            },
+            {
+              "x": 550,
+              "y": 250,
+            },
+          ],
+        ],
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 130,
+          "width": 200,
+          "x": 350,
+          "y": 250,
+        },
+        "source": "pdf",
+        "type": "ink",
+        "width": 2,
+      },
+      {
+        "color": "#FFFFFF",
+        "contents": "Free text box",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#000000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:12R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 228,
+          "x": 72,
+          "y": 100,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Circle": 1,
+      "FreeText": 1,
+      "Ink": 1,
+      "Line": 1,
+      "Polygon": 1,
+      "Square": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:12R",
+        "rect": [
+          72,
+          100,
+          300,
+          160,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-unsupported 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "FileAttachment": 1,
+      "Link": 1,
+      "Stamp": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-appended 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-black-box 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-unapplied 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:6R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 35,
+          "width": 170,
+          "x": 45,
+          "y": 190,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Redact": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: border-dashes 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 650,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 570,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:9R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 490,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 50,
+          "width": 100,
+          "x": 72,
+          "y": 410,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Square": 4,
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-bad-xref 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Standard callout",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#D00000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "intent": "FreeTextCallout",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 147,
+          "width": 227,
+          "x": 56.5,
+          "y": 516.5,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:8R",
+        "rect": [
+          56.5,
+          516.5,
+          283.5,
+          663.5,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-encrypted 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Standard callout",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#D00000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:5R",
+        "intent": "FreeTextCallout",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 147,
+          "width": 227,
+          "x": 56.5,
+          "y": 516.5,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:5R",
+        "rect": [
+          56.5,
+          516.5,
+          283.5,
+          663.5,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-incremental 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Standard callout",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#D00000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "intent": "FreeTextCallout",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 147,
+          "width": 227,
+          "x": 56.5,
+          "y": 516.5,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:8R",
+        "rect": [
+          56.5,
+          516.5,
+          283.5,
+          663.5,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-xref-stream 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Standard callout",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#D00000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "intent": "FreeTextCallout",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 147,
+          "width": 227,
+          "x": 56.5,
+          "y": 516.5,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:8R",
+        "rect": [
+          56.5,
+          516.5,
+          283.5,
+          663.5,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: certified 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-form-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-image 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-inline-image 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-pattern-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-alpha-composite 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-annots 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FFE600",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:19R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 293,
+              "y": 542,
+            },
+            "p2": {
+              "x": 349,
+              "y": 542,
+            },
+            "p3": {
+              "x": 293,
+              "y": 530,
+            },
+            "p4": {
+              "x": 349,
+              "y": 530,
+            },
+          },
+        ],
+        "rect": {
+          "height": 12,
+          "width": 56,
+          "x": 293,
+          "y": 530,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+      {
+        "color": "#44C8F5",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:20R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 83,
+              "y": 453,
+            },
+            "p2": {
+              "x": 178,
+              "y": 453,
+            },
+            "p3": {
+              "x": 83,
+              "y": 440,
+            },
+            "p4": {
+              "x": 178,
+              "y": 440,
+            },
+          },
+        ],
+        "rect": {
+          "height": 13,
+          "width": 95,
+          "x": 83,
+          "y": 440,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+      {
+        "color": "#26E600",
+        "contents": "Text Note",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:22R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 149,
+              "y": 487,
+            },
+            "p2": {
+              "x": 191,
+              "y": 487,
+            },
+            "p3": {
+              "x": 149,
+              "y": 476,
+            },
+            "p4": {
+              "x": 191,
+              "y": 476,
+            },
+          },
+        ],
+        "rect": {
+          "height": 11,
+          "width": 42,
+          "x": 149,
+          "y": 476,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+    ],
+    "counts": {
+      "Highlight": 3,
+      "Link": 4,
+      "Popup": 1,
+      "Widget": 1,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:1:26R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 20,
+          "width": 10,
+          "x": 50,
+          "y": 100,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+    ],
+    "counts": {
+      "Link": 2,
+      "Square": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-842 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1087 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1236 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1388 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1399 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Link": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1469 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1558 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1746 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1768 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1822 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1845 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1883 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 90,
+          "y": 370,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 190,
+          "y": 470,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Line": 2,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:1:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 90,
+          "y": 370,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:1:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 190,
+          "y": 470,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Line": 2,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:2:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 2,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 90,
+          "y": 370,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:2:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 2,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 190,
+          "y": 470,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Line": 2,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:3:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 3,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 90,
+          "y": 370,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "end": {
+          "x": 100,
+          "y": 150,
+        },
+        "hasAppearance": true,
+        "id": "pdf:3:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 3,
+        "rect": {
+          "height": 130,
+          "width": 180,
+          "x": 190,
+          "y": 470,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 100,
+          "y": 50,
+        },
+        "type": "line",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Line": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1976 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-631912 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1258968 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1302355 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1396264 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1479436 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-42270471 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-557320961 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-dashed-lines 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-embedpdf-chrome-type3-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-embedpdf-tiling-patterns 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-gradient-pattern-stroke-order 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-jpxdecode 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-long-dashed-line 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-matte 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-pattern-fill 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-pattern-stroke-uncolored 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-radial-shading-point-at-center 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-rectangles-multi-pages 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-shade 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-shade-tensor 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-smask-blend 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-text-render-mode 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-transfer-function 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-type3 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: cropbox-offset 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 100,
+          "x": 100,
+          "y": 100,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+    ],
+    "counts": {
+      "Square": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: encrypted-aes 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: encrypted-rc4 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-bare-appearances 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-choices 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-fieldmdp 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-fields 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 20,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-format 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-goto 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 7,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-range 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-restricted 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-rollover 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 18,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted-kinds 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 19,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted-parents 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 7,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-shared-scripted 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-signed 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-structure 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-timer 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-tree 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-uppercase 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-values 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 10,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: freetext-fonts 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Font 1",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#000000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 30,
+          "width": 228,
+          "x": 72,
+          "y": 640,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+      {
+        "contents": "Font 2",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#000000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 30,
+          "width": 228,
+          "x": 72,
+          "y": 580,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+      {
+        "contents": "Font 3",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#000000",
+          "fontFamily": "Helvetica",
+          "fontSize": 10,
+          "textAlign": "left",
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:9R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 30,
+          "width": 228,
+          "x": 72,
+          "y": 520,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+      {
+        "contents": "Font 4",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#000000",
+          "fontFamily": "Helvetica",
+          "fontSize": 10,
+          "textAlign": "left",
+        },
+        "hasAppearance": false,
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 30,
+          "width": 228,
+          "x": 72,
+          "y": 460,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 4,
+    },
+    "targets": [
+      {
+        "daFont": "F1",
+        "id": "pdf:0:7R",
+        "rect": [
+          72,
+          640,
+          300,
+          670,
+        ],
+        "subtype": "FreeText",
+      },
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:8R",
+        "rect": [
+          72,
+          580,
+          300,
+          610,
+        ],
+        "subtype": "FreeText",
+      },
+      {
+        "daFont": "F2",
+        "id": "pdf:0:9R",
+        "rect": [
+          72,
+          520,
+          300,
+          550,
+        ],
+        "subtype": "FreeText",
+      },
+      {
+        "daFont": "F3",
+        "id": "pdf:0:10R",
+        "rect": [
+          72,
+          460,
+          300,
+          490,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: incremental-saved 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FFFF00",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 715,
+            },
+            "p2": {
+              "x": 300,
+              "y": 715,
+            },
+            "p3": {
+              "x": 72,
+              "y": 695,
+            },
+            "p4": {
+              "x": 300,
+              "y": 695,
+            },
+          },
+        ],
+        "rect": {
+          "height": 20,
+          "width": 228,
+          "x": 72,
+          "y": 695,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+    ],
+    "counts": {
+      "Highlight": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: link-order 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:7R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 30,
+          "width": 200,
+          "x": 72,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Link": 5,
+      "Square": 1,
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: link-targets 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Link": 34,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: links 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Link": 8,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {
+      "Link": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: malformed-missing-xref 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: mixed-page-sizes 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: note-icon-ap 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#F2C230",
+        "contents": "A note",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 24,
+          "width": 24,
+          "x": 100,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+    ],
+    "counts": {
+      "Text": 1,
+    },
+    "targets": [
+      {
+        "id": "pdf:0:8R",
+        "rect": [
+          100,
+          600,
+          124,
+          624,
+        ],
+        "subtype": "Text",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: object-streams 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: outline 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#0000FF",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 120,
+          "width": 160,
+          "x": 220,
+          "y": 40,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 0,
+      },
+    ],
+    "counts": {
+      "Square": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-drawing 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Stamp": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-elsewhere 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Stamp": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-rewritten 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotations 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#F2C230",
+        "contents": "SECRET-NOTE",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "pdf:0:10R",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 60,
+          "y": 213,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+    ],
+    "counts": {
+      "Popup": 1,
+      "Stamp": 1,
+      "Text": 1,
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-pieceinfo 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-thumbnail 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-xmp 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-fill 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-function-shading 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-function-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-hatch 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-hatch-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh-pattern 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-miter-reach 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-negative-width 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-colour-kept 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-miter 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-past-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-side 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-sampled-axial 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-shading 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-stroke 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-attachment 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "FileAttachment": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-encrypted 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-hidden-layer 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-revisions 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-script 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-signed 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-encrypted 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:0:6R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 35,
+          "width": 170,
+          "x": 45,
+          "y": 190,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Redact": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#000000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": false,
+        "id": "pdf:1:8R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 35,
+          "width": 170,
+          "x": 45,
+          "y": 190,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Redact": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-popup 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#FF0000",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:6R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 35,
+          "width": 170,
+          "x": 45,
+          "y": 190,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Popup": 1,
+      "Redact": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-hidden-layer 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-1bit 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-ccitt 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-flate 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jbig2 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jpeg 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jpx 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-mask 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-rotated 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-shared 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-skewed 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-smask 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-stencil 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-mask-group-past-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-mask-group-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-cropbox 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-no-contents 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Stamp": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-rotate-90 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-rotate-270 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-userunit 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-path 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-beside-carriers 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-clip 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-composite 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-fade 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-form-under-mark 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-half-word 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-nested-form 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-pattern 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-rotated 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-shaped-fade 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-shared-form 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-type3 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-vertical 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-annotations 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#F2C230",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 0.4,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 714,
+            },
+            "p2": {
+              "x": 272,
+              "y": 714,
+            },
+            "p3": {
+              "x": 72,
+              "y": 700,
+            },
+            "p4": {
+              "x": 272,
+              "y": 700,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 200,
+          "x": 72,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+      {
+        "color": "#2B5A9E",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:14R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 694,
+            },
+            "p2": {
+              "x": 272,
+              "y": 694,
+            },
+            "p3": {
+              "x": 72,
+              "y": 680,
+            },
+            "p4": {
+              "x": 272,
+              "y": 680,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 680,
+        },
+        "source": "pdf",
+        "type": "underline",
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:18R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 674,
+            },
+            "p2": {
+              "x": 272,
+              "y": 674,
+            },
+            "p3": {
+              "x": 72,
+              "y": 660,
+            },
+            "p4": {
+              "x": 272,
+              "y": 660,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 660,
+        },
+        "source": "pdf",
+        "type": "strikeout",
+      },
+      {
+        "color": "#1F7A4D",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:22R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 654,
+            },
+            "p2": {
+              "x": 272,
+              "y": 654,
+            },
+            "p3": {
+              "x": 72,
+              "y": 640,
+            },
+            "p4": {
+              "x": 272,
+              "y": 640,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 640,
+        },
+        "source": "pdf",
+        "type": "squiggly",
+      },
+      {
+        "author": "Sam",
+        "color": "#F2C230",
+        "contents": "A note",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:26R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 20,
+          "x": 520,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "color": "#F2C230",
+        "contents": "A reply",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:30R",
+        "inReplyTo": "pdf:0:26R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 520,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "contents": "Saved by Inkbar",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "defaultStyle": {
+          "color": "#151820",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:32R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 40,
+          "width": 160,
+          "x": 300,
+          "y": 560,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:38R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 80,
+          "x": 72,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:42R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 80,
+          "x": 180,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "circle",
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "end": {
+          "x": 260,
+          "y": 520,
+        },
+        "hasAppearance": true,
+        "head": "OpenArrow",
+        "id": "pdf:0:46R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 27.348689999999976,
+          "width": 193.00024000000002,
+          "x": 71,
+          "y": 496.65155,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 72,
+          "y": 500,
+        },
+        "tail": "Circle",
+        "type": "line",
+        "width": 2,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:50R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 41,
+          "width": 121,
+          "x": 299.5,
+          "y": 479.5,
+        },
+        "source": "pdf",
+        "type": "polyline",
+        "vertices": [
+          {
+            "x": 300,
+            "y": 480,
+          },
+          {
+            "x": 360,
+            "y": 520,
+          },
+          {
+            "x": 420,
+            "y": 480,
+          },
+        ],
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:54R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 51,
+          "width": 91,
+          "x": 449.5,
+          "y": 479.5,
+        },
+        "source": "pdf",
+        "type": "polygon",
+        "vertices": [
+          {
+            "x": 450,
+            "y": 480,
+          },
+          {
+            "x": 540,
+            "y": 480,
+          },
+          {
+            "x": 495,
+            "y": 530,
+          },
+        ],
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:58R",
+        "inklist": [
+          [
+            {
+              "x": 72,
+              "y": 400,
+            },
+            {
+              "x": 110,
+              "y": 450,
+            },
+            {
+              "x": 150,
+              "y": 400,
+            },
+            {
+              "x": 190,
+              "y": 450,
+            },
+          ],
+        ],
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 36.34186,
+          "width": 93.252385,
+          "x": 70.952965,
+          "y": 398.95108,
+        },
+        "source": "pdf",
+        "type": "ink",
+        "width": 3,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:77R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 41,
+          "width": 201,
+          "x": 299.5,
+          "y": 219.5,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Circle": 1,
+      "FreeText": 1,
+      "Highlight": 1,
+      "Ink": 1,
+      "Line": 1,
+      "PolyLine": 1,
+      "Polygon": 1,
+      "Redact": 1,
+      "Square": 1,
+      "Squiggly": 1,
+      "Stamp": 3,
+      "StrikeOut": 1,
+      "Text": 2,
+      "Underline": 1,
+    },
+    "targets": [
+      {
+        "id": "pdf:0:26R",
+        "rect": [
+          520,
+          700,
+          540,
+          720,
+        ],
+        "subtype": "Text",
+      },
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:32R",
+        "rect": [
+          300,
+          560,
+          460,
+          600,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:1:81R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 80,
+          "width": 120,
+          "x": 100,
+          "y": 100,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "Square": 1,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-encrypted 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:50:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:50:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 80,
+          "width": 100,
+          "x": 72,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+      {
+        "color": "#F2C230",
+        "contents": "Hi",
+        "createdAt": "2026-11-17T09:50:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:12R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:50:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 20,
+          "x": 300,
+          "y": 650,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+    ],
+    "counts": {
+      "Square": 1,
+      "Text": 1,
+    },
+    "targets": [
+      {
+        "id": "pdf:0:12R",
+        "rect": [
+          300,
+          650,
+          320,
+          670,
+        ],
+        "subtype": "Text",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-incremental 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#F2C230",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 0.4,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 714,
+            },
+            "p2": {
+              "x": 272,
+              "y": 714,
+            },
+            "p3": {
+              "x": 72,
+              "y": 700,
+            },
+            "p4": {
+              "x": 272,
+              "y": 700,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 200,
+          "x": 72,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "highlight",
+      },
+      {
+        "color": "#2B5A9E",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:14R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 694,
+            },
+            "p2": {
+              "x": 272,
+              "y": 694,
+            },
+            "p3": {
+              "x": 72,
+              "y": 680,
+            },
+            "p4": {
+              "x": 272,
+              "y": 680,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 680,
+        },
+        "source": "pdf",
+        "type": "underline",
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:18R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 674,
+            },
+            "p2": {
+              "x": 272,
+              "y": 674,
+            },
+            "p3": {
+              "x": 72,
+              "y": 660,
+            },
+            "p4": {
+              "x": 272,
+              "y": 660,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 660,
+        },
+        "source": "pdf",
+        "type": "strikeout",
+      },
+      {
+        "color": "#1F7A4D",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:22R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "quads": [
+          {
+            "p1": {
+              "x": 72,
+              "y": 654,
+            },
+            "p2": {
+              "x": 272,
+              "y": 654,
+            },
+            "p3": {
+              "x": 72,
+              "y": 640,
+            },
+            "p4": {
+              "x": 272,
+              "y": 640,
+            },
+          },
+        ],
+        "rect": {
+          "height": 14,
+          "width": 201,
+          "x": 71.5,
+          "y": 640,
+        },
+        "source": "pdf",
+        "type": "squiggly",
+      },
+      {
+        "author": "Sam",
+        "color": "#F2C230",
+        "contents": "A note",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:26R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 20,
+          "x": 520,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "color": "#F2C230",
+        "contents": "A reply",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:30R",
+        "inReplyTo": "pdf:0:26R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 520,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "contents": "Saved by Inkbar",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "defaultStyle": {
+          "color": "#151820",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:32R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 40,
+          "width": 160,
+          "x": 300,
+          "y": 560,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:38R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 80,
+          "x": 72,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 2,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:42R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 80,
+          "x": 180,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "circle",
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "end": {
+          "x": 260,
+          "y": 520,
+        },
+        "hasAppearance": true,
+        "head": "OpenArrow",
+        "id": "pdf:0:46R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 27.348689999999976,
+          "width": 193.00024000000002,
+          "x": 71,
+          "y": 496.65155,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 72,
+          "y": 500,
+        },
+        "tail": "Circle",
+        "type": "line",
+        "width": 2,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:50R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 41,
+          "width": 121,
+          "x": 299.5,
+          "y": 479.5,
+        },
+        "source": "pdf",
+        "type": "polyline",
+        "vertices": [
+          {
+            "x": 300,
+            "y": 480,
+          },
+          {
+            "x": 360,
+            "y": 520,
+          },
+          {
+            "x": 420,
+            "y": 480,
+          },
+        ],
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:54R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 51,
+          "width": 91,
+          "x": 449.5,
+          "y": 479.5,
+        },
+        "source": "pdf",
+        "type": "polygon",
+        "vertices": [
+          {
+            "x": 450,
+            "y": 480,
+          },
+          {
+            "x": 540,
+            "y": 480,
+          },
+          {
+            "x": 495,
+            "y": 530,
+          },
+        ],
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:58R",
+        "inklist": [
+          [
+            {
+              "x": 72,
+              "y": 400,
+            },
+            {
+              "x": 110,
+              "y": 450,
+            },
+            {
+              "x": 150,
+              "y": 400,
+            },
+            {
+              "x": 190,
+              "y": 450,
+            },
+          ],
+        ],
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 36.34186,
+          "width": 93.252385,
+          "x": 70.952965,
+          "y": 398.95108,
+        },
+        "source": "pdf",
+        "type": "ink",
+        "width": 3,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:77R",
+        "interiorColor": "#000000",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 41,
+          "width": 201,
+          "x": 299.5,
+          "y": 219.5,
+        },
+        "source": "pdf",
+        "type": "redact",
+      },
+    ],
+    "counts": {
+      "Circle": 1,
+      "FreeText": 1,
+      "Highlight": 1,
+      "Ink": 1,
+      "Line": 1,
+      "PolyLine": 1,
+      "Polygon": 1,
+      "Redact": 1,
+      "Square": 1,
+      "Squiggly": 1,
+      "Stamp": 3,
+      "StrikeOut": 1,
+      "Text": 2,
+      "Underline": 1,
+    },
+    "targets": [
+      {
+        "id": "pdf:0:26R",
+        "rect": [
+          520,
+          700,
+          540,
+          720,
+        ],
+        "subtype": "Text",
+      },
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:32R",
+        "rect": [
+          300,
+          560,
+          460,
+          600,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+  {
+    "annotations": [
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:30:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:1:81R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:30:00.000Z",
+        "opacity": 1,
+        "page": 1,
+        "rect": {
+          "height": 80,
+          "width": 120,
+          "x": 100,
+          "y": 100,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "Square": 1,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-replied 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#F2C230",
+        "contents": "A note another program replied to",
+        "createdAt": "2026-11-17T10:10:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T10:10:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 20,
+          "x": 520,
+          "y": 700,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "color": "#F2C230",
+        "contents": "A reply Inkbar saved",
+        "createdAt": "2026-11-17T10:10:00.000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "pdf:0:14R",
+        "inReplyTo": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T10:10:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 520,
+          "y": 698,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "color": "#F2C230",
+        "contents": "A note another program gave a pop-up",
+        "createdAt": "2026-11-17T10:10:00.000Z",
+        "hasAppearance": true,
+        "icon": "Note",
+        "id": "pdf:0:16R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T10:10:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 20,
+          "width": 20,
+          "x": 520,
+          "y": 640,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T10:10:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:19R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T10:10:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 60,
+          "width": 80,
+          "x": 72,
+          "y": 540,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+      {
+        "author": "Another program",
+        "color": "#F2C230",
+        "contents": "A reply from another program",
+        "createdAt": "2026-11-17T12:00:00.000Z",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "pdf:0:22R",
+        "inReplyTo": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T12:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 22,
+          "width": 22,
+          "x": 540,
+          "y": 658,
+        },
+        "source": "pdf",
+        "type": "text",
+      },
+    ],
+    "counts": {
+      "Popup": 1,
+      "Square": 1,
+      "Text": 4,
+    },
+    "targets": [
+      {
+        "id": "pdf:0:11R",
+        "rect": [
+          520,
+          700,
+          540,
+          720,
+        ],
+        "subtype": "Text",
+      },
+      {
+        "id": "pdf:0:16R",
+        "rect": [
+          520,
+          640,
+          540,
+          660,
+        ],
+        "subtype": "Text",
+      },
+    ],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-signed 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Stamp": 1,
+      "Widget": 20,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 3,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-tampered 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:40:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:11R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:40:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 80,
+          "width": 100,
+          "x": 72,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "square",
+        "width": 1,
+      },
+      {
+        "color": "#C0392B",
+        "createdAt": "2026-11-17T09:40:00.000Z",
+        "hasAppearance": true,
+        "id": "pdf:0:15R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:40:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 80,
+          "width": 100,
+          "x": 200,
+          "y": 600,
+        },
+        "source": "pdf",
+        "type": "circle",
+        "width": 1,
+      },
+      {
+        "color": "#151820",
+        "createdAt": "2026-11-17T09:40:00.000Z",
+        "end": {
+          "x": 450,
+          "y": 680,
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:19R",
+        "locked": true,
+        "modifiedAt": "2026-11-17T09:40:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 82,
+          "width": 122,
+          "x": 329,
+          "y": 599,
+        },
+        "source": "pdf",
+        "start": {
+          "x": 330,
+          "y": 600,
+        },
+        "type": "line",
+        "width": 2,
+      },
+    ],
+    "counts": {
+      "Circle": 1,
+      "Line": 1,
+      "Square": 1,
+    },
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: scanned-no-text 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: script-page-only 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: signed 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: signed-encrypted 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 2,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: standard-callout 1`] = `
+[
+  {
+    "annotations": [
+      {
+        "contents": "Standard callout",
+        "createdAt": "2026-10-12T00:00:00.000Z",
+        "defaultStyle": {
+          "color": "#D00000",
+          "fontFamily": "Helvetica",
+          "fontSize": 12,
+          "textAlign": "left",
+        },
+        "hasAppearance": true,
+        "id": "pdf:0:8R",
+        "intent": "FreeTextCallout",
+        "locked": true,
+        "modifiedAt": "2026-10-12T00:00:00.000Z",
+        "opacity": 1,
+        "page": 0,
+        "rect": {
+          "height": 147,
+          "width": 227,
+          "x": 56.5,
+          "y": 516.5,
+        },
+        "source": "pdf",
+        "type": "freetext",
+        "width": 1,
+      },
+    ],
+    "counts": {
+      "FreeText": 1,
+    },
+    "targets": [
+      {
+        "daFont": "Helv",
+        "id": "pdf:0:8R",
+        "rect": [
+          56.5,
+          516.5,
+          283.5,
+          663.5,
+        ],
+        "subtype": "FreeText",
+      },
+    ],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-cjk 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-90 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-180 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-270 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rtl 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-search 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-simple 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-vertical 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-arial 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-cyrillic 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-greek 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-japanese 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-japanese-field 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {
+      "Widget": 1,
+    },
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-korean 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-simplified-chinese 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-traditional-chinese 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: userunit-2 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;

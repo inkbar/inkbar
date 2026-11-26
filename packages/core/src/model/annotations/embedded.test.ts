@@ -1,4 +1,4 @@
-import { fixtureBytes } from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../../test-support/node-assets'
@@ -192,6 +192,35 @@ describe('embedded import', () => {
       width: 1,
     })
   })
+})
+
+describe('embedded import across the fixtures', () => {
+  const opening = (Object.keys(manifest) as FixtureName[]).filter(
+    (n) => manifest[n].opens
+  )
+
+  it.each(opening)(
+    "imports every fixture page from the engine reader's data: %s",
+    async (name) => {
+      const doc = await openDocument(await fixtureBytes(name), {
+        assets: nodeAssets(),
+        password: manifest[name].password,
+      })
+      try {
+        await doc.ready
+        const pages = []
+        for (let i = 0; i < doc.pages.length; i++) {
+          // As the document reads them: a page whose annotations cannot be read has none.
+          const raw = await doc._reader.annotations(i).catch(() => [])
+          pages.push(importEmbeddedPage(i, raw, NOW))
+        }
+        expect(pages).toMatchSnapshot()
+      } finally {
+        doc.destroy()
+      }
+    },
+    30_000
+  )
 })
 
 describe('embedded import of PDF names and callouts', () => {
