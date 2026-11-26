@@ -120,7 +120,12 @@
   "form-bare-appearances": {
     "state": "different",
     "reason": "A text field with no /AP: the engine generates an appearance for it (a bordered box); PDF.js draws nothing",
-    "accepted": true
+    "accepted": true,
+    "formLayer": {
+      "state": "different",
+      "reason": "A text field with no /AP: the engine draws a generated appearance for its widget in the field's canvas (a bordered box); PDF.js draws nothing",
+      "accepted": false
+    }
   },
   "form-goto": {
     "state": "same"
@@ -141,7 +146,12 @@
     "state": "same"
   },
   "link-order": {
-    "state": "same"
+    "state": "same",
+    "annotations": {
+      "state": "different",
+      "reason": "A Link written as a direct object in /Annots has no object number: PDF.js gives it an id from a counter (annot_p0_1), the engine reader one from its place in /Annots (p0i8)",
+      "accepted": false
+    }
   },
   "text-rtl": {
     "state": "different",
@@ -152,7 +162,12 @@
     "state": "same"
   },
   "annot-direct": {
-    "state": "same"
+    "state": "same",
+    "annotations": {
+      "state": "different",
+      "reason": "Two annotations written as direct objects in /Annots have no object number: PDF.js gives each an id from a counter (annot_p0_1, annot_p0_2), the engine reader one from its place in /Annots (p0i1, p0i2)",
+      "accepted": false
+    }
   },
   "form-tree": {
     "state": "same"
@@ -194,10 +209,22 @@
     "state": "same"
   },
   "saved-annotations": {
-    "state": "same"
+    "state": "same",
+    "annotations": {
+      "state": "different",
+      "reason": "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA (12 and #151820)",
+      "accepted": false,
+      "pages": [1]
+    }
   },
   "saved-incremental": {
-    "state": "same"
+    "state": "same",
+    "annotations": {
+      "state": "different",
+      "reason": "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA (12 and #151820)",
+      "accepted": false,
+      "pages": [1]
+    }
   },
   "saved-tampered": {
     "state": "same"
@@ -226,7 +253,12 @@
   "redact-annotations": {
     "state": "different",
     "reason": "A Text note with no /AP: the engine generates an appearance for it (a speech-bubble icon); PDF.js draws nothing",
-    "accepted": true
+    "accepted": true,
+    "formLayer": {
+      "state": "different",
+      "reason": "A Text note with no /AP, not a field: the engine generates an appearance for it on the page canvas (a speech-bubble icon); PDF.js draws nothing. The field's canvas matches",
+      "accepted": false
+    }
   },
   "redact-foreign-mark": {
     "state": "different",
@@ -625,7 +657,13 @@
     "state": "different",
     "reason": "A combo box widget with no /AP: the engine generates an appearance for it (a drop-down arrow); PDF.js draws nothing",
     "accepted": true,
-    "pages": [1]
+    "pages": [1],
+    "formLayer": {
+      "state": "different",
+      "reason": "A combo box with no /AP: the engine draws a generated appearance for its widget in the field's canvas (a drop-down arrow); PDF.js draws nothing",
+      "accepted": false,
+      "pages": [1]
+    }
   },
   "corpus-bug-1302355": {
     "state": "same"

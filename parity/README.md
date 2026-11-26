@@ -1,6 +1,6 @@
 # @inkbar/parity
 
-Draws the first three pages of every fixture that opens with both of core's readers, PDF.js and the engine, reads their text, links and outline, and checks each fixture against the verdicts `parity.json` records for it. Private: never published.
+Draws the first three pages of every fixture that opens with both of core's readers, PDF.js and the engine, with and without the form layer, reads their text, links, outline, facts, form fields, annotations, Tab order and JavaScript, and checks each fixture against the verdicts `parity.json` records for it. Private: never published.
 
 It opens each fixture twice with `openDocument`, once with `globalThis.__INKBAR_READER__ = 'engine'` set first and once without, and draws through `doc._reader.draw` at 2 pixels per point, pixel ratio 1, the page's own `/Rotate`, nothing hidden. That switch and `_reader` are internal to core. This package is the one place outside core that uses them.
 
@@ -40,9 +40,17 @@ A drawing that leaves out any of these still passes as `same`:
 - a flat tint within 8 levels of the other image;
 - a small glyph part such as a dot: about 8% of glyph parts of 40 px or more are missed, and most smaller ones.
 
-## Text, links and outline
+## The form layer
 
-Three more checks read what each reader gives besides pixels, for every fixture that opens. Each holds its own verdict in `parity.json`.
+`src/parity.browser.test.ts` also draws the pages a person sees on a form: for every compared page that holds a widget of a form field in either reader, it mounts the page with `createPageMount` from `@inkbar/core/dom`, as the viewer does, at 2 pixels per point and pixel ratio 1. The page canvas leaves the fields' widgets out, and the form layer draws each widget's appearance into a canvas of its own. The check copies the page canvas, then each appearance canvas the layer shows, at the place the layer puts it and in the layer's order, and compares the two readers' copies with the checks above. It captures canvases only: the form layer's HTML controls and the other DOM layers stay out.
+
+A widget whose look either reader's layer hands to its HTML control (a script changed its value or colour) or hides (a script hid it) shows no appearance canvas, so the check leaves it out of both copies and takes both copies in one step. Which widgets those are depends on what the file's scripts have run by then: `form-timer` bumps a field every 50 ms. For a fixture compared with its baseline, the check compares the engine's copy with that baseline.
+
+A page without fields is not drawn again and counts as the same. Its verdict is `formLayer` in `parity.json`, apart from the page's own: a page whose drawing differs can match with the form layer on, and the other way round. `.report/form-layer-measures.json` holds every page's numbers.
+
+## Text, links, outline, fields, annotations and scripts
+
+More checks read what each reader gives besides pixels, for every fixture that opens. Each holds its own verdict in `parity.json`.
 
 - **Text** (`src/text.browser.test.ts`). For each compared page, the check reads both readers' text with exact character boundaries and joins it the way search joins it (core's `searchableText`), with whitespace runs collapsed to one space and the ends trimmed. The two strings must be equal. Then the check pairs the characters that are not whitespace and measures how far apart the readers put them, as a fraction of the font size:
   - Where both items holding a character carry `advances`, the check compares the character's centre: the middle of its share of its item's box, cut at the item's `advances`, which rise along the box for left-to-right and vertical text and fall for right-to-left text.
@@ -53,7 +61,13 @@ Three more checks read what each reader gives besides pixels, for every fixture 
 - **Links** (`src/links.browser.test.ts`). On every page of the file, both readers must give the same links in the same order: the same count, and for each link the same id, `order`, target and quads, and a rect within 0.01 pt. The check compares a destination by where it goes, as each reader resolves it: both readers write an explicit destination's array as PDF.js does, but the engine holds its numbers in single precision. Two explicit destinations that go nowhere count as equal.
 - **Outline** (same file). The same tree: for each item its title, bold, italic, open, resolved destination and number of children.
 
-A failure names each difference: the character where the two strings first differ, or the worst character and its distance; the link or outline item and the field, with both readers' values.
+- **Facts and form fields** (`src/form.browser.test.ts`). The title, author and whether the file is encrypted, as `facts()` gives them. Then the fields `form()` gives, paired by full name: the same fields in the same order, and for each field every key, its widgets paired by id in their order with every key of each, on-states and actions included.
+- **Annotations and Tab order** (`src/annotations.browser.test.ts`). On every page of the file, the annotations `annotations(page)` gives, paired by id: the same ones in the same order, each with every key. Then the page's structure order of annotation ids, `tabOrder(page)`.
+- **JavaScript** (`src/scripts.browser.test.ts`). Whether the file has any, the document scripts paired by name with each source compared as text, the document actions, the calculation order and the field entries `scripts()` gives, and every page's actions from `pageScripts(page)`.
+
+These three compare core's own shapes. A `rect` may be 0.01 pt apart, as a link's; every other number, string and list must be equal, and a key one reader leaves out counts as different unless the other leaves it out too. Two fields of one name pair in turn, the first with the first. When the readers give different things, the check names each one only one reader gives, or, with the same number on both sides, each place whose name or id differs.
+
+A failure names each difference: the character where the two strings first differ, or the worst character and its distance; the link or outline item and the field, with both readers' values; the field, widget, annotation or script and the key, with both readers' values, and for a long string the first character where they differ.
 
 `src/search.browser.test.ts` runs the queries core's own search tests run, on the same fixtures, with each reader. Both readers must find the same number of hits, on the same pages, with the same text, and the centre of each hit's quads must lie within `TEXT_TOLERANCE` of the other reader's. It has no verdicts: any difference fails.
 
@@ -78,7 +92,7 @@ One entry per fixture that opens:
 - `{ "state": "baseline", "reason": "..." }`: PDF.js cannot be the reference (it draws text in fonts the file does not embed with whatever fonts the machine has), so the test compares the engine's drawing with `baselines/<fixture>-<page>.png`, the engine's own committed output, and skips PDF.js.
 - `{ "state": "skipped", "reason": "..." }`: one reader does not open the file, or the readers count its pages differently. The test checks that this still holds.
 
-An entry that is not `skipped` may also hold `text`, `links` and `outline`, each `{ "state": "same" }` or `{ "state": "different", "reason": "...", "accepted": false }` with the same rules, `pages` included (the outline takes no `pages`). A missing key means `same`. Links are compared on every page, so a `links` verdict's `pages` may list any page of the file.
+An entry that is not `skipped` may also hold `text`, `links`, `outline`, `facts`, `form`, `annotations`, `scripts` and `formLayer`, each `{ "state": "same" }` or `{ "state": "different", "reason": "...", "accepted": false }` with the same rules, `pages` included. A missing key means `same`. The outline, facts, form fields and JavaScript are each read once for the whole file and take no `pages`. Links and annotations are compared on every page, so their verdicts' `pages` may list any page of the file. Text and the form layer list compared pages.
 
 Whatever the verdict, both readers must agree on each page's box (within 0.01 pt), rotation and user unit, and on the page count. A fixture with no entry fails with "no verdict recorded". The unit tests check the file's shape: a known `state`, a non-empty `reason` where the state needs one, a boolean `accepted`, valid `pages`, no unknown keys, and an entry for every fixture that opens and nothing else.
 
@@ -91,6 +105,6 @@ pnpm --filter @inkbar/parity test --maxWorkers=4           # unit tests: compare
 pnpm --filter @inkbar/parity test:browser --maxWorkers=4   # the suite, in headless Chromium
 ```
 
-The report: `PARITY_REPORT=1 pnpm --filter @inkbar/parity test:browser` writes `parity/.report/index.html` with every page that is not the same, most different first: the PDF.js (or baseline) image, the engine image, a difference image (over a faded copy of the page: red where the blurred images differ, blue for unmatched pixels, orange for differing flat areas), the numbers and the recorded reason. `PARITY_REPORT=all` lists every page. Both also write `parity/.report/measures.json` with every page's numbers. The text check writes `parity/.report/text.html` in the same way: for each page listed, the two strings with the first difference (or the worst character) marked, and the engine's drawing with both readers' item boxes and character centres over it, PDF.js's in blue and the engine's in red. Beside each page's image is a JSON file of both readers' text, and `text-measures.json` holds every page's worst offset. The link check writes `parity/.report/links.html` with each page's link differences and the outline's. A report run empties the folder first. Git ignores it.
+The report: `PARITY_REPORT=1 pnpm --filter @inkbar/parity test:browser` writes `parity/.report/index.html` with every page that is not the same, most different first: the PDF.js (or baseline) image, the engine image, a difference image (over a faded copy of the page: red where the blurred images differ, blue for unmatched pixels, orange for differing flat areas), the numbers and the recorded reason. `PARITY_REPORT=all` lists every page. Both also write `parity/.report/measures.json` with every page's numbers. The text check writes `parity/.report/text.html` in the same way: for each page listed, the two strings with the first difference (or the worst character) marked, and the engine's drawing with both readers' item boxes and character centres over it, PDF.js's in blue and the engine's in red. Beside each page's image is a JSON file of both readers' text, and `text-measures.json` holds every page's worst offset. The link check writes `parity/.report/links.html` with each page's link differences and the outline's. The form layer check writes `parity/.report/form-layer.html` with the same images and numbers as `index.html`. The facts and form, annotation and script checks write `form.html`, `annotations.html` and `scripts.html`, each a table with one row per difference: fixture, part, page, verdict, reason and the difference. A report run empties the folder first. Git ignores it.
 
 Baselines: `PARITY_BASELINE=unembedded-japanese pnpm --filter @inkbar/parity test:browser -t unembedded-japanese` writes that fixture's PNGs under `parity/baselines/`. Several fixtures can be given, separated by commas. Look at the images before committing them.

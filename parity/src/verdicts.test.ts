@@ -109,6 +109,59 @@ describe('parityProblems', () => {
     expect(parityProblems(json, two)).toContain(problem)
   })
 
+  it.each(['facts', 'form', 'scripts'])('takes no pages on a %s verdict', (part) => {
+    expect(
+      parityProblems(
+        {
+          a: {
+            state: 'same',
+            [part]: { state: 'different', reason: 'r', accepted: false, pages: [1] },
+          },
+        },
+        two
+      )
+    ).toEqual([`a: ${part}: unknown key pages`])
+  })
+
+  it.each(['facts', 'form', 'annotations', 'scripts', 'formLayer'])(
+    'checks a %s verdict as the others are checked',
+    (part) => {
+      expect(
+        parityProblems({ a: { state: 'same', [part]: { state: 'odd' } } }, two)
+      ).toEqual([`a: ${part}: unknown state "odd"`])
+      expect(
+        parityProblems(
+          {
+            a: {
+              state: 'same',
+              [part]: { state: 'different', reason: '', accepted: false },
+            },
+          },
+          two
+        )
+      ).toEqual([`a: ${part}: reason is empty or not a string`])
+      expect(
+        parityProblems(
+          { a: { state: 'skipped', reason: 'r', [part]: { state: 'same' } } },
+          two
+        )
+      ).toEqual([`a: unknown key ${part}`])
+    }
+  )
+
+  it('lets an annotations verdict list any page of the file, and the form layer only the compared ones', () => {
+    const entry = (part: string) => ({
+      a: {
+        state: 'same',
+        [part]: { state: 'different', reason: 'r', accepted: false, pages: [5] },
+      },
+    })
+    expect(parityProblems(entry('annotations'), two, { a: 6 })).toEqual([])
+    expect(parityProblems(entry('formLayer'), two, { a: 6 })).toEqual([
+      'a: formLayer: pages must list compared pages, 1 to 2, in increasing order',
+    ])
+  })
+
   it('lets a links verdict list any page of the file, and text only the compared ones', () => {
     const entry = (part: string) => ({
       a: {

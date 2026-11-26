@@ -117,8 +117,12 @@ const escape = (s: string) =>
 
 const percent = (n: number) => `${(n * 100).toFixed(2)}%`
 
-/** The report page: the pages given, most different first. */
-export function reportHtml(pages: ReportPage[], generated: string): string {
+/** The report page: the pages given, most different first, under `title`. */
+export function reportHtml(
+  pages: ReportPage[],
+  generated: string,
+  title = 'Rendering parity'
+): string {
   const sorted = [...pages].sort(
     (a, b) =>
       b.measured.share - a.measured.share ||
@@ -141,7 +145,7 @@ export function reportHtml(pages: ReportPage[], generated: string): string {
   return `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>Rendering parity</title>
+<title>${escape(title)}</title>
 <style>
 body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
 .row { display: flex; gap: 8px; }
@@ -150,7 +154,7 @@ img { width: 100%; border: 1px solid #ccc; }
 section { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; }
 small { color: #666; font-weight: normal; }
 </style>
-<h1>Rendering parity</h1>
+<h1>${escape(title)}</h1>
 <p>${sorted.length} pages listed, ${escape(generated)}.</p>
 ${rows.join('\n')}
 </html>
@@ -161,8 +165,13 @@ export async function writeText(path: string, text: string): Promise<void> {
   await commands.writeParityFile(path, text, 'utf8')
 }
 
-export async function writeReport(pages: ReportPage[]): Promise<void> {
-  await writeText('.report/index.html', reportHtml(pages, new Date().toISOString()))
+/** Writes the report page of `pages` to `path`, under `title`. */
+export async function writeReport(
+  pages: ReportPage[],
+  path = '.report/index.html',
+  title?: string
+): Promise<void> {
+  await writeText(path, reportHtml(pages, new Date().toISOString(), title))
 }
 
 /** One page's text, as the text report lists it. Points are pixels of `image`. */
@@ -301,6 +310,53 @@ li { font-family: ui-monospace, monospace; word-break: break-all; }
 <h1>Link and outline parity</h1>
 <p>${entries.length} listed, ${escape(generated)}.</p>
 ${rows.join('\n')}
+</html>
+`
+}
+
+/** One fixture's differences in one part read from the file, as the data report lists them. */
+export interface DataReportEntry {
+  fixture: string
+  /** `facts`, `form`, `annotations`, `scripts`. */
+  part: string
+  /** 0-based; absent for a part read once for the whole file. */
+  page?: number
+  state: string
+  reason: string
+  lines: string[]
+}
+
+/** A table of the differences in what the readers read from the file, one row per difference. */
+export function dataReportHtml(
+  entries: DataReportEntry[],
+  generated: string,
+  title: string
+): string {
+  const rows = entries.flatMap((e) =>
+    (e.lines.length === 0 ? ['The same.'] : e.lines).map(
+      (line) => `<tr>
+<td>${escape(e.fixture)}</td><td>${escape(e.part)}</td><td>${e.page === undefined ? '' : e.page + 1}</td><td>${escape(e.state)}</td><td>${e.reason === '' ? '<em>No reason recorded.</em>' : escape(e.reason)}</td><td class="line">${escape(line)}</td>
+</tr>`
+    )
+  )
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>${escape(title)}</title>
+<style>
+body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border-top: 1px solid #ddd; padding: 4px 8px; text-align: left; vertical-align: top; }
+.line { font-family: ui-monospace, monospace; word-break: break-all; }
+</style>
+<h1>${escape(title)}</h1>
+<p>${entries.length} listed, ${escape(generated)}.</p>
+<table>
+<thead><tr><th>Fixture</th><th>Part</th><th>Page</th><th>Verdict</th><th>Reason</th><th>Difference</th></tr></thead>
+<tbody>
+${rows.join('\n')}
+</tbody>
+</table>
 </html>
 `
 }

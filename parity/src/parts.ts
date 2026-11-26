@@ -81,3 +81,19 @@ export function expectPages(
     }
   })
 }
+
+/**
+ * Holds the differences of a part read once for the whole file to its verdict: with `same` there
+ * must be none, with `different` at least one. `what` names the part in the failure.
+ */
+export function expectWhole(
+  verdict: PartVerdict,
+  lines: readonly string[],
+  what: string
+): void {
+  if (verdict.state === 'different') {
+    expect(lines, `${what} now read the same: update parity.json`).not.toEqual([])
+  } else {
+    expect(lines, `${what} read differently`).toEqual([])
+  }
+}

@@ -1,16 +1,45 @@
 // The shape of parity.json, and the check that a file has it.
 
 /**
- * A fixture's verdict on one of text, links and the outline, checked like the drawing's. `pages`
- * (1-based) lists the compared pages that differ, as for the drawing; the outline has no pages.
+ * A fixture's verdict on one of the parts compared beside the drawing, checked like the drawing's.
+ * `pages` (1-based) lists the pages that differ, as for the drawing; see `PAGES` for which pages
+ * each part may list.
  */
 export type PartVerdict =
   | { state: 'same' }
   | { state: 'different'; reason: string; accepted: boolean; pages?: number[] }
 
-/** The parts compared beside the drawing. An absent key means `{ state: 'same' }`. */
-export const PARTS = ['text', 'links', 'outline'] as const
+/**
+ * The parts compared beside the drawing: text, links, the outline, the file's facts, its form
+ * fields, its annotations and Tab order, its JavaScript, and the pages drawn with the form layer.
+ * An absent key means `{ state: 'same' }`.
+ */
+export const PARTS = [
+  'text',
+  'links',
+  'outline',
+  'facts',
+  'form',
+  'annotations',
+  'scripts',
+  'formLayer',
+] as const
 export type Part = (typeof PARTS)[number]
+
+/**
+ * Which pages a part's `pages` may list: the compared pages, every page of the file (links and
+ * annotations are read on every page), or none (the part is one read of the whole file).
+ */
+const PAGES: Record<Part, 'compared' | 'file' | 'none'> = {
+  text: 'compared',
+  links: 'file',
+  outline: 'none',
+  facts: 'none',
+  form: 'none',
+  annotations: 'file',
+  scripts: 'none',
+  formLayer: 'compared',
+}
 type Parts = { [K in Part]?: PartVerdict }
 
 /** A verdict on the drawing of a fixture that opens. */
@@ -98,8 +127,8 @@ function checkKeys(
 /**
  * What is wrong with `json` as a parity file, one line per problem; empty when nothing is.
  * `pagesCompared` gives how many pages the suite compares for each fixture that opens, and
- * `pageCounts` how many pages it has: links are compared on every page, so a `links` verdict's
- * `pages` may list any of them. Without `pageCounts`, links take `pagesCompared` too.
+ * `pageCounts` how many pages it has: links and annotations are compared on every page, so their
+ * verdicts' `pages` may list any of them. Without `pageCounts`, they take `pagesCompared` too.
  */
 export function parityProblems(
   json: unknown,
@@ -137,13 +166,12 @@ export function parityProblems(
         continue
       }
       const keys = PART_KEYS[partState as PartVerdict['state']]
-      // The outline is one tree for the whole file: it has no pages to list.
       checkKeys(
         value,
-        part === 'outline'
+        PAGES[part] === 'none'
           ? { ...keys, optional: keys.optional.filter((k) => k !== 'pages') }
           : keys,
-        part === 'links' ? (pageCounts[name] ?? count) : count,
+        PAGES[part] === 'file' ? (pageCounts[name] ?? count) : count,
         atPart
       )
     }

@@ -1,9 +1,9 @@
 // Reads every fixture's links on every page, and its outline, with PDF.js and with the engine,
 // and holds each fixture to the links and outline verdicts parity.json records for it.
-import { afterAll, describe, expect, inject, it } from 'vitest'
+import { afterAll, describe, inject, it } from 'vitest'
 
 import { linkDifferences, outlineDifferences, resolveLinks } from './links'
-import { expectPages, opening, verdictOn, withBoth } from './parts'
+import { expectPages, expectWhole, opening, verdictOn, withBoth } from './parts'
 import { linksReportHtml, writeText, type LinksReportEntry } from './report'
 
 import type { InkDocument } from '@inkbar/core'
@@ -76,12 +76,6 @@ describe.each(opening)('%s', (name) => {
         lines.length === 0 ? 'the same links' : lines.join('; ')
       )
     )
-    if (outline.state === 'different') {
-      expect(read.outline, 'the outline is now the same: update parity.json').not.toEqual(
-        []
-      )
-    } else {
-      expect(read.outline, 'the outline differs').toEqual([])
-    }
+    expectWhole(outline, read.outline, 'the outline')
   })
 })

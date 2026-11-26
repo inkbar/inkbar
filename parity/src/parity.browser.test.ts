@@ -10,10 +10,13 @@ import { compare, differenceImage, type Comparison } from './compare'
 import {
   drawPage,
   geometryDifference,
+  mountWithFields,
   openWith,
+  pagesWithFields,
   PAGES_PER_FIXTURE,
   type ReaderKind,
 } from './draw'
+import { expectPages, verdictOn, withBoth } from './parts'
 import {
   baselinePath,
   readPng,
@@ -23,7 +26,7 @@ import {
   type ReportPage,
 } from './report'
 
-import type { Verdict, ParityFile } from './verdicts'
+import type { ParityFile } from './verdicts'
 import type { InkDocument, PageInfo } from '@inkbar/core'
 import type { FixtureMeta } from '@inkbar/fixtures'
 
@@ -40,6 +43,10 @@ const opening = FIXTURE_NAMES.filter((name) => manifest[name].opens)
 
 /** Pages the report lists; images are on disk, only these numbers stay in memory. */
 const reported: ReportPage[] = []
+/** Pages drawn with the form layer that the form layer report lists. */
+const reportedLayer: ReportPage[] = []
+/** Every page drawn with the form layer, for `.report/form-layer-measures.json`. */
+const layerMeasures: (Comparison & { fixture: string; page: number })[] = []
 /** Every page compared, same or not, for `.report/measures.json`. */
 const measures: (Omit<Comparison, 'same'> & {
   fixture: string
@@ -52,6 +59,11 @@ const measures: (Omit<Comparison, 'same'> & {
 afterAll(async () => {
   if (reportMode === 'off') return
   await writeReport(reported)
+  await writeReport(reportedLayer, '.report/form-layer.html', 'Form layer parity')
+  await writeText(
+    '.report/form-layer-measures.json',
+    JSON.stringify(layerMeasures, null, 1)
+  )
   await writeText('.report/measures.json', JSON.stringify(measures, null, 1))
 })
 
@@ -88,13 +100,14 @@ async function tryOpen(
 async function record(
   name: FixtureName,
   page: number,
-  verdict: Verdict | undefined,
+  verdict: { state: string; reason?: string } | undefined,
   measured: Comparison,
   left: ImageData,
   leftLabel: string,
-  right: ImageData
+  right: ImageData,
+  into: { list: ReportPage[]; stem: string } = { list: reported, stem: `${name}-${page}` }
 ): Promise<void> {
-  const stem = `${name}-${page}`
+  const { stem } = into
   const files = {
     left: `${stem}-a.png`,
     right: `${stem}-engine.png`,
@@ -103,15 +116,41 @@ async function record(
   await writePng(`.report/${files.left}`, left)
   await writePng(`.report/${files.right}`, right)
   await writePng(`.report/${files.diff}`, differenceImage(left, right))
-  reported.push({
+  into.list.push({
     fixture: name,
     page,
     state: verdict?.state ?? 'none',
-    reason: verdict && 'reason' in verdict ? verdict.reason : '',
+    reason: verdict?.reason ?? '',
     measured,
     ...files,
     leftLabel,
   })
+}
+
+/**
+ * Page `page` drawn with the form layer by `pdfjs` (when given) and by `engine`, captured in one
+ * step. A widget either reader's form layer leaves to its HTML control is left out of both: which
+ * those are depends on what the file's scripts have done by then (form-timer's bumps a field every
+ * 50 ms), not on the reader.
+ */
+async function captureBoth(
+  engine: InkDocument,
+  pdfjs: InkDocument | undefined,
+  page: number,
+  info: PageInfo
+): Promise<[ImageData | undefined, ImageData]> {
+  const b = await mountWithFields(engine, page, info)
+  try {
+    const a = pdfjs && (await mountWithFields(pdfjs, page, info))
+    try {
+      const leave = new Set([...b.leftToControls(), ...(a?.leftToControls() ?? [])])
+      return [a?.capture(leave), b.capture(leave)]
+    } finally {
+      a?.destroy()
+    }
+  } finally {
+    b.destroy()
+  }
 }
 
 const describeNumbers = (c: Comparison) =>
@@ -239,5 +278,60 @@ describe.each(opening)('%s', (name) => {
       if (typeof pdfjs !== 'string') pdfjs.destroy()
       if (typeof engine !== 'string') engine.destroy()
     }
+  })
+
+  // The pages a person sees: the page canvas, which leaves the fields' widgets out, with the form
+  // layer's appearance canvases over it. For a fixture compared with its baseline, the engine's
+  // pages with the form layer are compared with that baseline, the engine's own page drawing.
+  it('draws the pages with fields, the form layer over them, as parity.json records', async () => {
+    const layer = verdictOn(name, 'formLayer')
+    const results = await withBoth(name, async (pdfjs, engine, pages) => {
+      const withFields = new Set([
+        ...pagesWithFields(pdfjs, pages),
+        ...pagesWithFields(engine, pages),
+      ])
+      const out: (Comparison | undefined)[] = []
+      for (let page = 0; page < pages; page++) {
+        if (!withFields.has(page)) {
+          out.push(undefined)
+          continue
+        }
+        const info = await pdfjs._reader.pageInfo(page)
+        const baseline = verdict?.state === 'baseline'
+        const committed = baseline ? await readPng(baselinePath(name, page)) : undefined
+        if (committed === null)
+          throw new Error(`no baseline at parity/${baselinePath(name, page)}`)
+        const [drawn, b] = await captureBoth(
+          engine,
+          baseline ? undefined : pdfjs,
+          page,
+          info
+        )
+        const a = committed ?? drawn!
+        const measured = compare(a, b)
+        out.push(measured)
+        layerMeasures.push({ fixture: name, page, ...measured })
+        if (reports(measured))
+          await record(
+            name,
+            page,
+            layer,
+            measured,
+            a,
+            baseline ? 'Baseline' : 'PDF.js',
+            b,
+            { list: reportedLayer, stem: `${name}-${page}-form` }
+          )
+      }
+      return out
+    })
+    if (results === undefined) return
+    expectPages(
+      layer,
+      results.map((r) => r?.same ?? true),
+      results.map((r) =>
+        r === undefined ? 'no fields on the page, not drawn' : describeNumbers(r)
+      )
+    )
   })
 })
