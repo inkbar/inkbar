@@ -1,16 +1,52 @@
 // The shape of parity.json, and the check that a file has it.
 
 /**
- * A fixture's verdict on one of text, links and the outline, checked like the drawing's. `pages`
- * (1-based) lists the compared pages that differ, as for the drawing; the outline has no pages.
+ * A fixture's verdict on one of the parts compared beside the drawing, checked like the drawing's.
+ * `pages` (1-based) lists the pages that differ, as for the drawing; see `PAGES` for which pages
+ * each part may list. `differences`, which a part read from the file (`LISTED`) must give when it
+ * differs, holds the exact lines the comparison gives, in order, so any other difference fails.
  */
 export type PartVerdict =
   | { state: 'same' }
-  | { state: 'different'; reason: string; accepted: boolean; pages?: number[] }
+  | {
+      state: 'different'
+      reason: string
+      accepted: boolean
+      pages?: number[]
+      differences?: string[]
+    }
 
-/** The parts compared beside the drawing. An absent key means `{ state: 'same' }`. */
-export const PARTS = ['text', 'links', 'outline'] as const
+/**
+ * The parts compared beside the drawing: text, links, the outline, the file's facts, its form
+ * fields, its annotations and Tab order, its JavaScript, and the pages drawn with the form layer.
+ * An absent key means `{ state: 'same' }`.
+ */
+export const PARTS = [
+  'text',
+  'links',
+  'outline',
+  'facts',
+  'form',
+  'annotations',
+  'scripts',
+  'formLayer',
+] as const
 export type Part = (typeof PARTS)[number]
+
+/**
+ * Which pages a part's `pages` may list: the compared pages, every page of the file (links and
+ * annotations are read on every page), or none (the part is one read of the whole file).
+ */
+const PAGES: Record<Part, 'compared' | 'file' | 'none'> = {
+  text: 'compared',
+  links: 'file',
+  outline: 'none',
+  facts: 'none',
+  form: 'none',
+  annotations: 'file',
+  scripts: 'none',
+  formLayer: 'compared',
+}
 type Parts = { [K in Part]?: PartVerdict }
 
 /** A verdict on the drawing of a fixture that opens. */
@@ -38,6 +74,9 @@ export const partVerdict = (entry: Verdict | undefined, part: Part): PartVerdict
   (entry && entry.state !== 'skipped' ? entry[part] : undefined) ?? { state: 'same' }
 
 export type ParityFile = Record<string, Verdict>
+
+/** The parts whose `different` verdicts list their exact `differences`. */
+export const LISTED: readonly Part[] = ['facts', 'form', 'annotations', 'scripts']
 
 const KEYS: Record<Verdict['state'], { required: string[]; optional: string[] }> = {
   same: { required: [], optional: ['blank', ...PARTS] },
@@ -98,8 +137,8 @@ function checkKeys(
 /**
  * What is wrong with `json` as a parity file, one line per problem; empty when nothing is.
  * `pagesCompared` gives how many pages the suite compares for each fixture that opens, and
- * `pageCounts` how many pages it has: links are compared on every page, so a `links` verdict's
- * `pages` may list any of them. Without `pageCounts`, links take `pagesCompared` too.
+ * `pageCounts` how many pages it has: links and annotations are compared on every page, so their
+ * verdicts' `pages` may list any of them. Without `pageCounts`, they take `pagesCompared` too.
  */
 export function parityProblems(
   json: unknown,
@@ -136,14 +175,28 @@ export function parityProblems(
         atPart(`unknown state ${JSON.stringify(partState)}`)
         continue
       }
-      const keys = PART_KEYS[partState as PartVerdict['state']]
-      // The outline is one tree for the whole file: it has no pages to list.
+      const base = PART_KEYS[partState as PartVerdict['state']]
+      const listed = partState === 'different' && LISTED.includes(part)
+      const keys = {
+        required: listed ? [...base.required, 'differences'] : base.required,
+        optional:
+          PAGES[part] === 'none'
+            ? base.optional.filter((k) => k !== 'pages')
+            : base.optional,
+      }
+      if (listed && 'differences' in value) {
+        const lines = value.differences
+        if (
+          !Array.isArray(lines) ||
+          lines.length === 0 ||
+          !lines.every((l) => typeof l === 'string' && l.trim() !== '')
+        )
+          atPart('differences must list one or more lines')
+      }
       checkKeys(
         value,
-        part === 'outline'
-          ? { ...keys, optional: keys.optional.filter((k) => k !== 'pages') }
-          : keys,
-        part === 'links' ? (pageCounts[name] ?? count) : count,
+        keys,
+        PAGES[part] === 'file' ? (pageCounts[name] ?? count) : count,
         atPart
       )
     }
