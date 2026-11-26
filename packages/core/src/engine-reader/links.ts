@@ -132,8 +132,8 @@ function boxedQuads(flat: readonly number[], rect: Rect): number[] | undefined {
 }
 
 /**
- * @internal The outline as `OutlineItem`s, each destination resolved through `resolve`, as the
- * PDF.js reader builds it: ids by position (`0`, `0.1`), titles on one line, `open` for a
+ * @internal The outline as `OutlineItem`s, each destination resolved through `resolve`, as core
+ * built it with PDF.js: ids by position (`0`, `0.1`), titles on one line, `open` for a
  * positive count, and a destination that resolves to nothing `unsupported`. Page references in
  * the destinations are noted in `pages` before any is resolved.
  */

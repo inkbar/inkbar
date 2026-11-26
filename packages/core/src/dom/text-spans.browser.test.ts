@@ -8,7 +8,6 @@ import { mountContainer, openFixtureInBrowser } from './test-utils'
 import { mountTextSpans } from './text-spans'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
-import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { InkDocument } from '../model/document'
 import type { TextItem } from '../model/text'
 import type { FixtureName } from '@inkbar/fixtures/urls'
@@ -41,14 +40,13 @@ function sizeHost(host: HTMLElement, t: PageTransform) {
 async function open(name: FixtureName): Promise<InkDocument> {
   const doc = await openFixtureInBrowser(name)
   cleanup.push(() => doc.destroy())
-  expect(doc._reader.kind).toBe('engine')
   return doc
 }
 
 /** The page's spans, mounted the way the text layer mounts them. */
 async function mount(name: FixtureName, zoom: number, rotation: ViewRotation = 0) {
   const doc = await open(name)
-  const reader = doc._reader as EngineDocumentReader
+  const reader = doc._reader
   const [content, families, baselines, info] = await Promise.all([
     reader.text(0, { glyphs: false }),
     reader.textFamilies(0),

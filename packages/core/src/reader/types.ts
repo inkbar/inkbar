@@ -60,10 +60,7 @@ export interface DrawRequest {
   /** Part of the page to draw, in user space. Absent: the whole page. */
   region?: Rect
   hide: readonly HiddenAppearance[]
-  /**
-   * Nobody waits on this draw (a thumbnail): the engine reader runs it after every other
-   * waiting call. The PDF.js reader ignores it.
-   */
+  /** Nobody waits on this draw (a thumbnail): the reader runs it after every other waiting call. */
   background?: boolean
 }
 
@@ -72,7 +69,6 @@ export interface DrawRequest {
  * destinations.
  */
 export interface DocumentReader {
-  readonly kind: 'pdfjs' | 'engine'
   readonly pageCount: number
   /**
    * The title, author and whether the file is encrypted. Metadata that cannot be read is left

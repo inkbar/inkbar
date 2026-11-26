@@ -1,5 +1,5 @@
-// The form's fields from the facts the engine reports, as the PDF.js reader builds them from the
-// widgets PDF.js lists: the same fields in the same order with the values PDF.js 6.4.299 gives,
+// The form's fields from the facts the engine reports, as core built them from the widgets
+// PDF.js lists: the same fields in the same order with the values PDF.js 6.4.299 gives,
 // its quirks included.
 import {
   annotationId,

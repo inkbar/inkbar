@@ -74,7 +74,6 @@ import type { OutlineItem } from './outline'
 import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type { TextContent } from './text'
 import type { EngineDocumentReader } from '../engine-reader/reader'
-import type { DocumentReader } from '../reader/types'
 import type { AnnotationRef } from '@inkbar/engine/bare'
 
 export type DocumentStatus =
@@ -335,7 +334,7 @@ export interface InkDocument {
    */
   readonly _liftSettled: Promise<void>
   /** @internal Page facts and pixels for the DOM layer. Not part of the public contract. */
-  readonly _reader: DocumentReader
+  readonly _reader: EngineDocumentReader
 }
 
 /** The PDF.js ids of a lifted annotation's file copies: its own, and its pop-up's if it has one. */
@@ -708,7 +707,7 @@ export async function openDocument(
     () => undefined
   )
   // Settles whatever happens: a lift that fails leaves the file's copies as they are, and a
-  // document destroyed while the pass waits on PDF.js does not wait for it.
+  // document destroyed while the pass waits on the reader does not wait for it.
   const _liftSettled = Promise.race([liftSettled, destroyedSignal]).catch(() => undefined)
 
   // Saving: a save and an apply write with the reader's engine, so a document runs one.
@@ -928,8 +927,8 @@ export async function openDocument(
   async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
     if (destroyed) throw destroyedError()
     if (!reader) throw statusError(status.get())
-    // PDF.js leaves a read of the drawing commands unsettled when it is destroyed, so the read
-    // ends here with the document.
+    // A read still running when the document is destroyed ends here with it, rejecting with
+    // `DocumentDestroyed` whatever the reader does with it.
     const content = await Promise.race([
       reader.text(page, { glyphs }),
       destroyedSignal.then(() => Promise.reject<TextContent>(destroyedError())),

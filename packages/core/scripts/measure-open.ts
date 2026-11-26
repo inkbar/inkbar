@@ -145,13 +145,13 @@ async function once(base: string, file: FileName): Promise<Run> {
         await new Promise((r) => setTimeout(r, 5))
       }
     })()
-    let result: { elapsed: number; reader: string }
+    let result: { elapsed: number }
     try {
       result = await page.evaluate(
         (url) =>
           (
             globalThis as unknown as {
-              measureOpen: (u: string) => Promise<{ elapsed: number; reader: string }>
+              measureOpen: (u: string) => Promise<{ elapsed: number }>
             }
           ).measureOpen(url),
         `/measure/${file}.pdf`
@@ -163,8 +163,6 @@ async function once(base: string, file: FileName): Promise<Run> {
     }
     treePeak = Math.max(treePeak, residentBytes(processTree(root)))
     heapPeak = Math.max(heapPeak, await mainHeap(cdp))
-    if (result.reader !== 'engine')
-      throw new Error(`${file} opened with ${result.reader}, not the engine`)
     await browser.close()
     return {
       ms: result.elapsed,

@@ -120,7 +120,6 @@ const fallbackWarnings = (warn: { mock: { calls: unknown[][] } }) =>
 describe('the engine reader', () => {
   it('draws a page through the engine', async () => {
     const doc = await open('text-simple')
-    expect(doc._reader.kind).toBe('engine')
     expect(doc._reader.pageCount).toBe(3)
     const canvas = await mountPage(doc)
     expect([canvas.width, canvas.height]).toEqual([612, 792])
@@ -139,7 +138,6 @@ describe('the engine reader', () => {
     'userunit-2',
   ] as const)('lists the page facts it listed before, on %s', async (name) => {
     const doc = await open(name)
-    expect(doc._reader.kind).toBe('engine')
     expect(doc.pages).toMatchSnapshot()
   })
 
@@ -221,7 +219,6 @@ describe('the engine reader', () => {
 
   it('opens an encrypted file with its password and draws it', async () => {
     const doc = await open('encrypted-aes', { password: 'inkbar' })
-    expect(doc._reader.kind).toBe('engine')
     const canvas = await mountPage(doc)
     expect(darkPixels(canvas, 0, 0, canvas.width, canvas.height)).toBeGreaterThan(50)
   })
@@ -233,7 +230,6 @@ describe('the engine reader', () => {
         Promise.reject(Object.assign(new Error('no facts'), { code: 'engine-failure' }))
     })
     const doc = await open('text-simple')
-    expect(doc._reader.kind).toBe('engine')
     expect(doc.info).toMatchObject({ pageCount: 3, isEncrypted: false })
     expect(doc.info.title).toBeUndefined()
     expect(doc.info.author).toBeUndefined()
@@ -275,7 +271,6 @@ describe("the engine reader's text", () => {
     ['text-search', 0],
   ] as const)('reads the words it read before, on %s page %i', async (name, page) => {
     const doc = await open(name)
-    expect(doc._reader.kind).toBe('engine')
     const text = await joinedText(doc, page)
     expect(text).not.toBe('')
     expect(text).toMatchSnapshot()
@@ -455,7 +450,6 @@ describe('reopening after applying redactions', () => {
     )
     const doc = viewer.document.get()!
     const old = doc._reader
-    expect(old.kind).toBe('engine')
     const destroyOld = vi.spyOn(old, 'destroy')
     const mark: Rect = { x: 45, y: 190, width: 170, height: 35 }
 
@@ -489,7 +483,6 @@ describe('reopening after applying redactions', () => {
       15_000
     )
     const next = viewer.document.get()!
-    expect(next._reader.kind).toBe('engine')
     expect(next._reader).not.toBe(old)
     expect(destroyOld).toHaveBeenCalledTimes(1)
     // The new reader draws the redacted file: the box left in the mark's place.
@@ -506,15 +499,13 @@ describe("the engine reader's links and outline", () => {
     const links = []
     for (let page = 0; page < doc.pages.length; page++)
       links.push(await linksAsSeen(doc, page))
-    return { kind: doc._reader.kind, links, outline: await doc.outline() }
+    return { links, outline: await doc.outline() }
   }
 
   it.each(['links', 'link-targets', 'link-order', 'outline', 'corpus-annots'] as const)(
     'gives the links and outline it gave before, on %s',
     async (name) => {
-      const links = await read(name)
-      expect(links.kind).toBe('engine')
-      expect({ links: links.links, outline: links.outline }).toMatchSnapshot()
+      expect(await read(name)).toMatchSnapshot()
     }
   )
 
@@ -584,7 +575,6 @@ describe("the engine reader's links and outline", () => {
 
   it('resolves the name résumé, written in UTF-16BE, to page 0 through the engine', async () => {
     const doc = await open('link-targets')
-    expect(doc._reader.kind).toBe('engine')
     // dest-named-utf16, the twentieth case.
     const link = doc.links(0)[19]!
     expect(link.target).toEqual({ kind: 'dest', raw: 'résumé' })
@@ -772,7 +762,7 @@ describe("the engine reader's file facts, annotations and form", () => {
     })
 
   /** What the reader gives for the file. */
-  async function readFile(name: FileName): Promise<FileRead & { kind: string }> {
+  async function readFile(name: FileName): Promise<FileRead> {
     asked = []
     noting()
     let doc: InkDocument
@@ -796,7 +786,6 @@ describe("the engine reader's file facts, annotations and form", () => {
           tabOrder: await reader.tabOrder(page),
         })
       return {
-        kind: reader.kind,
         facts: await reader.facts(),
         pages,
         form: await reader.form(),
@@ -813,9 +802,8 @@ describe("the engine reader's file facts, annotations and form", () => {
     'gives the facts, annotations, fields and tab order it gave before, on %s',
     async (name) => {
       readers.made = 0
-      const { kind, ...read } = await readFile(name)
+      const read = await readFile(name)
       expect(readers.made, 'the engine reader is the one spied on').toBe(1)
-      expect(kind).toBe('engine')
       // The engine answered every read.
       expect(new Set(asked)).toEqual(new Set(FILE_READS))
       expect(read).toMatchSnapshot()
@@ -838,7 +826,6 @@ describe('the engine reader at the open of a scripted form', () => {
     })
     const count = (read: string) => asked.filter((a) => a === read).length
     const doc = await open('form-scripted')
-    expect(doc._reader.kind).toBe('engine')
     // The scripts started: a calculation runs.
     doc.form.set({ qty: '3' })
     doc.form.set({ price: '2.5' })

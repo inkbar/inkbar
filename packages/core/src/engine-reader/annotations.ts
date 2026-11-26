@@ -1,4 +1,4 @@
-// A page's annotations from the facts the engine reports, as the PDF.js reader lists them: the
+// A page's annotations from the facts the engine reports, as PDF.js lists them: the
 // same annotations in the same order with the values PDF.js 6.4.299 gives, its quirks included.
 import {
   annotationId,
@@ -191,9 +191,9 @@ const stringOf = (text: FileTextShape | undefined): string | undefined =>
   text === undefined ? undefined : textOf(text)
 
 /**
- * @internal The page's annotations as `FileAnnotation`s, in the order and with the values the
- * PDF.js reader gives (see `listedInOrder`). `page` is the page's index; `form` what the form
- * tells its widgets and FreeTexts. PDF.js's quirks are kept so the two readers agree:
+ * @internal The page's annotations as `FileAnnotation`s, in the order and with the values
+ * PDF.js gives (see `listedInOrder`). `page` is the page's index; `form` what the form
+ * tells its widgets and FreeTexts. PDF.js's quirks are kept, so core reads files as it did with PDF.js:
  *
  * - every annotation has `contents` (empty when it has none) and a border width (`borderOf`);
  * - one that is not markup has black for a missing `/C`; markup has no colour then;

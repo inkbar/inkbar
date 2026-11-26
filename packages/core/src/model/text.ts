@@ -27,9 +27,6 @@ export interface TextItem {
   glyphEnds?: readonly number[]
 }
 
-/** How far `char` advances in `fontFamily`, in any unit; only ratios within a run are used. */
-export type MeasureChar = (char: string, fontFamily: string) => number
-
 export interface TextContent {
   page: number
   items: TextItem[]

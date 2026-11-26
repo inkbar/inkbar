@@ -1,5 +1,5 @@
 // How tall a run's box stands about its baseline, from the facts the engine reports about its
-// font, chosen to give the height core's PDF.js reader gives the same text.
+// font, chosen to give the height core gave the same text with PDF.js.
 
 /** A font's height above and depth below the baseline, in em units. `descent` is 0 or less. */
 export interface FontMetrics {
@@ -21,8 +21,8 @@ export interface FontMetricFacts {
 }
 
 /**
- * The figures PDF.js 6.4.299 uses when it has none of its own for a font, as core's PDF.js reader
- * applies them (`packages/core/src/pdfjs/text-items.ts`).
+ * The figures PDF.js 6.4.299 uses when it has none of its own for a font, as core applied
+ * them when it read text with PDF.js.
  */
 export const PDFJS_FALLBACK: FontMetrics = { ascent: 0.75, descent: -0.25 }
 
@@ -31,7 +31,7 @@ export const PDFJS_FALLBACK: FontMetrics = { ascent: 0.75, descent: -0.25 }
  * figures in a font descriptor. In a browser PDF.js draws such a font with a system font and takes
  * its figures from its own table, `getFontBasicMetrics` in `src/core/metrics.js`, over 1000. That
  * table holds no figures for Symbol and ZapfDingbats: PDF.js loads its own font file for those
- * two, reads none from it, and core's PDF.js reader then uses `PDFJS_FALLBACK`.
+ * two, reads none from it, and core then used `PDFJS_FALLBACK`.
  */
 export const PDFJS_STANDARD_METRICS: Readonly<Record<string, FontMetrics>> = {
   Courier: { ascent: 0.629, descent: -0.157 },
@@ -58,7 +58,7 @@ const MAX_DESCENT = 1
 const saneAscent = (a: number | null | undefined): a is number =>
   typeof a === 'number' && Number.isFinite(a) && a > 0 && a <= MAX_ASCENT
 /**
- * A descent as core's PDF.js reader takes one, below the baseline whatever its sign (a positive
+ * A descent as core took one from PDF.js, below the baseline whatever its sign (a positive
  * `/Descent` is a common fault), or `undefined` when it is not a number or deeper than one em.
  */
 const depth = (d: number | null | undefined): number | undefined =>
@@ -84,8 +84,8 @@ const depth = (d: number | null | undefined): number | undefined =>
  *    font whose figures are all 0, `PDFJS_FALLBACK`, as PDF.js has none either;
  * 5. otherwise the loose box.
  *
- * A descent is taken below the baseline whatever its sign, as core's PDF.js reader takes the
- * absolute value of the one PDF.js gives. A source is used only when its ascent is above 0 and
+ * A descent is taken below the baseline whatever its sign, as core took the absolute value
+ * of the one PDF.js gives. A source is used only when its ascent is above 0 and
  * at most 2 ems and its descent at most 1 em deep; anything else falls to the next. PDF.js keeps
  * a descriptor's figures whatever they are, so on such a file the heights differ.
  * A vertical font always takes the loose box: across a column the box's size is the glyphs'

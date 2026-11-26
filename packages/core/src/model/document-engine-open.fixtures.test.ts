@@ -28,7 +28,6 @@ async function outcome(
   })
   try {
     await doc.ready
-    expect(doc._reader.kind).toBe('engine')
     return {
       code: 'ready',
       pageCount: doc.info.pageCount,

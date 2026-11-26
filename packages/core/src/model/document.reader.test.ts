@@ -22,7 +22,6 @@ describe('the reader a document opens with', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    expect(doc._reader.kind).toBe('engine')
     expect(evaluated.engineReader).toBe(true)
     expect(doc.pages).toHaveLength(3)
     doc.destroy()

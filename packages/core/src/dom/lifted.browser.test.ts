@@ -44,7 +44,7 @@ function meanDiff(a: HTMLCanvasElement, b: HTMLCanvasElement): number {
   return sum / pa.length
 }
 
-/** The canvas comparisons' tolerance, as in pdfjs/reader.browser.test.ts. */
+/** The canvas comparisons' tolerance: the mean difference per channel allowed. */
 const TOLERANCE = 4
 
 /** Page 0 drawn by a page renderer, as the viewer draws it, with its overlay. */

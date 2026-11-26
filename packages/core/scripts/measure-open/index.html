@@ -47,14 +47,12 @@
         const data = new Uint8Array(await (await fetch(url)).arrayBuffer())
         const container = document.getElementById('viewer')
         const start = performance.now()
-        const viewer = createViewer(container, {
+        createViewer(container, {
           source: { data, key: url },
           assets,
         })
         await firstPage(container)
-        const elapsed = performance.now() - start
-        const doc = viewer.document.get()
-        return { elapsed, reader: doc?._reader.kind ?? 'none' }
+        return { elapsed: performance.now() - start }
       }
       window.measureReady = true
     </script>

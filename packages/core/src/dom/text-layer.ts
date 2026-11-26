@@ -6,7 +6,6 @@
 import { mountTextSpans } from './text-spans'
 
 import type { PageTransform } from './transform'
-import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { InkDocument } from '../model/document'
 
 export interface TextLayerOptions {
@@ -47,7 +46,7 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
 
   const mount = async (transform: PageTransform): Promise<void> => {
     // Throws, as `_reader` does, while the document is not ready.
-    const reader = doc._reader as EngineDocumentReader
+    const reader = doc._reader
     // Destroying the layer cancels its read, so a page scrolled past does not hold up the next.
     const [content, families, baselines, info] = await Promise.all([
       reader.text(page, { glyphs: false, signal: abort.signal }),

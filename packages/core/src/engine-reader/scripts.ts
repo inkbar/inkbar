@@ -254,7 +254,7 @@ function containerOf(
 }
 
 /**
- * @internal The file's JavaScript in core's shape, as the PDF.js reader gives it, and whether the
+ * @internal The file's JavaScript in core's shape, as core read it with PDF.js, and whether the
  * file has any: as with PDF.js, it has when the document has a script or action, or a widget of a
  * field `/Fields` reaches has one; a page's own actions do not count. `form` is the form's facts,
  * `undefined` when it could not be read. `scripts` is given either way: the sandbox's fields are
@@ -334,7 +334,7 @@ function sameName(a: ScriptFactsShape['document'][number]['name'], b: typeof a):
 
 /**
  * @internal Page `page`'s actions by event as PDF.js reads them (`PageOpen`, `PageClose`); `{}`
- * when it has none. Built from entries, as the PDF.js reader builds them.
+ * when it has none. Built from entries, as core built them with PDF.js.
  */
 export function pageScriptsFromEngine(
   facts: ScriptFactsShape,

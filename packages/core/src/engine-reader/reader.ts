@@ -189,7 +189,7 @@ const free = (s: Session): Promise<void> =>
 
 /**
  * Opens the file in a new engine, made by `start`, and resolves with a reader
- * over it. It rejects as PDF.js's open does for the file: `PasswordRequired` when the engine asks
+ * over it. It rejects with `PasswordRequired` when the engine asks
  * for a password, with `details.incorrect` true when the one given is wrong, and `InvalidPdf`,
  * with the engine's `engineCode` and `engineMessage` in its details, for anything else the engine
  * refuses the file for. It rejects with `AssetLoadFailed`, with the `cause` in its details,
@@ -759,8 +759,8 @@ export async function createEngineReader(
    */
   let linkStops = 0
   /**
-   * A page's links. A page whose links the engine cannot read has none, as a page whose
-   * annotations PDF.js cannot parse has none with the PDF.js reader. So does a page other reads
+   * A page's links. A page whose links the engine cannot read has none, as PDF.js gives none for
+   * a page whose annotations it cannot parse. So does a page other reads
    * have blocked, without asking: the links are read at open, and a page with no links is better
    * than a file that will not open. Link reads' stops count towards neither a page's block nor
    * stopping the reader, so a page whose links stop the engine is still drawn and read. Once
@@ -917,7 +917,7 @@ export async function createEngineReader(
 
   /**
    * `work`'s answer, or `instead` when it fails for a reason of its own on a working engine, as
-   * the PDF.js reader answers when PDF.js cannot read the part asked for. It rejects when no
+   * PDF.js answers when it cannot read the part asked for. It rejects when no
    * engine could answer (`work` passes `onGone` to `run`, and `run` rejects with
    * `EngineUnavailable`, which a read made of others, as the form is of each page's annotations,
    * passes on), the engine cannot start, or the reader is destroyed.
@@ -1015,7 +1015,7 @@ export async function createEngineReader(
   }
 
   /**
-   * A page's annotations from the engine, as the PDF.js reader lists them. A page with a widget
+   * A page's annotations from the engine, as PDF.js lists them. A page with a widget
    * or a FreeText also takes what the form says about them; a form a working engine cannot read
    * leaves them without it. A page cut short at the engine's limit gives what was read.
    */
@@ -1061,14 +1061,13 @@ export async function createEngineReader(
 
   /**
    * Each page's annotations read, kept until `forgetAnnotations`, so the open's reads of the
-   * annotations and of the form share them, as the PDF.js reader's do. A read that rejects is
+   * annotations and of the form share them. A read that rejects is
    * not kept.
    */
   const pageReads = new Map<number, Promise<FileAnnotation[]>>()
   /**
    * A page's annotations from the engine, not kept. A page whose annotations a working engine
-   * cannot read has none, as a page whose annotations PDF.js cannot parse has none with the
-   * PDF.js reader.
+   * cannot read has none, as PDF.js gives none for a page whose annotations it cannot parse.
    */
   const readPage = (page: number): Promise<FileAnnotation[]> =>
     orElse(
@@ -1094,7 +1093,7 @@ export async function createEngineReader(
     checkPage(page)
     let found: FileAnnotation[]
     try {
-      // Each caller gets annotations of its own, as the PDF.js reader gives.
+      // Each caller gets annotations of its own.
       found = await onEngine(
         async () => structuredClone(await pageAnnotations(page)),
         undefined,
@@ -1253,7 +1252,7 @@ export async function createEngineReader(
 
   /**
    * The file's JavaScript: `undefined` when, by PDF.js's rule, it has none. Each caller gets
-   * objects of its own, as the PDF.js reader gives.
+   * objects of its own.
    */
   const scripts = (): Promise<FileScripts | undefined> =>
     ownCall(async () => {
@@ -1340,14 +1339,13 @@ export async function createEngineReader(
 
   let destroying: Promise<void> | undefined
   return {
-    kind: 'engine',
     pageCount,
     facts: fileFacts,
     pageInfo,
     draw,
     drawFields,
     // Boundaries always come from the engine's boxes, so `glyphs` changes nothing. Each caller
-    // gets an object and list of its own, as the PDF.js reader gives: one that sorts or edits
+    // gets an object and list of its own: one that sorts or edits
     // them leaves the kept text as it was.
     text: (page, options): Promise<TextContent> =>
       onEngine(
@@ -1439,8 +1437,8 @@ const unavailable = (cause: unknown): InkError =>
       )
 
 /**
- * Why the engine refused to open the file, as PDF.js's open says it: a password it needs or that
- * is wrong, and otherwise a file it cannot read, with the engine's own code and message.
+ * Why the engine refused to open the file: a password it needs or that is wrong, and otherwise a
+ * file it cannot read, with the engine's own code and message.
  */
 const refused = (cause: unknown, password: string | undefined): InkError => {
   const code = codeOf(cause)

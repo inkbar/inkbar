@@ -1046,7 +1046,6 @@ describe("applyRedactions with the reader's engine", () => {
     const held = heldEngines()
     setEngineFactory(held.factory)
     const doc = await open('redact-text')
-    expect(doc._reader.kind).toBe('engine')
     const mark = markOver(doc)
     const { bytes } = await doc.applyRedactions()
     expect(held.engines).toEqual([

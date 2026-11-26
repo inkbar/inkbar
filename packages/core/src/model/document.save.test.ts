@@ -999,7 +999,6 @@ describe('save', () => {
       const held = heldEngines()
       setEngineFactory(held.factory)
       const doc = await open('text-simple')
-      expect(doc._reader.kind).toBe('engine')
       const added = square(doc)
       const first = await save(doc, 'with the reader engine')
       square(doc, 20)

@@ -1,6 +1,5 @@
-// Helpers for tests that compare the engine reader's links with the PDF.js reader's. Not exported
-// from the package.
-import { expect } from 'vitest'
+// Helpers for tests of the engine reader's links and destinations. Not exported from the
+// package.
 
 import type { ExplicitDestinationShape } from './types'
 import type { Destination, LinkTarget } from '../model/destination'
@@ -33,20 +32,6 @@ export async function linksAsSeen(doc: InkDocument, page: number): Promise<SeenL
           : link.target,
     }))
   )
-}
-
-/** The two readers' links are the same: everything equal, rects to 0.01 of a point. */
-export function expectSameLinks(engine: SeenLink[], pdfjs: SeenLink[]): void {
-  const withoutRect = (links: SeenLink[]) => links.map(({ rect: _rect, ...rest }) => rest)
-  expect(withoutRect(engine)).toEqual(withoutRect(pdfjs))
-  engine.forEach((link, i) => {
-    const other = pdfjs[i]!.rect
-    for (const key of ['x', 'y', 'width', 'height'] as const)
-      expect(
-        Math.abs(link.rect[key] - other[key]),
-        `${link.id} ${key}`
-      ).toBeLessThanOrEqual(0.01)
-  })
 }
 
 /**
