@@ -476,9 +476,13 @@ interface StartedWorker {
   imported?: { release(): void }
 }
 
+/** The origin the page runs in, which an `about:srcdoc` frame's address does not give. */
+const pageOrigin = (): string | undefined =>
+  typeof globalThis.origin === 'string' ? globalThis.origin : undefined
+
 function startWorker(worker: string | URL | Worker): StartedWorker {
   if (worker instanceof Worker) return { worker }
-  const how = workerStart(worker, globalThis.location?.href)
+  const how = workerStart(worker, globalThis.location?.href, pageOrigin())
   if (how.kind !== 'imported')
     return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
   // The browser refuses a worker script from another origin, but a module worker of the page's
@@ -536,7 +540,7 @@ export async function createEngineWith(
             : ` from ${String(worker)}`
       const imported =
         worker !== undefined &&
-        workerStart(worker, globalThis.location?.href).kind === 'imported'
+        workerStart(worker, globalThis.location?.href, pageOrigin()).kind === 'imported'
       throw new EngineError(
         'engine-failure',
         `Could not start the engine worker${from}.${imported ? ` ${CROSS_ORIGIN_HINT}` : ''}`,

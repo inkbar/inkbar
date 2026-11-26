@@ -45,6 +45,22 @@ describe('how the worker is started', () => {
     expect(workerStart('http://', page)).toEqual({ kind: 'direct' })
   })
 
+  test('a page whose address has no origin, as an about:srcdoc frame, uses the origin it runs in', () => {
+    const srcdoc = 'about:srcdoc'
+    const origin = 'https://app.example.com'
+    expect(workerStart('https://app.example.com/w.mjs', srcdoc, origin)).toEqual({
+      kind: 'direct',
+    })
+    expect(workerStart('https://cdn.example.com/w.mjs', srcdoc, origin)).toEqual({
+      kind: 'imported',
+      href: 'https://cdn.example.com/w.mjs',
+    })
+    // A frame that really is sandboxed has an opaque origin, which every URL is another one to.
+    expect(workerStart('https://app.example.com/w.mjs', srcdoc, 'null')).toMatchObject({
+      kind: 'imported',
+    })
+  })
+
   test('with no page address, a URL is started from it', () => {
     expect(workerStart('https://cdn.example.com/w.mjs', undefined)).toEqual({
       kind: 'direct',
