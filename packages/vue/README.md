@@ -30,7 +30,7 @@ Annotations are plain typed objects. Bind them with `v-model` to keep them in yo
 pnpm add @inkbar/vue @inkbar/core @inkbar/theme
 ```
 
-Vue 3.5 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so PDF.js can load its worker and fonts; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-pdfjs-assets) covers it.
+Vue 3.5 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so Inkbar can load its engine, fonts and form script sandbox; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-inkbars-files) covers it.
 
 ## Usage
 
@@ -100,7 +100,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
 
-`InkRoot` also takes `password` for an encrypted file (see [Locked files](#locked-files)), `passwordPrompt` (on by default) to ask the reader for a locked file's password, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `messages` and `locale` for the viewer's language (see [Translations](#translations)), `engine` to write the session into the file on Download and Print (see [Saving](#saving)) and to apply the redaction marks, `redaction-confirm` and the `redacted` event, which go with applying them (see [Redaction](#redaction)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+`InkRoot` also takes `password` for an encrypted file (see [Locked files](#locked-files)), `passwordPrompt` (on by default) to ask the reader for a locked file's password, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `messages` and `locale` for the viewer's language (see [Translations](#translations)), `redaction-confirm` and the `redacted` event, which go with applying the redaction marks (see [Redaction](#redaction)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError` (including `EngineUnavailable` once each time the viewer stops working; see [When the engine stops](https://github.com/inkbar/inkbar/tree/main/packages/core#when-the-engine-stops)), `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
 
 ## Viewport
 
@@ -112,7 +112,7 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 
 When a file needs a password, the viewer asks for it in a dialog. `InkViewport` mounts `InkPasswordDialog` for you. A wrong password keeps the dialog open with a message; Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `error` still fires once for each failed open.
 
-Inkbar uses the typed password for that one load and for no other file. With `engine`, the open document keeps the password until it closes, because a save opens the file again in the engine. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
+Inkbar uses the typed password for that one load and for no other file. The open document keeps the password until it closes, because a save, and a restart after the engine stops, open the file again in the engine. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
 
 To replace the panel that shows while the dialog is closed, fill the `locked` slot of `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
 
@@ -297,23 +297,7 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Saving
 
-Install `@inkbar/engine` and pass a loader for it as the `engine` prop of `InkRoot`:
-
-```vue
-<script setup lang="ts">
-const engine = () => import('@inkbar/engine')
-</script>
-
-<template>
-  <InkRoot :src="url" :assets="assets" :engine="engine">
-    <!-- … -->
-  </InkRoot>
-</template>
-```
-
-`InkDownloadButton`, `InkPrintButton` and Ctrl or Cmd+S and +P then hand over the file with this session's annotations and changed form values written into it: standard PDF annotations other programs can read, each drawn as it is on screen. The engine loads on the first save that has changes, and a visit that changes nothing never loads it. A bundler picks up its files from the package, so there is no setup. The prop is read when a document opens.
-
-Without the prop nothing changes: Download and Print give the file as it was opened, and the engine is not bundled.
+`InkDownloadButton`, `InkPrintButton` and Ctrl or Cmd+S and +P hand over the file with this session's annotations and changed form values written into it: standard PDF annotations other programs can read, each drawn as it is on screen. With no changes they give the bytes the file was opened from. With changes they write through the document's engine, so it must be running: while the viewer has stopped working they give nothing and the message box says saving is not available ([When the engine stops](https://github.com/inkbar/inkbar/tree/main/packages/core#when-the-engine-stops)).
 
 Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. An unapplied redaction mark from another program opens as an editable mark; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#opening-a-saved-file) says when it stays locked. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file until you apply it (see [Redaction](#redaction)). A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and the `error` event hears a `SaveFailed` error.
 
@@ -321,10 +305,10 @@ The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/
 
 ## Redaction
 
-`InkApplyRedactions` removes the content under every redaction mark of the session. It needs the `engine` prop on `InkRoot`, and it is disabled while no document is ready, without the engine and while there is no mark. It shows "Applying redactions…" while it works, keeps focus with `aria-busy` and `aria-disabled`, and a press then does nothing. The document takes no input while redactions are being applied, until the redacted file has replaced it or the apply has failed: the pages, comment threads, plugin commands and cards, undo and redo, and Download and Print are off. Meanwhile a visually hidden polite live region beside the pages says "Applying redactions…" for screen readers. A `click` listener that calls `preventDefault()` stops the apply.
+`InkApplyRedactions` removes the content under every redaction mark of the session. It is disabled while no document is ready and while there is no mark. It shows "Applying redactions…" while it works, keeps focus with `aria-busy` and `aria-disabled`, and a press then does nothing. The document takes no input while redactions are being applied, until the redacted file has replaced it or the apply has failed: the pages, comment threads, plugin commands and cards, undo and redo, and Download and Print are off. Meanwhile a visually hidden polite live region beside the pages says "Applying redactions…" for screen readers. A `click` listener that calls `preventDefault()` stops the apply.
 
 ```vue
-<InkRoot :src="url" :assets="assets" :engine="engine" @redacted="store">
+<InkRoot :src="url" :assets="assets" @redacted="store">
   <InkToolbar>
     <InkToolButton tool="redact-area" />
     <InkApplyRedactions />
@@ -349,7 +333,7 @@ Inkbar does not clean hidden layers or find copies of content hidden elsewhere i
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `locked`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives `{ root, replies, reply, update, remove, close }`, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
-`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` prop they give the file with this session's changes written into it (see [Saving](#saving)); without it, the file as it was opened.
+`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. They give the file with this session's changes written into it (see [Saving](#saving)).
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkApplyRedactions`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn`, `InkZoomOut`, `InkSearchButton` and `InkToolbarButton` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 

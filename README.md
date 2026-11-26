@@ -56,7 +56,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, wr
 | Annotations | JSON export and import, and the PDF's own annotations shown as locked. Other programs' unapplied redaction marks open as editable marks                                            |
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                                                                 |
 | Files       | Download and print the open PDF, and a password prompt for locked files                                                                                                            |
-| Saving      | Annotations and form values written into the PDF with `@inkbar/engine`, and editable again when the file is reopened                                                               |
+| Saving      | Annotations and form values written into the PDF, and editable again when the file is reopened                                                                                     |
 | Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                                                     |
 | Languages   | English, with draft French and German, switched without a reload, and your own translations through `messages`                                                                     |
 | Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                                                                  |
@@ -76,7 +76,7 @@ pnpm add @inkbar/react @inkbar/core @inkbar/theme
 
 Swap `@inkbar/react` for `@inkbar/vue` or `@inkbar/svelte`. With no framework, `@inkbar/core` and `@inkbar/theme` are enough.
 
-PDF.js loads a worker, fonts and decoders at runtime. With Vite, the plugin serves them:
+Inkbar reads each file with its engine, PDFium compiled to WebAssembly, and loads the engine's binary and worker, fallback fonts and form script sandbox at runtime. With Vite, the plugin serves them:
 
 ```ts
 // vite.config.ts
@@ -88,15 +88,9 @@ export default defineConfig({
 })
 ```
 
-Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` README](packages/core/README.md#serving-pdfjs-assets) lists them.
+Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` README](packages/core/README.md#serving-inkbars-files) lists them.
 
-To write annotations and form values into the PDF on Download and Print, and to apply redactions, add `@inkbar/engine`:
-
-```sh
-pnpm add @inkbar/engine
-```
-
-Then pass `engine: () => import('@inkbar/engine')` to `createViewer`, or the same function as the `engine` prop of `InkRoot`. The engine loads on the first save that has changes or the first apply, so a visit that changes nothing never fetches it. Without it, Download and Print give the file as it was opened. A save writes redaction marks as Redact annotations and leaves the content under them; only applying redactions removes it. The [`@inkbar/core` README](packages/core/README.md#saving-into-the-pdf) says what is saved and where the saved file differs from the screen, and [Applying redactions](packages/core/README.md#applying-redactions) says what the apply removes and what it refuses.
+Download, Print and `doc.save()` hand over the file with the session's annotations and changed form values written into it, and Apply redactions removes the content under the marks. A save writes redaction marks as Redact annotations and leaves the content under them; only applying redactions removes it. The [`@inkbar/core` README](packages/core/README.md#saving-into-the-pdf) says what is saved and where the saved file differs from the screen, and [Applying redactions](packages/core/README.md#applying-redactions) says what the apply removes and what it refuses.
 
 ## Quick start
 
@@ -172,9 +166,9 @@ The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Dr
 | [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                                    |
 | [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.          |
 | [`@inkbar/icons`](packages/icons)   | The icons for the toolbar controls and for notes, as data, with their licence notices. |
-| [`@inkbar/engine`](packages/engine) | Optional. Writes annotations and form values into the PDF, and applies redactions.     |
+| [`@inkbar/engine`](packages/engine) | PDFium compiled to WebAssembly. Core reads, draws, saves and redacts files with it.    |
 
-The seven packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
+The seven packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it. `@inkbar/core` depends on `@inkbar/engine`, so you do not install the engine yourself.
 
 ## Development
 
@@ -229,7 +223,7 @@ pnpm test:browser                                        # component and end-to-
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
 
-PDF.js is imported only under `packages/core/src/pdfjs/`. The one exception is the engine's tests, where PDF.js is an independent reader of the files the engine writes. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
+PDF.js is imported only under `packages/core/src/pdfjs/`, which holds the sandbox that runs a form's scripts and a second reader that tests use to check the files Inkbar writes. The engine's tests also read the files it writes with PDF.js. PDFium is used only in `packages/engine`. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
 
 ### Contributing
 
