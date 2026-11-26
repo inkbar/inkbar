@@ -15,7 +15,6 @@ import { isTextMarkup } from '../model/annotations/edit'
 import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
-import { readerKind } from '../reader/select'
 import { oneOfEach } from '../test-support/annotations'
 import { renderRegion } from '../test-support/render-region'
 
@@ -2167,12 +2166,8 @@ describe('loupe', () => {
     const doc = await openFixtureInBrowser(name)
     const transform = createPageTransform(doc.pages[0]!, zoom, rotation)
     const host = mountContainer(transform.cssWidth, transform.cssHeight)
-    // Counts the lens's renders: each loads its page from PDF.js. The engine reader draws without
-    // PDF.js's page proxy, so with it each render is counted at the reader's draw.
-    const renders =
-      readerKind() === 'pdfjs'
-        ? vi.spyOn(doc._pdfjs!, 'getPage')
-        : vi.spyOn(doc._reader, 'draw')
+    // Counts the lens's renders: each is one draw by the reader.
+    const renders = vi.spyOn(doc._reader, 'draw')
     const overlay = createOverlay({
       host,
       page: 0,

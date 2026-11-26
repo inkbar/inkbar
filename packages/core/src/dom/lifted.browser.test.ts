@@ -14,7 +14,6 @@ import { createPageTransform } from './transform'
 
 import type { Annotation, LoupeAnnotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
-import type { PdfjsPage } from '../pdfjs/types'
 
 const cleanup: (() => void)[] = []
 afterEach(() =>
@@ -69,19 +68,22 @@ function mountPage(doc: InkDocument) {
   return { host, renderer, overlay, canvas }
 }
 
-/** Page 0 as PDF.js draws it with every annotation the file holds. */
+/** Page 0 as the reader draws it with every annotation the file holds. */
 async function plainRender(doc: InkDocument): Promise<HTMLCanvasElement> {
-  const page = await doc._pdfjs!.getPage(0)
-  const viewport = page.getViewport({ scale: 1 })
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(viewport.width)
-  canvas.height = Math.round(viewport.height)
-  await page.render({
-    canvas,
-    viewport,
-    background: '#ffffff',
-    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
-  }).promise
+  const info = doc.pages[0]!
+  await doc._reader.draw(
+    {
+      page: 0,
+      rotation: info.rotate,
+      zoom: 1,
+      pixelRatio: 1,
+      width: Math.round(info.width),
+      height: Math.round(info.height),
+      hide: [],
+    },
+    canvas
+  )
   return canvas
 }
 
@@ -266,38 +268,28 @@ describe('annotations lifted from a file Inkbar saved', () => {
   })
 
   describe('while the page repaints without the file copies, each shows once', () => {
-    /** `task` with `promise` in place of its own: PDF.js's `promise` is a getter. */
-    const withPromise = <T extends { promise: Promise<void> }>(
-      task: T,
-      promise: Promise<void>
-    ): T => Object.create(task, { promise: { value: promise } }) as T
-
     /**
      * `saved-annotations` lifted, seen through a document whose lifted set the test sets, and
-     * renders of page 0 that wait for `release` while `hold` is on.
+     * draws that wait for `release` while `hold` is on.
      */
     async function gap() {
       const saved = await open('saved-annotations')
       await saved._liftSettled
       const lifted = writable<ReadonlySet<string>>(new Set())
       const view = Object.create(saved, { _lifted: { value: lifted } }) as InkDocument
-      const page: PdfjsPage = await saved._pdfjs!.getPage(0)
-      const render = page.render.bind(page)
+      const reader = saved._reader
+      const draw = reader.draw.bind(reader)
       let held: Promise<void> | undefined
       let release = (): void => undefined
-      page.render = (params) => {
-        const task = render(params)
+      // The draw itself, settling only once released.
+      reader.draw = (...args) => {
         const wait = held
-        if (!wait) return task
-        // The task itself, its promise settling only once released.
-        return withPromise(
-          task,
-          task.promise.then(() => wait)
-        )
+        const drawn = draw(...args)
+        return wait ? drawn.then(() => wait) : drawn
       }
       cleanup.push(() => {
         release()
-        page.render = render
+        reader.draw = draw
       })
       return {
         saved,
@@ -450,16 +442,11 @@ describe('annotations lifted from a file Inkbar saved', () => {
       const { saved, view, lift, release } = await gap()
       const page = mountFull(view)
       await page.mount.renderer.rendered
-      const pdfPage = await saved._pdfjs!.getPage(0)
-      const real = pdfPage.render.bind(pdfPage)
-      pdfPage.render = (params) => {
-        const task = real(params)
-        return withPromise(
-          task,
-          task.promise.then(() => {
-            throw new Error('render failed')
-          })
-        )
+      const reader = saved._reader
+      const drawing = reader.draw.bind(reader)
+      reader.draw = async (...args) => {
+        await drawing(...args)
+        throw new Error('render failed')
       }
       lift()
       release()

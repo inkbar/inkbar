@@ -28,17 +28,17 @@ function darkPixels(
   return dark
 }
 
-type PdfPage = Awaited<ReturnType<NonNullable<InkDocument['_pdfjs']>['getPage']>>
-type RenderTask = ReturnType<PdfPage['render']>
-
-/** Resolves with the first render task PDF.js starts for `page`, as soon as it starts. */
-function renderStarts(page: PdfPage): Promise<RenderTask> {
-  const original = page.render.bind(page)
+/** Resolves with the first draw the reader starts for `doc`, and its signal, as soon as it starts. */
+function drawStarts(
+  doc: InkDocument
+): Promise<{ drawn: Promise<void>; signal: AbortSignal | undefined }> {
+  const reader = doc._reader
+  const original = reader.draw.bind(reader)
   return new Promise((resolve) => {
-    const spy = vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = original(params)
-      resolve(task)
-      return task
+    const spy = vi.spyOn(reader, 'draw').mockImplementation((request, canvas, signal) => {
+      const drawn = original(request, canvas, signal)
+      resolve({ drawn, signal })
+      return drawn
     })
     cleanup.unshift(() => spy.mockRestore())
   })
@@ -78,7 +78,7 @@ describe('createPageRenderer', () => {
     const doc = await openFixtureInBrowser('text-simple')
     const host = mountContainer(612, 792)
     const errors: unknown[] = []
-    const started = renderStarts(await doc._pdfjs!.getPage(0))
+    const started = drawStarts(doc)
     const r = createPageRenderer({
       document: doc,
       page: 0,
@@ -88,11 +88,11 @@ describe('createPageRenderer', () => {
       onError: (e) => errors.push(e),
     })
     cleanup.push(() => (r.destroy(), doc.destroy(), host.remove()))
-    // Wait for the first PDF.js render task to be in flight before superseding it.
-    const firstTask = await started
-    const firstOutcome = firstTask.promise.then(
+    // Wait for the first draw to be in flight before superseding it.
+    const firstDraw = await started
+    const firstOutcome = firstDraw.drawn.then(
       () => 'completed',
-      (e: unknown) => (e as { name?: string }).name
+      () => 'rejected'
     )
     const first = r.rendered
     r.update(createPageTransform(doc.pages[0]!, 2, 0))
@@ -106,7 +106,8 @@ describe('createPageRenderer', () => {
     expect(canvas.width).toBe(792 * 3)
     expect(canvas.height).toBe(612 * 3)
     expect(errors).toEqual([])
-    expect(await firstOutcome).toBe('RenderingCancelledException')
+    expect(firstDraw.signal?.aborted).toBe(true)
+    expect(await firstOutcome).toBe('rejected')
   })
 
   it('zeroes a canvas it replaces or drops, so its bitmap is freed at once', async () => {
@@ -261,9 +262,9 @@ describe('createPageRenderer', () => {
     cleanup.push(() => (r.destroy(), doc.destroy(), host.remove()))
     await r.rendered
     const before = canvasIn(host)
-    // Make the next page fetch fail.
+    // Make the next draw fail.
     const boom = new Error('boom')
-    const spy = vi.spyOn(doc._pdfjs!, 'getPage').mockRejectedValueOnce(boom)
+    const spy = vi.spyOn(doc._reader, 'draw').mockRejectedValueOnce(boom)
     cleanup.unshift(() => spy.mockRestore())
     r.update(createPageTransform(doc.pages[0]!, 2, 0))
     await r.rendered
