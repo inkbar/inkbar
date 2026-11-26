@@ -214,11 +214,11 @@ function remoteDest(dest: FileDestinationShape): string | undefined {
 const EMPTY = new Uint8Array()
 
 /**
- * The file a file specification names, as PDF.js's `FileSpec.filename` gives it: the string
- * decoded as text, each backslash then a slash (a doubled one first made single, and one before
- * a slash dropped). PDF.js keeps a plain `/F` string's bytes instead.
+ * @internal The file a file specification names, as PDF.js's `FileSpec.filename` gives it: the
+ * string decoded as text, each backslash then a slash (a doubled one first made single, and one
+ * before a slash dropped). PDF.js keeps a plain `/F` string's bytes instead.
  */
-function specFileName(bytes: Uint8Array): string {
+export function specFileName(bytes: Uint8Array): string {
   return pdfString(bytes)
     .replaceAll('\\\\', '\\')
     .replaceAll('\\/', '/')
@@ -278,8 +278,8 @@ function utf8Of(text: string): string | undefined {
   }
 }
 
-/** One character per byte, as PDF.js holds a string from the file. */
-function latin1(bytes: Uint8Array): string {
+/** @internal One character per byte, as PDF.js holds a string from the file. */
+export function latin1(bytes: Uint8Array): string {
   let out = ''
   for (let i = 0; i < bytes.length; i += 8192)
     out += String.fromCharCode(...bytes.subarray(i, i + 8192))

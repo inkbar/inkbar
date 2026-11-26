@@ -220,6 +220,11 @@ test('a cut action keeps what the fork wrote and leaves out a cut name', () => {
   })
   expect(cut({ s: 'Named', name: null })).toEqual({ kind: 'Named' })
   expect(cut({ s: 'Named', name: '' })).toEqual({ kind: 'Named', name: '' })
+  expect(cut({ s: null, fileKind: 'string', fileHex: '' })).toEqual({
+    kind: '',
+    fileKind: 'string',
+    file: new Uint8Array(),
+  })
 })
 
 test('a Named action gives its name', () => {
@@ -227,6 +232,79 @@ test('a Named action gives its name', () => {
     form([field({ widgets: [widget({ action: { s: 'Named', name: 'Print' } })] })])
   )
   expect(result.fields[0]?.widgets[0]?.action).toEqual({ kind: 'Named', name: 'Print' })
+})
+
+test('names in a value list, null values and /I are read', () => {
+  const [list, empty] = parseForm(
+    form([
+      field({
+        kind: 'list',
+        valueKind: 'array',
+        value: [{ name: 'Nm' }, 'str', null, { bytes: 'ff' }],
+        defaultValueKind: 'array',
+        defaultValue: [{ name: 'D#1\u00e9' }],
+        selectedIndices: [1, null, 2.5, -1],
+      }),
+      field({
+        valueKind: 'none',
+        valueNull: true,
+        defaultValueKind: 'none',
+        defaultValueNull: true,
+        selectedIndices: null,
+      }),
+    ])
+  ).fields
+  expect(list).toMatchObject({
+    value: [{ name: 'Nm' }, 'str', null, { bytes: new Uint8Array([0xff]) }],
+    defaultValue: [{ name: 'D#1é' }],
+    selectedIndices: [1, null, 2.5, -1],
+  })
+  expect(list).not.toHaveProperty('valueNull')
+  expect(empty).toMatchObject({
+    valueKind: 'none',
+    valueNull: true,
+    defaultValueNull: true,
+    selectedIndices: null,
+  })
+  expect(empty).not.toHaveProperty('value')
+  const plain = parseForm(form([field()])).fields[0]!
+  for (const key of ['valueNull', 'defaultValueNull', 'selectedIndices'])
+    expect(plain).not.toHaveProperty(key)
+})
+
+test("a Launch or GoToR action's file is read as bytes", () => {
+  const actionOf = (action: object) =>
+    parseForm(form([field({ kind: 'button', widgets: [widget({ action })] })])).fields[0]
+      ?.widgets[0]?.action
+  expect(
+    actionOf({ s: 'Launch', fileKind: 'string', fileHex: '6170702e657865' })
+  ).toEqual({
+    kind: 'Launch',
+    fileKind: 'string',
+    file: new TextEncoder().encode('app.exe'),
+  })
+  expect(
+    actionOf({
+      s: 'GoToR',
+      fileKind: 'spec',
+      fileSpecFHex: '6f746865722e706466',
+      fileSpecUFHex: 'feff00e9',
+    })
+  ).toEqual({
+    kind: 'GoToR',
+    fileKind: 'spec',
+    specFile: new TextEncoder().encode('other.pdf'),
+    specUnicodeFile: new Uint8Array([0xfe, 0xff, 0x00, 0xe9]),
+  })
+  expect(actionOf({ s: 'GoToR', fileKind: 'spec' })).toEqual({
+    kind: 'GoToR',
+    fileKind: 'spec',
+  })
+  expect(actionOf({ s: 'Launch', fileKind: 'other' })).toEqual({
+    kind: 'Launch',
+    fileKind: 'other',
+  })
+  expect(actionOf({ s: 'Launch' })).toEqual({ kind: 'Launch' })
 })
 
 test.each([
@@ -276,6 +354,101 @@ test.each([
     'an action name cut in a widget not cut',
     form([field({ widgets: [widget({ action: { s: 'Named', name: null } })] })]),
     'name:',
+  ],
+  [
+    'a name entry with another key',
+    form([field({ valueKind: 'array', value: [{ name: 'a', bytes: '' }] })]),
+    'value:',
+  ],
+  [
+    'a name entry cut to null',
+    form([field({ valueKind: 'array', value: [{ name: null }], truncated: true })]),
+    'value:',
+  ],
+  [
+    'a name entry past one byte',
+    form([field({ defaultValueKind: 'array', defaultValue: [{ name: 'Ā' }] })]),
+    'defaultValue:',
+  ],
+  [
+    'valueNull beside a string',
+    form([field({ valueKind: 'string', value: 'x', valueNull: true })]),
+    'valueNull:',
+  ],
+  ['valueNull false', form([field({ valueNull: false })]), 'valueNull:'],
+  [
+    'defaultValueNull beside a name',
+    form([
+      field({ defaultValueKind: 'name', defaultValue: 'x', defaultValueNull: true }),
+    ]),
+    'defaultValueNull:',
+  ],
+  [
+    'selected indices of a number',
+    form([field({ selectedIndices: 1 })]),
+    'selectedIndices:',
+  ],
+  [
+    'a selected index that is a string',
+    form([field({ selectedIndices: ['1'] })]),
+    'selectedIndices:',
+  ],
+  [
+    'an unknown file kind',
+    form([field({ widgets: [widget({ action: { s: 'Launch', fileKind: 'url' } })] })]),
+    'fileKind:',
+  ],
+  [
+    'a file in a URI action',
+    form([
+      field({
+        widgets: [
+          widget({ action: { s: 'URI', uriHex: '', fileKind: 'string', fileHex: '' } }),
+        ],
+      }),
+    ]),
+    'fileKind:',
+  ],
+  [
+    'a string file without its bytes',
+    form([field({ widgets: [widget({ action: { s: 'Launch', fileKind: 'string' } })] })]),
+    'fileHex:',
+  ],
+  [
+    'file bytes that are not hex',
+    form([
+      field({
+        widgets: [widget({ action: { s: 'Launch', fileKind: 'string', fileHex: 'zz' } })],
+      }),
+    ]),
+    'fileHex:',
+  ],
+  [
+    'specification bytes beside a string file',
+    form([
+      field({
+        widgets: [
+          widget({
+            action: { s: 'GoToR', fileKind: 'string', fileHex: '', fileSpecUFHex: '' },
+          }),
+        ],
+      }),
+    ]),
+    'fileSpecUFHex:',
+  ],
+  [
+    'string bytes beside a specification',
+    form([
+      field({
+        widgets: [widget({ action: { s: 'GoToR', fileKind: 'spec', fileHex: '' } })],
+      }),
+    ]),
+    'fileHex:',
+  ],
+  [
+    'file bytes without a kind',
+    form([field({ widgets: [widget({ action: { s: 'Launch', fileSpecFHex: '' } })] })]),
+    'fileSpecFHex:',
   ],
   [
     'a reset without refs',

@@ -2171,5 +2171,24 @@
     "pages": 1,
     "opens": true,
     "describes": "No document-level script, no /OpenAction, no form: the one page's /AA /O holds a JavaScript action (app.alert('page opened')). PDF.js reports no script for a file like this, as its check for scripts ignores page actions"
+  },
+  "form-values": {
+    "file": "form-values.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Fields with explicit normal appearances whose values are written in ways readers disagree on. listbox (multi-select, /Opt a b c) has /V (a) and /I [1 2]; combo (/Opt x y z) has /V (x) and /I [2]. nulled is a text field with /V null and /DV (default text); unset has the same /DV and no /V. names is a multi-select list whose /V is [/Alpha (beta)]. launch is a push button with /A /Launch /F (https://example.com/launch.pdf), remote one with /A /GoToR whose /F is a file specification (/F other.pdf, /UF ftp://example.com/other.pdf), local one with /A /Launch /F (file:///usr/bin/app). consent is a checkbox field with /Opt [Agreed Declined Maybe], /V /Yes, /DV (2) and one widget with Yes and Off states. kidlist is a multi-select list field with /Opt [p q r], /V (p) and /I [2] on the field dictionary, and one widget that is a separate kid with no /I",
+    "annotations": {
+      "Widget": 10
+    }
+  },
+  "border-dashes": {
+    "file": "border-dashes.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Four Squares and three text field widgets, each with a normal appearance stream. The Squares have, from the top, /BS << /W 2 /S /D /D [3 2] >>, /Border [0 0 1 [4 2]], /BS << /W 2 /S /D /D [-1 2] >> (a negative dash) and /Border [0 0 1 [0 0]] (an all-zero dash). The fields are bs-dash (/BS << /W 1 /S /D /D [3 2] >>), border-dash (/Border [0 0 2 [4 2]]) and bad-dash (/BS << /W 1 /D [-3] >>)",
+    "annotations": {
+      "Square": 4,
+      "Widget": 3
+    }
   }
 }

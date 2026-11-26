@@ -14,10 +14,11 @@ import {
   rgbOf,
   textOf,
 } from './file-values'
-import { cleanAddress, cleanUri, urlInScript } from './targets'
+import { cleanAddress, cleanUri, latin1, specFileName, urlInScript } from './targets'
 
 import type { PageFormContext, WidgetContext } from './annotations'
 import type {
+  FieldActionShape,
   FieldFactsShape,
   FieldValueKindShape,
   FieldValueShape,
@@ -58,22 +59,49 @@ const DATE_TIME = /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]
 
 type Value = string | string[] | null
 
-/** `/V` or `/DV` as PDF.js's `_decodeFormValue` gives it: text, a name, or a list of them. */
+/**
+ * `/V` or `/DV` as PDF.js's `_decodeFormValue` gives it: text, a name, or a list of them with
+ * other entries dropped. A name is its characters as they are; text drops escape sequences.
+ */
 function decode(kind: FieldValueKindShape, value: FieldValueShape | undefined): Value {
   if (value === undefined || kind === 'none' || kind === 'other') return null
   if (Array.isArray(value)) {
-    const list = value.flatMap((v) => (v === null ? [] : [textOf(v)]))
+    const list = value.flatMap((v) =>
+      v === null ? [] : typeof v === 'object' && 'name' in v ? [v.name] : [textOf(v)]
+    )
     return list.length > 0 ? list : null
   }
+  if (kind === 'name' && typeof value === 'string') return value
   return textOf(value)
 }
 
-/** The value PDF.js reads for a field before its kind's own rules: `/V`, else `/DV` when `/V` is absent. */
+/**
+ * The value PDF.js reads for a field before its kind's own rules: `/V`, else `/DV` when `/V` is
+ * absent. A `/V` written as null is there, so `/DV` is not read for it.
+ */
 function rawValue(field: FieldFactsShape): Value {
   const value = decode(field.valueKind, field.value)
-  if (field.valueKind === 'none' && value === null)
+  if (field.valueKind === 'none' && field.valueNull !== true && value === null)
     return decode(field.defaultValueKind, field.defaultValue)
   return value
+}
+
+/**
+ * A choice field's value as PDF.js's `ChoiceWidgetAnnotation` builds it: with `/I` a non-empty
+ * list, the export value of each option it names by a whole number in range, in its order;
+ * otherwise the value as a list.
+ */
+function choiceValue(
+  raw: Value,
+  indices: FieldFactsShape['selectedIndices'],
+  options: readonly { exportValue: string }[]
+): string[] {
+  if (!indices?.length) return typeof raw === 'string' ? [raw] : (raw ?? [])
+  return indices.flatMap((i) =>
+    typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < options.length
+      ? [options[i]!.exportValue]
+      : []
+  )
 }
 
 /**
@@ -278,7 +306,17 @@ function fieldOf(
       break
     case 'combo':
     case 'list': {
-      const list = typeof raw === 'string' ? [raw] : (raw ?? [])
+      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`: the field's
+      // reaches the value only when the field and its first widget are one dictionary.
+      const merged =
+        field.objectNumber !== undefined &&
+        first.objectNumber === field.objectNumber &&
+        first.generation === field.generation
+      const list = choiceValue(
+        raw,
+        merged ? field.selectedIndices : undefined,
+        field.options ?? []
+      )
       value = list
       options = field.options?.length
         ? field.options
@@ -408,12 +446,18 @@ function buttonAction(w: WidgetFactsShape): FileWidgetActions {
   if (script !== undefined) {
     const found = urlInScript(textOf(script))
     if (!found) return {}
-    const url = cleanAddress(found.url)
+    const url = validUrl(cleanAddress(found.url))
     return { ...(url !== undefined ? { url } : {}), newWindow: found.newWindow }
   }
   switch (action?.kind) {
     case 'URI': {
-      const url = action.uri ? cleanUri(action.uri) : undefined
+      const url = action.uri ? validUrl(cleanUri(action.uri)) : undefined
+      return url !== undefined ? { url } : {}
+    }
+    case 'Launch':
+    case 'GoToR': {
+      const address = launchAddress(action)
+      const url = address === undefined ? undefined : validUrl(cleanAddress(address))
       return url !== undefined ? { url } : {}
     }
     case 'Named':
@@ -431,6 +475,33 @@ function buttonAction(w: WidgetFactsShape): FileWidgetActions {
     default:
       return {}
   }
+}
+
+/** The protocols PDF.js's `createValidAbsoluteUrl` lets through. */
+const PROTOCOLS: ReadonlySet<string> = new Set([
+  'http:',
+  'https:',
+  'ftp:',
+  'mailto:',
+  'tel:',
+])
+
+/** A cleaned address PDF.js gives a widget as its `url`: one of its protocols, else none. */
+function validUrl(address: string | undefined): string | undefined {
+  return address !== undefined && PROTOCOLS.has(new URL(address).protocol)
+    ? address
+    : undefined
+}
+
+/**
+ * The address PDF.js reads from a Launch's or GoToR's `/F`: a string's bytes, or a file
+ * specification's file name (`/UF`, else `/F`). `undefined` when `/F` is neither.
+ */
+function launchAddress(action: FieldActionShape): string | undefined {
+  if (action.fileKind === 'string') return latin1(action.file ?? new Uint8Array())
+  if (action.fileKind !== 'spec') return undefined
+  const name = action.specUnicodeFile ?? action.specFile
+  return name === undefined ? '' : specFileName(name)
 }
 
 /** The actions with any reset reference to a left-out widget given as that widget's field name. */

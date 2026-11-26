@@ -391,17 +391,19 @@ const BORDER_STYLES: Readonly<Record<string, number>> = {
 /**
  * @internal The border width and style PDF.js's `AnnotationBorderStyle` takes from `/BS`, else
  * `/Border`, over the normalised `rect`: width 1 and solid by default, 0 with neither entry or an
- * empty `/Border`, and a width over half the rect's width or height taken as 1.
+ * empty `/Border`, and a width over half the rect's width or height taken as 1. A dash
+ * (`/BS /D`, or `/Border`'s fourth entry) that PDF.js refuses makes the width 0; one it takes from
+ * `/Border` makes the style dashed.
  */
 export function borderOf(
-  facts: Pick<AppearanceFactsShape, 'borderStyle' | 'border'>,
+  facts: Pick<AppearanceFactsShape, 'borderStyle' | 'border' | 'borderDash'>,
   rect: readonly number[]
 ): { width: number; style: number } {
   let width = 1
   let style = 1
   const setWidth = (given: number | null | undefined) => {
     if (typeof given !== 'number') return
-    let w = fileNumber(given)
+    let w = given
     if (w > 0) {
       const maxWidth = (rect[2]! - rect[0]!) / 2
       const maxHeight = (rect[3]! - rect[1]!) / 2
@@ -409,37 +411,37 @@ export function borderOf(
     }
     width = w
   }
+  // PDF.js's `setDashArray`: a list is taken when it is empty, or when every entry is a number
+  // from 0 and one is above 0; else, and for anything but a list, the width is 0.
+  const setDash = (dash: readonly (number | null)[] | null, forceStyle: boolean) => {
+    if (dash === null) {
+      width = 0
+      return
+    }
+    const valid = dash.every((n) => n !== null && n >= 0)
+    const allZeros = dash.every((n) => n === null || n <= 0)
+    if (dash.length === 0 || (valid && !allZeros)) {
+      if (forceStyle) style = BORDER_STYLES.D!
+    } else width = 0
+  }
   if (facts.borderStyle) {
     setWidth(facts.borderStyle.width)
     const s = facts.borderStyle.style
     if (s !== null && Object.hasOwn(BORDER_STYLES, s)) style = BORDER_STYLES[s]!
+    if (facts.borderStyle.dash !== undefined) setDash(facts.borderStyle.dash, false)
   } else if (facts.border) {
-    if (facts.border.length >= 3) setWidth(facts.border[2])
-    else if (facts.border.length === 0) width = 0
+    if (facts.border.length >= 3) {
+      setWidth(facts.border[2])
+      if (facts.borderDash !== undefined) setDash(facts.borderDash, true)
+    } else if (facts.border.length === 0) width = 0
   } else width = 0
   return { width, style }
-}
-
-/**
- * @internal A number the engine gives as a 32-bit float, exactly or written to 9 significant
- * digits, as the file most likely writes it: the shortest decimal that is the same float.
- * `0.400000006` is `0.4`. Any other number is given as it is.
- */
-export function fileNumber(x: number): number {
-  if (!Number.isFinite(x)) return x
-  const float = Math.fround(x)
-  if (float !== x && Number(float.toPrecision(9)) !== x) return x
-  for (let digits = 1; digits < 10; digits++) {
-    const decimal = Number(float.toPrecision(digits))
-    if (Math.fround(decimal) === float) return decimal
-  }
-  return x
 }
 
 /** @internal `/Rect` normalised, as PDF.js's `lookupNormalRect`; all 0 when not four numbers. */
 export function rectOf(facts: Pick<AppearanceFactsShape, 'rect' | 'rectOk'>): RectArray {
   if (!facts.rectOk || !facts.rect) return [0, 0, 0, 0]
-  const [x1, y1, x2, y2] = (facts.rect as number[]).map(fileNumber)
+  const [x1, y1, x2, y2] = facts.rect as number[]
   return [Math.min(x1!, x2!), Math.min(y1!, y2!), Math.max(x1!, x2!), Math.max(y1!, y2!)]
 }
 

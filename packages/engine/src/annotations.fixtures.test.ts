@@ -218,6 +218,91 @@ test("form-rollover's checkbox lists the state with a space in its name", async 
   })
 })
 
+test('form-values reports /I, null values, names in a list and Launch and GoToR files', async () => {
+  const form = await fixture('form-values', (doc) => doc.formFields())
+  const byName = (name: string) => form.fields.find((f) => f.name === name)
+  const bytes = (text: string) => new TextEncoder().encode(text)
+  expect(byName('listbox')).toMatchObject({ value: 'a', selectedIndices: [1, 2] })
+  expect(byName('combo')).toMatchObject({ value: 'x', selectedIndices: [2] })
+  // /I sits on the field; its widget is a separate kid without one.
+  expect(byName('kidlist')).toMatchObject({
+    value: 'p',
+    selectedIndices: [2],
+    widgets: [{ objectNumber: 28 }],
+  })
+  expect(byName('nulled')).toMatchObject({
+    valueKind: 'none',
+    valueNull: true,
+    defaultValue: 'default text',
+  })
+  expect(byName('unset')).toMatchObject({
+    valueKind: 'none',
+    defaultValue: 'default text',
+  })
+  expect(byName('unset')).not.toHaveProperty('valueNull')
+  expect(byName('names')).toMatchObject({
+    valueKind: 'array',
+    value: [{ name: 'Alpha' }, 'beta'],
+  })
+  expect(byName('launch')?.widgets[0]?.action).toEqual({
+    kind: 'Launch',
+    fileKind: 'string',
+    file: bytes('https://example.com/launch.pdf'),
+  })
+  expect(byName('remote')?.widgets[0]?.action).toEqual({
+    kind: 'GoToR',
+    fileKind: 'spec',
+    specFile: bytes('other.pdf'),
+    specUnicodeFile: bytes('ftp://example.com/other.pdf'),
+  })
+  expect(byName('consent')).toMatchObject({
+    kind: 'checkbox',
+    value: 'Yes',
+    defaultValue: '2',
+    widgets: [{ onState: 'Yes', exportValue: 'Agreed' }],
+  })
+  for (const field of form.fields) expect(field).not.toHaveProperty('truncated')
+})
+
+test('border-dashes reports each dash as the file writes it, an invalid one included', async () => {
+  const { annotations } = await fixture('border-dashes', (doc) => doc.pageAnnotations(0))
+  expect(
+    annotations.map(({ borderStyle, border, borderDash }) => ({
+      borderStyle,
+      border,
+      borderDash,
+    }))
+  ).toEqual([
+    {
+      borderStyle: { width: 2, style: 'D', dash: [3, 2] },
+      border: undefined,
+      borderDash: undefined,
+    },
+    { borderStyle: undefined, border: [0, 0, 1], borderDash: [4, 2] },
+    {
+      borderStyle: { width: 2, style: 'D', dash: [-1, 2] },
+      border: undefined,
+      borderDash: undefined,
+    },
+    { borderStyle: undefined, border: [0, 0, 1], borderDash: [0, 0] },
+    {
+      borderStyle: { width: 1, style: 'D', dash: [3, 2] },
+      border: undefined,
+      borderDash: undefined,
+    },
+    { borderStyle: undefined, border: [0, 0, 2], borderDash: [4, 2] },
+    {
+      borderStyle: { width: 1, style: null, dash: [-3] },
+      border: undefined,
+      borderDash: undefined,
+    },
+  ])
+  const form = await fixture('border-dashes', (doc) => doc.formFields())
+  expect(
+    form.fields.map((f) => f.widgets[0]?.borderDash ?? f.widgets[0]?.borderStyle?.dash)
+  ).toEqual([[3, 2], [4, 2], [-3]])
+})
+
 test('a file with no form gives kind none and no fields', async () => {
   const form = await fixture('annot-direct', (doc) => doc.formFields())
   expect(form).toEqual({

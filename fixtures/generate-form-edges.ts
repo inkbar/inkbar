@@ -8,7 +8,10 @@
  *
  * `annot-direct` writes annotations as direct objects in /Annots, `form-tree` inherits a field's
  * attributes from a non-terminal ancestor, `form-rollover` has appearances with no normal state,
- * and `script-page-only` runs JavaScript from a page's /AA and nowhere else.
+ * `script-page-only` runs JavaScript from a page's /AA and nowhere else, `form-values` holds
+ * field values written in ways readers disagree on (/I beside /V, /V null, names in a value list,
+ * Launch and GoToR files, an /Opt index as a value), and `border-dashes` holds dash arrays a
+ * reader may take or refuse.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -193,10 +196,155 @@ function writeScriptPageOnly() {
   )
 }
 
+/** A form XObject of `width` by `height` drawing `draw`, with Helvetica as /Helv. */
+const look = (width: number, height: number, draw: string) =>
+  stream(
+    draw,
+    `/Type /XObject /Subtype /Form /BBox [0 0 ${width} ${height}] /Resources << /Font << /Helv 6 0 R >> >>`
+  )
+
+/** A grey box with a black outline and `text` in it, `width` by `height`. */
+const boxLook = (width: number, height: number, text = '') =>
+  look(
+    width,
+    height,
+    `0.9 g 0 0 ${width} ${height} re f 0 G 1 w 0.5 0.5 ${width - 1} ${height - 1} re S` +
+      (text ? ` BT /Helv 10 Tf 0 g 4 ${height / 2 - 3} Td (${text}) Tj ET` : '')
+  )
+
+function writeFormValues() {
+  // Objects 7 to 16 are the field widgets, in this order, with their looks at 17 to 26; 27 to 29
+  // are a list field with a separate widget kid and its look.
+  const widget = (rect: string, ap: number, keys: string) =>
+    `<< /Type /Annot /Subtype /Widget /P 4 0 R /Rect ${rect} /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
+  const row = (i: number) => `[72 ${700 - i * 50} 272 ${730 - i * 50}]`
+  write(
+    'form-values',
+    buildPdf([
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 27 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) >> >>',
+      INFO,
+      PAGES,
+      page(
+        '/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 16 0 R 28 0 R]'
+      ),
+      stream(label(['Field values written in ways readers disagree on'])),
+      HELVETICA,
+      // 7: a multi-select list whose /I names b and c while /V says a.
+      widget(
+        row(0),
+        17,
+        '/FT /Ch /T (listbox) /Ff 2097152 /Opt [(a) (b) (c)] /V (a) /I [1 2]'
+      ),
+      // 8: a combo whose /I names z while /V says x.
+      widget(
+        row(1),
+        18,
+        '/FT /Ch /T (combo) /Ff 131072 /Opt [(x) (y) (z)] /V (x) /I [2]'
+      ),
+      // 9 and 10: a /V written as null, and no /V, each beside a /DV.
+      widget(row(2), 19, '/FT /Tx /T (nulled) /V null /DV (default text)'),
+      widget(row(3), 20, '/FT /Tx /T (unset) /DV (default text)'),
+      // 11: a multi-select list whose /V holds a name and a string.
+      widget(
+        row(4),
+        21,
+        '/FT /Ch /T (names) /Ff 2097152 /Opt [(Alpha) (beta)] /V [/Alpha (beta)]'
+      ),
+      // 12 to 14: push buttons that launch a file, open one remotely, and launch a local path.
+      widget(
+        row(5),
+        22,
+        '/FT /Btn /Ff 65536 /T (launch) /A << /S /Launch /F (https://example.com/launch.pdf) >>'
+      ),
+      widget(
+        row(6),
+        23,
+        '/FT /Btn /Ff 65536 /T (remote) /A << /S /GoToR /F << /Type /Filespec /F (other.pdf) /UF (ftp://example.com/other.pdf) >> >>'
+      ),
+      widget(
+        row(7),
+        24,
+        '/FT /Btn /Ff 65536 /T (local) /A << /S /Launch /F (file:///usr/bin/app) >>'
+      ),
+      // 15 and 16: a checkbox field with /Opt and one widget; its /DV (2) is an /Opt index.
+      '<< /FT /Btn /T (consent) /Opt [(Agreed) (Declined) (Maybe)] /V /Yes /DV (2) /Kids [16 0 R] >>',
+      `<< /Type /Annot /Subtype /Widget /Parent 15 0 R /P 4 0 R /Rect [72 300 102 330] /F 4 /AS /Yes /AP << /N << /Yes 25 0 R /Off 26 0 R >> >> >>`,
+      boxLook(200, 30, 'b, c'),
+      boxLook(200, 30, 'z'),
+      boxLook(200, 30),
+      boxLook(200, 30, 'default text'),
+      boxLook(200, 30, 'Alpha, beta'),
+      boxLook(200, 30, 'Launch'),
+      boxLook(200, 30, 'Remote'),
+      boxLook(200, 30, 'Local'),
+      look(30, 30, '0.9 g 0 0 30 30 re f 0 g 6 6 18 18 re f'),
+      look(30, 30, '0.9 g 0 0 30 30 re f'),
+      // 27 and 28: a multi-select list whose /I [2] is on the field and whose widget is a
+      // separate kid without one, while /V says p.
+      '<< /FT /Ch /T (kidlist) /Ff 2097152 /Opt [(p) (q) (r)] /V (p) /I [2] /Kids [28 0 R] >>',
+      widget('[300 300 500 330]', 29, '/Parent 27 0 R'),
+      boxLook(200, 30, 'p'),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Fields with explicit normal appearances whose values are written in ways readers disagree on. listbox (multi-select, /Opt a b c) has /V (a) and /I [1 2]; combo (/Opt x y z) has /V (x) and /I [2]. nulled is a text field with /V null and /DV (default text); unset has the same /DV and no /V. names is a multi-select list whose /V is [/Alpha (beta)]. launch is a push button with /A /Launch /F (https://example.com/launch.pdf), remote one with /A /GoToR whose /F is a file specification (/F other.pdf, /UF ftp://example.com/other.pdf), local one with /A /Launch /F (file:///usr/bin/app). consent is a checkbox field with /Opt [Agreed Declined Maybe], /V /Yes, /DV (2) and one widget with Yes and Off states. kidlist is a multi-select list field with /Opt [p q r], /V (p) and /I [2] on the field dictionary, and one widget that is a separate kid with no /I',
+      annotations: { Widget: 10 },
+    }
+  )
+}
+
+function writeBorderDashes() {
+  const square = (y: number, ap: number, keys: string) =>
+    `<< /Type /Annot /Subtype /Square /Rect [72 ${y} 172 ${y + 50}] /C [0 0 1] /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
+  const field = (y: number, ap: number, name: string, keys: string) =>
+    `<< /Type /Annot /Subtype /Widget /FT /Tx /T (${name}) /P 4 0 R /Rect [300 ${y} 500 ${y + 30}] /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
+  const squareLook = look(100, 50, '0 0 1 RG 1 w 0.5 0.5 99 49 re S')
+  write(
+    'border-dashes',
+    buildPdf([
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [11 0 R 12 0 R 13 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) >> >>',
+      INFO,
+      PAGES,
+      page('/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R]'),
+      stream(
+        label(['Squares on the left and text fields on the right, with dashed borders'])
+      ),
+      HELVETICA,
+      // 7 to 10: Squares with a /BS dash, a /Border dash, and two dashes a reader refuses.
+      square(650, 14, '/BS << /W 2 /S /D /D [3 2] >>'),
+      square(570, 15, '/Border [0 0 1 [4 2]]'),
+      square(490, 16, '/BS << /W 2 /S /D /D [-1 2] >>'),
+      square(410, 17, '/Border [0 0 1 [0 0]]'),
+      // 11 to 13: text fields with the same three kinds of dash.
+      field(650, 18, 'bs-dash', '/BS << /W 1 /S /D /D [3 2] >>'),
+      field(570, 19, 'border-dash', '/Border [0 0 2 [4 2]]'),
+      field(490, 20, 'bad-dash', '/BS << /W 1 /D [-3] >>'),
+      squareLook,
+      squareLook,
+      squareLook,
+      squareLook,
+      boxLook(200, 30),
+      boxLook(200, 30),
+      boxLook(200, 30),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Four Squares and three text field widgets, each with a normal appearance stream. The Squares have, from the top, /BS << /W 2 /S /D /D [3 2] >>, /Border [0 0 1 [4 2]], /BS << /W 2 /S /D /D [-1 2] >> (a negative dash) and /Border [0 0 1 [0 0]] (an all-zero dash). The fields are bs-dash (/BS << /W 1 /S /D /D [3 2] >>), border-dash (/Border [0 0 2 [4 2]]) and bad-dash (/BS << /W 1 /D [-3] >>)',
+      annotations: { Square: 4, Widget: 3 },
+    }
+  )
+}
+
 writeAnnotDirect()
 writeFormTree()
 writeFormRollover()
 writeScriptPageOnly()
+writeFormValues()
+writeBorderDashes()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,

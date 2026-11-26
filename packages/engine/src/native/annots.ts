@@ -47,6 +47,10 @@ export function cutName(
   return undefined
 }
 
+/** A dash as written: its numbers, or `null` when the file's entry is not a list. */
+const dash = (value: unknown, what: string, key: string): (number | null)[] | null =>
+  value === null ? null : numbers(value, what, key)
+
 /** The keys an annotation and a widget share, written alike for both. */
 export function appearanceFacts(item: Json, what: string): AppearanceFacts {
   const facts: AppearanceFacts = {
@@ -74,8 +78,14 @@ export function appearanceFacts(item: Json, what: string): AppearanceFacts {
       width: numberOrNull(style.width, what, 'borderStyle.width'),
       style: style.style === null ? null : name(style.style, what, 'borderStyle.style'),
     }
+    if ('dash' in style)
+      facts.borderStyle.dash = dash(style.dash, what, 'borderStyle.dash')
   }
   if (present(item.border)) facts.border = numbers(item.border, what, 'border')
+  if ('borderDash' in item) {
+    if (!facts.border) throw bad(what, 'borderDash', 'a dash only beside border')
+    facts.borderDash = dash(item.borderDash, what, 'borderDash')
+  }
   return facts
 }
 

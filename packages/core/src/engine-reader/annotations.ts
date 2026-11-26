@@ -6,7 +6,6 @@ import {
   defaultAppearanceText,
   F_INVISIBLE,
   F_NO_VIEW,
-  fileNumber,
   parseDefaultAppearance,
   rectOf,
   refId,
@@ -175,7 +174,7 @@ function inkPath(path: readonly (number | null)[]): number[] {
 
 /** `/CA` as PDF.js reads it for ink and highlights: 1 when it is absent or 0. */
 const opacityOf = (a: AnnotationFactsShape): number =>
-  (typeof a.opacity === 'number' && fileNumber(a.opacity)) || 1
+  (typeof a.opacity === 'number' && a.opacity) || 1
 
 const daOf = (text: string) => {
   const da = parseDefaultAppearance(text)
