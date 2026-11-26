@@ -919,7 +919,7 @@ A card's `actions` is an array of `{ label, run }`, so each label can be a funct
 
 Inkbar loads its own files at runtime: the engine's binary and worker, fallback fonts for text a file does not embed, and the sandbox that runs a form's scripts. It loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
 
-Opening a file loads about 840 KB of JavaScript (260 KB gzipped), the engine's worker included, and the engine's 7.1 MB binary (3.0 MB gzipped). A font is fetched only when a page needs it, and the sandbox only when a file has scripts.
+Opening a file loads about 735 KB of JavaScript (240 KB gzipped), the engine's worker included, and the engine's 7.1 MB binary (3.0 MB gzipped). A font is fetched only when a page needs it, and the sandbox only when a file has scripts.
 
 ### With Vite
 
