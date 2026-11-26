@@ -198,7 +198,8 @@ describe('with an engine', () => {
     addSquare(doc)
     await downloadDocument(doc)
     expect(clicked).toHaveLength(1)
-    expect(saveLoads()).toBe(1)
+    // With the engine reader the save writes with the reader's engine and loads none.
+    expect(saveLoads()).toBe(readerKind() === 'engine' ? 0 : 1)
     const bytes = await bytesAt(clicked[0]!.href)
     expect(holdsGloss(bytes)).toBe(true)
     expect(bytes).not.toEqual(await doc.getData())
