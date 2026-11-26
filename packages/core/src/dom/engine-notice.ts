@@ -90,7 +90,8 @@ export interface EngineNotice {
  * `viewer.engineStopped` and a `button[data-ink-engine-retry]` that calls `restartEngine()`.
  * While that runs the button is `aria-busy` and the words are `viewer.engineRestarting`; a
  * second press does nothing. A failed restart brings the first words back; a restart that works
- * removes the notice, and focus on its button moves to the container.
+ * removes the notice. Focus in the container when the notice shows moves to its button, and
+ * focus on its button when it goes moves back to the container.
  */
 export function createEngineNotice(opts: EngineNoticeOptions): EngineNotice {
   const { container, document: doc, messages } = opts
@@ -142,7 +143,10 @@ export function createEngineNotice(opts: EngineNoticeOptions): EngineNotice {
       root.append(text, button)
       notice = { root, text, button }
       relabel()
+      // Focus in the pages, which take no input now, moves to the button, the one thing to do.
+      const inPages = container.contains(owner.activeElement)
       container.before(root)
+      if (inPages) button.focus({ preventScroll: true })
     }
     if (stops.told < stops.count) {
       stops.told = stops.count

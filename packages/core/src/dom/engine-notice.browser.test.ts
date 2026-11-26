@@ -169,6 +169,29 @@ describe.skipIf(readerKind() !== 'engine')(
       expect(shown!.textContent).toContain('Stopped.')
     })
 
+    it('takes focus from the pages, which take no input meanwhile, to its button', async () => {
+      const stop = engines()
+      const viewer = make()
+      const { doc, scroll } = await ready(viewer)
+      scroll.focus()
+      expect(document.activeElement).toBe(scroll)
+      await stop.stop(doc)
+      expect(document.activeElement).toBe(retry(viewer))
+    })
+
+    it('leaves focus outside the pages where it is', async () => {
+      const stop = engines()
+      const viewer = make()
+      const outside = document.createElement('button')
+      document.body.append(outside)
+      cleanup.push(() => outside.remove())
+      const { doc } = await ready(viewer)
+      outside.focus()
+      await stop.stop(doc)
+      expect(notice(viewer)).not.toBeNull()
+      expect(document.activeElement).toBe(outside)
+    })
+
     it('gives focus to the document when it goes while its button has focus', async () => {
       const stop = engines()
       const viewer = make()
