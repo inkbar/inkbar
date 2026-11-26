@@ -84,7 +84,8 @@ export function expectPages(
 
 /**
  * Holds the differences of a part read once for the whole file to its verdict: with `same` there
- * must be none, with `different` at least one. `what` names the part in the failure.
+ * must be none; with `different` at least one, and exactly the lines it lists in `differences`,
+ * in order, when it lists them. `what` names the part in the failure: `the outline`.
  */
 export function expectWhole(
   verdict: PartVerdict,
@@ -93,7 +94,24 @@ export function expectWhole(
 ): void {
   if (verdict.state === 'different') {
     expect(lines, `${what} now read the same: update parity.json`).not.toEqual([])
+    expectListed(verdict, lines, what)
   } else {
     expect(lines, `${what} read differently`).toEqual([])
   }
+}
+
+/**
+ * With a `different` verdict that lists its `differences`: `lines` must be exactly those, in
+ * order, so a difference the verdict does not name fails, and so does one that went away.
+ */
+export function expectListed(
+  verdict: PartVerdict,
+  lines: readonly string[],
+  what: string
+): void {
+  if (verdict.state !== 'different' || verdict.differences === undefined) return
+  expect(
+    lines,
+    `${what}: the differences are not the ones parity.json lists: update it`
+  ).toEqual(verdict.differences)
 }

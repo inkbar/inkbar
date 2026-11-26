@@ -107,6 +107,8 @@ export interface ReportPage {
   leftLabel: string
   right: string
   diff: string
+  /** A line more under the numbers: the form layer's widgets left out. */
+  note?: string
 }
 
 const escape = (s: string) =>
@@ -134,7 +136,7 @@ export function reportHtml(
     (p) => `<section>
 <h2>${escape(p.fixture)}, page ${p.page + 1} <small>${escape(p.state)}</small></h2>
 <p>Blurred: ${percent(p.measured.share)} of the page, ${percent(p.measured.worstBlock)} of the worst 16 × 16 block (red). Unmatched: longest run ${p.measured.unmatchedRun} px (blue). Flat areas: ${percent(p.measured.flatShare)} of the page, ${percent(p.measured.flatBlock)} of the worst block (orange).</p>
-<p>${p.reason === '' ? '<em>No reason recorded.</em>' : escape(p.reason)}</p>
+${p.note === undefined ? '' : `<p>${escape(p.note)}</p>\n`}<p>${p.reason === '' ? '<em>No reason recorded.</em>' : escape(p.reason)}</p>
 <div class="row">
 <figure><img src="${escape(p.left)}" loading="lazy"><figcaption>${escape(p.leftLabel)}</figcaption></figure>
 <figure><img src="${escape(p.right)}" loading="lazy"><figcaption>Engine</figcaption></figure>

@@ -151,10 +151,12 @@ export function pagesWithFields(doc: InkDocument, pages: number): Set<number> {
 export interface FieldsMount {
   /**
    * The widgets whose look the form layer leaves to its HTML control now (a value a script or a
-   * person changed, a script's colour) or hides (a script hid it): these show no appearance
+   * person changed, a script's colour) or hides (the file or a script hides it): these show no appearance
    * canvas.
    */
   leftToControls(): Set<string>
+  /** Every widget of a field on the page. */
+  widgets(): Set<string>
   /**
    * The page canvas, which leaves the fields' widgets out, with each appearance canvas the form
    * layer shows drawn over it where the layer places it, in the layer's order, but those of the
@@ -210,6 +212,12 @@ export async function mountWithFields(
           box.hasAttribute('data-ink-drawn') || box.style.display === 'none'
             ? [box.dataset.inkWidget!]
             : []
+        )
+      ),
+    widgets: () =>
+      new Set(
+        [...host.querySelectorAll<HTMLElement>('[data-ink-widget]')].map(
+          (box) => box.dataset.inkWidget!
         )
       ),
     capture(leave) {

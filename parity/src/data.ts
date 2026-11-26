@@ -83,7 +83,19 @@ function walk(a: unknown, b: unknown, path: string, key: string, out: string[]):
   }
   if (isObject(a) && isObject(b)) {
     const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])]
-    for (const k of keys) walk(a[k], b[k], path === '' ? k : `${path}.${k}`, k, out)
+    for (const k of keys) {
+      const at = path === '' ? k : `${path}.${k}`
+      const [hasA, hasB] = [Object.hasOwn(a, k), Object.hasOwn(b, k)]
+      // A key set to `undefined` is not a key left out, as `toStrictEqual` holds it.
+      if (hasA !== hasB && a[k] === undefined && b[k] === undefined)
+        out.push(
+          under(
+            at,
+            `PDF.js ${hasA ? 'undefined' : 'none'}, engine ${hasB ? 'undefined' : 'none'}`
+          )
+        )
+      else walk(a[k], b[k], at, k, out)
+    }
     return
   }
   out.push(under(path, `PDF.js ${show(a)}, engine ${show(b)}`))
@@ -91,8 +103,9 @@ function walk(a: unknown, b: unknown, path: string, key: string, out: string[]):
 
 /**
  * How `b` (the engine's) differs from `a` (PDF.js's), key by key: one line per value that
- * differs, named by its path. A key whose value is `undefined` counts as absent; a `rect` may be
- * `RECT_TOLERANCE` apart, every other number must be equal. Each line starts with `at`.
+ * differs, named by its path. A key set to `undefined` differs from a key left out, as
+ * `toStrictEqual` holds it; a `rect` may be `RECT_TOLERANCE` apart, every other number must be
+ * equal. Each line starts with `at`.
  */
 export function valueDifferences(a: unknown, b: unknown, at = ''): string[] {
   const out: string[] = []
@@ -106,9 +119,11 @@ export function valueDifferences(a: unknown, b: unknown, at = ''): string[] {
 /**
  * How two lists of things that each have a key compare. When both hold the same keys, a
  * different order is one line and each pair is compared by `each`. When they hold the same
- * number of things but different keys, they are paired by place and each place whose key differs
- * is named. Otherwise each thing only one list holds is named, and the rest compared. A key that
- * repeats is paired in turn: the first with the first.
+ * number of things but different keys, they are paired by place: each place whose key differs is
+ * named, and the rest of the pair is still compared, by `each` under the place's number, its key
+ * line left out. Otherwise each thing only one list holds is named, and the things both hold are
+ * compared; their order is not checked then. A key that repeats is paired in turn: the first with
+ * the first.
  */
 export function pairDifferences<T>(
   a: readonly T[],
@@ -155,11 +170,17 @@ export function pairDifferences<T>(
     const out: string[] = []
     a.forEach((x, i) => {
       const y = b[i]!
-      if (keyOf(x) !== keyOf(y))
-        out.push(
-          `${noun} ${i + 1}: ${opts.keyName}: PDF.js ${showKey(keyOf(x))}, engine ${showKey(keyOf(y))}`
+      if (keyOf(x) === keyOf(y)) {
+        out.push(...each(x, y, at(keyOf(x))))
+        return
+      }
+      const place = `${noun} ${i + 1}`
+      out.push(
+        `${place}: ${opts.keyName}: PDF.js ${showKey(keyOf(x))}, engine ${showKey(keyOf(y))}`,
+        ...each(x, y, place).filter(
+          (line) => !line.startsWith(`${place}: ${opts.keyName}: `)
         )
-      else out.push(...each(x, y, at(keyOf(x))))
+      )
     })
     return out
   }

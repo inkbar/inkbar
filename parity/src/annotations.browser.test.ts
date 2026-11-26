@@ -3,7 +3,7 @@
 import { afterAll, describe, inject, it } from 'vitest'
 
 import { annotationDifferences, tabOrderDifferences } from './annotations'
-import { expectPages, opening, verdictOn, withBoth } from './parts'
+import { expectListed, expectPages, opening, verdictOn, withBoth } from './parts'
 import { dataReportHtml, writeText, type DataReportEntry } from './report'
 
 const reportMode = inject('parityReport')
@@ -59,6 +59,11 @@ describe.each(opening)('%s', (name) => {
       perPage.map((lines) =>
         lines.length === 0 ? 'the same annotations' : lines.join('; ')
       )
+    )
+    expectListed(
+      verdict,
+      perPage.flatMap((lines, page) => lines.map((line) => `page ${page + 1}: ${line}`)),
+      'the annotations'
     )
   })
 })

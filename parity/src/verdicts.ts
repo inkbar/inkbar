@@ -3,11 +3,18 @@
 /**
  * A fixture's verdict on one of the parts compared beside the drawing, checked like the drawing's.
  * `pages` (1-based) lists the pages that differ, as for the drawing; see `PAGES` for which pages
- * each part may list.
+ * each part may list. `differences`, which a part read from the file (`LISTED`) must give when it
+ * differs, holds the exact lines the comparison gives, in order, so any other difference fails.
  */
 export type PartVerdict =
   | { state: 'same' }
-  | { state: 'different'; reason: string; accepted: boolean; pages?: number[] }
+  | {
+      state: 'different'
+      reason: string
+      accepted: boolean
+      pages?: number[]
+      differences?: string[]
+    }
 
 /**
  * The parts compared beside the drawing: text, links, the outline, the file's facts, its form
@@ -67,6 +74,9 @@ export const partVerdict = (entry: Verdict | undefined, part: Part): PartVerdict
   (entry && entry.state !== 'skipped' ? entry[part] : undefined) ?? { state: 'same' }
 
 export type ParityFile = Record<string, Verdict>
+
+/** The parts whose `different` verdicts list their exact `differences`. */
+export const LISTED: readonly Part[] = ['facts', 'form', 'annotations', 'scripts']
 
 const KEYS: Record<Verdict['state'], { required: string[]; optional: string[] }> = {
   same: { required: [], optional: ['blank', ...PARTS] },
@@ -165,12 +175,27 @@ export function parityProblems(
         atPart(`unknown state ${JSON.stringify(partState)}`)
         continue
       }
-      const keys = PART_KEYS[partState as PartVerdict['state']]
+      const base = PART_KEYS[partState as PartVerdict['state']]
+      const listed = partState === 'different' && LISTED.includes(part)
+      const keys = {
+        required: listed ? [...base.required, 'differences'] : base.required,
+        optional:
+          PAGES[part] === 'none'
+            ? base.optional.filter((k) => k !== 'pages')
+            : base.optional,
+      }
+      if (listed && 'differences' in value) {
+        const lines = value.differences
+        if (
+          !Array.isArray(lines) ||
+          lines.length === 0 ||
+          !lines.every((l) => typeof l === 'string' && l.trim() !== '')
+        )
+          atPart('differences must list one or more lines')
+      }
       checkKeys(
         value,
-        PAGES[part] === 'none'
-          ? { ...keys, optional: keys.optional.filter((k) => k !== 'pages') }
-          : keys,
+        keys,
         PAGES[part] === 'file' ? (pageCounts[name] ?? count) : count,
         atPart
       )

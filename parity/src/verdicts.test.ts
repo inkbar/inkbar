@@ -27,6 +27,11 @@ describe('parity.json', () => {
 })
 
 describe('parityProblems', () => {
+  /** The `differences` a verdict on `part` needs when it differs. */
+  const listed = (part: string) =>
+    ['facts', 'form', 'annotations', 'scripts'].includes(part)
+      ? { differences: ['x'] }
+      : {}
   const two = { a: 2 }
   it.each([
     [{ a: { state: 'odd' } }, 'a: unknown state "odd"'],
@@ -115,7 +120,13 @@ describe('parityProblems', () => {
         {
           a: {
             state: 'same',
-            [part]: { state: 'different', reason: 'r', accepted: false, pages: [1] },
+            [part]: {
+              state: 'different',
+              reason: 'r',
+              accepted: false,
+              pages: [1],
+              differences: ['x'],
+            },
           },
         },
         two
@@ -134,7 +145,12 @@ describe('parityProblems', () => {
           {
             a: {
               state: 'same',
-              [part]: { state: 'different', reason: '', accepted: false },
+              [part]: {
+                state: 'different',
+                reason: '',
+                accepted: false,
+                ...listed(part),
+              },
             },
           },
           two
@@ -149,11 +165,74 @@ describe('parityProblems', () => {
     }
   )
 
+  it.each(['facts', 'form', 'annotations', 'scripts'])(
+    'needs the differences listed on a %s verdict that records some',
+    (part) => {
+      const entry = (extra: object) => ({
+        a: {
+          state: 'same',
+          [part]: { state: 'different', reason: 'r', accepted: false, ...extra },
+        },
+      })
+      expect(
+        parityProblems(entry({ differences: ['x: PDF.js 1, engine 2'] }), two)
+      ).toEqual([])
+      expect(parityProblems(entry({}), two)).toEqual([`a: ${part}: no differences`])
+      for (const differences of [[], 'x', [''], [1]])
+        expect(parityProblems(entry({ differences }), two)).toEqual([
+          `a: ${part}: differences must list one or more lines`,
+        ])
+      expect(
+        parityProblems(
+          { a: { state: 'same', [part]: { state: 'same', differences: ['x'] } } },
+          two
+        )
+      ).toEqual([`a: ${part}: unknown key differences`])
+    }
+  )
+
+  it.each(['text', 'links', 'outline', 'formLayer'])(
+    'takes no differences on a %s verdict',
+    (part) => {
+      expect(
+        parityProblems(
+          {
+            a: {
+              state: 'same',
+              [part]: {
+                state: 'different',
+                reason: 'r',
+                accepted: false,
+                differences: ['x'],
+              },
+            },
+          },
+          two
+        )
+      ).toEqual([`a: ${part}: unknown key differences`])
+    }
+  )
+
+  it('takes no differences on the drawing', () => {
+    expect(
+      parityProblems(
+        { a: { state: 'different', reason: 'r', accepted: false, differences: ['x'] } },
+        two
+      )
+    ).toEqual(['a: unknown key differences'])
+  })
+
   it('lets an annotations verdict list any page of the file, and the form layer only the compared ones', () => {
     const entry = (part: string) => ({
       a: {
         state: 'same',
-        [part]: { state: 'different', reason: 'r', accepted: false, pages: [5] },
+        [part]: {
+          state: 'different',
+          reason: 'r',
+          accepted: false,
+          pages: [5],
+          ...listed(part),
+        },
       },
     })
     expect(parityProblems(entry('annotations'), two, { a: 6 })).toEqual([])

@@ -68,6 +68,15 @@ describe('annotationDifferences', () => {
     expect(
       annotationDifferences([annotation('annot_p0_1')], [annotation('p0i0')])
     ).toEqual(['annotation 1: id: PDF.js annot_p0_1, engine p0i0'])
+    expect(
+      annotationDifferences(
+        [annotation('annot_p0_1')],
+        [annotation('p0i0', { rect: [10, 20, 110, 33] })]
+      )
+    ).toEqual([
+      'annotation 1: id: PDF.js annot_p0_1, engine p0i0',
+      'annotation 1: rect: PDF.js [10,20,110,32], engine [10,20,110,33]',
+    ])
   })
 })
 

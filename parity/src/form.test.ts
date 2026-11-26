@@ -39,8 +39,33 @@ describe('formDifferences', () => {
   })
 
   it('names the field when one is renamed', () => {
-    expect(formDifferences([field('a'), field('b')], [field('a'), field('c')])).toEqual([
-      'field 2: name: PDF.js "b", engine "c"',
+    const widgets = [widget('2R')]
+    expect(
+      formDifferences(
+        [field('a'), field('b', { widgets })],
+        [field('a'), field('c', { widgets })]
+      )
+    ).toEqual(['field 2: name: PDF.js "b", engine "c"'])
+  })
+
+  it('still compares the rest of two fields paired by place', () => {
+    expect(
+      formDifferences(
+        [field('b', { widgets: [widget('2R')] })],
+        [field('c', { flags: 2, widgets: [widget('3R')] })]
+      )
+    ).toEqual([
+      'field 1: name: PDF.js "b", engine "c"',
+      'field 1: flags: PDF.js 0, engine 2',
+      'field 1: widget 1: id: PDF.js 2R, engine 3R',
+    ])
+  })
+
+  it('tells a key set to undefined from a key left out', () => {
+    const { value: _value, ...valueless } = field('a')
+    const unset = { ...valueless, value: undefined } as unknown as FileField
+    expect(formDifferences([valueless], [unset])).toEqual([
+      'field "a": value: PDF.js none, engine undefined',
     ])
   })
 

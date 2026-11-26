@@ -150,7 +150,8 @@
     "annotations": {
       "state": "different",
       "reason": "A Link written as a direct object in /Annots has no object number: PDF.js gives it an id from a counter (annot_p0_1), the engine reader one from its place in /Annots (p0i8)",
-      "accepted": false
+      "accepted": false,
+      "differences": ["page 1: annotation 6: id: PDF.js annot_p0_1, engine p0i8"]
     }
   },
   "text-rtl": {
@@ -166,7 +167,11 @@
     "annotations": {
       "state": "different",
       "reason": "Two annotations written as direct objects in /Annots have no object number: PDF.js gives each an id from a counter (annot_p0_1, annot_p0_2), the engine reader one from its place in /Annots (p0i1, p0i2)",
-      "accepted": false
+      "accepted": false,
+      "differences": [
+        "page 1: annotation 2: id: PDF.js annot_p0_1, engine p0i1",
+        "page 1: annotation 3: id: PDF.js annot_p0_2, engine p0i2"
+      ]
     }
   },
   "form-tree": {
@@ -214,7 +219,11 @@
       "state": "different",
       "reason": "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA (12 and #151820)",
       "accepted": false,
-      "pages": [1]
+      "pages": [1],
+      "differences": [
+        "page 1: annotation 32R: defaultAppearance.fontSize: PDF.js 10, engine 12",
+        "page 1: annotation 32R: defaultAppearance.color: PDF.js [0,0,0], engine [21,24,32]"
+      ]
     }
   },
   "saved-incremental": {
@@ -223,7 +232,11 @@
       "state": "different",
       "reason": "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA (12 and #151820)",
       "accepted": false,
-      "pages": [1]
+      "pages": [1],
+      "differences": [
+        "page 1: annotation 32R: defaultAppearance.fontSize: PDF.js 10, engine 12",
+        "page 1: annotation 32R: defaultAppearance.color: PDF.js [0,0,0], engine [21,24,32]"
+      ]
     }
   },
   "saved-tampered": {

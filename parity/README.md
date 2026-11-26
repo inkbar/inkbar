@@ -44,9 +44,11 @@ A drawing that leaves out any of these still passes as `same`:
 
 `src/parity.browser.test.ts` also draws the pages a person sees on a form: for every compared page that holds a widget of a form field in either reader, it mounts the page with `createPageMount` from `@inkbar/core/dom`, as the viewer does, at 2 pixels per point and pixel ratio 1. The page canvas leaves the fields' widgets out, and the form layer draws each widget's appearance into a canvas of its own. The check copies the page canvas, then each appearance canvas the layer shows, at the place the layer puts it and in the layer's order, and compares the two readers' copies with the checks above. It captures canvases only: the form layer's HTML controls and the other DOM layers stay out.
 
-A widget whose look either reader's layer hands to its HTML control (a script changed its value or colour) or hides (a script hid it) shows no appearance canvas, so the check leaves it out of both copies and takes both copies in one step. Which widgets those are depends on what the file's scripts have run by then: `form-timer` bumps a field every 50 ms. For a fixture compared with its baseline, the check compares the engine's copy with that baseline.
+A widget whose look either reader's layer hands to its HTML control (a script changed its value or colour) or hides (the file or a script hides it) shows no appearance canvas, so the check leaves it out of both copies and takes both copies in one step. Which widgets those are depends on what the file's scripts have run by then: `form-timer` bumps a field every 50 ms. For a fixture compared with its baseline, the check compares the engine's copy with that baseline.
 
-A page without fields is not drawn again and counts as the same. Its verdict is `formLayer` in `parity.json`, apart from the page's own: a page whose drawing differs can match with the form layer on, and the other way round. `.report/form-layer-measures.json` holds every page's numbers.
+When every widget on a page would be left out, the check fails instead, as it would compare the page without its fields. A fixture compared with its baseline leaves nothing out: the baseline is a full page drawing. `form-layer.html` and `.report/form-layer-measures.json` give the number and ids of the widgets left out on each page.
+
+A page without fields is not drawn again and counts as the same. Its verdict is `formLayer` in `parity.json`, apart from the page's own: a page whose drawing differs can match with the form layer on, and the other way round.
 
 ## Text, links, outline, fields, annotations and scripts
 
@@ -65,7 +67,7 @@ More checks read what each reader gives besides pixels, for every fixture that o
 - **Annotations and Tab order** (`src/annotations.browser.test.ts`). On every page of the file, the annotations `annotations(page)` gives, paired by id: the same ones in the same order, each with every key. Then the page's structure order of annotation ids, `tabOrder(page)`.
 - **JavaScript** (`src/scripts.browser.test.ts`). Whether the file has any, the document scripts paired by name with each source compared as text, the document actions, the calculation order and the field entries `scripts()` gives, and every page's actions from `pageScripts(page)`.
 
-These three compare core's own shapes. A `rect` may be 0.01 pt apart, as a link's; every other number, string and list must be equal, and a key one reader leaves out counts as different unless the other leaves it out too. Two fields of one name pair in turn, the first with the first. When the readers give different things, the check names each one only one reader gives, or, with the same number on both sides, each place whose name or id differs.
+These three compare core's own shapes, as core's own comparison with `toStrictEqual` does. A `rect` may be 0.01 pt apart, as a link's; every other number, string and list must be equal. A key one reader leaves out differs from the same key the other sets, even to `undefined`. Two fields of one name pair in turn, the first with the first. With the same number of things on both sides but different names or ids, the check pairs them by place, names each place whose name or id differs and still compares the rest of the pair. Otherwise it names each thing only one reader gives and compares the things both give, without checking their order.
 
 A failure names each difference: the character where the two strings first differ, or the worst character and its distance; the link or outline item and the field, with both readers' values; the field, widget, annotation or script and the key, with both readers' values, and for a long string the first character where they differ.
 
@@ -93,6 +95,8 @@ One entry per fixture that opens:
 - `{ "state": "skipped", "reason": "..." }`: one reader does not open the file, or the readers count its pages differently. The test checks that this still holds.
 
 An entry that is not `skipped` may also hold `text`, `links`, `outline`, `facts`, `form`, `annotations`, `scripts` and `formLayer`, each `{ "state": "same" }` or `{ "state": "different", "reason": "...", "accepted": false }` with the same rules, `pages` included. A missing key means `same`. The outline, facts, form fields and JavaScript are each read once for the whole file and take no `pages`. Links and annotations are compared on every page, so their verdicts' `pages` may list any page of the file. Text and the form layer list compared pages.
+
+A `different` verdict on `facts`, `form`, `annotations` or `scripts` also lists `differences`: the exact lines the check gives today, in order, each annotation line led by its page (`page 1: annotation 6: id: PDF.js annot_p0_1, engine p0i8`). The check must give exactly those lines, so a difference the verdict does not name fails, and so does a listed one that goes away. No other verdict takes `differences`.
 
 Whatever the verdict, both readers must agree on each page's box (within 0.01 pt), rotation and user unit, and on the page count. A fixture with no entry fails with "no verdict recorded". The unit tests check the file's shape: a known `state`, a non-empty `reason` where the state needs one, a boolean `accepted`, valid `pages`, no unknown keys, and an entry for every fixture that opens and nothing else.
 
