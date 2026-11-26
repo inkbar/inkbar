@@ -6,8 +6,9 @@ import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as annotationFields from '../pdf/annotation-fields'
-import { nodeAssets } from '../pdfjs/node-assets'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
+import { nodeAssets } from '../test-support/node-assets'
+import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { isReply } from './annotations/threads'
 import { openDocument, type InkDocument, type OpenOptions } from './document'
@@ -17,7 +18,6 @@ import { createImageTemplate } from './signatures'
 
 import type { AnnotationChange } from './annotations/store'
 import type { Annotation, AnnotationInput } from './annotations/types'
-import type { EngineLoader } from './save/saver'
 import type { Engine, EngineDocument, WriteInput } from '@inkbar/engine'
 
 requireQpdfInCi()
@@ -40,15 +40,14 @@ vi.mock(import('./form/scripting'), async (original) => {
   }
 })
 
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-
 /** A 1 × 1 PNG. */
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
 /**
- * A loader that gives the real engine, in this thread, with every `write` recorded. `failNext`
- * makes the next write reject with that error instead.
+ * The real engine, in this thread, with every `write` recorded, made the engine every document
+ * opened from here on reads and writes with. `failNext` makes the next write reject with that
+ * error instead.
  */
 function realEngine() {
   const writes: WriteInput[] = []
@@ -94,9 +93,14 @@ function realEngine() {
       destroy: () => engine.destroy(),
     }
   })
-  const loader = vi.fn<EngineLoader>(() => Promise.resolve({ createEngine }))
-  return { loader, createEngine, writes, failNext: (e: Error) => (fail = e) }
+  setEngineFactory(createEngine)
+  return { createEngine, writes, failNext: (e: Error) => (fail = e) }
 }
+
+// Each test starts with an engine of its own.
+beforeEach(() => {
+  realEngine()
+})
 
 /** Every document a test opened, with the bytes it was opened from. */
 const opened: { doc: InkDocument; bytes: Uint8Array }[] = []
@@ -104,6 +108,7 @@ const opened: { doc: InkDocument; bytes: Uint8Array }[] = []
 const saved: { name: string; bytes: Uint8Array; password?: string }[] = []
 
 afterEach(async () => {
+  setEngineFactory(undefined)
   const docs = opened.splice(0)
   try {
     // Whatever was saved, the document's own data stays the bytes it was opened from.
@@ -118,10 +123,9 @@ async function openBytes(
   bytes: Uint8Array,
   opts: Partial<OpenOptions> = {}
 ): Promise<InkDocument> {
-  // PDF.js detaches what it is given, so it gets a copy and the original stays to compare.
+  // A copy is opened, so the original stays to compare.
   const doc = await openDocument(bytes.slice(), {
     assets: nodeAssets(),
-    verbosity: 0,
     ...opts,
   })
   opened.push({ doc, bytes })
@@ -144,9 +148,9 @@ async function save(doc: InkDocument, name: string, password?: string) {
   return bytes
 }
 
-/** Opens `bytes` with an engine and waits for lifting. */
+/** Opens `bytes` and waits for lifting. */
 async function reopen(bytes: Uint8Array, opts: Partial<OpenOptions> = {}) {
-  const doc = await openBytes(bytes, { engine: realEngine().loader, ...opts })
+  const doc = await openBytes(bytes, opts)
   await doc._liftSettled
   return doc
 }
@@ -295,34 +299,20 @@ function addEveryType(doc: InkDocument): void {
 }
 
 describe('save', () => {
-  it('gives the opened bytes when nothing changed', async () => {
-    const { loader } = realEngine()
-    const plain = await open('text-simple', { engine: loader })
+  it('gives the opened bytes when nothing changed, writing nothing', async () => {
+    const { writes } = realEngine()
+    const plain = await open('text-simple')
     expect(await plain.save()).toEqual(await fixtureBytes('text-simple'))
 
-    const lifted = await open('saved-annotations', { engine: loader })
+    const lifted = await open('saved-annotations')
     await lifted._liftSettled
     expect(lifted.changed.get()).toBe(false)
     expect(await lifted.save()).toEqual(await fixtureBytes('saved-annotations'))
-    expect(loader).not.toHaveBeenCalled()
-  })
-
-  it('rejects without an engine once an annotation is added', async () => {
-    const doc = await open('text-simple')
-    expect(await doc.save()).toEqual(await fixtureBytes('text-simple'))
-    doc.annotations.add({
-      type: 'square',
-      page: 0,
-      rect: { x: 1, y: 1, width: 9, height: 9 },
-    })
-    await expect(doc.save()).rejects.toMatchObject({
-      name: 'InkError',
-      code: 'EngineUnavailable',
-    })
+    expect(writes).toEqual([])
   })
 
   it('writes every annotation type', async () => {
-    const doc = await open('text-simple', { engine: realEngine().loader })
+    const doc = await open('text-simple')
     addEveryType(doc)
     const bytes = await save(doc, 'every type')
     const back = await reopen(bytes)
@@ -333,7 +323,7 @@ describe('save', () => {
 
   it('writes an annotation with nothing to draw', async () => {
     const engine = realEngine()
-    const doc = await open('text-simple', { engine: engine.loader })
+    const doc = await open('text-simple')
     // A square with no stroke and no fill: a stroke of no width is not drawn.
     doc.annotations.add({
       type: 'square',
@@ -391,7 +381,7 @@ describe('save', () => {
     'writes %s, whose drawing has no area, and lifts it back as it was',
     async (name, input) => {
       const engine = realEngine()
-      const doc = await open('text-simple', { engine: engine.loader })
+      const doc = await open('text-simple')
       const added = doc.annotations.add(input)
       const back = await reopen(await save(doc, name))
       // The box written has an area, and the data stored records that same box.
@@ -405,7 +395,7 @@ describe('save', () => {
   )
 
   it('removes what the user deleted', async () => {
-    const doc = await open('saved-annotations', { engine: realEngine().loader })
+    const doc = await open('saved-annotations')
     await doc._liftSettled
     const expected = await written('saved-annotations')
     const gone = expected.find((a) => a.type === 'square')!
@@ -420,7 +410,6 @@ describe('save', () => {
     const host: Annotation = { ...expected[7]!, color: '#00AA00' }
     const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
     const doc = await open('saved-annotations', {
-      engine: realEngine().loader,
       annotations: { mode: 'controlled', initial: [host], onChange },
     })
     await doc._liftSettled
@@ -435,7 +424,7 @@ describe('save', () => {
 
   it('shares a running write', async () => {
     const engine = realEngine()
-    const doc = await open('text-simple', { engine: engine.loader })
+    const doc = await open('text-simple')
     doc.annotations.add({
       type: 'square',
       page: 0,
@@ -448,7 +437,7 @@ describe('save', () => {
 
   it('reuses the copy until something changes', async () => {
     const engine = realEngine()
-    const doc = await open('text-simple', { engine: engine.loader })
+    const doc = await open('text-simple')
     const square = doc.annotations.add({
       type: 'square',
       page: 0,
@@ -468,11 +457,11 @@ describe('save', () => {
     await doc.save()
     expect(engine.writes).toHaveLength(4)
 
-    expect(engine.loader).toHaveBeenCalledTimes(1)
+    expect(engine.createEngine).toHaveBeenCalledTimes(1)
   })
 
   it('reports changed from when lifting lands', async () => {
-    const doc = await open('saved-annotations', { engine: realEngine().loader })
+    const doc = await open('saved-annotations')
     expect(doc.changed.get()).toBe(false)
     await doc._liftSettled
     expect(doc.changed.get()).toBe(false)
@@ -488,7 +477,7 @@ describe('save', () => {
 
   it('waits for lifting', async () => {
     const engine = realEngine()
-    const doc = await open('saved-annotations', { engine: engine.loader })
+    const doc = await open('saved-annotations')
     let settled = false
     void doc._liftSettled.then(() => (settled = true))
     const mine = doc.annotations.add({
@@ -509,14 +498,13 @@ describe('save', () => {
   })
 
   it('does not grow on every save', async () => {
-    const first = await open('text-simple', { engine: realEngine().loader })
+    const first = await open('text-simple')
     addEveryType(first)
     const count = session(first).length
     const rounds: { bytes: Uint8Array; single: Uint8Array }[] = []
     /** A single save, from the file as it came, of the list `doc` holds. */
     const singleSaveOf = async (doc: InkDocument) => {
       const once = await open('text-simple', {
-        engine: realEngine().loader,
         annotations: { mode: 'uncontrolled', initial: [...session(doc)] },
       })
       await once._liftSettled
@@ -554,7 +542,7 @@ describe('save', () => {
   })
 
   it('keeps a signature pinned', async () => {
-    const doc = await open('form-fields', { engine: realEngine().loader })
+    const doc = await open('form-fields')
     await doc._liftSettled
     const field = doc.form.fields.get().find((f) => f.name === 'sig')!
     const id = signField(doc, 'sig', field.widgets[0]!.id, createImageTemplate(PNG, 4))
@@ -567,18 +555,21 @@ describe('save', () => {
   })
 
   it('saves formatted text', async () => {
-    const doc = await open('form-format', { engine: realEngine().loader })
+    const doc = await open('form-format')
     await doc._liftSettled
     doc.form.set({ amount: '1234.5' })
     // Node runs no scripts, so the format script's text is set as it would set it.
     doc.form._setFormatted('amount', '$1,234.50')
-    const back = await reopen(await save(doc, 'formatted'))
+    const bytes = await save(doc, 'formatted')
+    const back = await reopen(bytes)
     expect(back.form.get('amount')).toBe('1234.5')
-    const page = await back._pdfjs!.getPage(0)
+    const pdfjs = await openWithPdfjsReader(bytes)
+    const page = await pdfjs.handles.getPage(0)
     const annotations = (await page.getAnnotations()) as {
       fieldName?: string
       textContent?: string[]
     }[]
+    await pdfjs.destroy()
     expect(annotations.find((a) => a.fieldName === 'amount')?.textContent).toEqual([
       '$1,234.50',
     ])
@@ -587,7 +578,7 @@ describe('save', () => {
 
   it('saves a change to formatted text alone', async () => {
     const engine = realEngine()
-    const doc = await open('form-format', { engine: engine.loader })
+    const doc = await open('form-format')
     await doc._liftSettled
     doc.form.set({ amount: '1234.5' })
     await doc.save()
@@ -600,9 +591,9 @@ describe('save', () => {
     ])
   })
 
-  it('wraps an engine failure, and starts a new engine for the next save', async () => {
+  it('wraps an engine failure, and saves with the engine once it answers again', async () => {
     const engine = realEngine()
-    const doc = await open('text-simple', { engine: engine.loader })
+    const doc = await open('text-simple')
     doc.annotations.add({
       type: 'square',
       page: 0,
@@ -615,15 +606,16 @@ describe('save', () => {
       code: 'SaveFailed',
       cause: failure,
     })
-    expect(engine.createEngine).toHaveBeenCalledTimes(1)
     const bytes = await save(doc, 'after failure')
-    expect(engine.createEngine).toHaveBeenCalledTimes(2)
+    // The reader found the engine still answers, so it keeps it.
+    expect(engine.createEngine).toHaveBeenCalledTimes(1)
+    expect(engine.writes).toHaveLength(2)
     const back = await reopen(bytes)
     expect(session(back)).toEqual(session(doc))
   })
 
   it('names the annotation a host without pictures cannot write', async () => {
-    const doc = await open('text-simple', { engine: realEngine().loader })
+    const doc = await open('text-simple')
     doc.annotations.add({
       type: 'square',
       page: 0,
@@ -644,7 +636,6 @@ describe('save', () => {
     })
     // With a picture for the text the same document saves.
     const pictured = await open('text-simple', {
-      engine: realEngine().loader,
       pictures: {
         textPicture: () =>
           Promise.resolve({
@@ -666,7 +657,7 @@ describe('save', () => {
 
   it('fails a save whose lifted annotation has no object in the file to replace', async () => {
     const engine = realEngine()
-    const doc = await open('saved-tampered', { engine: engine.loader })
+    const doc = await open('saved-tampered')
     await doc._liftSettled
     const [square] = await written('saved-tampered')
     // As if the file's copy had been read with an id that names no object.
@@ -682,12 +673,11 @@ describe('save', () => {
   })
 
   it('opens an encrypted file with its password', async () => {
-    const doc = await open('encrypted-aes', { engine: realEngine().loader })
+    const doc = await open('encrypted-aes')
     doc.annotations.add({ type: 'highlight', page: 0, quads: [quad(72, 700, 200, 14)] })
     const bytes = await save(doc, 'encrypted', 'inkbar')
     const locked = await openDocument(bytes.slice(), {
       assets: nodeAssets(),
-      verbosity: 0,
     })
     await expect(locked.ready).rejects.toMatchObject({ code: 'PasswordRequired' })
     locked.destroy()
@@ -696,7 +686,7 @@ describe('save', () => {
   })
 
   it('rejects a save in flight when the document is destroyed', async () => {
-    const doc = await open('text-simple', { engine: realEngine().loader })
+    const doc = await open('text-simple')
     doc.annotations.add({
       type: 'square',
       page: 0,
@@ -723,14 +713,14 @@ describe('save', () => {
       'counts values a %s host supplied at open as changes',
       async (_, fields) => {
         const engine = realEngine()
-        const doc = await open('form-fields', { engine: engine.loader, fields })
+        const doc = await open('form-fields', { fields })
         await doc._liftSettled
         expect(doc.form.get('name')).toBe('Ada')
         expect(doc.changed.get()).toBe(true)
         const back = await reopen(await save(doc, `host values ${fields.mode}`))
         expect(back.form.get('name')).toBe('Ada')
         expect(back.changed.get()).toBe(false)
-        expect(engine.loader).toHaveBeenCalledTimes(1)
+        expect(engine.writes).toHaveLength(1)
       }
     )
 
@@ -738,7 +728,7 @@ describe('save', () => {
       'counts a value set as soon as %s opens, before lifting lands',
       async (name) => {
         const engine = realEngine()
-        const doc = await open(name, { engine: engine.loader })
+        const doc = await open(name)
         let settled = false
         void doc._liftSettled.then(() => (settled = true))
         doc.form.set({ name: 'Ada' })
@@ -753,7 +743,6 @@ describe('save', () => {
 
     it('counts a reset and an import made before lifting lands', async () => {
       const first = await open('form-fields', {
-        engine: realEngine().loader,
         fields: { mode: 'uncontrolled', initial: {} },
       })
       first.importAnnotations({
@@ -765,7 +754,7 @@ describe('save', () => {
       expect(first.changed.get()).toBe(true)
 
       // The file has `plan` at monthly; a reset puts it at its default, yearly.
-      const second = await open('form-fields', { engine: realEngine().loader })
+      const second = await open('form-fields')
       expect(second.form.get('plan')).toBe('monthly')
       second.form.reset(['plan'])
       await second._liftSettled
@@ -775,7 +764,7 @@ describe('save', () => {
 
     it('saves a combo box emptied by a reset, though it takes no text of its own', async () => {
       const engine = realEngine()
-      const doc = await open('form-fields', { engine: engine.loader })
+      const doc = await open('form-fields')
       await doc._liftSettled
       expect(doc.form.get('country')).toBe('gb')
       doc.form.reset(['country'])
@@ -788,31 +777,31 @@ describe('save', () => {
     })
 
     it("takes what the file's scripts calculate at open as the file's", async () => {
-      const { loader } = realEngine()
+      const { writes } = realEngine()
       // Node runs no scripts, so a calculation at open is set as the sandbox sets it: while
       // the document opens, before `ready`.
       scriptsAtOpen.values = { name: 'Calculated' }
-      const doc = await open('form-fields', { engine: loader })
+      const doc = await open('form-fields')
       await doc._liftSettled
       expect(doc.form.get('name')).toBe('Calculated')
       expect(doc.changed.get()).toBe(false)
       expect(await doc.save()).toEqual(await fixtureBytes('form-fields'))
-      expect(loader).not.toHaveBeenCalled()
+      expect(writes).toEqual([])
     })
 
     it('takes a signature link lifting restored as no change', async () => {
-      const { loader } = realEngine()
-      const doc = await open('saved-signed', { engine: loader })
+      const { writes } = realEngine()
+      const doc = await open('saved-signed')
       await doc._liftSettled
       const [signature] = await written('saved-signed')
       expect(doc.form.get('sig')).toEqual({ signature: signature!.id })
       expect(doc.changed.get()).toBe(false)
       expect(await doc.save()).toEqual(await fixtureBytes('saved-signed'))
-      expect(loader).not.toHaveBeenCalled()
+      expect(writes).toEqual([])
     })
 
     it('takes a field emptied that the file left empty as no change', async () => {
-      const doc = await open('form-fields', { engine: realEngine().loader })
+      const doc = await open('form-fields')
       await doc._liftSettled
       expect(doc.form.get('city')).toBeUndefined()
       doc.form.set({ city: 'Paris' })
@@ -822,20 +811,30 @@ describe('save', () => {
     })
   })
 
-  /** The PDF.js annotations of page 0, hidden ones included. */
-  const pdfjsAnnotations = async (doc: InkDocument) =>
-    (await (await doc._pdfjs!.getPage(0)).getAnnotations({ intent: 'any' })) as {
-      id: string
-      subtype: string
-      annotationFlags: number
-      inReplyTo?: string
-      popupRef?: string | null
-      parentRect?: number[]
-    }[]
+  /** The annotations of page 0 of the file `doc` opened, hidden ones included, as PDF.js reads them. */
+  const pdfjsAnnotations = async (doc: InkDocument) => {
+    const pdfjs = await openWithPdfjsReader(await doc.getData())
+    try {
+      return (await (
+        await pdfjs.handles.getPage(0)
+      ).getAnnotations({
+        intent: 'any',
+      })) as {
+        id: string
+        subtype: string
+        annotationFlags: number
+        inReplyTo?: string
+        popupRef?: string | null
+        parentRect?: number[]
+      }[]
+    } finally {
+      await pdfjs.destroy()
+    }
+  }
 
   describe("a reply to one of the file's own notes", () => {
     it('is saved hidden, linked to the note, and comes back in its thread', async () => {
-      const doc = await open('note-icon-ap', { engine: realEngine().loader })
+      const doc = await open('note-icon-ap')
       await doc._liftSettled
       const [note] = embedded(doc)
       expect(note).toMatchObject({ type: 'text', locked: true })
@@ -880,7 +879,7 @@ describe('save', () => {
   describe('a file whose saved annotations another program linked to', () => {
     it('saves around them: the notes, the replies and the pop-up are left as they are', async () => {
       const engine = realEngine()
-      const doc = await open('saved-replied', { engine: engine.loader })
+      const doc = await open('saved-replied')
       await doc._liftSettled
       const before = await pdfjsAnnotations(doc)
       const mine = doc.annotations.add({
@@ -923,7 +922,7 @@ describe('save', () => {
 
   describe('a reply to a file annotation that takes no replies', () => {
     it('is written as the note it shows, and stays in the file when opened again', async () => {
-      const doc = await open('cropbox-offset', { engine: realEngine().loader })
+      const doc = await open('cropbox-offset')
       await doc._liftSettled
       const [square] = embedded(doc)
       expect(square).toMatchObject({ type: 'square', locked: true })
@@ -944,10 +943,9 @@ describe('save', () => {
 
   describe('in controlled mode, before the host answers the lift', () => {
     it('keeps the lifted annotations: no change, and a save keeps them', async () => {
-      const { loader } = realEngine()
+      const { writes } = realEngine()
       const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
       const doc = await open('saved-signed', {
-        engine: loader,
         annotations: { mode: 'controlled', initial: [], onChange },
       })
       await doc._liftSettled
@@ -955,7 +953,7 @@ describe('save', () => {
       expect(session(doc)).toEqual([])
       expect(doc.changed.get()).toBe(false)
       expect(await doc.save()).toEqual(await fixtureBytes('saved-signed'))
-      expect(loader).not.toHaveBeenCalled()
+      expect(writes).toEqual([])
 
       // Another change is written with the lifted signature still in place.
       doc.form.set({ name: 'Ada' })
@@ -970,7 +968,6 @@ describe('save', () => {
     it('takes the list the host pushes as the session from then on', async () => {
       const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
       const doc = await open('saved-annotations', {
-        engine: realEngine().loader,
         annotations: { mode: 'controlled', initial: [], onChange },
       })
       await doc._liftSettled
@@ -988,14 +985,11 @@ describe('save', () => {
     })
   })
 
-  describe('with the engine reading the file', () => {
+  describe("with the reader's engine", () => {
     beforeEach(() => {
-      flag.__INKBAR_READER__ = 'engine'
       vi.stubGlobal('ImageData', FakeImageData)
     })
     afterEach(() => {
-      setEngineFactory(undefined)
-      delete flag.__INKBAR_READER__
       vi.unstubAllGlobals()
     })
 

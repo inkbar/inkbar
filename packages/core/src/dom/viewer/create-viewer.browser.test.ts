@@ -3,6 +3,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { setEngineFactory } from '../../model/engine-factory'
 import { InkError } from '../../model/errors'
 import { writable, type Readable } from '../../model/readable'
 import {
@@ -11,7 +12,6 @@ import {
 } from '../../model/signatures'
 import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/sandbox'
-import { readerKind } from '../../reader/select'
 import { oneOfEach } from '../../test-support/annotations'
 import { stoppableEngines } from '../../test-support/stoppable-engines'
 import { definePlugin } from '../plugins/define'
@@ -56,9 +56,10 @@ import { createSignatureMenu } from './signature-menu'
 import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
 
+import type { CoreEngine } from '../../engine-reader/types'
 import type { AnnotationChange } from '../../model/annotations/store'
 import type { Annotation } from '../../model/annotations/types'
-import type { EngineLoader, InkDocument } from '../../model/document'
+import type { InkDocument } from '../../model/document'
 import type { FieldsChange, FieldValues } from '../../model/form/types'
 import type { RecordStore } from '../../model/records'
 import type { Tool } from '../tools/controller'
@@ -2314,21 +2315,11 @@ describe('createViewer', () => {
       () => viewer.element.querySelector('.ink-page[data-page="0"] canvas') !== null
     )
     let failing = true
-    if (readerKind() === 'pdfjs') {
-      const handles = doc._pdfjs!
-      const original = handles.getPage.bind(handles)
-      handles.getPage = async (index) => {
-        if (failing && index === 0) throw new Error('The page could not be drawn')
-        return original(index)
-      }
-    } else {
-      // The engine reader draws without PDF.js's pages: its draw fails instead.
-      const reader = doc._reader
-      const original = reader.draw.bind(reader)
-      reader.draw = async (request, ...rest) => {
-        if (failing && request.page === 0) throw new Error('The page could not be drawn')
-        return original(request, ...rest)
-      }
+    const reader = doc._reader
+    const original = reader.draw.bind(reader)
+    reader.draw = async (request, ...rest) => {
+      if (failing && request.page === 0) throw new Error('The page could not be drawn')
+      return original(request, ...rest)
     }
     engine.viewport.setZoom(0.5)
     await until(() => viewer.element.querySelector('.ink-page-error') !== null)
@@ -3816,83 +3807,74 @@ describe('a floating sidebar beside the viewer', () => {
 })
 
 describe('applying redactions', () => {
-  /**
-   * `loader`, with the apply held until `gate` resolves. With the PDF.js reader the apply loads
-   * an engine of its own, and that load is held. With the engine reader the apply writes with the
-   * reader's engine, so the `redact` of each document opened in it waits for `gate`; the reader
-   * never calls it.
-   */
-  const gated = (loader: EngineLoader, gate?: Promise<void>): EngineLoader => {
-    if (readerKind() !== 'engine')
-      return async () => {
-        await gate
-        return loader()
-      }
-    return async () => {
-      const { createEngine } = await loader()
-      return {
-        createEngine: async () => {
-          const engine = await createEngine()
-          return new Proxy(engine, {
-            get(target, key) {
-              const value: unknown = Reflect.get(target, key, target)
-              if (key !== 'open')
-                return typeof value === 'function'
-                  ? (value as (...a: unknown[]) => unknown).bind(target)
-                  : value
-              return async (...args: Parameters<typeof engine.open>) => {
-                const doc = await target.open(...args)
-                return new Proxy(doc, {
-                  get(d, name) {
-                    const member: unknown = Reflect.get(d, name, d)
-                    if (typeof member !== 'function') return member
-                    const call = (member as (...a: unknown[]) => unknown).bind(d)
-                    if (name !== 'redact') return call
-                    return async (...a: unknown[]) => {
-                      await gate
-                      return call(...a)
-                    }
-                  },
-                })
-              }
-            },
-          })
-        },
-      }
-    }
+  /** Makes `factory` the engine every document opened from here on uses; spread into options. */
+  const using = (factory: () => Promise<CoreEngine>): Record<string, never> => {
+    setEngineFactory(factory)
+    return {}
   }
 
-  /** The real engine, in this page; `gate` holds the apply until resolved. */
-  const realEngine = (gate?: Promise<void>): EngineLoader =>
-    vi.fn<EngineLoader>(gated(() => import('@inkbar/engine'), gate))
+  /** The real engine, in this page. */
+  const real = async () => (await import('@inkbar/engine')).createEngine()
 
-  /** The real engine, whose check of the redacted file finds content under every mark. */
-  const failingCheck: EngineLoader = async () => {
-    const m = await import('@inkbar/engine')
-    return {
-      createEngine: async () => {
-        const engine = await m.createEngine()
-        return new Proxy(engine, {
-          get(target, key) {
-            if (key === 'checkRedaction')
-              return async (...args: Parameters<typeof engine.checkRedaction>) => {
-                const found = await target.checkRedaction(...args)
-                return {
-                  ...found,
-                  candidates: found.candidates.map((c) => ({
-                    ...c,
-                    verdict: 'content-remains' as const,
-                  })),
-                }
-              }
-            const value: unknown = Reflect.get(target, key, target)
+  /**
+   * The engines `make` makes, with the `redact` of each document opened in them waiting for
+   * `gate`. The reader never calls it.
+   */
+  const gated =
+    (make: () => Promise<CoreEngine>, gate?: Promise<void>) =>
+    async (): Promise<CoreEngine> => {
+      const engine = await make()
+      return new Proxy(engine, {
+        get(target, key) {
+          const value: unknown = Reflect.get(target, key, target)
+          if (key !== 'open')
             return typeof value === 'function'
               ? (value as (...a: unknown[]) => unknown).bind(target)
               : value
-          },
-        })
-      },
+          return async (...args: Parameters<typeof engine.open>) => {
+            const doc = await target.open(...args)
+            return new Proxy(doc, {
+              get(d, name) {
+                const member: unknown = Reflect.get(d, name, d)
+                if (typeof member !== 'function') return member
+                const call = (member as (...a: unknown[]) => unknown).bind(d)
+                if (name !== 'redact') return call
+                return async (...a: unknown[]) => {
+                  await gate
+                  return call(...a)
+                }
+              },
+            })
+          }
+        },
+      })
     }
+
+  /** The real engine, in this page; `gate` holds the apply until resolved. */
+  const realEngine = (gate?: Promise<void>) => using(gated(real, gate))
+
+  /** The real engine, whose check of the redacted file finds content under every mark. */
+  const failingCheck = async (): Promise<CoreEngine> => {
+    const engine = await real()
+    return new Proxy(engine, {
+      get(target, key) {
+        if (key === 'checkRedaction')
+          return async (...args: Parameters<typeof engine.checkRedaction>) => {
+            const found = await target.checkRedaction(...args)
+            return {
+              ...found,
+              candidates: found.candidates.map((c) => ({
+                ...c,
+                verdict: 'content-remains' as const,
+              })),
+            }
+          }
+        const value: unknown = Reflect.get(target, key, target)
+        return typeof value === 'function'
+          ? (value as (...a: unknown[]) => unknown).bind(target)
+          : value
+      },
+    })
   }
 
   /** A mark over SECRET-ALPHA in `redact-text`: the fixture's region. */
@@ -3927,6 +3909,7 @@ describe('applying redactions', () => {
   const dialog = () => document.querySelector<HTMLElement>('[data-ink-redaction-dialog]')
 
   afterEach(() => {
+    setEngineFactory(undefined)
     vi.restoreAllMocks()
     document.querySelectorAll('[data-ink-form-alert]').forEach((a) => a.remove())
   })
@@ -3934,7 +3917,7 @@ describe('applying redactions', () => {
   it('applies, tells the host and reopens at the same page and zoom', async () => {
     const onRedacted = vi.fn<(e: { bytes: Uint8Array; result: unknown }) => void>()
     const { viewer } = make('text-simple', {
-      engine: realEngine(),
+      ...realEngine(),
       tools: allTools(),
       onRedacted,
     })
@@ -3995,7 +3978,7 @@ describe('applying redactions', () => {
 
   it('the redacted text cannot be selected or found by search', async () => {
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
     })
     const { doc } = await ready(viewer)
@@ -4030,7 +4013,7 @@ describe('applying redactions', () => {
     })
     const onRedacted = vi.fn<(e: { bytes: Uint8Array }) => void>()
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onRedacted,
     })
@@ -4046,7 +4029,7 @@ describe('applying redactions', () => {
 
   it('undo is unavailable after applying', async () => {
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
     })
     const undo = createUndo(viewer)
@@ -4073,7 +4056,7 @@ describe('applying redactions', () => {
       viewer.document.get()?.annotations.setControlledValue(next)
     }
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       annotations: { mode: 'controlled', initial: [], onChange },
       onReady: (d) => d.annotations.setControlledValue(hostList),
@@ -4118,7 +4101,7 @@ describe('applying redactions', () => {
       viewer.document.get()?.annotations.setControlledValue(next)
     }
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       annotations: { mode: 'controlled', initial: [], onChange },
       onReady: (d) => d.annotations.setControlledValue(hostList),
@@ -4145,7 +4128,7 @@ describe('applying redactions', () => {
       viewer.document.get()?.annotations.setControlledValue(next)
     }
     const { viewer } = make('redact-annotations', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       annotations: { mode: 'controlled', initial: [], onChange },
       onReady: (d) => d.annotations.setControlledValue(hostList),
@@ -4195,7 +4178,7 @@ describe('applying redactions', () => {
     const data = await (await fetch(fixtureUrl('redact-text'))).arrayBuffer()
     const { viewer } = make('redact-text', {
       source: new File([data], 'contract.pdf', { type: 'application/pdf' }),
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
     })
     const { doc } = await ready(viewer)
@@ -4213,7 +4196,7 @@ describe('applying redactions', () => {
     const errors: InkError[] = []
     const thrown = new Error('host failed')
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onRedacted: () => {
         throw thrown
@@ -4231,7 +4214,7 @@ describe('applying redactions', () => {
   })
 
   it('focus goes to the document once the redacted file shows, not to the page body', async () => {
-    const { viewer } = make('redact-text', { engine: realEngine() })
+    const { viewer } = make('redact-text', { ...realEngine() })
     const control = createApplyRedactionsButton(viewer)
     viewer.element.prepend(control)
     const { doc } = await ready(viewer)
@@ -4249,7 +4232,7 @@ describe('applying redactions', () => {
 
   it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
     const { viewer } = make('redact-text', {
-      engine: failingCheck,
+      ...using(failingCheck),
       redactionConfirm: false,
       onError: () => undefined,
     })
@@ -4275,7 +4258,7 @@ describe('applying redactions', () => {
     let first: InkDocument | undefined
     const held: { viewer?: Viewer } = {}
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onReady: (d) => {
         first ??= d
@@ -4298,30 +4281,25 @@ describe('applying redactions', () => {
   it('a reopen that fails shows only the open failure', async () => {
     const errors: InkError[] = []
     /** The real engine, whose redacted bytes are spoiled once the check has passed them. */
-    const spoiling: EngineLoader = async () => {
-      const m = await import('@inkbar/engine')
-      return {
-        createEngine: async () => {
-          const engine = await m.createEngine()
-          return new Proxy(engine, {
-            get(target, key) {
-              if (key === 'checkRedaction')
-                return async (...args: Parameters<typeof engine.checkRedaction>) => {
-                  const found = await target.checkRedaction(...args)
-                  args[0].fill(0)
-                  return found
-                }
-              const value: unknown = Reflect.get(target, key, target)
-              return typeof value === 'function'
-                ? (value as (...a: unknown[]) => unknown).bind(target)
-                : value
-            },
-          })
+    const spoiling = async (): Promise<CoreEngine> => {
+      const engine = await real()
+      return new Proxy(engine, {
+        get(target, key) {
+          if (key === 'checkRedaction')
+            return async (...args: Parameters<typeof engine.checkRedaction>) => {
+              const found = await target.checkRedaction(...args)
+              args[0].fill(0)
+              return found
+            }
+          const value: unknown = Reflect.get(target, key, target)
+          return typeof value === 'function'
+            ? (value as (...a: unknown[]) => unknown).bind(target)
+            : value
         },
-      }
+      })
     }
     const { viewer } = make('redact-text', {
-      engine: spoiling,
+      ...using(spoiling),
       redactionConfirm: false,
       onError: (e) => errors.push(e),
     })
@@ -4345,7 +4323,7 @@ describe('applying redactions', () => {
     async (_, spoil) => {
       const errors: InkError[] = []
       const { viewer } = make('redact-text', {
-        engine: realEngine(),
+        ...realEngine(),
         redactionConfirm: false,
         onRedacted: ({ bytes }) => spoil(bytes),
         onError: (e) => errors.push(e),
@@ -4366,7 +4344,7 @@ describe('applying redactions', () => {
     const errors: InkError[] = []
     const onRedacted = vi.fn()
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       onRedacted,
       onError: (e) => errors.push(e),
     })
@@ -4385,7 +4363,7 @@ describe('applying redactions', () => {
 
   it('destroying the viewer while the dialog is open closes it and applies nothing', async () => {
     const onRedacted = vi.fn()
-    const { viewer } = make('redact-text', { engine: realEngine(), onRedacted })
+    const { viewer } = make('redact-text', { ...realEngine(), onRedacted })
     const { doc } = await ready(viewer)
     markSecret(doc)
     const apply = vi.spyOn(doc, '_applyRedactions')
@@ -4403,7 +4381,7 @@ describe('applying redactions', () => {
     const onReady = vi.fn()
     const errors: InkError[] = []
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onReady,
       onError: (e) => errors.push(e),
@@ -4422,7 +4400,7 @@ describe('applying redactions', () => {
 
   it('keeps the single-page layout', async () => {
     const { viewer } = make('text-simple', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
     })
     const { doc, engine } = await ready(viewer)
@@ -4441,7 +4419,7 @@ describe('applying redactions', () => {
     const errors: InkError[] = []
     const onRedacted = vi.fn()
     const { viewer } = make('redact-text', {
-      engine: failingCheck,
+      ...using(failingCheck),
       redactionConfirm: false,
       onRedacted,
       onError: (e) => errors.push(e),
@@ -4471,7 +4449,7 @@ describe('applying redactions', () => {
     const errors: InkError[] = []
     const onRedacted = vi.fn()
     const { viewer } = make('redact-drawing-hatch', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onRedacted,
       onError: (e) => errors.push(e),
@@ -4512,7 +4490,7 @@ describe('applying redactions', () => {
     const onReady = vi.fn()
     const errors: InkError[] = []
     const { viewer } = make('redact-text', {
-      engine: realEngine(gate),
+      ...realEngine(gate),
       redactionConfirm: false,
       onRedacted,
       onReady,
@@ -4536,7 +4514,7 @@ describe('applying redactions', () => {
     const onRedacted = vi.fn<(e: { bytes: Uint8Array }) => void>()
     const errors: InkError[] = []
     const { viewer } = make('text-simple', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
       onRedacted,
       onError: (e) => errors.push(e),
@@ -4565,8 +4543,8 @@ describe('applying redactions', () => {
     await until(() => other.status.get().state === 'error')
   })
 
-  it('the control is disabled without marks and without an engine', async () => {
-    const { viewer } = make('redact-text', { engine: realEngine() })
+  it('the control is disabled without marks', async () => {
+    const { viewer } = make('redact-text', { ...realEngine() })
     const control = createApplyRedactionsButton(viewer)
     expect(control.disabled).toBe(true)
     expect(control.dataset.inkApplyRedactions).toBe('')
@@ -4576,16 +4554,6 @@ describe('applying redactions', () => {
     expect(control.disabled).toBe(false)
     doc.annotations.remove(mark.id)
     expect(control.disabled).toBe(true)
-
-    // With the engine reader every open in this project is given the engine loader by the setup
-    // file, so a viewer without an engine cannot be built here.
-    if (readerKind() === 'engine') return
-    const { viewer: bare } = make('redact-text')
-    const bareControl = createApplyRedactionsButton(bare)
-    const { doc: bareDoc } = await ready(bare)
-    markSecret(bareDoc)
-    expect(bareControl.disabled).toBe(true)
-    await expect(bare.applyRedactions()).resolves.toBeNull()
   })
 
   it('the pages take no input while the marks are applied, and take it again after a failure', async () => {
@@ -4593,7 +4561,7 @@ describe('applying redactions', () => {
     const gate = new Promise<void>((r) => (release = r))
     const errors: InkError[] = []
     const { viewer } = make('redact-text', {
-      engine: gated(failingCheck, gate),
+      ...using(gated(failingCheck, gate)),
       redactionConfirm: false,
       tools: [noteTool()],
       onError: (e) => errors.push(e),
@@ -4626,7 +4594,7 @@ describe('applying redactions', () => {
 
   it('the pages take no input until the redacted file has replaced the old one', async () => {
     const { viewer } = make('redact-text', {
-      engine: realEngine(),
+      ...realEngine(),
       redactionConfirm: false,
     })
     const { doc } = await ready(viewer)
@@ -4660,7 +4628,7 @@ describe('applying redactions', () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))
     const { viewer } = make('redact-text', {
-      engine: realEngine(gate),
+      ...realEngine(gate),
       redactionConfirm: false,
     })
     const download = createDownloadButton(viewer)
@@ -4806,7 +4774,7 @@ describe('applying redactions', () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))
     const { viewer } = make('redact-text', {
-      engine: realEngine(gate),
+      ...realEngine(gate),
       redactionConfirm: false,
     })
     const control = createApplyRedactionsButton(viewer)
@@ -4826,8 +4794,7 @@ describe('applying redactions', () => {
   })
 })
 
-// With PDF.js reading the file nothing can stop: these run where the engine reads it.
-describe.skipIf(readerKind() !== 'engine')('a document whose engine has stopped', () => {
+describe('a document whose engine has stopped', () => {
   /** Engines the test can stop, as the document's, until the test ends. */
   function engines() {
     const made = stoppableEngines()

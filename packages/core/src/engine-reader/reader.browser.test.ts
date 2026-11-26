@@ -5,9 +5,8 @@ import {
   fixtureUrl,
   type FixtureName,
 } from '@inkbar/fixtures/urls'
-import { fontUrls } from '@inkbar/fonts'
 import themeCss from '@inkbar/theme/theme.css?inline'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { hiddenFromIds, pageCanvasSize } from '../dom/draw-request'
 import { createLoupeLayer } from '../dom/loupe-layer'
@@ -17,16 +16,16 @@ import { createThumbnailPainter } from '../dom/thumbnails/thumbnail'
 import { createPageTransform } from '../dom/transform'
 import { createViewer } from '../dom/viewer/create-viewer'
 import { mountViewer } from '../dom/viewer-engine'
-import { openDocument, type EngineLoader, type InkDocument } from '../model/document'
+import { openDocument, type InkDocument } from '../model/document'
+import { setEngineFactory } from '../model/engine-factory'
 import { writable } from '../model/readable'
 import { searchableText } from '../model/search-text'
 
-import { expectSameLinks, linksAsSeen } from './test-utils'
+import { linksAsSeen } from './test-utils'
 
 import type * as ReaderModule from './reader'
+import type { CoreEngine } from './types'
 import type { Point, Rect } from '../model/geometry'
-
-const flag = globalThis as { __INKBAR_READER__?: unknown }
 
 /** How many engine readers were made. */
 const readers = vi.hoisted(() => ({ made: 0 }))
@@ -42,32 +41,42 @@ vi.mock('./reader', async (importOriginal) => {
 })
 
 let cleanup: (() => void)[] = []
-beforeEach(() => {
-  flag.__INKBAR_READER__ = 'engine'
-})
 afterEach(() => {
-  delete flag.__INKBAR_READER__
+  setEngineFactory(undefined)
   vi.restoreAllMocks()
   cleanup.reverse().forEach((f) => f())
   cleanup = []
 })
 
-/** The real engine, as a host passes it. */
-const realEngine = () => vi.fn<EngineLoader>(() => import('@inkbar/engine'))
-
-/** The real engine with the fallback fonts served at /inkbar-fonts/, as the sandbox passes it. */
-const withFonts = (): EngineLoader => async () => {
-  const real = await import('@inkbar/engine')
-  return {
-    createEngine: () => real.createEngine({ fallbackFonts: fontUrls('/inkbar-fonts/') }),
-  }
+/**
+ * The real engine, made the engine every document opened from here on uses, with `each` applied
+ * to every document opened in it.
+ */
+function engineWith(
+  each: (doc: Record<string, (...a: unknown[]) => unknown>) => void
+): void {
+  setEngineFactory(async (): Promise<CoreEngine> => {
+    const real = await import('@inkbar/engine')
+    const engine = await real.createEngine()
+    const opening = engine.open.bind(engine)
+    engine.open = async (...args) => {
+      const doc = await opening(...args)
+      each(doc as unknown as Record<string, (...a: unknown[]) => unknown>)
+      return doc
+    }
+    return engine
+  })
 }
 
 async function open(
   name: FixtureName,
-  opts: { engine?: EngineLoader; password?: string } = {}
+  opts: { password?: string; fonts?: false } = {}
 ): Promise<InkDocument> {
-  const doc = await openFixtureInBrowser(name, { engine: realEngine(), ...opts })
+  const { fonts, ...rest } = opts
+  const doc = await openFixtureInBrowser(name, {
+    ...rest,
+    ...(fonts === false && { assets: { ...browserAssets(), fonts } }),
+  })
   cleanup.push(() => doc.destroy())
   return doc
 }
@@ -108,7 +117,7 @@ async function mountPage(doc: InkDocument, page = 0): Promise<HTMLCanvasElement>
 const fallbackWarnings = (warn: { mock: { calls: unknown[][] } }) =>
   warn.mock.calls.filter((args) => String(args[0]).includes('no fallback font'))
 
-describe('the engine reader, behind the switch', () => {
+describe('the engine reader', () => {
   it('draws a page through the engine', async () => {
     const doc = await open('text-simple')
     expect(doc._reader.kind).toBe('engine')
@@ -128,13 +137,10 @@ describe('the engine reader, behind the switch', () => {
     'text-rotated-270',
     'cropbox-offset',
     'userunit-2',
-  ] as const)('lists the same page facts as PDF.js, on %s', async (name) => {
+  ] as const)('lists the page facts it listed before, on %s', async (name) => {
     const doc = await open(name)
     expect(doc._reader.kind).toBe('engine')
-    delete flag.__INKBAR_READER__
-    const plain = await open(name)
-    expect(plain._reader.kind).toBe('pdfjs')
-    expect(doc.pages).toEqual(plain.pages)
+    expect(doc.pages).toMatchSnapshot()
   })
 
   it('a thumbnail and a loupe paint through the engine', async () => {
@@ -221,44 +227,16 @@ describe('the engine reader, behind the switch', () => {
   })
 
   it('opens a file whose facts a working engine cannot read, with no title or author', async () => {
-    const failing: EngineLoader = async () => {
-      const real = await import('@inkbar/engine')
-      return {
-        createEngine: async () => {
-          const engine = await real.createEngine()
-          const opening = engine.open.bind(engine)
-          engine.open = async (...args) => {
-            const doc = await opening(...args)
-            // The engine's own failure: `engine-failure`, with the engine still working.
-            doc.documentFacts = () =>
-              Promise.reject(
-                Object.assign(new Error('no facts'), { code: 'engine-failure' })
-              )
-            return doc
-          }
-          return engine
-        },
-      }
-    }
-    const doc = await open('text-simple', { engine: failing })
+    engineWith((doc) => {
+      // The engine's own failure: `engine-failure`, with the engine still working.
+      doc['documentFacts'] = () =>
+        Promise.reject(Object.assign(new Error('no facts'), { code: 'engine-failure' }))
+    })
+    const doc = await open('text-simple')
     expect(doc._reader.kind).toBe('engine')
     expect(doc.info).toMatchObject({ pageCount: 3, isEncrypted: false })
     expect(doc.info.title).toBeUndefined()
     expect(doc.info.author).toBeUndefined()
-  })
-
-  it('needs the engine option', async () => {
-    const doc = await openDocument(fixtureUrl('text-simple'), { assets: browserAssets() })
-    cleanup.push(() => doc.destroy())
-    await expect(doc.ready).rejects.toMatchObject({ code: 'EngineUnavailable' })
-  })
-
-  it('with the switch off, reads with PDF.js and does not load the engine at open', async () => {
-    delete flag.__INKBAR_READER__
-    const loader = realEngine()
-    const doc = await open('text-simple', { engine: loader })
-    expect(doc._reader.kind).toBe('pdfjs')
-    expect(loader).not.toHaveBeenCalled()
   })
 
   it('draws unembedded Japanese with the fallback fonts, and warns once without them', async () => {
@@ -267,11 +245,12 @@ describe('the engine reader, behind the switch', () => {
     // The two Japanese lines sit at baselines 790 and 740 on an A4 page: CSS y 52 to 152.
     const band = (canvas: HTMLCanvasElement) => darkPixels(canvas, 72, 52, 328, 100)
 
-    const doc = await open('unembedded-japanese', { engine: withFonts() })
+    const doc = await open('unembedded-japanese')
     expect(band(await mountPage(doc))).toBeGreaterThan(500)
     expect(fallbackWarnings(warn)).toEqual([])
 
-    const bare = await open('unembedded-japanese')
+    // With `fonts: false` no font is fetched, and the text is drawn with a substitute.
+    const bare = await open('unembedded-japanese', { fonts: false })
     await mountPage(bare)
     await mountPage(bare)
     expect(fallbackWarnings(warn)).toEqual([
@@ -294,46 +273,25 @@ describe("the engine reader's text", () => {
     ['text-simple', 1],
     ['text-simple', 2],
     ['text-search', 0],
-  ] as const)('reads the same words as PDF.js, on %s page %i', async (name, page) => {
+  ] as const)('reads the words it read before, on %s page %i', async (name, page) => {
     const doc = await open(name)
     expect(doc._reader.kind).toBe('engine')
-    delete flag.__INKBAR_READER__
-    const plain = await open(name)
-    expect(plain._reader.kind).toBe('pdfjs')
     const text = await joinedText(doc, page)
     expect(text).not.toBe('')
-    expect(text).toBe(await joinedText(plain, page))
+    expect(text).toMatchSnapshot()
   })
 
   it.each([0, 1, 2])(
-    'places each item of text-simple page %i where PDF.js places it',
+    'places each item of text-simple page %i where it placed it before',
     async (page) => {
       const doc = await open('text-simple')
-      delete flag.__INKBAR_READER__
-      const plain = await open('text-simple')
-      const engine = (await doc._reader.text(page, { glyphs: true })).items
-      const pdfjs = (await plain._reader.text(page, { glyphs: true })).items
-      expect(engine.length).toBeGreaterThan(0)
-      expect(engine.map((i) => i.str)).toEqual(pdfjs.map((i) => i.str))
-      const edges = (r: Rect) => [r.x, r.y, r.x + r.width, r.y + r.height]
-      engine.forEach((item, k) => {
-        const other = pdfjs[k]!
-        const a = edges(item.rect)
-        const b = edges(other.rect)
-        // Left and right agree within a point. Bottom and top agree: both readers stand the box
-        // on Helvetica's ascent and descent from PDF.js's table, 10.05 pt above the baseline and
-        // 2.90 pt below it at 14 pt.
-        expect(Math.abs(a[0]! - b[0]!)).toBeLessThanOrEqual(1)
-        expect(a[1]!).toBeCloseTo(b[1]!, 3)
-        expect(Math.abs(a[2]! - b[2]!)).toBeLessThanOrEqual(1)
-        expect(a[3]!).toBeCloseTo(b[3]!, 3)
-        if (other.advances) {
-          expect(item.advances).toHaveLength(other.advances.length)
-          item.advances!.forEach((t, i) => expect(t).toBeCloseTo(other.advances![i]!, 2))
-        }
-      })
-      // PDF.js gives page glyph boundaries for these lines, so the advances were compared.
-      expect(pdfjs.every((i) => i.advances)).toBe(true)
+      const items = (await doc._reader.text(page, { glyphs: true })).items
+      expect(items.length).toBeGreaterThan(0)
+      // Each with its glyph boundaries.
+      expect(items.every((i) => i.advances)).toBe(true)
+      expect(
+        items.map(({ str, rect, advances }) => ({ str, rect, advances }))
+      ).toMatchSnapshot()
     }
   )
 
@@ -348,34 +306,17 @@ describe("the engine reader's text", () => {
     expect(items.map((i) => i.str).join(' ')).toContain('Page 1')
   })
 
-  it('finds a word hyphenated over a line break on text-search, as PDF.js does', async () => {
-    const hitsOf = async (doc: InkDocument) => {
-      const hits = []
-      for await (const hit of doc.search('document')) hits.push(hit)
-      return hits
-    }
-    const engine = await hitsOf(await open('text-search'))
-    delete flag.__INKBAR_READER__
-    const pdfjs = await hitsOf(await open('text-search'))
-    expect(pdfjs).toHaveLength(1)
-    expect(engine).toHaveLength(pdfjs.length)
-    const [a, b] = [engine[0]!, pdfjs[0]!]
-    expect(a.text).toBe(b.text)
-    expect(a.quads).toHaveLength(b.quads.length)
-    // The tolerance of the item comparison above: within a point along the line, the same
-    // height across it.
-    a.quads.forEach((quad, q) => {
-      const other = b.quads[q]!
-      for (const corner of ['p1', 'p2', 'p3', 'p4'] as const) {
-        expect(Math.abs(quad[corner].x - other[corner].x)).toBeLessThanOrEqual(1)
-        expect(quad[corner].y).toBeCloseTo(other[corner].y, 3)
-      }
-    })
+  it('finds a word hyphenated over a line break on text-search', async () => {
+    const hits = []
+    for await (const hit of (await open('text-search')).search('document')) hits.push(hit)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]!.quads.length).toBeGreaterThan(1)
+    expect(hits.map(({ text, quads }) => ({ text, quads }))).toMatchSnapshot()
   })
 
   // The text layer puts one span per item and nothing between them, so each line's strings
   // joined as they stand must keep their spaces: across a font change, a gap and two columns.
-  it('keeps the space between items on one line, as PDF.js does, on text-search', async () => {
+  it('keeps the space between items on one line, on text-search', async () => {
     const lines = async (doc: InkDocument) => {
       const { items } = await doc._reader.text(0, { glyphs: false })
       const byLine = new Map<number, string>()
@@ -386,24 +327,19 @@ describe("the engine reader's text", () => {
       return [...byLine.values()].map((line) => line.trimEnd())
     }
     const engine = await lines(await open('text-search'))
-    delete flag.__INKBAR_READER__
-    const pdfjs = await lines(await open('text-search'))
-    expect(engine).toEqual(pdfjs)
+    expect(engine).toMatchSnapshot()
     expect(engine).toContain('Invoice')
     expect(engine).toContain('Hello World')
     expect(engine).toContain('left column right column')
   })
 
   // The engine reads a page turned 90 degrees as it reads the page unturned, so its lines come
-  // in the order the file writes them, as PDF.js reads them.
+  // in the order the file writes them.
   it('reads the lines of text-rotated-90 in the order the file writes them', async () => {
     const written =
       'Rotated 90 Hello Inkbar. This document exercises text selection. National Insurance number QQ123456C appears here. Email: sam.hargreaves@hargreaves-mott.example The quick brown fox jumps over the lazy dog.'
     const doc = await open('text-rotated-90')
     await expect(joinedText(doc, 0)).resolves.toBe(written)
-    delete flag.__INKBAR_READER__
-    const plain = await open('text-rotated-90')
-    expect(await joinedText(plain, 0)).toBe(written)
   })
 
   // The engine reads the Hebrew in reading order, though the file draws it last letter first.
@@ -454,37 +390,18 @@ describe("the engine reader's text", () => {
     }
   })
 
-  // PDF.js gives a vertical run's length in its height and one em in its width; its reader
-  // lays the box down the column from the top centre of the first glyph.
   it.each(['text-vertical', 'redact-text-vertical'] as const)(
-    "gives PDF.js's vertical runs the column the glyphs are drawn in, on %s",
+    'gives vertical runs the column the glyphs are drawn in, on %s',
     async (name) => {
-      const engine = await open(name)
-      const engineItems = (await engine._reader.text(0, { glyphs: true })).items
-      delete flag.__INKBAR_READER__
-      const plain = await open(name)
-      expect(plain._reader.kind).toBe('pdfjs')
-      const items = (await plain._reader.text(0, { glyphs: true })).items.filter(
+      const doc = await open(name)
+      const items = (await doc._reader.text(0, { glyphs: true })).items.filter(
         (item) => item.dir === 'ttb' && item.str.trim() !== ''
       )
-      expect(items.map((item) => item.str)).toEqual(
-        engineItems.filter((item) => item.dir === 'ttb').map((item) => item.str)
-      )
-      const canvas = await mountPage(plain)
+      expect(items.length).toBeGreaterThan(0)
+      const canvas = await mountPage(doc)
       // The page canvas `mountPage` draws: zoom 1, unturned, 1 device pixel per CSS pixel.
-      const t = createPageTransform(plain.pages[0]!, 1, 0)
+      const t = createPageTransform(doc.pages[0]!, 1, 0)
       for (const item of items) {
-        const other = engineItems.find((e) => e.str === item.str)!
-        expect(item.fontSize).toBe(other.fontSize)
-        // Ahem's glyph boxes reach 1.28 pt past the last advance; a tenth of an em holds that.
-        for (const corner of ['p1', 'p2', 'p3', 'p4'] as const) {
-          const d = Math.hypot(
-            item.quad[corner].x - other.quad[corner].x,
-            item.quad[corner].y - other.quad[corner].y
-          )
-          expect(d, `${item.str} ${corner}`).toBeLessThanOrEqual(0.1 * item.fontSize)
-        }
-        expect(item.advances).toHaveLength(item.str.length + 1)
         // Every dark pixel half an em around the box lies within 2 pt of it, and the box holds
         // glyphs. Ahem's glyphs stand 1.28 pt lower in their cells than /DW2 puts them.
         const { rect } = item
@@ -527,7 +444,6 @@ describe('reopening after applying redactions', () => {
       source: fixtureUrl('redact-text'),
       assets: browserAssets(),
       zoom: 1,
-      engine: realEngine(),
       redactionConfirm: false,
     })
     cleanup.push(() => {
@@ -584,7 +500,7 @@ describe('reopening after applying redactions', () => {
 })
 
 describe("the engine reader's links and outline", () => {
-  /** Every page's links as a host sees them, and the outline, read by the reader selected now. */
+  /** Every page's links as a host sees them, and the outline. */
   async function read(name: FixtureName) {
     const doc = await open(name)
     const links = []
@@ -594,27 +510,11 @@ describe("the engine reader's links and outline", () => {
   }
 
   it.each(['links', 'link-targets', 'link-order', 'outline', 'corpus-annots'] as const)(
-    'gives the same links and outline as PDF.js, on %s',
+    'gives the links and outline it gave before, on %s',
     async (name) => {
-      const engine = await read(name)
-      delete flag.__INKBAR_READER__
-      const pdfjs = await read(name)
-      expect([engine.kind, pdfjs.kind]).toEqual(['engine', 'pdfjs'])
-      expect(engine.links.map((l) => l.length)).toEqual(pdfjs.links.map((l) => l.length))
-      // A link written as a direct object has no object number: PDF.js invents an id from a
-      // counter, the engine reader gives the one its annotation has.
-      const direct = (links: typeof engine.links) =>
-        links.map((page) =>
-          page.map((l) => ({
-            ...l,
-            id: l.id.replace(/:(annot_p\d+_\d+|p\d+i\d+)$/u, ':direct'),
-          }))
-        )
-      const pdfjsLinks = direct(pdfjs.links)
-      direct(engine.links).forEach((links, page) =>
-        expectSameLinks(links, pdfjsLinks[page]!)
-      )
-      expect(engine.outline).toEqual(pdfjs.outline)
+      const links = await read(name)
+      expect(links.kind).toBe('engine')
+      expect({ links: links.links, outline: links.outline }).toMatchSnapshot()
     }
   )
 
@@ -695,7 +595,7 @@ describe("the engine reader's links and outline", () => {
   })
 
   it.each(['links', 'link-targets'] as const)(
-    "gives each destination's raw as PDF.js gives it, on %s",
+    "gives each destination's raw as it gave it before, on %s",
     async (name) => {
       const raws = (doc: InkDocument) =>
         doc.pages.flatMap((_, page) =>
@@ -704,9 +604,7 @@ describe("the engine reader's links and outline", () => {
             .map((l) => (l.target.kind === 'dest' ? l.target.raw : undefined))
         )
       const engine = raws(await open(name))
-      delete flag.__INKBAR_READER__
-      const pdfjs = raws(await open(name))
-      expect(engine).toEqual(pdfjs)
+      expect(engine).toMatchSnapshot()
       expect(engine.filter((raw) => Array.isArray(raw)).length).toBeGreaterThan(0)
     }
   )
@@ -727,13 +625,13 @@ describe("the engine reader's links and outline", () => {
     ).resolves.toEqual({ page: 1, fit: 'xyz', left: 72, top: 600, zoom: undefined })
   })
 
-  it("orders link-order's links as PDF.js does, with the ids their annotations have", async () => {
+  it("orders link-order's links, with the ids their annotations have", async () => {
     const { links } = await read('link-order')
     expect(links[0]!.map((l) => [l.id, l.order])).toEqual([
       ['pdf:0:8R', 1],
       ['pdf:0:11R', 2],
       ['pdf:0:13R', 3],
-      // A Link with the Hidden flag: PDF.js keeps it.
+      // A Link with the Hidden flag is kept.
       ['pdf:0:14R', 4],
       // A Link written as a direct object in /Annots, named by its place there.
       ['pdf:0:p0i8', 5],
@@ -778,14 +676,11 @@ describe("the engine reader's links and outline", () => {
     }
   }
 
-  it('a press on a link on page 0 of links goes to the same place with either reader', async () => {
+  it('a press on a link on page 0 of links goes to its destination', async () => {
     // The first link is an explicit destination, the second a named one.
     const explicit = { x: 103, y: 705 }
     const named = { x: 103, y: 675 }
     const engine = [await pressOnLinks(explicit), await pressOnLinks(named)]
-    delete flag.__INKBAR_READER__
-    const pdfjs = [await pressOnLinks(explicit), await pressOnLinks(named)]
-    expect(engine).toEqual(pdfjs)
     expect(engine).toEqual([
       { page: 1, fit: 'xyz', left: 72, top: 600, zoom: undefined },
       { page: 2, fit: 'fit' },
@@ -802,29 +697,6 @@ interface FileRead {
   pages: { annotations: unknown[]; tabOrder: string[] }[]
   form: unknown[]
 }
-
-/** Every string anywhere in `value` passed through `map`. */
-function mapStrings<T>(value: T, map: (s: string) => string): T {
-  if (typeof value === 'string') return map(value) as T
-  if (Array.isArray(value)) return value.map((v: unknown) => mapStrings(v, map)) as T
-  if (typeof value === 'object' && value !== null)
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, mapStrings(v, map)])
-    ) as T
-  return value
-}
-
-/** `read` with `change` applied to each annotation of each page. */
-const eachAnnotation = (
-  read: FileRead,
-  change: (a: Record<string, unknown>) => Record<string, unknown>
-): FileRead => ({
-  ...read,
-  pages: read.pages.map((page) => ({
-    ...page,
-    annotations: page.annotations.map((a) => change(a as Record<string, unknown>)),
-  })),
-})
 
 /** A PDF of the numbered objects given, object 1 the catalog, with a cross-reference table. */
 function buildPdf(objects: Record<number, string>): Uint8Array {
@@ -878,135 +750,40 @@ const BUILT = {
 type BuiltName = keyof typeof BUILT
 type FileName = FixtureName | BuiltName
 
-/** An annotation without the text, dates and colour PDF.js reads from another annotation. */
-function withoutParentText(a: Record<string, unknown>): Record<string, unknown> {
-  const {
-    contents: _contents,
-    author: _author,
-    created: _created,
-    modified: _modified,
-    color: _color,
-    ...rest
-  } = a
-  return rest
-}
-
-/**
- * Differences between the two readers that are known, each with its cause and the files it
- * shows on. Each is applied to both readers' reads of those files before they are compared, so
- * the rest of the read is still held equal; a file listed whose reads no longer differ fails.
- */
-const EXCEPTIONS: Record<
-  string,
-  { cause: string; fixtures: readonly FileName[]; apply: (read: FileRead) => FileRead }
-> = {
-  'direct-object ids': {
-    cause:
-      'An annotation written as a direct object has no object number: PDF.js invents `annot_p<page>_<n>` from a counter, the engine reader gives `p<page>i<index>`, its place in /Annots.',
-    fixtures: ['annot-direct', 'link-order'],
-    apply: (read) =>
-      mapStrings(read, (s) => (/^(annot_p\d+_\d+|p\d+i\d+)$/.test(s) ? 'direct' : s)),
-  },
-  'drawn FreeText text': {
-    cause:
-      "A FreeText with an appearance stream: PDF.js takes its font size and colour from the stream's own text operators (10 and black when it finds none), the engine reader from /DA.",
-    fixtures: ['saved-annotations', 'saved-incremental'],
-    apply: (read) =>
-      eachAnnotation(read, (a) => {
-        const da = a.defaultAppearance as { fontName?: string } | undefined
-        return a.subtype === 'FreeText' && a.hasAppearance && da
-          ? { ...a, defaultAppearance: { fontName: da.fontName } }
-          : a
-      }),
-  },
-  "a popup's parent on no page": {
-    cause:
-      "PDF.js reads a popup's text, dates and colour from its /Parent wherever it is; the engine reports only the page's own annotations, so a parent on no page gives none.",
-    fixtures: ['popups-and-widgets'],
-    apply: (read) =>
-      eachAnnotation(read, (a) => (a.id === '6R' ? withoutParentText(a) : a)),
-  },
-  'group replies': {
-    cause:
-      'An annotation with /RT /Group shows the text, dates and colour of the one its /IRT names, and so does its popup; the engine does not report /RT.',
-    fixtures: ['popups-and-widgets'],
-    apply: (read) =>
-      eachAnnotation(read, (a) =>
-        a.id === '7R' || a.id === '8R' ? withoutParentText(a) : a
-      ),
-  },
-}
-
 const manifest = manifestJson as unknown as Record<
   FixtureName,
   { opens: boolean; password?: string }
 >
-
-/** Each `rect` in `engine` replaced by `pdfjs`'s where every number is within 0.01 of it. */
-function withRectsFrom(engine: unknown, pdfjs: unknown): unknown {
-  if (Array.isArray(engine) && Array.isArray(pdfjs))
-    return engine.map((e: unknown, i) => withRectsFrom(e, pdfjs[i]))
-  if (typeof engine !== 'object' || engine === null) return engine
-  if (typeof pdfjs !== 'object' || pdfjs === null) return engine
-  const other = pdfjs as Record<string, unknown>
-  return Object.fromEntries(
-    Object.entries(engine).map(([key, value]) => {
-      const theirs = other[key]
-      if (
-        key === 'rect' &&
-        Array.isArray(value) &&
-        Array.isArray(theirs) &&
-        value.length === theirs.length &&
-        value.every((n, i) => Math.abs((n as number) - (theirs[i] as number)) <= 0.01)
-      )
-        return [key, theirs]
-      return [key, withRectsFrom(value, theirs)]
-    })
-  )
-}
 
 describe("the engine reader's file facts, annotations and form", () => {
   /** The file reads asked of the engine, by name. */
   const FILE_READS = ['documentFacts', 'pageAnnotations', 'formFields', 'structureOrder']
   let asked: string[] = []
   /** The real engine, with each file read it is asked noted in `asked`. */
-  const noting: EngineLoader = async () => {
-    const real = await import('@inkbar/engine')
-    return {
-      createEngine: async () => {
-        const engine = await real.createEngine()
-        const opening = engine.open.bind(engine)
-        engine.open = async (...args) => {
-          const doc = await opening(...args)
-          const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
-          for (const name of FILE_READS) {
-            const read = methods[name]!.bind(doc)
-            methods[name] = (...a) => {
-              asked.push(name)
-              return read(...a)
-            }
-          }
-          return doc
+  const noting = () =>
+    engineWith((doc) => {
+      for (const name of FILE_READS) {
+        const read = doc[name]!.bind(doc)
+        doc[name] = (...a) => {
+          asked.push(name)
+          return read(...a)
         }
-        return engine
-      },
-    }
-  }
+      }
+    })
 
-  /** What the reader selected now gives for the file. */
+  /** What the reader gives for the file. */
   async function readFile(name: FileName): Promise<FileRead & { kind: string }> {
     asked = []
+    noting()
     let doc: InkDocument
     if (name in BUILT) {
       doc = await openDocument(BUILT[name as BuiltName].slice(), {
         assets: browserAssets(),
-        engine: noting,
       })
       await doc.ready
     } else {
       const password = manifest[name as FixtureName].password
       doc = await openFixtureInBrowser(name as FixtureName, {
-        engine: noting,
         ...(password === undefined ? {} : { password }),
       })
     }
@@ -1033,29 +810,15 @@ describe("the engine reader's file facts, annotations and form", () => {
     ...FIXTURE_NAMES.filter((name) => manifest[name].opens),
     ...(Object.keys(BUILT) as BuiltName[]),
   ])(
-    'gives the same facts, annotations, fields and tab order as PDF.js, on %s',
+    'gives the facts, annotations, fields and tab order it gave before, on %s',
     async (name) => {
       readers.made = 0
-      const { kind: engineKind, ...engine } = await readFile(name)
+      const { kind, ...read } = await readFile(name)
       expect(readers.made, 'the engine reader is the one spied on').toBe(1)
+      expect(kind).toBe('engine')
       // The engine answered every read.
       expect(new Set(asked)).toEqual(new Set(FILE_READS))
-      delete flag.__INKBAR_READER__
-      const { kind: pdfjsKind, ...pdfjs } = await readFile(name)
-      expect([engineKind, pdfjsKind]).toEqual(['engine', 'pdfjs'])
-      const known = Object.values(EXCEPTIONS).filter((e) => e.fixtures.includes(name))
-      const near = withRectsFrom(engine, pdfjs) as FileRead
-      const applying = (exceptions: typeof known) => (read: FileRead) =>
-        exceptions.reduce((r, e) => e.apply(r), read)
-      // Each listed exception still shows: with all the others applied, the reads differ.
-      for (const exception of known) {
-        const others = applying(known.filter((e) => e !== exception))
-        expect(others(near), `${exception.cause} still shows`).not.toStrictEqual(
-          others(pdfjs)
-        )
-      }
-      const apply = applying(known)
-      expect(apply(near)).toStrictEqual(apply(pdfjs))
+      expect(read).toMatchSnapshot()
     }
   )
 })
@@ -1064,30 +827,17 @@ describe('the engine reader at the open of a scripted form', () => {
   it("asks each page's annotations and the scripts a bounded number of times, and holds none after", async () => {
     /** The engine reads asked, by name and page. */
     const asked: string[] = []
-    const noting: EngineLoader = async () => {
-      const real = await import('@inkbar/engine')
-      return {
-        createEngine: async () => {
-          const engine = await real.createEngine()
-          const opening = engine.open.bind(engine)
-          engine.open = async (...args) => {
-            const doc = await opening(...args)
-            const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
-            for (const name of ['pageAnnotations', 'formFields', 'scripts']) {
-              const read = methods[name]!.bind(doc)
-              methods[name] = (...a) => {
-                asked.push(a.length > 0 ? `${name} ${String(a[0])}` : name)
-                return read(...a)
-              }
-            }
-            return doc
-          }
-          return engine
-        },
+    engineWith((doc) => {
+      for (const name of ['pageAnnotations', 'formFields', 'scripts']) {
+        const read = doc[name]!.bind(doc)
+        doc[name] = (...a) => {
+          asked.push(a.length > 0 ? `${name} ${String(a[0])}` : name)
+          return read(...a)
+        }
       }
-    }
+    })
     const count = (read: string) => asked.filter((a) => a === read).length
-    const doc = await open('form-scripted', { engine: noting })
+    const doc = await open('form-scripted')
     expect(doc._reader.kind).toBe('engine')
     // The scripts started: a calculation runs.
     doc.form.set({ qty: '3' })

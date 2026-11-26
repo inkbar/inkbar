@@ -1,14 +1,5 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { rectFromQuad, unionRects, type Quad, type Rect } from '../model/geometry'
 
@@ -18,12 +9,9 @@ import { mountTextSpans } from './text-spans'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
 import type { EngineDocumentReader } from '../engine-reader/reader'
-import type { EngineLoader, InkDocument } from '../model/document'
+import type { InkDocument } from '../model/document'
 import type { TextItem } from '../model/text'
 import type { FixtureName } from '@inkbar/fixtures/urls'
-
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-const engine: EngineLoader = () => import('@inkbar/engine')
 
 let style: HTMLStyleElement
 beforeAll(() => {
@@ -34,11 +22,7 @@ beforeAll(() => {
 afterAll(() => style.remove())
 
 let cleanup: (() => void)[] = []
-beforeEach(() => {
-  flag.__INKBAR_READER__ = 'engine'
-})
 afterEach(() => {
-  delete flag.__INKBAR_READER__
   window.getSelection()?.removeAllRanges()
   cleanup.reverse().forEach((f) => f())
   cleanup = []
@@ -55,7 +39,7 @@ function sizeHost(host: HTMLElement, t: PageTransform) {
 }
 
 async function open(name: FixtureName): Promise<InkDocument> {
-  const doc = await openFixtureInBrowser(name, { engine })
+  const doc = await openFixtureInBrowser(name)
   cleanup.push(() => doc.destroy())
   expect(doc._reader.kind).toBe('engine')
   return doc

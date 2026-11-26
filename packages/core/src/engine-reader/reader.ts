@@ -1,6 +1,6 @@
 // The document reader over @inkbar/engine: page facts, pixels, text, links, the outline,
 // destinations, the file's facts, annotations, form fields, Tab order and JavaScript, and the
-// sandbox's field objects, from an engine of its own, loaded through the host's loader, with the
+// sandbox's field objects, from an engine of its own, started from the host's assets, with the
 // file open in it.
 // Nothing here imports the engine: its shapes are declared in ./types and checked when the file
 // is opened.
@@ -32,14 +32,13 @@ import type {
   FileDestinationShape,
   FormFactsShape,
   PageAnnotationsShape,
-  ReaderEngine,
+  CoreEngine,
   ReaderEngineDocument,
   ScriptFactsShape,
 } from './types'
 import type { PageLink } from '../model/links'
 import type { OutlineItem } from '../model/outline'
 import type { PageInfo, PageRotation } from '../model/pages'
-import type { EngineLoader } from '../model/save/saver'
 import type { TextContent } from '../model/text'
 import type { FileAnnotation, FileFacts, FileField, FileScripts } from '../reader/file'
 import type { DocumentReader, DrawRequest, FieldDrawRequest } from '../reader/types'
@@ -65,7 +64,8 @@ const STOPS_IN_A_ROW = 3
 
 /** @internal */
 export interface EngineReaderOptions {
-  loader: EngineLoader
+  /** Starts a new engine: once at the open, and again each time a stopped engine is replaced. */
+  start: () => Promise<CoreEngine>
   /** The bytes the document was opened from. Read again when a stopped engine is replaced. */
   bytes: () => Promise<Uint8Array>
   /** The password the document was opened with. */
@@ -130,7 +130,7 @@ export interface EngineDocumentReader extends DocumentReader {
 
 /** @internal The engine the reader lends, and how the borrower says a call stopped it. */
 export interface LentEngine {
-  engine: ReaderEngine
+  engine: CoreEngine
   /**
    * Tells the reader a call failed in a way that may have stopped the engine. The reader checks,
    * and drops an engine that has stopped, so its next call, and the next loan, start another.
@@ -141,7 +141,7 @@ export interface LentEngine {
 
 /** An engine and the file open in it. */
 interface Session {
-  engine: ReaderEngine
+  engine: CoreEngine
   doc: ReaderEngineDocument
   /** Set when the session is freed, so it is freed once. */
   freed?: Promise<void>
@@ -188,12 +188,13 @@ const free = (s: Session): Promise<void> =>
   ]).then(() => undefined))
 
 /**
- * Opens the file in a new engine, made through the host's loader, and resolves with a reader
+ * Opens the file in a new engine, made by `start`, and resolves with a reader
  * over it. It rejects as PDF.js's open does for the file: `PasswordRequired` when the engine asks
  * for a password, with `details.incorrect` true when the one given is wrong, and `InvalidPdf`,
  * with the engine's `engineCode` and `engineMessage` in its details, for anything else the engine
- * refuses the file for. It rejects with `EngineUnavailable`, with the `cause` in its details,
- * when the loader or `createEngine` fails, and when what the loader gave cannot draw pages.
+ * refuses the file for. It rejects with `AssetLoadFailed`, with the `cause` in its details,
+ * when `start` fails (an `InkError` from it is passed on as it is), and with `EngineUnavailable`
+ * when the engine it gave cannot draw pages.
  *
  * An engine that stops is replaced, and the call that found it stopped runs once more on the new
  * one. A call whose replacement stops too, or cannot start, rejects with `EngineUnavailable`.
@@ -214,22 +215,16 @@ export async function createEngineReader(
   /** Aborted by `destroy`, with a DocumentDestroyed reason: every running draw listens. */
   const stopped = new AbortController()
 
-  let make: () => Promise<ReaderEngine>
-  try {
-    const engineModule = await options.loader()
-    // The loader's type is the saver's; what it makes is checked once a file is open.
-    make = () => engineModule.createEngine() as unknown as Promise<ReaderEngine>
-  } catch (error) {
-    throw notStarted(error)
-  }
-
-  /** A new engine with the file open in it. */
-  const start = async (): Promise<Session> => {
-    let engine: ReaderEngine
+  /**
+   * A new engine with the file open in it. The first, at the open, fails as the engine's files
+   * failing to load does; a replacement that cannot start says no engine is available.
+   */
+  const start = async (first = false): Promise<Session> => {
+    let engine: CoreEngine
     try {
-      engine = await make()
+      engine = await options.start()
     } catch (error) {
-      throw notStarted(error)
+      throw first ? notLoaded(error) : notStarted(error)
     }
     let doc: ReaderEngineDocument
     try {
@@ -251,7 +246,7 @@ export async function createEngineReader(
     return s
   }
 
-  const first = await start()
+  const first = await start(true)
   const pageCount = first.doc.pageCount
   /**
    * The session in use, or starting; undefined once a stopped one is dropped, one failed to
@@ -1408,6 +1403,17 @@ export async function createEngineReader(
     },
   }
 }
+
+/** The engine could not be started at the open: its files could not be loaded. */
+const notLoaded = (cause: unknown): InkError =>
+  isInkError(cause)
+    ? cause
+    : new InkError(
+        'AssetLoadFailed',
+        'The engine could not be loaded or started',
+        { cause },
+        cause
+      )
 
 const notStarted = (cause: unknown): InkError =>
   new InkError(

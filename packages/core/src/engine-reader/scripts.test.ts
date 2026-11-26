@@ -1,10 +1,10 @@
 import { FIXTURE_NAMES, fixtureBytes, manifest } from '@inkbar/fixtures'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { openDocument, type InkDocument } from '../model/document'
-import { nodeAssets } from '../pdfjs/node-assets'
-import { createPdfjsReader } from '../pdfjs/reader'
-import { expectSameRead, sandboxView } from '../test-support/sandbox-view'
+import { setEngineFactory } from '../model/engine-factory'
+import { nodeAssets } from '../test-support/node-assets'
+import { sandboxView } from '../test-support/sandbox-view'
 
 import { fileScriptsFromEngine, pageScriptsFromEngine } from './scripts'
 
@@ -16,58 +16,47 @@ import type {
   ScriptFactsShape,
   WidgetFactsShape,
 } from './types'
-import type { EngineLoader } from '../model/save/saver'
 import type { DocumentReader } from '../reader/types'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
-const flag = globalThis as { __INKBAR_READER__?: unknown }
+/** The script reads asked of the engine. */
+let asked: string[] = []
+
+// The real engine, with each script read it is asked noted in `asked`.
+beforeEach(() => {
+  setEngineFactory(async () => {
+    const { createEngine } = await import('@inkbar/engine')
+    const engine = await createEngine({ worker: false })
+    const opening = engine.open.bind(engine)
+    engine.open = async (...args) => {
+      const doc = await opening(...args)
+      const read = doc.scripts.bind(doc)
+      doc.scripts = () => {
+        asked.push('scripts')
+        return read()
+      }
+      return doc
+    }
+    return engine
+  })
+})
 
 const opened: InkDocument[] = []
 afterEach(() => {
-  delete flag.__INKBAR_READER__
+  setEngineFactory(undefined)
   vi.restoreAllMocks()
   for (const doc of opened.splice(0)) doc.destroy()
 })
 
-/** The script reads asked of the engine. */
-let asked: string[] = []
-/** The real engine, with each script read it is asked noted in `asked`. */
-const noting: EngineLoader = async () => {
-  const real = await import('@inkbar/engine')
-  return {
-    createEngine: async () => {
-      const engine = await real.createEngine()
-      const opening = engine.open.bind(engine)
-      engine.open = async (...args) => {
-        const doc = await opening(...args)
-        const read = doc.scripts.bind(doc)
-        doc.scripts = () => {
-          asked.push('scripts')
-          return read()
-        }
-        return doc
-      }
-      return engine
-    },
-  }
-}
-
-/** `name` opened with the engine reader, or with PDF.js's. */
-async function open(
-  name: FixtureName,
-  kind: 'engine' | 'pdfjs' = 'engine'
-): Promise<InkDocument> {
-  if (kind === 'engine') flag.__INKBAR_READER__ = 'engine'
+/** `name` opened. */
+async function open(name: FixtureName): Promise<InkDocument> {
   const { password } = manifest[name]
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    engine: noting,
     ...(password === undefined ? {} : { password }),
   })
-  delete flag.__INKBAR_READER__
   opened.push(doc)
   await doc.ready
-  expect(doc._reader.kind).toBe(kind)
   return doc
 }
 
@@ -85,31 +74,17 @@ async function scriptsOf(reader: DocumentReader) {
 
 describe("the engine reader's scripts", () => {
   it.each(FIXTURE_NAMES.filter((name) => manifest[name].opens))(
-    'gives the scripts, page actions and sandbox fields PDF.js gives, on %s',
+    'gives the scripts, page actions and sandbox fields it gave before, on %s',
     async (name) => {
-      const engineDoc = await open(name)
-      // The engine opened the file: there is no PDF.js document to read the scripts from.
-      expect(engineDoc._pdfjs).toBeUndefined()
+      const doc = await open(name)
       asked = []
-      const engine = await scriptsOf(engineDoc._reader)
+      const read = await scriptsOf(doc._reader)
       expect(asked.length, 'the engine read the scripts').toBeGreaterThan(0)
-
-      // PDF.js's reader over the same file, opened with PDF.js.
-      const pdfjsDoc = await open(name, 'pdfjs')
-      const pdfjs = await scriptsOf(
-        createPdfjsReader(pdfjsDoc._pdfjs!, { measure: undefined })
-      )
-      expect(engine.pages).toStrictEqual(pdfjs.pages)
-      expectSameRead(
-        { scripts: engine.scripts, fields: engine.fields },
-        { scripts: pdfjs.scripts, fields: pdfjs.fields },
-        name,
-        'engine'
-      )
+      expect(read).toMatchSnapshot()
     }
   )
 
-  it('gives none for a file whose only JavaScript is a page action, as PDF.js does', async () => {
+  it('gives none for a file whose only JavaScript is a page action', async () => {
     const doc = await open('script-page-only')
     expect(await doc._reader.scripts()).toBeUndefined()
     expect(await doc._reader.pageScripts(0)).toStrictEqual({

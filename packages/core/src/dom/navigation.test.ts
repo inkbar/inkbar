@@ -30,7 +30,6 @@ function setup(pages = 100, names: Record<string, unknown[]> = {}) {
   }
   const doc = {
     pages: Array.from({ length: pages }, (_, index) => ({ index })),
-    _pdfjs: { proxy },
     // The document caches this; the fake resolves through the same PDF.js lookup.
     resolveDestination: (raw: RawDestination) =>
       resolveDestination(proxy as unknown as PdfjsDocument, raw),

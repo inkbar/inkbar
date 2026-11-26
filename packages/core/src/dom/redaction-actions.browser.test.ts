@@ -2,9 +2,8 @@ import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/ur
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { en } from '../messages'
-import { openDocument, type EngineLoader, type InkDocument } from '../model/document'
+import { openDocument, type InkDocument } from '../model/document'
 import { InkError } from '../model/errors'
-import { readerKind } from '../reader/select'
 
 import {
   canRedact,
@@ -22,18 +21,16 @@ afterEach(() => {
   opened.splice(0).forEach((d) => d.destroy())
 })
 
-/** A fixture opened as a viewer opens it, with the real engine as its loader unless `bare`. */
-async function open(name: FixtureName = 'redact-text', bare = false, password?: string) {
-  const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
+/** A fixture opened as a viewer opens it. */
+async function open(name: FixtureName = 'redact-text', password?: string) {
   const doc = await openDocument(fixtureUrl(name), {
     assets: browserAssets(),
     pictures: savePictures(document),
     password,
-    ...(bare ? {} : { engine: loader }),
   })
   opened.push(doc)
   await doc.ready
-  return { doc, loader }
+  return { doc }
 }
 
 /** A mark over SECRET-ALPHA in `redact-text`: the fixture's region. */
@@ -52,7 +49,7 @@ function deferred<T>() {
 }
 
 describe('canRedact', () => {
-  it('follows the marks, and needs an engine', async () => {
+  it('follows the marks', async () => {
     const { doc } = await open()
     // A count of the marks: no preview, with its overlap pass, on each change.
     const preview = vi.spyOn(doc, 'redactionPreview')
@@ -68,19 +65,12 @@ describe('canRedact', () => {
     expect(seen).toEqual([true, false])
     stop()
     expect(preview).not.toHaveBeenCalled()
-
-    // The engine reader cannot open a file without an engine (and this project's setup file gives
-    // every open one), so there is no document without an engine to ask.
-    if (readerKind() === 'engine') return
-    const { doc: bare } = await open('redact-text', true)
-    markSecret(bare)
-    expect(canRedact(bare).get()).toBe(false)
   })
 })
 
 describe('canRedact in an encrypted file', () => {
   it('counts the locked marks an earlier save left', async () => {
-    const { doc } = await open('encrypted-aes', false, 'inkbar')
+    const { doc } = await open('encrypted-aes', 'inkbar')
     // Over "Enc" of the file's one word, Encrypted, on the baseline y 700.
     doc.annotations.add({
       type: 'redact',
@@ -92,7 +82,6 @@ describe('canRedact in an encrypted file', () => {
       assets: browserAssets(),
       pictures: savePictures(document),
       password: 'inkbar',
-      engine: () => import('@inkbar/engine'),
     })
     opened.push(back)
     await back.ready
@@ -104,9 +93,7 @@ describe('canRedact in an encrypted file', () => {
 
 describe('runRedaction', () => {
   it('cancelling changes nothing', async () => {
-    const { doc, loader } = await open()
-    // The engine reader loads the engine once to open the file; the apply would load it again.
-    const opening = loader.mock.calls.length
+    const { doc } = await open()
     const mark = markSecret(doc)
     const before = doc.annotations.list.get()
     const changed = doc.changed.get()
@@ -123,7 +110,6 @@ describe('runRedaction', () => {
       lockedMarks: 0,
     })
     expect(apply).not.toHaveBeenCalled()
-    expect(loader).toHaveBeenCalledTimes(opening)
     expect(doc.annotations.get(mark.id)).toBeDefined()
     expect(doc.annotations.list.get()).toBe(before)
     expect(doc.changed.get()).toBe(changed)
@@ -158,38 +144,15 @@ describe('runRedaction', () => {
     expect(busy.get()).toBe(false)
   })
 
-  // The engine reader cannot open a file without an engine (and this project's setup file gives
-  // every open one), so there is no document without an engine to apply with.
-  it.skipIf(readerKind() === 'engine')(
-    'without an engine rejects with EngineUnavailable, asking nothing',
-    async () => {
-      const { doc } = await open('redact-text', true)
-      markSecret(doc)
-      const confirm = vi.fn(() => Promise.resolve(true))
-      const error = await runRedaction(doc, { confirm }).catch((e: unknown) => e)
-      expect(confirm).not.toHaveBeenCalled()
-      expect(error).toMatchObject({ code: 'EngineUnavailable' })
-      expect(redactionBusy(doc).get()).toBe(false)
-      // Worded as a stopped document's is: the control is disabled without an engine anyway.
-      expect(redactionFailure(error, en)).toMatchObject({
-        error,
-        message: en.viewer.redactUnavailable,
-      })
-    }
-  )
-
   it('redactionFailure words the apply’s errors', () => {
     const failed = (stage: string) => new InkError('RedactionFailed', 'failed', { stage })
-    expect(redactionFailure(failed('engine'), en)?.message).toBe(
-      en.viewer.redactUnavailable
-    )
     expect(redactionFailure(failed('verify'), en)?.message).toBe(
       en.viewer.redactUnverified
     )
     expect(redactionFailure(failed('apply'), en)?.message).toBe(en.viewer.redactFailed)
     const unavailable = new InkError(
       'EngineUnavailable',
-      'The engine could not be loaded'
+      'The document has stopped reading'
     )
     expect(redactionFailure(unavailable, en)).toMatchObject({
       error: unavailable,

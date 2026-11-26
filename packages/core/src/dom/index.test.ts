@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { loadPdfjs } from '../pdfjs/load'
-import { nodeAssets } from '../pdfjs/node-assets'
+import { pdfjsAssets } from '../test-support/pdfjs-reader'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false }))
 
@@ -64,7 +64,7 @@ describe('@inkbar/core/dom entry', () => {
     )
 
     // Control: the same mock does fire once the loader runs, so the false above is meaningful.
-    await loadPdfjs(nodeAssets())
+    await loadPdfjs(pdfjsAssets())
     expect(evaluated.pdfjs).toBe(true)
   })
 })

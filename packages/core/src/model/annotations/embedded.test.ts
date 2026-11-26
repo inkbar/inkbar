@@ -1,37 +1,27 @@
-import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
+import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { fileAnnotationFromPdfjs } from '../../pdfjs/file-annotations'
-import { loadPdfjs, openProxy } from '../../pdfjs/load'
-import { nodeAssets } from '../../pdfjs/node-assets'
+import { nodeAssets } from '../../test-support/node-assets'
 import { openDocument } from '../document'
 
 import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, pdfColorToHex, summarise } from './embedded'
 
-import type { PdfjsAnnotationData } from '../../pdfjs/types'
 import type { FileAnnotation } from '../../reader/file'
 
 const NOW = '2026-10-12T00:00:00.000Z'
 const twin = sample.annotations[0]!
 
 function open(name: Parameters<typeof fixtureBytes>[0]) {
-  return fixtureBytes(name).then((bytes) =>
-    openDocument(bytes, { assets: nodeAssets(), verbosity: 0 })
-  )
+  return fixtureBytes(name).then((bytes) => openDocument(bytes, { assets: nodeAssets() }))
 }
 
 async function rawAnnotations(name: Parameters<typeof fixtureBytes>[0]) {
-  // PDF.js warns about Redact and about building FreeText appearances in Node; both expected.
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    verbosity: 0,
   })
   await doc.ready
-  const page = await doc._pdfjs!.getPage(0)
-  const raw = ((await page.getAnnotations()) as unknown as PdfjsAnnotationData[]).map(
-    fileAnnotationFromPdfjs
-  )
+  const raw = await doc._reader.annotations(0)
   return { doc, raw }
 }
 
@@ -202,51 +192,6 @@ describe('embedded import', () => {
       width: 1,
     })
   })
-})
-
-/** Every page's annotations as PDF.js gives them, page by page. */
-async function pdfjsPages(name: FixtureName): Promise<PdfjsAnnotationData[][]> {
-  const assets = nodeAssets()
-  const { task, proxy } = await openProxy(
-    await loadPdfjs(assets),
-    await fixtureBytes(name),
-    { assets, password: manifest[name].password, verbosity: 0 }
-  )
-  try {
-    const pages: PdfjsAnnotationData[][] = []
-    for (let i = 0; i < proxy.numPages; i++) {
-      const page = await proxy.getPage(i + 1)
-      // As the document reads them: a page PDF.js cannot parse has none.
-      pages.push(
-        await page.getAnnotations().then(
-          (raw) => raw as unknown as PdfjsAnnotationData[],
-          () => []
-        )
-      )
-    }
-    return pages
-  } finally {
-    await task.destroy()
-  }
-}
-
-describe('embedded import across the fixtures', () => {
-  const opening = (Object.keys(manifest) as FixtureName[]).filter(
-    (n) => manifest[n].opens
-  )
-
-  it.each(opening)(
-    'imports every fixture page the same from the shape as from PDF.js data: %s',
-    async (name) => {
-      const pages = await pdfjsPages(name)
-      // The snapshot was taken from PDF.js's data, before the import read core's shape.
-      expect(
-        pages.map((raw, i) =>
-          importEmbeddedPage(i, raw.map(fileAnnotationFromPdfjs), NOW)
-        )
-      ).toMatchSnapshot()
-    }
-  )
 })
 
 describe('embedded import of PDF names and callouts', () => {

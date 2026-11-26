@@ -22,3 +22,4 @@ fixtures/.tmp/
 
 # Written by the parity report
 parity/.report/
+.tmp/

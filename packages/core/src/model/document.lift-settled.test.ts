@@ -1,7 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument, type InkDocument } from './document'
 
@@ -27,7 +27,6 @@ afterEach(() => {
 async function open(name: Parameters<typeof fixtureBytes>[0], password?: string) {
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    verbosity: 0,
     ...(password ? { password } : {}),
   })
   opened.push(doc)

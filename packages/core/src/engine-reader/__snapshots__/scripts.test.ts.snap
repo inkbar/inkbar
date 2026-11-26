@@ -1,0 +1,8307 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on acroform-basic 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            624.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "agree",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "13R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            71.5,
+            549.5,
+            90.5,
+            568.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annot-direct 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annotated-markup 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annotated-notes-threaded 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annotated-redact 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annotated-shapes 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on annotated-unsupported 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on bad-appended 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on bad-black-box 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on bad-unapplied 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on border-dashes 1`] = `
+{
+  "fields": [
+    [
+      "bs-dash",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "11R",
+          "multiline": false,
+          "name": "bs-dash",
+          "page": 0,
+          "password": false,
+          "rect": [
+            300,
+            650,
+            500,
+            680,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "border-dash",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "12R",
+          "multiline": false,
+          "name": "border-dash",
+          "page": 0,
+          "password": false,
+          "rect": [
+            300,
+            570,
+            500,
+            600,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "bad-dash",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "bad-dash",
+          "page": 0,
+          "password": false,
+          "rect": [
+            300,
+            490,
+            500,
+            520,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on callout-bad-xref 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on callout-encrypted 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on callout-incremental 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on callout-xref-stream 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on certified 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "15R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on check-form-text 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on check-image 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on check-inline-image 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on check-pattern-text 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-alpha-composite 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-annots 1`] = `
+{
+  "fields": [
+    [
+      "Combo1",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "23R",
+          "items": [
+            {
+              "displayValue": "Highlight",
+              "exportValue": "Highlight",
+            },
+            {
+              "displayValue": "Link",
+              "exportValue": "Link",
+            },
+            {
+              "displayValue": "Popup",
+              "exportValue": "Popup",
+            },
+            {
+              "displayValue": "Widget",
+              "exportValue": "Widget",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "Combo1",
+          "page": 0,
+          "rect": [
+            70,
+            350,
+            170,
+            380,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "combobox",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-842 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1087 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1236 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1388 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1399 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1469 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1558 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1746 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1768 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1822 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1845 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1883 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1976 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-631912 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1258968 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1302355 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1396264 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-1479436 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-42270471 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-bug-557320961 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-dashed-lines 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-embedpdf-chrome-type3-text 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-embedpdf-tiling-patterns 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-gradient-pattern-stroke-order 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-jpxdecode 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-long-dashed-line 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-matte 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-pattern-fill 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-pattern-stroke-uncolored 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-radial-shading-point-at-center 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-rectangles-multi-pages 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-shade 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-shade-tensor 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-smask-blend 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-text-render-mode 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-transfer-function 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on corpus-type3 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on cropbox-offset 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on encrypted-aes 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on encrypted-rc4 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-bare-appearances 1`] = `
+{
+  "fields": [
+    [
+      "agree",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "9R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            71.5,
+            599.5,
+            90.5,
+            618.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "note",
+      [
+        {
+          "id": "14R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "15R",
+          "multiline": false,
+          "name": "note",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            539.5,
+            272.5,
+            562.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-choices 1`] = `
+{
+  "fields": [
+    [
+      "size",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "9R",
+          "items": [
+            {
+              "displayValue": "S",
+              "exportValue": "S",
+            },
+            {
+              "displayValue": "M",
+              "exportValue": "M",
+            },
+            {
+              "displayValue": "L",
+              "exportValue": "L",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "size",
+          "page": 0,
+          "rect": [
+            71.5,
+            559.5,
+            192.5,
+            620.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "listbox",
+          "value": "M",
+        },
+      ],
+    ],
+    [
+      "colours",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "13R",
+          "items": [
+            {
+              "displayValue": "red",
+              "exportValue": "red",
+            },
+            {
+              "displayValue": "green",
+              "exportValue": "green",
+            },
+            {
+              "displayValue": "blue",
+              "exportValue": "blue",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "colours",
+          "page": 0,
+          "rect": [
+            319.5,
+            559.5,
+            440.5,
+            620.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "listbox",
+          "value": "red",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-fieldmdp 1`] = `
+{
+  "fields": [
+    [
+      "amount",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "amount",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "120.00",
+        },
+      ],
+    ],
+    [
+      "memo",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "memo",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            539.5,
+            272.5,
+            562.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "approved",
+      [
+        {
+          "id": "18R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-fields 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "10R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "11R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            679.5,
+            272.5,
+            702.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "notes",
+      [
+        {
+          "id": "14R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "15R",
+          "multiline": true,
+          "name": "notes",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            679.5,
+            520.5,
+            724.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "pin",
+      [
+        {
+          "id": "17R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 4,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "18R",
+          "multiline": false,
+          "name": "pin",
+          "page": 0,
+          "password": true,
+          "rect": [
+            71.5,
+            623.5,
+            152.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "code",
+      [
+        {
+          "id": "20R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 6,
+          "comb": true,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "21R",
+          "multiline": false,
+          "name": "code",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            623.5,
+            440.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "auto",
+      [
+        {
+          "id": "23R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "24R",
+          "multiline": false,
+          "name": "auto",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            567.5,
+            272.5,
+            590.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "locked",
+      [
+        {
+          "id": "26R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": false,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "27R",
+          "multiline": false,
+          "name": "locked",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            567.5,
+            520.5,
+            590.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "fixed",
+        },
+      ],
+    ],
+    [
+      "email",
+      [
+        {
+          "id": "29R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "30R",
+          "multiline": false,
+          "name": "email",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            511.5,
+            272.5,
+            534.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "internal",
+      [
+        {
+          "id": "32R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "33R",
+          "multiline": false,
+          "name": "internal",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            511.5,
+            520.5,
+            534.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "x",
+        },
+      ],
+    ],
+    [
+      "agree",
+      [
+        {
+          "id": "35R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "36R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            71.5,
+            455.5,
+            90.5,
+            474.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "plan",
+      [
+        {
+          "id": "41R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "yearly",
+          "editable": true,
+          "exportValues": "monthly",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "42R",
+          "name": "plan",
+          "page": 0,
+          "rect": [
+            319.5,
+            455.5,
+            338.5,
+            474.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "radiobutton",
+          "value": "monthly",
+        },
+        {
+          "actions": null,
+          "exportValues": "yearly",
+          "id": "47R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+    [
+      "shared",
+      [
+        {
+          "id": "52R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "A",
+          "editable": true,
+          "exportValues": "A",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "53R",
+          "name": "shared",
+          "page": 0,
+          "rect": [
+            71.5,
+            399.5,
+            90.5,
+            418.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "radiobutton",
+          "value": "Off",
+        },
+        {
+          "actions": null,
+          "exportValues": "A",
+          "id": "58R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+    [
+      "country",
+      [
+        {
+          "id": "63R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "64R",
+          "items": [
+            {
+              "displayValue": "United Kingdom",
+              "exportValue": "gb",
+            },
+            {
+              "displayValue": "France",
+              "exportValue": "fr",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "country",
+          "page": 0,
+          "rect": [
+            319.5,
+            399.5,
+            520.5,
+            422.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "combobox",
+          "value": "gb",
+        },
+      ],
+    ],
+    [
+      "city",
+      [
+        {
+          "id": "66R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "67R",
+          "items": [
+            {
+              "displayValue": "Leeds",
+              "exportValue": "Leeds",
+            },
+            {
+              "displayValue": "Lyon",
+              "exportValue": "Lyon",
+            },
+            {
+              "displayValue": "Lisbon",
+              "exportValue": "Lisbon",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "city",
+          "page": 0,
+          "rect": [
+            71.5,
+            343.5,
+            272.5,
+            366.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "combobox",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "interests",
+      [
+        {
+          "id": "69R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "70R",
+          "items": [
+            {
+              "displayValue": "maths",
+              "exportValue": "maths",
+            },
+            {
+              "displayValue": "engines",
+              "exportValue": "engines",
+            },
+            {
+              "displayValue": "poetry",
+              "exportValue": "poetry",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "interests",
+          "page": 0,
+          "rect": [
+            319.5,
+            287.5,
+            520.5,
+            348.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "listbox",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "header",
+      [
+        {
+          "actions": null,
+          "fillColor": null,
+          "id": "73R",
+          "kidIds": [
+            "74R",
+          ],
+          "name": "header",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "header.ref",
+      [
+        {
+          "id": "74R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "75R",
+          "multiline": false,
+          "name": "header.ref",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            287.5,
+            272.5,
+            310.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "REF-0042",
+        },
+        {
+          "id": "77R",
+          "type": "text",
+        },
+      ],
+    ],
+    [
+      "rotated",
+      [
+        {
+          "id": "79R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "80R",
+          "multiline": false,
+          "name": "rotated",
+          "page": 1,
+          "password": false,
+          "rect": [
+            97.5,
+            599.5,
+            120.5,
+            800.5,
+          ],
+          "rotation": 90,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "styled",
+      [
+        {
+          "id": "82R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "83R",
+          "multiline": false,
+          "name": "styled",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            231.5,
+            272.5,
+            254.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "85R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "sig2",
+      [
+        {
+          "id": "86R",
+          "page": 1,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "reset",
+      [
+        {
+          "id": "87R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "88R",
+          "name": "reset",
+          "page": 0,
+          "rect": [
+            320,
+            176,
+            420,
+            200,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-format 1`] = `
+{
+  "fields": [
+    [
+      "amount",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "$", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(2, 0, 0, 0, "$", true)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "amount",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "amount",
+          "kids": [
+            "9R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "$", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(2, 0, 0, 0, "$", true)",
+            ],
+          },
+        },
+        "id": "8R",
+        "name": "amount",
+        "widgets": [
+          "9R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-goto 1`] = `
+{
+  "fields": [
+    [
+      "explicit",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "13R",
+          "name": "explicit",
+          "page": 0,
+          "rect": [
+            72,
+            640,
+            192,
+            664,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "named",
+      [
+        {
+          "id": "17R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "18R",
+          "name": "named",
+          "page": 0,
+          "rect": [
+            72,
+            590,
+            192,
+            614,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "legacy",
+      [
+        {
+          "id": "21R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "22R",
+          "name": "legacy",
+          "page": 0,
+          "rect": [
+            72,
+            540,
+            192,
+            564,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "missing",
+      [
+        {
+          "id": "25R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "26R",
+          "name": "missing",
+          "page": 0,
+          "rect": [
+            72,
+            490,
+            192,
+            514,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "scripted",
+      [
+        {
+          "id": "29R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "app.alert("Going to chapter 3")",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "30R",
+          "name": "scripted",
+          "page": 0,
+          "rect": [
+            72,
+            440,
+            192,
+            464,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "goto-script",
+      [
+        {
+          "id": "33R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "var went = true",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "34R",
+          "name": "goto-script",
+          "page": 0,
+          "rect": [
+            72,
+            390,
+            192,
+            414,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "chain",
+      [
+        {
+          "id": "37R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "var chained = true",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "38R",
+          "name": "chain",
+          "page": 0,
+          "rect": [
+            72,
+            340,
+            192,
+            364,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "explicit",
+          "kids": [
+            "13R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "12R",
+        "name": "explicit",
+        "widgets": [
+          "13R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "named",
+          "kids": [
+            "18R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "17R",
+        "name": "named",
+        "widgets": [
+          "18R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "legacy",
+          "kids": [
+            "22R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "21R",
+        "name": "legacy",
+        "widgets": [
+          "22R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "missing",
+          "kids": [
+            "26R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "25R",
+        "name": "missing",
+        "widgets": [
+          "26R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "scripted",
+          "kids": [
+            "30R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "29R",
+        "name": "scripted",
+        "widgets": [
+          "30R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "goto-script",
+          "kids": [
+            "34R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "33R",
+        "name": "goto-script",
+        "widgets": [
+          "34R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "chain",
+          "kids": [
+            "38R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "37R",
+        "name": "chain",
+        "widgets": [
+          "38R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-range 1`] = `
+{
+  "fields": [
+    [
+      "score",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Validate": [
+              "AFRange_Validate(true, 0, true, 10)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "score",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "note",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "note",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            539.5,
+            272.5,
+            562.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "clear",
+      [
+        {
+          "id": "15R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "this.getField("score").value = "3"",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "16R",
+          "name": "clear",
+          "page": 0,
+          "rect": [
+            72,
+            480,
+            192,
+            504,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "score",
+          "kids": [
+            "9R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Validate": [
+              "AFRange_Validate(true, 0, true, 10)",
+            ],
+          },
+        },
+        "id": "8R",
+        "name": "score",
+        "widgets": [
+          "9R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "note",
+          "kids": [
+            "13R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "12R",
+        "name": "note",
+        "widgets": [
+          "13R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "clear",
+          "kids": [
+            "16R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "15R",
+        "name": "clear",
+        "widgets": [
+          "16R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-restricted 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "6R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "agree",
+      [
+        {
+          "id": "7R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "10R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            71.5,
+            549.5,
+            90.5,
+            568.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-rollover 1`] = `
+{
+  "fields": [
+    [
+      "go",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "7R",
+          "name": "go",
+          "page": 0,
+          "rect": [
+            72,
+            680,
+            172,
+            710,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "agree",
+      [
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes No",
+          "fillColor": null,
+          "hidden": false,
+          "id": "8R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            72,
+            620,
+            102,
+            650,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "checkbox",
+          "value": "Yes No",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-scripted 1`] = `
+{
+  "fields": [
+    [
+      "qty",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Format": [
+              "AFNumber_Format(0, 0, 0, 0, "", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(0, 0, 0, 0, "", true)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "qty",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            679.5,
+            192.5,
+            702.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "price",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(2, 0, 0, 0, "£", true)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "price",
+          "page": 0,
+          "password": false,
+          "rect": [
+            231.5,
+            679.5,
+            352.5,
+            702.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "total",
+      [
+        {
+          "id": "15R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Calculate": [
+              "AFSimple_Calculate("PRD", new Array("qty", "price"))",
+            ],
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": false,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "16R",
+          "multiline": false,
+          "name": "total",
+          "page": 0,
+          "password": false,
+          "rect": [
+            391.5,
+            679.5,
+            512.5,
+            702.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "when",
+      [
+        {
+          "id": "18R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Format": [
+              "AFDate_FormatEx("dd/mm/yyyy");",
+              "AFDate_KeystrokeEx("dd/mm/yyyy");",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "datetimeFormat": "dd/mm/yyyy",
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": true,
+          "hidden": false,
+          "id": "19R",
+          "multiline": false,
+          "name": "when",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            623.5,
+            272.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "age",
+      [
+        {
+          "id": "21R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Validate": [
+              "event.rc = event.value >= 18 && event.value <= 120",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "22R",
+          "multiline": false,
+          "name": "age",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            623.5,
+            400.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "more",
+      [
+        {
+          "id": "24R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Mouse Up": [
+              "this.getField("extra").display = event.target.value == "Off" ? display.hidden : display.visible",
+            ],
+          },
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "25R",
+          "name": "more",
+          "page": 0,
+          "rect": [
+            71.5,
+            567.5,
+            90.5,
+            586.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "extra",
+      [
+        {
+          "id": "30R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": true,
+          "id": "31R",
+          "multiline": false,
+          "name": "extra",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            567.5,
+            520.5,
+            590.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "hello",
+      [
+        {
+          "id": "33R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "app.alert("Hello")",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "34R",
+          "name": "hello",
+          "page": 0,
+          "rect": [
+            72,
+            512,
+            192,
+            536,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "ask",
+      [
+        {
+          "id": "37R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "app.response("Name?")",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "38R",
+          "name": "ask",
+          "page": 0,
+          "rect": [
+            232,
+            512,
+            352,
+            536,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "submit",
+      [
+        {
+          "id": "41R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "this.submitForm("https://example.com/submit")",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "42R",
+          "name": "submit",
+          "page": 0,
+          "rect": [
+            392,
+            512,
+            512,
+            536,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "mail",
+      [
+        {
+          "id": "45R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "this.mailDoc(false, "forms@example.com")",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "46R",
+          "name": "mail",
+          "page": 0,
+          "rect": [
+            72,
+            456,
+            192,
+            480,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "link",
+      [
+        {
+          "id": "49R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "app.launchURL("https://example.com", true)",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "50R",
+          "name": "link",
+          "page": 0,
+          "rect": [
+            232,
+            456,
+            352,
+            480,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "print",
+      [
+        {
+          "id": "53R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Action": [
+              "this.print()",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "54R",
+          "name": "print",
+          "page": 0,
+          "rect": [
+            392,
+            456,
+            512,
+            480,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "send",
+      [
+        {
+          "id": "57R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "58R",
+          "name": "send",
+          "page": 0,
+          "rect": [
+            72,
+            400,
+            192,
+            424,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "site",
+      [
+        {
+          "id": "61R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "62R",
+          "name": "site",
+          "page": 0,
+          "rect": [
+            232,
+            400,
+            352,
+            424,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "clear",
+      [
+        {
+          "id": "65R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Mouse Up": [
+              "this.getField("qty").value = 0",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "66R",
+          "name": "clear",
+          "page": 0,
+          "rect": [
+            392,
+            400,
+            512,
+            424,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "discount",
+      [
+        {
+          "id": "69R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Format": [
+              "AFPercent_Format(1, 0)",
+            ],
+            "Keystroke": [
+              "AFPercent_Keystroke(1, 0)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "70R",
+          "multiline": false,
+          "name": "discount",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            343.5,
+            192.5,
+            366.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "due",
+      [
+        {
+          "id": "72R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Calculate": [
+              "var total = this.getField("total").value; var off = this.getField("discount").value; event.value = total * (1 - off);",
+            ],
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": false,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "73R",
+          "multiline": false,
+          "name": "due",
+          "page": 0,
+          "password": false,
+          "rect": [
+            231.5,
+            343.5,
+            352.5,
+            366.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [
+      "total",
+      "due",
+    ],
+    "calculationOrderIds": [
+      "15R",
+      "72R",
+    ],
+    "document": [
+      {
+        "name": "init",
+        "source": "var formReady = true;",
+      },
+    ],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "qty",
+          "kids": [
+            "9R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "AFNumber_Format(0, 0, 0, 0, "", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(0, 0, 0, 0, "", true)",
+            ],
+          },
+        },
+        "id": "8R",
+        "name": "qty",
+        "widgets": [
+          "9R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "price",
+          "kids": [
+            "13R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(2, 0, 0, 0, "£", true)",
+            ],
+          },
+        },
+        "id": "12R",
+        "name": "price",
+        "widgets": [
+          "13R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "total",
+          "kids": [
+            "16R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Calculate": [
+              "AFSimple_Calculate("PRD", new Array("qty", "price"))",
+            ],
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+          },
+        },
+        "id": "15R",
+        "name": "total",
+        "widgets": [
+          "16R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "when",
+          "kids": [
+            "19R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "AFDate_FormatEx("dd/mm/yyyy");",
+            ],
+            "Keystroke": [
+              "AFDate_KeystrokeEx("dd/mm/yyyy");",
+            ],
+          },
+        },
+        "id": "18R",
+        "name": "when",
+        "widgets": [
+          "19R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "age",
+          "kids": [
+            "22R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Validate": [
+              "event.rc = event.value >= 18 && event.value <= 120",
+            ],
+          },
+        },
+        "id": "21R",
+        "name": "age",
+        "widgets": [
+          "22R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "more",
+          "kids": [
+            "25R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "24R",
+        "name": "more",
+        "widgets": [
+          "25R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "extra",
+          "kids": [
+            "31R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "30R",
+        "name": "extra",
+        "widgets": [
+          "31R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "hello",
+          "kids": [
+            "34R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "33R",
+        "name": "hello",
+        "widgets": [
+          "34R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "ask",
+          "kids": [
+            "38R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "37R",
+        "name": "ask",
+        "widgets": [
+          "38R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "submit",
+          "kids": [
+            "42R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "41R",
+        "name": "submit",
+        "widgets": [
+          "42R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "mail",
+          "kids": [
+            "46R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "45R",
+        "name": "mail",
+        "widgets": [
+          "46R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "link",
+          "kids": [
+            "50R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "49R",
+        "name": "link",
+        "widgets": [
+          "50R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "print",
+          "kids": [
+            "54R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "53R",
+        "name": "print",
+        "widgets": [
+          "54R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "send",
+          "kids": [
+            "58R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "57R",
+        "name": "send",
+        "widgets": [
+          "58R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "site",
+          "kids": [
+            "62R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "61R",
+        "name": "site",
+        "widgets": [
+          "62R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "clear",
+          "kids": [
+            "66R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "65R",
+        "name": "clear",
+        "widgets": [
+          "66R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "discount",
+          "kids": [
+            "70R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "AFPercent_Format(1, 0)",
+            ],
+            "Keystroke": [
+              "AFPercent_Keystroke(1, 0)",
+            ],
+          },
+        },
+        "id": "69R",
+        "name": "discount",
+        "widgets": [
+          "70R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "due",
+          "kids": [
+            "73R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Calculate": [
+              "var total = this.getField("total").value; var off = this.getField("discount").value; event.value = total * (1 - off);",
+            ],
+            "Format": [
+              "AFNumber_Format(2, 0, 0, 0, "£", true)",
+            ],
+          },
+        },
+        "id": "72R",
+        "name": "due",
+        "widgets": [
+          "73R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-scripted-kinds 1`] = `
+{
+  "fields": [
+    [
+      "amount",
+      [
+        {
+          "actions": {
+            "Calculate": [
+              "event.value = 7",
+            ],
+            "Format": [
+              "AFNumber_Format(0, 0, 0, 0, "", true)",
+            ],
+            "Keystroke": [
+              "AFNumber_Keystroke(0, 0, 0, 0, "", true)",
+            ],
+            "Validate": [
+              "event.rc = event.value < 1000000;",
+            ],
+          },
+          "charLimit": 6,
+          "comb": true,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "7R",
+          "multiline": false,
+          "name": "amount",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            700,
+            272,
+            725,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "start",
+      [
+        {
+          "actions": {
+            "Format": [
+              "AFTime_Format(2);",
+              "AFTime_Keystroke(2);",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "datetimeFormat": "HH:MM:ss",
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": true,
+          "hidden": false,
+          "id": "8R",
+          "multiline": false,
+          "name": "start",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            655,
+            272,
+            680,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "due",
+      [
+        {
+          "actions": {
+            "Format": [
+              "AFDate_FormatEx("mmm d, yyyy");",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "datetimeFormat": "mmm d, yyyy",
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "due",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            610,
+            272,
+            635,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "size",
+      [
+        {
+          "actions": {
+            "Keystroke": [
+              "event.rc = true",
+            ],
+            "Validate": [
+              "event.rc = event.value != 'L'",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "10R",
+          "items": [
+            {
+              "displayValue": "S",
+              "exportValue": "S",
+            },
+            {
+              "displayValue": "M",
+              "exportValue": "M",
+            },
+            {
+              "displayValue": "L",
+              "exportValue": "L",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "size",
+          "page": 0,
+          "rect": [
+            72,
+            565,
+            272,
+            590,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "combobox",
+          "value": "M",
+        },
+      ],
+    ],
+    [
+      "colours",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var focused = true",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "11R",
+          "items": [
+            {
+              "displayValue": "Red",
+              "exportValue": "r",
+            },
+            {
+              "displayValue": "Green",
+              "exportValue": "g",
+            },
+            {
+              "displayValue": "Blue",
+              "exportValue": "b",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "colours",
+          "page": 0,
+          "rect": [
+            72,
+            520,
+            272,
+            545,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "listbox",
+          "value": "r",
+        },
+      ],
+    ],
+    [
+      "note",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Blur": [
+              "var blurred = true",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": true,
+          "name": "note",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            475,
+            272,
+            500,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "two places",
+        },
+        {
+          "id": "14R",
+          "type": "text",
+        },
+      ],
+    ],
+    [
+      "pick",
+      [
+        {
+          "id": "15R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Mouse Up": [
+              "var pickedB = true",
+            ],
+          },
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "b",
+          "fillColor": null,
+          "hidden": false,
+          "id": "17R",
+          "name": "pick",
+          "page": 0,
+          "rect": [
+            102,
+            430,
+            122,
+            450,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "radiobutton",
+          "value": "b",
+        },
+        {
+          "actions": null,
+          "exportValues": "a",
+          "id": "16R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+    [
+      "extras",
+      [
+        {
+          "id": "18R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "x",
+          "fillColor": null,
+          "hidden": false,
+          "id": "19R",
+          "name": "extras",
+          "page": 0,
+          "rect": [
+            72,
+            385,
+            92,
+            405,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "checkbox",
+          "value": "x",
+        },
+        {
+          "actions": {
+            "Mouse Down": [
+              "var pressedY = true",
+            ],
+          },
+          "exportValues": "y",
+          "id": "20R",
+          "type": "checkbox",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "21R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "person",
+      [
+        {
+          "actions": null,
+          "fillColor": null,
+          "id": "22R",
+          "kidIds": [
+            "23R",
+          ],
+          "name": "person",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "person.first",
+      [
+        {
+          "actions": {
+            "Keystroke": [
+              "event.change = event.change.toUpperCase()",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "23R",
+          "multiline": false,
+          "name": "person.first",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            340,
+            272,
+            365,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "go",
+      [
+        {
+          "actions": {
+            "Action": [
+              "app.alert('go')",
+              "var went = true",
+            ],
+            "PageOpen": [
+              "var shown = true",
+            ],
+          },
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "24R",
+          "name": "go",
+          "page": 0,
+          "rect": [
+            72,
+            295,
+            172,
+            320,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "twin",
+      [
+        {
+          "id": "31R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Keystroke": [
+              "var firstTwin = true",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "32R",
+          "multiline": false,
+          "name": "twin",
+          "page": 0,
+          "password": false,
+          "rect": [
+            300,
+            655,
+            400,
+            680,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+        {
+          "id": "33R",
+          "type": "",
+        },
+        {
+          "id": "34R",
+          "type": "text",
+        },
+      ],
+    ],
+    [
+      "flags",
+      [
+        {
+          "id": "35R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "r",
+          "fillColor": null,
+          "hidden": false,
+          "id": "37R",
+          "name": "flags",
+          "page": 0,
+          "rect": [
+            330,
+            385,
+            350,
+            405,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "checkbox",
+          "value": "Off",
+        },
+        {
+          "actions": {
+            "Mouse Up": [
+              "var flagged = true",
+            ],
+          },
+          "exportValues": "q",
+          "id": "36R",
+          "type": "checkbox",
+        },
+      ],
+    ],
+    [
+      "stamp",
+      [
+        {
+          "actions": {
+            "Format": [
+              "AFDate_FormatEx("dd/mm/yyyy");",
+              "AFDate_FormatEx("mm/dd/yyyy");",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "datetimeFormat": "dd/mm/yyyy",
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "38R",
+          "multiline": false,
+          "name": "stamp",
+          "page": 0,
+          "password": false,
+          "rect": [
+            300,
+            565,
+            400,
+            590,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {
+      "PageClose": [
+        "var pageClosed = true;",
+      ],
+      "PageOpen": [
+        "var pageOpened = 'yes';",
+      ],
+    },
+  ],
+  "scripts": {
+    "calculationOrder": [
+      "amount",
+      "person",
+      "note",
+    ],
+    "calculationOrderIds": [
+      "7R",
+      "22R",
+      "12R",
+    ],
+    "document": [
+      {
+        "name": "alpha",
+        "source": "var alpha = 1;",
+      },
+      {
+        "name": "beta",
+        "source": "  var beta = 2;  ",
+      },
+    ],
+    "documentActions": {
+      "DidPrint": [
+        "var printed = true;",
+      ],
+      "OpenAction": [
+        "var started = true;",
+      ],
+      "WillClose": [
+        "var closing = true;",
+      ],
+      "WillSave": [
+        "var saving = true;",
+      ],
+    },
+    "fields": [
+      {
+        "name": "amount",
+        "widgets": [
+          "7R",
+        ],
+      },
+      {
+        "name": "start",
+        "widgets": [
+          "8R",
+        ],
+      },
+      {
+        "name": "due",
+        "widgets": [
+          "9R",
+        ],
+      },
+      {
+        "name": "size",
+        "widgets": [
+          "10R",
+        ],
+      },
+      {
+        "name": "colours",
+        "widgets": [
+          "11R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "note",
+          "kids": [
+            "13R",
+            "14R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Blur": [
+              "var blurred = true",
+            ],
+          },
+        },
+        "id": "12R",
+        "name": "note",
+        "widgets": [
+          "13R",
+          "14R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "pick",
+          "kids": [
+            "17R",
+            "16R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "15R",
+        "name": "pick",
+        "widgets": [
+          "17R",
+          "16R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "extras",
+          "kids": [
+            "19R",
+            "20R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "18R",
+        "name": "extras",
+        "widgets": [
+          "19R",
+          "20R",
+        ],
+      },
+      {
+        "name": "sig",
+        "widgets": [
+          "21R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "person",
+          "kids": [
+            "23R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "22R",
+        "name": "person",
+        "widgets": [],
+      },
+      {
+        "name": "person.first",
+        "widgets": [
+          "23R",
+        ],
+      },
+      {
+        "name": "go",
+        "widgets": [
+          "24R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "twin",
+          "kids": [
+            "32R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Keystroke": [
+              "var firstTwin = true",
+            ],
+          },
+        },
+        "id": "31R",
+        "name": "twin",
+        "widgets": [
+          "32R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "twin",
+          "kids": [
+            "34R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": [
+              "var secondTwin = true",
+            ],
+          },
+        },
+        "id": "33R",
+        "name": "twin",
+        "widgets": [
+          "34R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "flags",
+          "kids": [
+            "37R",
+            "36R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "35R",
+        "name": "flags",
+        "widgets": [
+          "37R",
+          "36R",
+        ],
+      },
+      {
+        "name": "stamp",
+        "widgets": [
+          "38R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-scripted-parents 1`] = `
+{
+  "fields": [
+    [
+      "total",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+          "fillColor": {
+            "0": 0,
+            "1": 0,
+            "2": 255,
+          },
+          "id": "7R",
+          "kidIds": [
+            "8R",
+            "9R",
+            "10R",
+          ],
+          "name": "total",
+          "page": 0,
+          "rotation": 0,
+          "strokeColor": {
+            "0": 255,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "total.a",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "8R",
+          "multiline": false,
+          "name": "total.a",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            700,
+            272,
+            725,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "1",
+        },
+      ],
+    ],
+    [
+      "total.b",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "total.b",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            655,
+            272,
+            680,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "2",
+        },
+      ],
+    ],
+    [
+      "total.more",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+          "fillColor": null,
+          "id": "10R",
+          "kidIds": [
+            "11R",
+          ],
+          "name": "total.more",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "total.more.c",
+      [
+        {
+          "actions": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "11R",
+          "multiline": false,
+          "name": "total.more.c",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            610,
+            272,
+            635,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "3",
+        },
+      ],
+    ],
+    [
+      "sum",
+      [
+        {
+          "actions": {
+            "Calculate": [
+              "AFSimple_Calculate("SUM", new Array("total"));",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "12R",
+          "multiline": false,
+          "name": "sum",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            565,
+            272,
+            590,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "6",
+        },
+      ],
+    ],
+    [
+      "count",
+      [
+        {
+          "actions": {
+            "Calculate": [
+              "event.value = this.getField("total").getArray().length;",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "count",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            520,
+            272,
+            545,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "0",
+        },
+      ],
+    ],
+    [
+      "choice",
+      [
+        {
+          "id": "14R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "x",
+          "fillColor": null,
+          "hidden": false,
+          "id": "15R",
+          "name": "choice",
+          "page": 0,
+          "rect": [
+            72,
+            430,
+            92,
+            450,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "radiobutton",
+          "value": "x",
+        },
+        {
+          "actions": null,
+          "exportValues": "y",
+          "id": "16R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [
+      "sum",
+      "total",
+      "count",
+    ],
+    "calculationOrderIds": [
+      "12R",
+      "7R",
+      "13R",
+    ],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "backgroundColor": [
+            0,
+            0,
+            255,
+          ],
+          "borderColor": [
+            255,
+            0,
+            0,
+          ],
+          "fullName": "total",
+          "kids": [
+            "8R",
+            "9R",
+            "10R",
+          ],
+          "page": 0,
+          "rotation": 0,
+          "scripts": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+        },
+        "id": "7R",
+        "name": "total",
+        "widgets": [],
+      },
+      {
+        "name": "total.a",
+        "widgets": [
+          "8R",
+        ],
+      },
+      {
+        "name": "total.b",
+        "widgets": [
+          "9R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "total.more",
+          "kids": [
+            "11R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Focus": [
+              "var totalFocused = true;",
+            ],
+          },
+        },
+        "id": "10R",
+        "name": "total.more",
+        "widgets": [],
+      },
+      {
+        "name": "total.more.c",
+        "widgets": [
+          "11R",
+        ],
+      },
+      {
+        "name": "sum",
+        "widgets": [
+          "12R",
+        ],
+      },
+      {
+        "name": "count",
+        "widgets": [
+          "13R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "choice",
+          "kids": [
+            "15R",
+            "16R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "14R",
+        "name": "choice",
+        "widgets": [
+          "15R",
+          "16R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-shared-scripted 1`] = `
+{
+  "fields": [
+    [
+      "shared",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Validate": [
+              "event.rc = true",
+            ],
+          },
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "A",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "9R",
+          "name": "shared",
+          "page": 0,
+          "rect": [
+            71.5,
+            599.5,
+            90.5,
+            618.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "radiobutton",
+          "value": "Off",
+        },
+        {
+          "actions": {
+            "Validate": [
+              "event.rc = true",
+            ],
+          },
+          "exportValues": "A",
+          "id": "14R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "shared",
+          "kids": [
+            "9R",
+            "14R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Validate": [
+              "event.rc = true",
+            ],
+          },
+        },
+        "id": "8R",
+        "name": "shared",
+        "widgets": [
+          "9R",
+          "14R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-signed 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "cert",
+      [
+        {
+          "id": "14R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-structure 1`] = `
+{
+  "fields": [
+    [
+      "first",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "first",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            639.5,
+            272.5,
+            662.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "second",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "second",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            579.5,
+            272.5,
+            602.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "third",
+      [
+        {
+          "id": "15R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "16R",
+          "multiline": false,
+          "name": "third",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            519.5,
+            272.5,
+            542.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-timer 1`] = `
+{
+  "fields": [
+    [
+      "ticker",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "ticker",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "note",
+      [
+        {
+          "id": "12R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "13R",
+          "multiline": false,
+          "name": "note",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            539.5,
+            272.5,
+            562.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [
+      {
+        "name": "tick",
+        "source": "var ticking = app.setInterval("this.getField('ticker').value = String(Number(this.getField('ticker').value || 0) + 1)", 50)",
+      },
+    ],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "ticker",
+          "kids": [
+            "9R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "8R",
+        "name": "ticker",
+        "widgets": [
+          "9R",
+        ],
+      },
+      {
+        "container": {
+          "fullName": "note",
+          "kids": [
+            "13R",
+          ],
+          "page": -1,
+          "rotation": 0,
+        },
+        "id": "12R",
+        "name": "note",
+        "widgets": [
+          "13R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-tree 1`] = `
+{
+  "fields": [
+    [
+      "group",
+      [
+        {
+          "actions": null,
+          "fillColor": null,
+          "id": "7R",
+          "kidIds": [
+            "9R",
+          ],
+          "name": "group",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "group.sub",
+      [
+        {
+          "actions": null,
+          "fillColor": null,
+          "id": "9R",
+          "kidIds": [
+            "8R",
+            "10R",
+          ],
+          "name": "group.sub",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "group.sub.a",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "8R",
+          "multiline": true,
+          "name": "group.sub.a",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            640,
+            372,
+            700,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "inherited text",
+        },
+      ],
+    ],
+    [
+      "group.sub.b",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "10R",
+          "multiline": true,
+          "name": "group.sub.b",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            560,
+            372,
+            620,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "its own text",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-uppercase 1`] = `
+{
+  "fields": [
+    [
+      "code",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": {
+            "Validate": [
+              "event.value = event.value.toUpperCase()",
+            ],
+          },
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "code",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "code",
+          "kids": [
+            "9R",
+          ],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Validate": [
+              "event.value = event.value.toUpperCase()",
+            ],
+          },
+        },
+        "id": "8R",
+        "name": "code",
+        "widgets": [
+          "9R",
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on form-values 1`] = `
+{
+  "fields": [
+    [
+      "listbox",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "7R",
+          "items": [
+            {
+              "displayValue": "a",
+              "exportValue": "a",
+            },
+            {
+              "displayValue": "b",
+              "exportValue": "b",
+            },
+            {
+              "displayValue": "c",
+              "exportValue": "c",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "listbox",
+          "page": 0,
+          "rect": [
+            72,
+            700,
+            272,
+            730,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "listbox",
+          "value": "b",
+        },
+      ],
+    ],
+    [
+      "combo",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "8R",
+          "items": [
+            {
+              "displayValue": "x",
+              "exportValue": "x",
+            },
+            {
+              "displayValue": "y",
+              "exportValue": "y",
+            },
+            {
+              "displayValue": "z",
+              "exportValue": "z",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "combo",
+          "page": 0,
+          "rect": [
+            72,
+            650,
+            272,
+            680,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "combobox",
+          "value": "z",
+        },
+      ],
+    ],
+    [
+      "nulled",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "default text",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "nulled",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            600,
+            272,
+            630,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "unset",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "default text",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "10R",
+          "multiline": false,
+          "name": "unset",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            550,
+            272,
+            580,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "default text",
+        },
+      ],
+    ],
+    [
+      "names",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "11R",
+          "items": [
+            {
+              "displayValue": "Alpha",
+              "exportValue": "Alpha",
+            },
+            {
+              "displayValue": "beta",
+              "exportValue": "beta",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "names",
+          "page": 0,
+          "rect": [
+            72,
+            500,
+            272,
+            530,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "listbox",
+          "value": "Alpha",
+        },
+      ],
+    ],
+    [
+      "launch",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "12R",
+          "name": "launch",
+          "page": 0,
+          "rect": [
+            72,
+            450,
+            272,
+            480,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "remote",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "13R",
+          "name": "remote",
+          "page": 0,
+          "rect": [
+            72,
+            400,
+            272,
+            430,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "local",
+      [
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "14R",
+          "name": "local",
+          "page": 0,
+          "rect": [
+            72,
+            350,
+            272,
+            380,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "consent",
+      [
+        {
+          "id": "15R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Maybe",
+          "editable": true,
+          "exportValues": "Agreed",
+          "fillColor": null,
+          "hidden": false,
+          "id": "16R",
+          "name": "consent",
+          "page": 0,
+          "rect": [
+            72,
+            300,
+            102,
+            330,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "checkbox",
+          "value": "Agreed",
+        },
+      ],
+    ],
+    [
+      "kidlist",
+      [
+        {
+          "id": "27R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": null,
+          "hidden": false,
+          "id": "28R",
+          "items": [
+            {
+              "displayValue": "p",
+              "exportValue": "p",
+            },
+            {
+              "displayValue": "q",
+              "exportValue": "q",
+            },
+            {
+              "displayValue": "r",
+              "exportValue": "r",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "kidlist",
+          "page": 0,
+          "rect": [
+            300,
+            300,
+            500,
+            330,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "listbox",
+          "value": "p",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on freetext-fonts 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on incremental-saved 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on link-order 1`] = `
+{
+  "fields": [
+    [
+      "field-one",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "field-one",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            580,
+            272,
+            610,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "field-two",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "12R",
+          "multiline": false,
+          "name": "field-two",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            400,
+            272,
+            430,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on link-targets 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on links 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on malformed-missing-xref 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on mixed-page-sizes 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on note-icon-ap 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on object-streams 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on outline 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-annotation-loupe 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-annotation-loupe-drawing 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-annotation-loupe-elsewhere 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-annotation-loupe-rewritten 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-annotations 1`] = `
+{
+  "fields": [
+    [
+      "hidden",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "8R",
+          "multiline": false,
+          "name": "hidden",
+          "page": 0,
+          "password": false,
+          "rect": [
+            130,
+            160,
+            230,
+            185,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "SECRET-DELTA",
+        },
+      ],
+    ],
+    [
+      "kept",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "kept",
+          "page": 0,
+          "password": false,
+          "rect": [
+            260,
+            60,
+            360,
+            85,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "text",
+          "value": "KEEP-FIELD",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-copy-pieceinfo 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-copy-thumbnail 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-copy-xmp 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-fill 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-function-shading 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-function-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-hatch 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-hatch-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-mesh 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-mesh-pattern 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-mesh-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-miter-reach 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-negative-width 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-pattern 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-pattern-colour-kept 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-pattern-miter 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-pattern-past-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-pattern-side 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-sampled-axial 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-shading 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-drawing-stroke 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-attachment 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-encrypted 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-hidden-layer 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-revisions 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-script 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {
+      "PageOpen": [
+        "app.alert("SECRET-KAPPA");",
+      ],
+    },
+  ],
+  "scripts": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [
+      {
+        "name": "hello",
+        "source": "app.alert("SECRET-OMEGA");",
+      },
+    ],
+    "documentActions": {
+      "OpenAction": [
+        "app.alert("SECRET-SIGMA");",
+      ],
+    },
+    "fields": [],
+  },
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-file-signed 1`] = `
+{
+  "fields": [
+    [
+      "sig",
+      [
+        {
+          "id": "7R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-foreign-encrypted 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-foreign-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-foreign-popup 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-hidden-layer 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-1bit 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-ccitt 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-flate 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-jbig2 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-jpeg 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-jpx 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-mask 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-rotated 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-shared 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-skewed 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-smask 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-stencil 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-image-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-mask-group-past-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-mask-group-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-page-cropbox 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-page-no-contents 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-page-rotate-90 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-page-rotate-270 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-page-userunit 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-path 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-beside-carriers 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-clip 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-composite 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-fade 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-form-under-mark 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-half-word 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-nested-form 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-pattern 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-rotated 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-shaped-fade 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-shared-form 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-type3 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on redact-text-vertical 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-annotations 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-encrypted 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-incremental 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-replied 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-signed 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "10R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "11R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            679.5,
+            272.5,
+            702.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "notes",
+      [
+        {
+          "id": "14R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "15R",
+          "multiline": true,
+          "name": "notes",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            679.5,
+            520.5,
+            724.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "pin",
+      [
+        {
+          "id": "17R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 4,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "18R",
+          "multiline": false,
+          "name": "pin",
+          "page": 0,
+          "password": true,
+          "rect": [
+            71.5,
+            623.5,
+            152.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "code",
+      [
+        {
+          "id": "20R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 6,
+          "comb": true,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "21R",
+          "multiline": false,
+          "name": "code",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            623.5,
+            440.5,
+            646.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "auto",
+      [
+        {
+          "id": "23R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "24R",
+          "multiline": false,
+          "name": "auto",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            567.5,
+            272.5,
+            590.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "locked",
+      [
+        {
+          "id": "26R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": false,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "27R",
+          "multiline": false,
+          "name": "locked",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            567.5,
+            520.5,
+            590.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "fixed",
+        },
+      ],
+    ],
+    [
+      "email",
+      [
+        {
+          "id": "29R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "30R",
+          "multiline": false,
+          "name": "email",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            511.5,
+            272.5,
+            534.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "internal",
+      [
+        {
+          "id": "32R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "33R",
+          "multiline": false,
+          "name": "internal",
+          "page": 0,
+          "password": false,
+          "rect": [
+            319.5,
+            511.5,
+            520.5,
+            534.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "x",
+        },
+      ],
+    ],
+    [
+      "agree",
+      [
+        {
+          "id": "35R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "Off",
+          "editable": true,
+          "exportValues": "Yes",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "36R",
+          "name": "agree",
+          "page": 0,
+          "rect": [
+            71.5,
+            455.5,
+            90.5,
+            474.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "checkbox",
+          "value": "Off",
+        },
+      ],
+    ],
+    [
+      "plan",
+      [
+        {
+          "id": "41R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "yearly",
+          "editable": true,
+          "exportValues": "monthly",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "42R",
+          "name": "plan",
+          "page": 0,
+          "rect": [
+            319.5,
+            455.5,
+            338.5,
+            474.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "radiobutton",
+          "value": "monthly",
+        },
+        {
+          "actions": null,
+          "exportValues": "yearly",
+          "id": "47R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+    [
+      "shared",
+      [
+        {
+          "id": "52R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": "A",
+          "editable": true,
+          "exportValues": "A",
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "53R",
+          "name": "shared",
+          "page": 0,
+          "rect": [
+            71.5,
+            399.5,
+            90.5,
+            418.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "radiobutton",
+          "value": "Off",
+        },
+        {
+          "actions": null,
+          "exportValues": "A",
+          "id": "58R",
+          "type": "radiobutton",
+        },
+      ],
+    ],
+    [
+      "country",
+      [
+        {
+          "id": "63R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "64R",
+          "items": [
+            {
+              "displayValue": "United Kingdom",
+              "exportValue": "gb",
+            },
+            {
+              "displayValue": "France",
+              "exportValue": "fr",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "country",
+          "page": 0,
+          "rect": [
+            319.5,
+            399.5,
+            520.5,
+            422.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "combobox",
+          "value": "gb",
+        },
+      ],
+    ],
+    [
+      "city",
+      [
+        {
+          "id": "66R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "67R",
+          "items": [
+            {
+              "displayValue": "Leeds",
+              "exportValue": "Leeds",
+            },
+            {
+              "displayValue": "Lyon",
+              "exportValue": "Lyon",
+            },
+            {
+              "displayValue": "Lisbon",
+              "exportValue": "Lisbon",
+            },
+          ],
+          "multipleSelection": false,
+          "name": "city",
+          "page": 0,
+          "rect": [
+            71.5,
+            343.5,
+            272.5,
+            366.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "combobox",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "interests",
+      [
+        {
+          "id": "69R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hidden": false,
+          "id": "70R",
+          "items": [
+            {
+              "displayValue": "maths",
+              "exportValue": "maths",
+            },
+            {
+              "displayValue": "engines",
+              "exportValue": "engines",
+            },
+            {
+              "displayValue": "poetry",
+              "exportValue": "poetry",
+            },
+          ],
+          "multipleSelection": true,
+          "name": "interests",
+          "page": 0,
+          "rect": [
+            319.5,
+            287.5,
+            520.5,
+            348.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "listbox",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "header",
+      [
+        {
+          "actions": null,
+          "fillColor": null,
+          "id": "73R",
+          "kidIds": [
+            "74R",
+          ],
+          "name": "header",
+          "page": -1,
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "",
+        },
+      ],
+    ],
+    [
+      "header.ref",
+      [
+        {
+          "id": "74R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "75R",
+          "multiline": false,
+          "name": "header.ref",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            287.5,
+            272.5,
+            310.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "REF-0042",
+        },
+        {
+          "id": "77R",
+          "type": "text",
+        },
+      ],
+    ],
+    [
+      "rotated",
+      [
+        {
+          "id": "79R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "80R",
+          "multiline": false,
+          "name": "rotated",
+          "page": 1,
+          "password": false,
+          "rect": [
+            97.5,
+            599.5,
+            120.5,
+            800.5,
+          ],
+          "rotation": 90,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "styled",
+      [
+        {
+          "id": "82R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "83R",
+          "multiline": false,
+          "name": "styled",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            231.5,
+            272.5,
+            254.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "85R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "sig2",
+      [
+        {
+          "id": "86R",
+          "page": 1,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+    [
+      "reset",
+      [
+        {
+          "id": "87R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "defaultValue": null,
+          "editable": true,
+          "fillColor": {
+            "0": 191,
+            "1": 191,
+            "2": 191,
+          },
+          "hidden": false,
+          "id": "88R",
+          "name": "reset",
+          "page": 0,
+          "rect": [
+            320,
+            176,
+            420,
+            200,
+          ],
+          "rotation": 0,
+          "strokeColor": null,
+          "type": "button",
+          "value": "Off",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on saved-tampered 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on scanned-no-text 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on script-page-only 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {
+      "PageOpen": [
+        "app.alert('page opened')",
+      ],
+    },
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on signed 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "8R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "15R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on signed-encrypted 1`] = `
+{
+  "fields": [
+    [
+      "name",
+      [
+        {
+          "id": "6R",
+          "type": "",
+        },
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": {
+            "0": 255,
+            "1": 255,
+            "2": 255,
+          },
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "9R",
+          "multiline": false,
+          "name": "name",
+          "page": 0,
+          "password": false,
+          "rect": [
+            71.5,
+            599.5,
+            272.5,
+            622.5,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "Sam",
+        },
+      ],
+    ],
+    [
+      "sig",
+      [
+        {
+          "id": "7R",
+          "page": 0,
+          "type": "signature",
+          "value": null,
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on standard-callout 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-cjk 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-rotated-90 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-rotated-180 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-rotated-270 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-rtl 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-search 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-simple 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on text-vertical 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-arial 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-cyrillic 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-greek 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-japanese 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-japanese-field 1`] = `
+{
+  "fields": [
+    [
+      "f",
+      [
+        {
+          "actions": null,
+          "charLimit": 0,
+          "comb": false,
+          "defaultValue": "",
+          "editable": true,
+          "fillColor": null,
+          "hasDatetimeHTML": false,
+          "hidden": false,
+          "id": "11R",
+          "multiline": false,
+          "name": "f",
+          "page": 0,
+          "password": false,
+          "rect": [
+            72,
+            500,
+            400,
+            540,
+          ],
+          "rotation": 0,
+          "strokeColor": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+          },
+          "type": "text",
+          "value": "",
+        },
+      ],
+    ],
+  ],
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-korean 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-simplified-chinese 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on unembedded-traditional-chinese 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+  ],
+  "scripts": undefined,
+}
+`;
+
+exports[`the engine reader's scripts > gives the scripts, page actions and sandbox fields it gave before, on userunit-2 1`] = `
+{
+  "fields": null,
+  "pages": [
+    {},
+    {},
+    {},
+  ],
+  "scripts": undefined,
+}
+`;

@@ -1,7 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument, type InkDocument } from './document'
 
@@ -142,17 +142,13 @@ describe('InkDocument.search', () => {
 
   it('stops on abort and reads no more pages', async () => {
     const doc = await open('text-simple')
-    const reads = await Promise.all(
-      [0, 1, 2].map(async (i) =>
-        vi.spyOn(await doc._pdfjs!.getPage(i), 'streamTextContent')
-      )
-    )
+    const reads = vi.spyOn(doc._reader, 'text')
     const abort = new AbortController()
     const it = doc.search('QQ123456C', { signal: abort.signal })[Symbol.asyncIterator]()
     expect((await it.next()).value).toMatchObject({ page: 0 })
     abort.abort()
     await expect(it.next()).rejects.toMatchObject({ name: 'AbortError' })
-    expect(reads.map((r) => r.mock.calls.length > 0)).toEqual([true, false, false])
+    expect(new Set(reads.mock.calls.map(([page]) => page))).toEqual(new Set([0]))
     doc.destroy()
   })
 
@@ -176,14 +172,10 @@ describe('InkDocument.search', () => {
   it('reads page text once per page across searches', async () => {
     const doc = await open('text-simple')
     await doc.search('QQ123456C').all()
-    const reads = await Promise.all(
-      [0, 1, 2].map(async (i) =>
-        vi.spyOn(await doc._pdfjs!.getPage(i), 'streamTextContent')
-      )
-    )
+    const reads = vi.spyOn(doc._reader, 'text')
     await doc.search('QQ123456C').all()
     await doc.search('a', { matchCase: true }).all()
-    for (const r of reads) expect(r).not.toHaveBeenCalled()
+    expect(reads).not.toHaveBeenCalled()
     doc.destroy()
   })
 
@@ -193,12 +185,13 @@ describe('InkDocument.search', () => {
     const [rned] = await doc.search('rned').all()
     doc.destroy()
     // The fixture draws "widely spaced words" at x = 72 and "ke", a -20 TJ gap, then "rned word"
-    // at x = 72 below it. A box ends before the character spacing after its last glyph.
+    // at x = 72 below it. The box of a word that ends a run ends before the character spacing
+    // after its last glyph; one followed by more of its run takes in that spacing.
     expect(words!.exact).toBe(true)
     expect(words!.rect.x).toBeCloseTo(72 + spaced('widely spaced '), 2)
     expect(words!.rect.width).toBeCloseTo(spaced('words') - 1, 2)
     expect(rned!.rect.x).toBeCloseTo(72 + spaced('ke') + (20 * 14) / 1000, 2)
-    expect(rned!.rect.width).toBeCloseTo(spaced('rned') - 1, 2)
+    expect(rned!.rect.width).toBeCloseTo(spaced('rned'), 2)
   })
 
   it('follows a move and a scaling change inside one line of text', async () => {
@@ -226,18 +219,17 @@ describe('InkDocument.search', () => {
 
   it('reads glyph positions only for pages with hits, once each', async () => {
     const doc = await open('text-simple')
-    const reads = await Promise.all(
-      [0, 1, 2].map(async (i) =>
-        vi.spyOn(await doc._pdfjs!.getPage(i), 'getOperatorList')
-      )
-    )
+    const reads = vi.spyOn(doc._reader, 'text')
+    /** The pages whose glyph positions were read, in order. */
+    const placed = () =>
+      reads.mock.calls.filter(([, options]) => options?.glyphs).map(([page]) => page)
     await doc.search('not anywhere in this file').all()
-    expect(reads.map((r) => r.mock.calls.length)).toEqual([0, 0, 0])
+    expect(placed()).toEqual([])
     const [hit] = await doc.search('QQ123456C', { pages: [1] }).all()
     expect(hit!.exact).toBe(true)
-    expect(reads.map((r) => r.mock.calls.length)).toEqual([0, 1, 0])
+    expect(placed()).toEqual([1])
     await doc.search('QQ123456C', { pages: [1] }).all()
-    expect(reads[1]!.mock.calls).toHaveLength(1)
+    expect(placed()).toEqual([1])
     doc.destroy()
   })
 })

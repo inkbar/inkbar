@@ -1,14 +1,12 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expectSameLinks, linksAsSeen } from '../engine-reader/test-utils'
-import { nodeAssets } from '../pdfjs/node-assets'
+import { linksAsSeen } from '../engine-reader/test-utils'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument, type InkDocument } from './document'
 import { setEngineFactory } from './engine-factory'
-
-import type { EngineLoader } from './save/saver'
 
 const evaluated = vi.hoisted(() => ({ engineReader: false }))
 
@@ -18,76 +16,38 @@ vi.mock(import('../engine-reader/reader'), async (original) => {
   return original()
 })
 
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-
-afterEach(() => {
-  delete flag.__INKBAR_READER__
-})
-
-const open = async (engine: EngineLoader) => {
-  const doc = await openDocument(await fixtureBytes('text-simple'), {
-    assets: nodeAssets(),
-    engine,
-  })
-  await doc.ready
-  return doc
-}
-
 describe('the reader a document opens with', () => {
-  it('with the switch off: PDF.js, and neither the engine reader nor the engine is loaded', async () => {
-    const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
-    const doc = await open(loader)
-    expect(doc._reader.kind).toBe('pdfjs')
-    expect(loader).not.toHaveBeenCalled()
-    expect(evaluated.engineReader).toBe(false)
-    doc.destroy()
-  })
-
-  // Control: the same mock fires once the switch is on, so the false above is meaningful.
-  it('with the switch on: the engine reader, over the engine the host loads', async () => {
-    flag.__INKBAR_READER__ = 'engine'
-    const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
-    const doc = await open(loader)
+  it('is the engine reader, over an engine started from the assets', async () => {
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
     expect(doc._reader.kind).toBe('engine')
-    expect(loader).toHaveBeenCalledTimes(1)
     expect(evaluated.engineReader).toBe(true)
     expect(doc.pages).toHaveLength(3)
     doc.destroy()
   })
 
-  it('with the switch on: the same words, links, outline and destinations as with it off', async () => {
-    const read = async (name: 'links' | 'outline') => {
+  it('reads the words, links, outline and destinations it read before', async () => {
+    for (const name of ['links', 'outline'] as const) {
       const doc = await openDocument(await fixtureBytes(name), {
         assets: nodeAssets(),
-        engine: () => import('@inkbar/engine'),
       })
       await doc.ready
-      const out = {
-        kind: doc._reader.kind,
-        // With the switch on the engine reads the text: its boxes come from the engine's
-        // character boxes and its font names are the fonts' own, so the words are compared.
+      const read = {
+        // The words only: boxes and font names are the engine's own.
         text: (await doc.text(0)).items.map(({ str, dir, fontSize }) => ({
           str,
           dir,
           fontSize,
         })),
-        // Explicit destinations are compared by where they go: see linksAsSeen.
+        // Explicit destinations by where they go: see linksAsSeen.
         links: await linksAsSeen(doc, 0),
         outline: await doc.outline(),
         dest: await doc.resolveDestination('chapter-2'),
       }
       doc.destroy()
-      return out
-    }
-    for (const name of ['links', 'outline'] as const) {
-      const off = await read(name)
-      flag.__INKBAR_READER__ = 'engine'
-      const on = await read(name)
-      delete flag.__INKBAR_READER__
-      expect(off.kind).toBe('pdfjs')
-      expect(on.kind).toBe('engine')
-      expectSameLinks(on.links, off.links)
-      expect({ ...on, links: [] }).toEqual({ ...off, kind: 'engine', links: [] })
+      expect(read, name).toMatchSnapshot()
     }
   })
 })
@@ -126,9 +86,7 @@ function trapsOnNextCall() {
       },
     })
   })
-  const loader = (() => Promise.resolve({ createEngine })) as unknown as EngineLoader
   return {
-    loader,
     createEngine,
     trap: () => {
       trapped = true
@@ -137,44 +95,37 @@ function trapsOnNextCall() {
 }
 
 describe('form fields', () => {
-  it("with the switch on, a button's GoTo destinations go to the same pages as with it off", async () => {
-    const fieldsOf = async () => {
-      const doc = await openDocument(await fixtureBytes('form-goto'), {
-        assets: nodeAssets(),
-        engine: () => import('@inkbar/engine'),
-      })
-      await doc.ready
-      const out = { kind: doc._reader.kind, fields: doc.form.fields.get() }
-      doc.destroy()
-      return out
-    }
-    const off = await fieldsOf()
-    flag.__INKBAR_READER__ = 'engine'
-    const on = await fieldsOf()
-    expect([off.kind, on.kind]).toEqual(['pdfjs', 'engine'])
-    expect(off.fields.length).toBeGreaterThan(0)
-    expect(on.fields).toEqual(off.fields)
+  it("reads a button's GoTo destinations as it did before", async () => {
+    const doc = await openDocument(await fixtureBytes('form-goto'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const fields = doc.form.fields.get()
+    doc.destroy()
+    expect(fields.length).toBeGreaterThan(0)
+    expect(fields).toMatchSnapshot()
   })
 })
 
 describe('lookups that fail', () => {
-  it('a destination lookup PDF.js cannot do is an answer: asked once, for nothing', async () => {
+  it('a destination the file does not hold is an answer, asked once; a lookup that fails is asked again', async () => {
     const doc = await openDocument(await fixtureBytes('outline'), {
       assets: nodeAssets(),
     })
     await doc.ready
-    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getDestination')
-    spy.mockRejectedValue(new Error('unreadable name tree'))
+    const spy = vi.spyOn(doc._reader, 'resolveDestination')
     for (let i = 0; i < 3; i++)
-      await expect(doc.resolveDestination('chapter-2')).resolves.toBeUndefined()
+      await expect(doc.resolveDestination('nowhere')).resolves.toBeUndefined()
     expect(spy).toHaveBeenCalledTimes(1)
-    spy.mockRestore()
-    // A reference that is not a page: PDF.js rejects, every time, and is asked once.
-    const pageIndex = vi.spyOn(doc._pdfjs!.proxy, 'getPageIndex')
+    // A reference that is not a page: asked once too.
     const catalog = [{ num: 1, gen: 0 }, { name: 'Fit' }]
     for (let i = 0; i < 3; i++)
       await expect(doc.resolveDestination(catalog)).resolves.toBeUndefined()
-    expect(pageIndex).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalledTimes(2)
+    spy.mockRejectedValue(new Error('no engine'))
+    for (let i = 0; i < 2; i++)
+      await expect(doc.resolveDestination('chapter-2')).resolves.toBeUndefined()
+    expect(spy).toHaveBeenCalledTimes(4)
     doc.destroy()
   })
 
@@ -183,7 +134,7 @@ describe('lookups that fail', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getOutline')
+    const spy = vi.spyOn(doc._reader, 'outline')
     spy.mockRejectedValueOnce(new Error('unreadable outline'))
     await expect(doc.outline()).resolves.toEqual([])
     const read = await doc.outline()
@@ -198,7 +149,7 @@ describe('lookups that fail', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getOutline')
+    const spy = vi.spyOn(doc._reader, 'outline')
     await expect(doc.outline()).resolves.toEqual([])
     await expect(doc.outline()).resolves.toEqual([])
     expect(spy).toHaveBeenCalledTimes(1)
@@ -207,13 +158,16 @@ describe('lookups that fail', () => {
 })
 
 describe('an engine that stops and cannot be started again', () => {
+  afterEach(() => {
+    setEngineFactory(undefined)
+  })
+
   it('rejects the reads waiting and every later one with EngineUnavailable; the document stays ready, with its bytes and annotations', async () => {
-    flag.__INKBAR_READER__ = 'engine'
     const bytes = await fixtureBytes('links')
-    const { loader, createEngine, trap } = trapsOnNextCall()
+    const { createEngine, trap } = trapsOnNextCall()
+    setEngineFactory(createEngine)
     const doc = await openDocument(bytes.slice(), {
       assets: nodeAssets(),
-      engine: loader,
     })
     await doc.ready
     const openLinks = doc.links(0)
@@ -255,12 +209,11 @@ describe('an engine that stops and cannot be started again', () => {
   })
 
   it('fails the open with EngineUnavailable when the engine stops during it and cannot be started again', async () => {
-    flag.__INKBAR_READER__ = 'engine'
-    const { loader, trap } = trapsOnNextCall()
+    const { createEngine, trap } = trapsOnNextCall()
+    setEngineFactory(createEngine)
     trap()
     const doc = await openDocument(await fixtureBytes('outline'), {
       assets: nodeAssets(),
-      engine: loader,
     })
     await expect(doc.ready).rejects.toMatchObject({ code: 'EngineUnavailable' })
     expect(doc.status.get()).toMatchObject({
@@ -283,7 +236,6 @@ describe('a document whose engine is stopped', () => {
    * engine starts.
    */
   const openHeld = async (refuse: () => boolean = () => false) => {
-    flag.__INKBAR_READER__ = 'engine'
     vi.stubGlobal('ImageData', FakeImageData)
     const held = heldEngines()
     setEngineFactory(() =>
@@ -292,7 +244,6 @@ describe('a document whose engine is stopped', () => {
     const bytes = await fixtureBytes('text-simple')
     const doc = await openDocument(bytes.slice(), {
       assets: nodeAssets(),
-      engine: () => import('@inkbar/engine'),
     })
     await doc.ready
     return { held, doc, bytes }
@@ -318,15 +269,12 @@ describe('a document whose engine is stopped', () => {
       interiorColor: '#000000',
     })
 
-  it('with the switch off: never stopped, and a restart does nothing', async () => {
-    const doc = await openDocument(await fixtureBytes('text-simple'), {
-      assets: nodeAssets(),
-    })
-    await doc.ready
-    expect(doc._reader.kind).toBe('pdfjs')
+  it('is not stopped while it reads, and a restart then does nothing', async () => {
+    const { held, doc } = await openHeld()
     expect(doc.engineStopped.get()).toBe(false)
+    const engines = held.engines.length
     await expect(doc.restartEngine()).resolves.toBeUndefined()
-    expect(doc.engineStopped.get()).toBe(false)
+    expect(held.engines).toHaveLength(engines)
     doc.destroy()
   })
 
@@ -449,7 +397,6 @@ describe('a document whose engine is stopped', () => {
     const { bytes } = await doc.applyRedactions()
     const next = await openDocument(bytes, {
       assets: nodeAssets(),
-      engine: () => import('@inkbar/engine'),
     })
     await next.ready
     await expect(next.text(0)).resolves.toMatchObject({ page: 0 })

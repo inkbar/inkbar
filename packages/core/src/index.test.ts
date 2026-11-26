@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import pkg from '../package.json' with { type: 'json' }
 
 import { loadPdfjs } from './pdfjs/load'
-import { nodeAssets } from './pdfjs/node-assets'
+import { pdfjsAssets } from './test-support/pdfjs-reader'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false }))
 
@@ -28,7 +28,7 @@ describe('package entry', () => {
     expect(Object.keys(entry)).not.toContain('isNamedAction')
 
     // Control: the same mock does fire once the loader runs, so the false above is meaningful.
-    await loadPdfjs(nodeAssets())
+    await loadPdfjs(pdfjsAssets())
     expect(evaluated.pdfjs).toBe(true)
   })
 })
@@ -56,33 +56,50 @@ describe('messages', () => {
   })
 })
 
-/** An import of @inkbar/engine, of any kind: static, dynamic, required or of a type. */
-const ENGINE_IMPORT =
-  /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["']@inkbar\/engine/
+/** Each import of @inkbar/engine, of any kind, with what it names: `(` for a dynamic one. */
+const ENGINE_IMPORTS =
+  /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["'](@inkbar\/engine[^"']*)["']/g
+
+/** The imports of @inkbar/engine in `code`: `dynamic` or `static`, and the entry named. */
+const engineImports = (code: string) =>
+  [...code.matchAll(ENGINE_IMPORTS)].map(([, how, entry]) => ({
+    how: /import\s*\(/.test(how!) ? 'dynamic' : 'static',
+    entry: entry!,
+  }))
 
 describe('the built package', () => {
   const dist = join(import.meta.dirname, '..', 'dist')
   // CI builds before it tests; a local run without a build skips this.
+  // The engine is loaded at the first open, through the entry that names no file locations, so
+  // importing core loads none of it and a host's bundle carries no second copy of its files. Only
+  // the Vite plugin names the engine's binary, to copy it.
   it.skipIf(!existsSync(dist) && !process.env.CI)(
-    'holds no engine code: only types from @inkbar/engine',
+    'holds no engine code, and imports the engine only dynamically, through its bare entry',
     async () => {
       const files = (await readdir(dist, { recursive: true, withFileTypes: true }))
-        .filter((f) => f.isFile())
+        .filter((f) => f.isFile() && f.name.endsWith('.mjs'))
         .map((f) => join(f.parentPath, f.name))
       expect(files.some((f) => f.endsWith('.mjs'))).toBe(true)
       const found: string[] = []
+      let dynamic = 0
       for (const file of files) {
         const text = await readFile(file, 'utf8')
-        if (text.includes('inkbar-pdfium')) found.push(`${file}: inkbar-pdfium`)
-        if (file.endsWith('.mjs') && ENGINE_IMPORT.test(text))
-          found.push(`${file}: imports @inkbar/engine`)
+        const plugin = file === join(dist, 'vite.mjs')
+        if (!plugin && text.includes('inkbar-pdfium'))
+          found.push(`${file}: inkbar-pdfium`)
+        for (const { how, entry } of engineImports(text)) {
+          if (plugin && entry === '@inkbar/engine/package.json') continue
+          if (how === 'dynamic' && entry === '@inkbar/engine/bare') dynamic++
+          else found.push(`${file}: ${how} import of ${entry}`)
+        }
       }
       expect(found).toEqual([])
+      expect(dynamic).toBe(1)
     }
   )
 
-  // A document opened as usual downloads none of the engine reader: it is a chunk of its own,
-  // which only a dynamic import loads, once the internal switch selects it.
+  // A document's reader is a chunk of its own, which only a dynamic import loads, at the first
+  // open.
   it.skipIf(!existsSync(dist) && !process.env.CI)(
     'keeps the engine reader in a chunk that only a dynamic import loads',
     async () => {
@@ -111,9 +128,9 @@ describe('the built package', () => {
     }
   )
 
-  // A host that has not installed the engine checks these with `skipLibCheck: false`.
+  // Types name the engine only through the entry core loads it from.
   it.skipIf(!existsSync(dist) && !process.env.CI)(
-    'declares no type from @inkbar/engine, here or in the bindings',
+    'declares types from @inkbar/engine only through its bare entry, here or in the bindings',
     async () => {
       const packages = join(import.meta.dirname, '..', '..')
       const found: string[] = []
@@ -131,7 +148,8 @@ describe('the built package', () => {
           const code = (await readFile(file, 'utf8'))
             .replace(/\/\*[\s\S]*?\*\//g, '')
             .replace(/^\s*\/\/.*$/gm, '')
-          if (ENGINE_IMPORT.test(code)) found.push(`${file}: imports @inkbar/engine`)
+          for (const { entry } of engineImports(code))
+            if (entry !== '@inkbar/engine/bare') found.push(`${file}: imports ${entry}`)
         }
       }
       expect(checked).toBeGreaterThan(0)

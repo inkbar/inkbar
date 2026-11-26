@@ -55,7 +55,6 @@ function fakeDoc(
   const doc = {
     key: 'doc-key',
     fileName: 'contract.pdf',
-    _saves: true,
     info: { isEncrypted: false },
     redactionPreview: () => ({
       marks: list.get().filter((a) => a.type === 'redact').length,
@@ -591,7 +590,6 @@ describe('applyRedactionsFlow', () => {
   })
 
   it.each([
-    [{ stage: 'engine' }, en.viewer.redactUnavailable],
     [{ stage: 'apply' }, en.viewer.redactFailed],
     [{ stage: 'verify' }, en.viewer.redactUnverified],
   ])('a RedactionFailed at %o says why and reaches onError', async (details, message) => {
@@ -602,6 +600,15 @@ describe('applyRedactionsFlow', () => {
     expect(showFailure).toHaveBeenCalledExactlyOnceWith(message)
     expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
     expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('a stopped document says redaction is not available and reaches onError', async () => {
+    const failure = new InkError('EngineUnavailable', 'stopped')
+    const { doc } = fakeDoc({ apply: () => Promise.reject(failure) })
+    const { opts, onError, showFailure } = options()
+    await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
+    expect(showFailure).toHaveBeenCalledExactlyOnceWith(en.viewer.redactUnavailable)
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
   })
 
   it.each([

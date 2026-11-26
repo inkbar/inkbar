@@ -1,0 +1,805 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`form fields > reads a button's GoTo destinations as it did before 1`] = `
+[
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "explicit",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "action": {
+          "kind": "goto",
+          "page": 2,
+        },
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Page 3",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "13R",
+        "order": 0,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 640,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "named",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "action": {
+          "kind": "goto",
+          "page": 2,
+        },
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Chapter 3",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "18R",
+        "order": 1,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 590,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "legacy",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "action": {
+          "kind": "goto",
+          "page": 1,
+        },
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Chapter 2",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "22R",
+        "order": 2,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 540,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "missing",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Nowhere",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "26R",
+        "order": 3,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 490,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "scripted",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Script",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": true,
+        "hidden": false,
+        "id": "30R",
+        "next": [
+          {
+            "kind": "goto",
+            "page": 2,
+          },
+        ],
+        "order": 4,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 440,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "goto-script",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "action": {
+          "kind": "goto",
+          "page": 1,
+        },
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Page 2 + script",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 17,
+        },
+        "hasScripts": true,
+        "hidden": false,
+        "id": "34R",
+        "order": 5,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 390,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "chain",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "background": "#BFBFBF",
+          "caption": "Chain",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 21,
+        },
+        "hasScripts": true,
+        "hidden": false,
+        "id": "38R",
+        "next": [
+          {
+            "kind": "uri",
+            "url": "https://example.com/next",
+          },
+          {
+            "kind": "goto",
+            "page": 1,
+          },
+          {
+            "kind": "named",
+            "name": "Print",
+          },
+        ],
+        "order": 6,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 24,
+          "width": 120,
+          "x": 72,
+          "y": 340,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+]
+`;
+
+exports[`the reader a document opens with > reads the words, links, outline and destinations it read before 1`] = `
+{
+  "dest": undefined,
+  "links": [
+    {
+      "id": "pdf:0:11R",
+      "order": 0,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 70,
+        "x": 68,
+        "y": 696,
+      },
+      "target": {
+        "kind": "dest",
+        "name": undefined,
+        "resolved": {
+          "fit": "xyz",
+          "left": 72,
+          "page": 1,
+          "top": 600,
+          "zoom": undefined,
+        },
+      },
+    },
+    {
+      "id": "pdf:0:12R",
+      "order": 1,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 70,
+        "x": 68,
+        "y": 666,
+      },
+      "target": {
+        "kind": "dest",
+        "name": "chapter-3",
+        "resolved": {
+          "fit": "fit",
+          "page": 2,
+        },
+      },
+    },
+    {
+      "id": "pdf:0:13R",
+      "order": 2,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 76,
+        "x": 68,
+        "y": 636,
+      },
+      "target": {
+        "kind": "url",
+        "newWindow": false,
+        "url": "https://example.com/a",
+      },
+    },
+    {
+      "id": "pdf:0:14R",
+      "order": 3,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 72,
+        "x": 68,
+        "y": 606,
+      },
+      "target": {
+        "kind": "unsupported",
+        "reason": "unsafe-url",
+      },
+    },
+    {
+      "id": "pdf:0:15R",
+      "order": 4,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 72,
+        "x": 68,
+        "y": 576,
+      },
+      "target": {
+        "action": "NextPage",
+        "kind": "named",
+      },
+    },
+    {
+      "id": "pdf:0:16R",
+      "order": 5,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 65,
+        "x": 68,
+        "y": 546,
+      },
+      "target": {
+        "kind": "unsupported",
+        "reason": "remote",
+      },
+    },
+    {
+      "id": "pdf:0:17R",
+      "order": 6,
+      "page": 0,
+      "rect": {
+        "height": 18,
+        "width": 81,
+        "x": 68,
+        "y": 516,
+      },
+      "target": {
+        "kind": "unsupported",
+        "reason": "launch",
+      },
+    },
+    {
+      "id": "pdf:0:18R",
+      "order": 7,
+      "page": 0,
+      "quads": [
+        {
+          "p1": {
+            "x": 68,
+            "y": 504,
+          },
+          "p2": {
+            "x": 158,
+            "y": 504,
+          },
+          "p3": {
+            "x": 68,
+            "y": 486,
+          },
+          "p4": {
+            "x": 158,
+            "y": 486,
+          },
+        },
+        {
+          "p1": {
+            "x": 68,
+            "y": 480,
+          },
+          "p2": {
+            "x": 161,
+            "y": 480,
+          },
+          "p3": {
+            "x": 68,
+            "y": 462,
+          },
+          "p4": {
+            "x": 161,
+            "y": 462,
+          },
+        },
+      ],
+      "rect": {
+        "height": 42,
+        "width": 93,
+        "x": 68,
+        "y": 462,
+      },
+      "target": {
+        "kind": "url",
+        "newWindow": false,
+        "url": "https://example.com/wrapped",
+      },
+    },
+  ],
+  "outline": [],
+  "text": [
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Links",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Chapter 2",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Chapter 3",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Example A",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Run script",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Next page",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Other file",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Launch tool",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Wrapped link",
+    },
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "over two lines",
+    },
+  ],
+}
+`;
+
+exports[`the reader a document opens with > reads the words, links, outline and destinations it read before 2`] = `
+{
+  "dest": {
+    "fit": "xyz",
+    "left": 72,
+    "page": 1,
+    "top": 500,
+    "zoom": undefined,
+  },
+  "links": [],
+  "outline": [
+    {
+      "bold": false,
+      "children": [],
+      "id": "0",
+      "italic": false,
+      "open": false,
+      "target": {
+        "dest": {
+          "fit": "xyz",
+          "left": undefined,
+          "page": 0,
+          "top": 700,
+          "zoom": undefined,
+        },
+        "kind": "resolved",
+      },
+      "title": "Cover",
+    },
+    {
+      "bold": true,
+      "children": [
+        {
+          "bold": false,
+          "children": [],
+          "id": "1.0",
+          "italic": false,
+          "open": false,
+          "target": {
+            "dest": {
+              "fit": "fith",
+              "page": 1,
+              "top": 600,
+            },
+            "kind": "resolved",
+          },
+          "title": "Chapter 1",
+        },
+        {
+          "bold": false,
+          "children": [],
+          "id": "1.1",
+          "italic": false,
+          "open": false,
+          "target": {
+            "dest": {
+              "fit": "xyz",
+              "left": 72,
+              "page": 1,
+              "top": 500,
+              "zoom": undefined,
+            },
+            "kind": "resolved",
+          },
+          "title": "Chapter 2",
+        },
+      ],
+      "id": "1",
+      "italic": false,
+      "open": false,
+      "target": {
+        "dest": {
+          "fit": "fit",
+          "page": 1,
+        },
+        "kind": "resolved",
+      },
+      "title": "Part One",
+    },
+    {
+      "bold": false,
+      "children": [
+        {
+          "bold": false,
+          "children": [],
+          "id": "2.0",
+          "italic": false,
+          "open": false,
+          "target": {
+            "dest": {
+              "fit": "fitr",
+              "page": 3,
+              "rect": {
+                "height": 300,
+                "width": 228,
+                "x": 72,
+                "y": 100,
+              },
+            },
+            "kind": "resolved",
+          },
+          "title": "Section A",
+        },
+        {
+          "bold": false,
+          "children": [],
+          "id": "2.1",
+          "italic": true,
+          "open": false,
+          "target": {
+            "dest": {
+              "fit": "fitb",
+              "page": 3,
+            },
+            "kind": "resolved",
+          },
+          "title": "Section B",
+        },
+      ],
+      "id": "2",
+      "italic": false,
+      "open": true,
+      "target": {
+        "dest": {
+          "fit": "fitv",
+          "left": 144,
+          "page": 2,
+        },
+        "kind": "resolved",
+      },
+      "title": "Part Two",
+    },
+    {
+      "bold": false,
+      "children": [],
+      "id": "3",
+      "italic": false,
+      "open": false,
+      "target": {
+        "dest": {
+          "fit": "fit",
+          "page": 4,
+        },
+        "kind": "resolved",
+      },
+      "title": "Appendix",
+    },
+    {
+      "bold": false,
+      "children": [],
+      "id": "4",
+      "italic": false,
+      "open": false,
+      "target": {
+        "kind": "url",
+        "newWindow": false,
+        "url": "https://example.com/outline",
+      },
+      "title": "Website",
+    },
+    {
+      "bold": false,
+      "children": [],
+      "id": "5",
+      "italic": false,
+      "open": false,
+      "target": {
+        "action": "NextPage",
+        "kind": "named",
+      },
+      "title": "Next page",
+    },
+    {
+      "bold": false,
+      "children": [],
+      "id": "6",
+      "italic": false,
+      "open": false,
+      "target": {
+        "kind": "unsupported",
+        "reason": "unknown",
+      },
+      "title": "Broken",
+    },
+  ],
+  "text": [
+    {
+      "dir": "ltr",
+      "fontSize": 14,
+      "str": "Page 1",
+    },
+  ],
+}
+`;

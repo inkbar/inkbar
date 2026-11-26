@@ -1,7 +1,7 @@
 import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../../pdfjs/node-assets'
+import { nodeAssets } from '../../test-support/node-assets'
 import { createToolStyle } from '../annotations/tool-style'
 import { openDocument, type OpenOptions } from '../document'
 import { createImageTemplate, createInkTemplate } from '../signatures'

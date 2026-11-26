@@ -1,10 +1,7 @@
-import { FIXTURE_NAMES, fixtureBytes, manifest } from '@inkbar/fixtures'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { openDocument, type InkDocument } from '../model/document'
-import { expectSameRead, sandboxView } from '../test-support/sandbox-view'
+import { sandboxView } from '../test-support/sandbox-view'
 
-import { nodeAssets } from './node-assets'
 import { sandboxFieldObjects } from './sandbox-fields'
 
 import type {
@@ -13,45 +10,6 @@ import type {
   FileScripts,
   FileWidget,
 } from '../reader/file'
-import type { FixtureName } from '@inkbar/fixtures/urls'
-
-const opened: InkDocument[] = []
-afterAll(() => {
-  for (const doc of opened.splice(0)) doc.destroy()
-})
-
-async function open(name: FixtureName): Promise<InkDocument> {
-  const { password } = manifest[name]
-  const doc = await openDocument(await fixtureBytes(name), {
-    assets: nodeAssets(),
-    ...(password === undefined ? {} : { password }),
-  })
-  opened.push(doc)
-  await doc.ready
-  expect(doc._reader.kind).toBe('pdfjs')
-  return doc
-}
-
-describe('the field objects the sandbox is started with', () => {
-  it.each(FIXTURE_NAMES.filter((name) => manifest[name].opens))(
-    'builds the field objects PDF.js builds, on %s',
-    async (name) => {
-      const doc = await open(name)
-      const reader = doc._reader
-      const scripts = await reader.scripts()
-      // Without JavaScript the sandbox is never started.
-      if (!scripts) return
-      const built = sandboxFieldObjects(await reader.form(), scripts)
-      const theirs = await reader.sandboxFields()
-      expectSameRead(
-        { fields: sandboxView(built) },
-        { fields: sandboxView(theirs) },
-        name,
-        'builder'
-      )
-    }
-  )
-})
 
 const widget = (over: Partial<FileWidget> = {}): FileWidget => ({
   id: '10R',

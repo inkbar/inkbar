@@ -1,8 +1,7 @@
 /*
- * Download and print for a document. Both hand over the PDF as a file: `document.save()` when
- * the document was opened with an `engine` loader (the file with this session's annotations and
- * changed form values written into it, or the opened bytes when nothing changed), else
- * `document.getData()`, the bytes it was opened from.
+ * Download and print for a document. Both hand over the PDF as a file: `document.save()`, the
+ * file with this session's annotations and changed form values written into it, or the opened
+ * bytes when nothing changed.
  */
 import { en, type InkMessages } from '../messages'
 import { isInkError, type InkError } from '../model/errors'
@@ -67,7 +66,7 @@ async function fileUrl(doc: InkDocument): Promise<string | undefined> {
   if (held(doc)) return undefined
   state.set(true)
   try {
-    const data = await (doc._saves ? doc.save() : doc.getData())
+    const data = await doc.save()
     return URL.createObjectURL(new Blob([data.slice()], { type: 'application/pdf' }))
   } finally {
     state.set(false)
@@ -196,9 +195,8 @@ function sayInTab(tab: Window, text: string): void {
 
 /**
  * The error a download or print failed with, when it is one to tell the reader about (the copy
- * could not be written), with the words to tell them: `viewer.saveUnavailable` when the engine
- * could not be loaded or started, or the document has stopped reading (`EngineUnavailable`),
- * `viewer.saveFailed` otherwise. Undefined for any other failure, such as the document closing
+ * could not be written), with the words to tell them: `viewer.saveUnavailable` when the document
+ * has stopped reading (`EngineUnavailable`), `viewer.saveFailed` otherwise. Undefined for any other failure, such as the document closing
  * meanwhile.
  */
 export function fileActionFailure(
@@ -209,13 +207,7 @@ export function fileActionFailure(
   if (error.code === 'EngineUnavailable')
     return { error, message: messages.viewer.saveUnavailable }
   if (error.code !== 'SaveFailed') return undefined
-  return {
-    error,
-    message:
-      error.details['stage'] === 'engine'
-        ? messages.viewer.saveUnavailable
-        : messages.viewer.saveFailed,
-  }
+  return { error, message: messages.viewer.saveFailed }
 }
 
 export interface FileKeysOptions {

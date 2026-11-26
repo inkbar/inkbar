@@ -3,15 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fr } from '../locales/fr'
 import { en } from '../messages'
-import {
-  openDocument,
-  type DocumentStatus,
-  type EngineLoader,
-  type InkDocument,
-} from '../model/document'
+import { openDocument, type DocumentStatus, type InkDocument } from '../model/document'
 import { InkError } from '../model/errors'
 import { writable } from '../model/readable'
-import { readerKind } from '../reader/select'
 
 import {
   attachFileKeys,
@@ -26,8 +20,8 @@ const BYTES = new Uint8Array([37, 80, 68, 70])
 const WRITTEN = new Uint8Array([37, 80, 68, 70, 45, 49])
 
 /**
- * A document as the actions see it: its name, its file and its status. `saves` gives it an
- * engine: `save()` then gives what `written` resolves with.
+ * A document as the actions see it: its name, its file and its status. `save()` gives what
+ * `saves.written` resolves with, else the opened bytes.
  */
 function docOf(
   state: DocumentStatus['state'] = 'ready',
@@ -39,7 +33,6 @@ function docOf(
     fileName: 'lease.pdf',
     getData,
     save,
-    _saves: !!saves,
     status: writable({ state } as DocumentStatus),
     // Keeps the document's redaction busy flag, which download and print read.
     annotations: {},
@@ -58,8 +51,10 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-const saveFailed = (stage: 'engine' | 'write') =>
-  new InkError('SaveFailed', 'The changes could not be written into this file', { stage })
+const saveFailed = () =>
+  new InkError('SaveFailed', 'The changes could not be written into this file', {
+    stage: 'write',
+  })
 
 const opened: InkDocument[] = []
 afterEach(() => {
@@ -68,19 +63,15 @@ afterEach(() => {
   opened.splice(0).forEach((d) => d.destroy())
 })
 
-/** `text-simple` opened as a viewer opens it, with the real engine as its loader when asked. */
-async function openReal(withEngine: boolean) {
-  const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
+/** `text-simple` opened as a viewer opens it. */
+async function openReal() {
   const doc = await openDocument(fixtureUrl('text-simple'), {
     assets: browserAssets(),
     pictures: savePictures(document),
-    ...(withEngine ? { engine: loader } : {}),
   })
   opened.push(doc)
   await doc.ready
-  // The engine reader loads the engine once to open the file; only later loads are the save's.
-  const opening = loader.mock.calls.length
-  return { doc, loader, saveLoads: () => loader.mock.calls.length - opening }
+  return { doc }
 }
 
 const addSquare = (doc: InkDocument) =>
@@ -191,43 +182,27 @@ describe('printDocument', () => {
   })
 })
 
-describe('with an engine', () => {
+describe('with a document', () => {
   it('downloads the written copy, holding the added annotation', async () => {
     const clicked = catchDownloads()
-    const { doc, saveLoads } = await openReal(true)
+    const { doc } = await openReal()
     addSquare(doc)
     await downloadDocument(doc)
     expect(clicked).toHaveLength(1)
-    // With the engine reader the save writes with the reader's engine and loads none.
-    expect(saveLoads()).toBe(readerKind() === 'engine' ? 0 : 1)
     const bytes = await bytesAt(clicked[0]!.href)
     expect(holdsGloss(bytes)).toBe(true)
     expect(bytes).not.toEqual(await doc.getData())
   })
 
-  it('downloads the opened file, loading no engine, when nothing changed', async () => {
+  it('downloads the opened file, writing nothing, when nothing changed', async () => {
     const clicked = catchDownloads()
-    const { doc, saveLoads } = await openReal(true)
+    const { doc } = await openReal()
     await downloadDocument(doc)
     expect(await bytesAt(clicked[0]!.href)).toEqual(await doc.getData())
-    expect(saveLoads()).toBe(0)
   })
 
-  // The engine reader cannot open a file without an engine, so there is no such document to
-  // download with it.
-  it.skipIf(readerKind() === 'engine')(
-    'without an engine downloads the opened file, changes or not',
-    async () => {
-      const clicked = catchDownloads()
-      const { doc } = await openReal(false)
-      addSquare(doc)
-      await downloadDocument(doc)
-      expect(await bytesAt(clicked[0]!.href)).toEqual(await doc.getData())
-    }
-  )
-
   it('prints the written copy', async () => {
-    const { doc } = await openReal(true)
+    const { doc } = await openReal()
     addSquare(doc)
     const frame = await finishPrint(printDocument(doc))
     expect(holdsGloss(await bytesAt(frame.src))).toBe(true)
@@ -235,7 +210,7 @@ describe('with an engine', () => {
 
   it('Ctrl+S and Ctrl+P hand over the written copy too', async () => {
     const clicked = catchDownloads()
-    const { doc } = await openReal(true)
+    const { doc } = await openReal()
     addSquare(doc)
     const el = document.createElement('div')
     document.body.append(el)
@@ -291,7 +266,7 @@ describe('while a copy is written', () => {
 
   it('a failed copy downloads and prints nothing, rejects, and ends the busy state', async () => {
     const clicked = catchDownloads()
-    const failure = saveFailed('write')
+    const failure = saveFailed()
     const doc = docOf('ready', { written: () => Promise.reject(failure) })
     const created = vi.spyOn(URL, 'createObjectURL')
     await expect(downloadDocument(doc)).rejects.toBe(failure)
@@ -306,7 +281,7 @@ describe('while a copy is written', () => {
 
   it('a key that fails passes its error on, and the next key works', async () => {
     const clicked = catchDownloads()
-    const failure = saveFailed('write')
+    const failure = saveFailed()
     let fail = true
     const doc = docOf('ready', {
       written: () => (fail ? Promise.reject(failure) : Promise.resolve(WRITTEN.slice())),
@@ -338,13 +313,10 @@ describe('while a copy is written', () => {
   })
 
   it('tells a reader why: the file could not be written, or saving is unavailable', () => {
-    expect(fileActionFailure(saveFailed('write'), en)?.message).toBe(
+    expect(fileActionFailure(saveFailed(), en)?.message).toBe(
       'Your changes could not be written into this file.'
     )
-    expect(fileActionFailure(saveFailed('engine'), en)?.message).toBe(
-      'Saving is not available right now. Check your connection and try again.'
-    )
-    expect(fileActionFailure(saveFailed('engine'), en)?.error.code).toBe('SaveFailed')
+    expect(fileActionFailure(saveFailed(), en)?.error.code).toBe('SaveFailed')
     // A document that has stopped reading cannot write its changes either.
     const stopped = new InkError('EngineUnavailable', 'stopped')
     expect(fileActionFailure(stopped, en)).toEqual({
@@ -429,7 +401,7 @@ describe('printing on iOS', () => {
 
   it('closes the tab when the copy cannot be written', async () => {
     const { order, tab } = onIpad()
-    const failure = saveFailed('write')
+    const failure = saveFailed()
     const doc = docOf('ready', { written: () => Promise.reject(failure) })
     await expect(printDocument(doc)).rejects.toBe(failure)
     expect(order).toEqual(['open', 'close'])

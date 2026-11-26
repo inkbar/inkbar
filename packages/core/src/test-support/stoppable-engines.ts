@@ -3,8 +3,8 @@
 // from starting again, or hold while they start.
 import { setEngineFactory } from '../model/engine-factory'
 
+import type { CoreEngine } from '../engine-reader/types'
 import type { InkDocument } from '../model/document'
-import type { SaveEngine } from '../model/save/saver'
 
 /** What a stopped engine rejects every call with, as the engine does once PDFium traps. */
 const stoppedError = (): Error =>
@@ -26,7 +26,7 @@ export function stoppableEngines() {
     (...args: unknown[]): unknown =>
       state.stopped ? Promise.reject(stoppedError()) : call(...args)
 
-  const factory = async (): Promise<SaveEngine> => {
+  const factory = async (): Promise<CoreEngine> => {
     if (held) await held
     if (refusing) throw new Error('no engine')
     const { createEngine } = await import('@inkbar/engine')

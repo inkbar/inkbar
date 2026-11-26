@@ -5,7 +5,6 @@ import {
   createSignatureLibrary,
   type SignatureLibrary,
 } from '../model/signatures'
-import { readerKind } from '../reader/select'
 
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
 import {
@@ -116,21 +115,11 @@ describe('mountViewer', () => {
   it('flags a failed page and clears it once it renders again', async () => {
     const doc = await openFixtureInBrowser('mixed-page-sizes')
     let failing = true
-    if (readerKind() === 'pdfjs') {
-      const handles = doc._pdfjs!
-      const original = handles.getPage.bind(handles)
-      handles.getPage = async (index) => {
-        if (failing && index === 1) throw new Error('The page could not be drawn')
-        return original(index)
-      }
-    } else {
-      // The engine reader draws without PDF.js's pages: its draw fails instead.
-      const reader = doc._reader
-      const original = reader.draw.bind(reader)
-      reader.draw = async (request, ...rest) => {
-        if (failing && request.page === 1) throw new Error('The page could not be drawn')
-        return original(request, ...rest)
-      }
+    const reader = doc._reader
+    const original = reader.draw.bind(reader)
+    reader.draw = async (request, ...rest) => {
+      if (failing && request.page === 1) throw new Error('The page could not be drawn')
+      return original(request, ...rest)
     }
     const container = mountContainer(800, 600)
     const onPageError = vi.fn()

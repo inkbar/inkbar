@@ -4,22 +4,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openFixtureInBrowser } from '../../dom/test-utils'
 import { createPdfjsReader } from '../../pdfjs/reader'
 import { sandboxLoader } from '../../pdfjs/sandbox'
-import { readerKind } from '../../reader/select'
 import { staticDefaults } from '../annotations/defaults'
 import { createHistory } from '../annotations/history'
 import { createAnnotationStore } from '../annotations/store'
+import { setEngineFactory } from '../engine-factory'
 
 import { createFormController, type FormController } from './controller'
 import { createFormScripting } from './scripting'
 
 import type { ViewerAction, FormField, FormFieldType } from './types'
+import type { PdfjsHandles } from '../../pdfjs/handles'
 import type { PdfjsDocument } from '../../pdfjs/types'
-import type { EngineLoader, InkDocument } from '../document'
+import type { InkDocument } from '../document'
 import type { InkError } from '../errors'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const cleanup: (() => void)[] = []
 afterEach(() => {
+  setEngineFactory(undefined)
   cleanup.splice(0).forEach((f) => f())
   vi.restoreAllMocks()
   vi.useRealTimers()
@@ -414,12 +416,9 @@ function stage(
       }),
   } as unknown as PdfjsDocument
   // The PDF.js reader over a stand-in document, so the scripts reach the sandbox as a file's do.
-  const reader = createPdfjsReader(
-    { proxy } as unknown as NonNullable<InkDocument['_pdfjs']>,
-    {
-      measure: undefined,
-    }
-  )
+  const reader = createPdfjsReader({ proxy } as unknown as PdfjsHandles, {
+    measure: undefined,
+  })
   cleanup.push(() => {
     form._destroy()
     history.destroy()
@@ -675,52 +674,37 @@ describe('fix round', () => {
   })
 
   it('a document without fields or scripts loads nothing', async () => {
-    const first = await open('form-fields')
-    // PDF.js's field objects, when PDF.js reads the file; the engine reader builds its own.
-    const getFieldObjects =
-      readerKind() === 'pdfjs'
-        ? vi.spyOn(
-            Object.getPrototypeOf(first._pdfjs!.proxy) as PdfjsDocument,
-            'getFieldObjects'
-          )
-        : undefined
+    await open('form-fields')
     const load = vi.spyOn(sandboxLoader, 'load')
-    // The engine's script and form reads, when the engine reads the file.
+    // The engine's script and form reads.
     const asked: string[] = []
-    const noting: EngineLoader = async () => {
+    setEngineFactory(async () => {
       const real = await import('@inkbar/engine')
-      return {
-        createEngine: async () => {
-          const engine = await real.createEngine()
-          const opening = engine.open.bind(engine)
-          engine.open = async (...args) => {
-            const doc = await opening(...args)
-            const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
-            for (const name of ['scripts', 'formFields']) {
-              const read = methods[name]!.bind(doc)
-              methods[name] = (...a) => {
-                asked.push(name)
-                return read(...a)
-              }
-            }
-            return doc
+      const engine = await real.createEngine()
+      const opening = engine.open.bind(engine)
+      engine.open = async (...args) => {
+        const doc = await opening(...args)
+        const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
+        for (const name of ['scripts', 'formFields']) {
+          const read = methods[name]!.bind(doc)
+          methods[name] = (...a) => {
+            asked.push(name)
+            return read(...a)
           }
-          return engine
-        },
+        }
+        return doc
       }
-    }
-    const plain = await openFixtureInBrowser('text-simple', { engine: noting })
+      return engine
+    })
+    const plain = await openFixtureInBrowser('text-simple')
     cleanup.push(() => plain.destroy())
-    if (getFieldObjects) expect(getFieldObjects).not.toHaveBeenCalled()
-    if (readerKind() === 'engine') {
-      expect(plain._reader.kind).toBe('engine')
-      expect(asked).toEqual([])
-      // Control: the same loader notes the reads of a file with fields and scripts.
-      const scripted = await openFixtureInBrowser('form-scripted', { engine: noting })
-      cleanup.push(() => scripted.destroy())
-      expect(asked).toContain('scripts')
-      load.mockClear()
-    }
+    expect(plain._reader.kind).toBe('engine')
+    expect(asked).toEqual([])
+    // Control: the same engine notes the reads of a file with fields and scripts.
+    const scripted = await openFixtureInBrowser('form-scripted')
+    cleanup.push(() => scripted.destroy())
+    expect(asked).toContain('scripts')
+    load.mockClear()
     await open('form-fields')
     expect(load).not.toHaveBeenCalled()
   })

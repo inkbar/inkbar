@@ -1,12 +1,10 @@
-import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
+import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
-import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
-import { openPdfObjects } from '../../pdf/objects'
-import { destinationPage } from '../../pdfjs/destinations'
+import { emptyFormExtras } from '../../pdf/form-fields'
 import { fileFieldsFromPdfjs } from '../../pdfjs/file-form'
-import { loadPdfjs, openProxy } from '../../pdfjs/load'
-import { nodeAssets } from '../../pdfjs/node-assets'
+import { formFieldsOf } from '../../test-support/form'
+import { nodeAssets } from '../../test-support/node-assets'
 import { openDocument } from '../document'
 
 import { buildFormFields } from './structure'
@@ -23,26 +21,7 @@ const build = (widgets: PdfjsWidget[], extras = emptyFormExtras()) =>
 
 /** Fields built from the widgets PDF.js reports for an opened fixture, by name. */
 async function fieldsOf(name: FixtureName): Promise<Map<string, FormField>> {
-  const doc = await openDocument(await fixtureBytes(name), { assets: nodeAssets() })
-  await doc.ready
-  const raw: PdfjsWidget[] = []
-  for (let page = 0; page < doc.pages.length; page++) {
-    const annots = (await (
-      await doc._pdfjs!.getPage(page)
-    ).getAnnotations()) as PdfjsAnnotationData[]
-    annots.forEach((data, at) => {
-      if (data.subtype === 'Widget') raw.push({ page, at, data })
-    })
-  }
-  const fields = fileFieldsFromPdfjs(raw)
-  const objs = (await openPdfObjects(await fixtureBytes(name)))!
-  const extras = await readFormExtras(
-    objs,
-    fields.flatMap((f) => f.widgets.map((w) => w.id)),
-    { destinationPage: (dest) => destinationPage(doc._pdfjs!.proxy, dest) }
-  )
-  doc.destroy()
-  return new Map(buildFormFields(fields, extras).map((f) => [f.name, f]))
+  return new Map((await formFieldsOf(name)).map((f) => [f.name, f]))
 }
 
 describe('buildFormFields', () => {
@@ -440,63 +419,6 @@ describe('a reset naming a widget of a field PDF.js cannot type', () => {
         fields: ['odd'],
         include,
       })
-    }
-  )
-})
-
-/**
- * Every page's widgets as the document reads them, each with its place among the page's
- * annotations, and the PDF.js document they came from.
- */
-async function pdfjsWidgets(name: FixtureName) {
-  const assets = nodeAssets()
-  const { task, proxy } = await openProxy(
-    await loadPdfjs(assets),
-    await fixtureBytes(name),
-    { assets, password: manifest[name].password, verbosity: 0 }
-  )
-  const widgets: PdfjsWidget[] = []
-  for (let i = 0; i < proxy.numPages; i++) {
-    const page = await proxy.getPage(i + 1)
-    // As the document reads them: a page PDF.js cannot parse has none.
-    const annots = await page.getAnnotations().then(
-      (raw) => raw as unknown as PdfjsAnnotationData[],
-      () => []
-    )
-    annots.forEach((data, at) => {
-      if (data.subtype === 'Widget') widgets.push({ page: i, data, at })
-    })
-  }
-  return { task, proxy, widgets }
-}
-
-describe('form building across the fixtures', () => {
-  const opening = (Object.keys(manifest) as FixtureName[]).filter(
-    (n) => manifest[n].opens
-  )
-
-  it.each(opening)(
-    "builds every fixture's fields the same from the shape as from PDF.js data: %s",
-    async (name) => {
-      const { task, proxy, widgets } = await pdfjsWidgets(name)
-      try {
-        if (widgets.length === 0) {
-          expect(
-            buildFormFields(fileFieldsFromPdfjs(widgets), emptyFormExtras())
-          ).toEqual([])
-          return
-        }
-        const fields = fileFieldsFromPdfjs(widgets)
-        const extras = await readFormExtras(
-          await openPdfObjects(await fixtureBytes(name)),
-          fields.flatMap((f) => f.widgets.map((w) => w.id)),
-          { destinationPage: (dest) => destinationPage(proxy, dest) }
-        )
-        // The snapshot was taken from PDF.js's data, before fields were built from core's shape.
-        expect(buildFormFields(fields, extras)).toMatchSnapshot()
-      } finally {
-        await task.destroy()
-      }
     }
   )
 })

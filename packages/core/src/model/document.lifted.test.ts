@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { fixtureBytes, fixturePath, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument, type InkDocument, type OpenOptions } from './document'
 
@@ -17,7 +17,6 @@ async function open(name: FixtureName, opts: Partial<OpenOptions> = {}) {
   const password = manifest[name].password
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    verbosity: 0,
     ...(password ? { password } : {}),
     ...opts,
   })
@@ -135,7 +134,6 @@ describe('lifting', () => {
 
     const broken = await openDocument(await fixtureBytes('malformed-truncated'), {
       assets: nodeAssets(),
-      verbosity: 0,
     })
     opened.push(broken)
     await expect(broken._liftSettled).resolves.toBeUndefined()

@@ -2,8 +2,7 @@ import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
 import { openPdfObjects } from '../../pdf/objects'
-import { fileAnnotationFromPdfjs } from '../../pdfjs/file-annotations'
-import { nodeAssets } from '../../pdfjs/node-assets'
+import { nodeAssets } from '../../test-support/node-assets'
 import { openDocument } from '../document'
 
 import sample from './__fixtures__/standard-callout.json'
@@ -13,7 +12,6 @@ import { readEmbeddedFields, readLifted, withEmbeddedFields } from './embedded-f
 import { savedDataFor } from './saved-data'
 
 import type { Annotation, RedactAnnotation } from './types'
-import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 const NOW = '2026-10-20T00:00:00.000Z'
 
@@ -37,17 +35,15 @@ function buildPdf(objects: string[]): Uint8Array {
 }
 const twin = sample.annotations[0]!
 
-/** What PDF.js imports from page 0 of `name`, before any field is read from the file. */
+/** What the reader imports from page 0 of `name`, before any field is read from the file. */
 async function imported(name: FixtureName) {
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    verbosity: 0,
   })
   await doc.ready
-  const page = await doc._pdfjs!.getPage(0)
-  const raw = (await page.getAnnotations()) as unknown as PdfjsAnnotationData[]
+  const raw = await doc._reader.annotations(0)
   doc.destroy()
-  return importEmbeddedPage(0, raw.map(fileAnnotationFromPdfjs), NOW)
+  return importEmbeddedPage(0, raw, NOW)
 }
 
 async function read(name: FixtureName) {
