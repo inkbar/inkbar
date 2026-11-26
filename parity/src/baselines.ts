@@ -5,6 +5,7 @@ import { commands } from 'vitest/browser'
 
 import { OPENING } from './draw'
 import { PARTS, type Part } from './read'
+import { rewriteNames } from './rewrite-names'
 
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
@@ -43,7 +44,7 @@ declare module 'vitest' {
   }
 }
 
-const rewriting = inject('parityBaseline').split(',').filter(Boolean)
+const rewriting = rewriteNames(inject('parityBaseline'), OPENING)
 
 /** Whether this run rewrites `name`'s baselines (`PARITY_BASELINE`). */
 export const rewrites = (name: FixtureName): boolean =>
@@ -57,13 +58,16 @@ export type Kind = 'pages' | 'form-layer' | 'data'
 
 /** Where page `page` (from 0) of `name` is kept, relative to `baselines/`. */
 export const pageFile = (name: string, page: number) => `${name}/page-${page + 1}.png`
+/** Where page `page` (from 0) of `name` turned a further `turn` degrees is kept. */
+export const turnedFile = (name: string, page: number, turn: number) =>
+  `${name}/page-${page + 1}-turned-${turn}.png`
 /** Where page `page` (from 0) of `name` drawn with the form layer is kept. */
 export const formLayerFile = (name: string, page: number) =>
   `${name}/form-layer-${page + 1}.png`
 /** Where part `part` of `name` is kept. */
 export const partFile = (name: string, part: Part) => `${name}/${part}.json`
 
-const PAGE = /^page-[1-9]\d*\.png$/
+const PAGE = /^page-[1-9]\d*(-turned-(90|180|270))?\.png$/
 const FORM_LAYER = /^form-layer-[1-9]\d*\.png$/
 const PART_FILES = new Set<string>(PARTS.map((part) => `${part}.json`))
 

@@ -55,8 +55,15 @@ async function everyPage<T>(
 export async function readPart(doc: InkDocument, part: Part): Promise<unknown> {
   const reader = doc._reader
   switch (part) {
-    case 'facts':
-      return reader.facts()
+    case 'facts': {
+      // With each page drawn: its box, /Rotate and /UserUnit, which place what is drawn.
+      const pages = []
+      for (let page = 0; page < pagesChecked(doc); page++) {
+        const { box, rotate, userUnit } = await reader.pageInfo(page)
+        pages.push({ page: page + 1, box, rotate, userUnit })
+      }
+      return { ...(await reader.facts()), pages }
+    }
     case 'text':
       return text(doc)
     case 'links': {

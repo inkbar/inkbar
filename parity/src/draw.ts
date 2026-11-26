@@ -1,6 +1,11 @@
 // Opens a fixture with core's reader and draws its pages, alone or with the form layer over them.
 import { openDocument, type InkDocument, type PageInfo } from '@inkbar/core'
-import { createPageMount, createPageTransform } from '@inkbar/core/dom'
+import {
+  createPageMount,
+  createPageTransform,
+  normalizeRotation,
+  type ViewRotation,
+} from '@inkbar/core/dom'
 import manifestJson from '@inkbar/fixtures/manifest.json'
 import {
   browserAssets,
@@ -45,11 +50,15 @@ export const pagesChecked = (doc: InkDocument): number =>
   Math.min(doc._reader.pageCount, PAGES_PER_FIXTURE)
 
 /**
- * The canvas size core gives a whole page at `PIXELS_PER_POINT` and pixel ratio 1: the page
- * transform's CSS size, /UserUnit and /Rotate included, rounded as the page canvas rounds it.
+ * The canvas size core gives a whole page at `PIXELS_PER_POINT` and pixel ratio 1, turned a
+ * further `turn` degrees: the page transform's CSS size, /UserUnit and /Rotate included, rounded
+ * as the page canvas rounds it.
  */
-export function canvasSize(info: PageInfo): { width: number; height: number } {
-  const t = createPageTransform(info, PIXELS_PER_POINT, 0)
+export function canvasSize(
+  info: PageInfo,
+  turn: ViewRotation = 0
+): { width: number; height: number } {
+  const t = createPageTransform(info, PIXELS_PER_POINT, turn)
   return { width: Math.round(t.cssWidth), height: Math.round(t.cssHeight) }
 }
 
@@ -62,15 +71,22 @@ function pixelsOf(canvas: HTMLCanvasElement): ImageData {
   return data
 }
 
-/** Page `page` of `doc`, drawn whole on white at `PIXELS_PER_POINT` with its own /Rotate. */
-export async function drawPage(doc: InkDocument, page: number): Promise<ImageData> {
+/**
+ * Page `page` of `doc`, drawn whole on white at `PIXELS_PER_POINT` with its own /Rotate, turned a
+ * further `turn` degrees.
+ */
+export async function drawPage(
+  doc: InkDocument,
+  page: number,
+  turn: ViewRotation = 0
+): Promise<ImageData> {
   const info = await doc._reader.pageInfo(page)
-  const { width, height } = canvasSize(info)
+  const { width, height } = canvasSize(info, turn)
   const canvas = document.createElement('canvas')
   await doc._reader.draw(
     {
       page,
-      rotation: info.rotate,
+      rotation: normalizeRotation(info.rotate + turn),
       zoom: PIXELS_PER_POINT,
       pixelRatio: 1,
       width,
