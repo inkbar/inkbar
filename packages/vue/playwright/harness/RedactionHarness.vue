@@ -18,7 +18,7 @@
  * `redacted`, and `useRedaction` in `probe`.
  */
 import { allTools } from '@inkbar/core/dom'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, onUnmounted, ref, shallowRef } from 'vue'
 
 import InkApplyRedactions from '../../src/components/InkApplyRedactions.vue'
 import InkDownloadButton from '../../src/components/InkDownloadButton.vue'
@@ -31,7 +31,7 @@ import InkUndo from '../../src/components/InkUndo.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
 import ActivateHook from './ActivateHook.vue'
-import { heldEngine } from './held-engine'
+import { holdEngine } from './held-engine'
 import RedactionProbe from './RedactionProbe.vue'
 import RetryButton from './RetryButton.vue'
 
@@ -68,7 +68,8 @@ const props = withDefaults(
     swap: undefined,
   }
 )
-const loader = props.engine ? heldEngine() : undefined
+// The held engine is core's engine factory, cleared when the harness unmounts.
+if (props.engine) onUnmounted(holdEngine())
 const tools = allTools()
 const errors = ref<string[]>([])
 const previews = ref<number[]>([])
@@ -127,7 +128,6 @@ function onRedacted(): void {
       :assets="assets"
       :zoom="1"
       :tools="tools"
-      :engine="loader"
       :redaction-confirm="confirm ? ask : false"
       :messages="messages"
       @ready="onReady"

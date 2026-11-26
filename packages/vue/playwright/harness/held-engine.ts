@@ -4,8 +4,9 @@
  * waiting, `finish()` lets it through and `fail()` makes it reject. A finished apply hands back
  * the file as it was opened, which its check finds clean under every mark. `loads` counts the
  * loader's calls. `unavailable` makes the loader itself fail, as it would offline.
+ * `holdEngine()` is the held engine as core's engine factory, which it sets until the function it returns is called.
  */
-import type { EngineLoader } from '@inkbar/core'
+import { _setEngineFactory, type EngineLoader } from '@inkbar/core'
 
 export interface HeldEngine {
   loads: number
@@ -127,4 +128,14 @@ export function heldEngine(unavailable = false): EngineLoader {
       ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
       : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
   }
+}
+
+/**
+ * Makes the held engine the one every document in the page starts, as core's engine factory, so
+ * a root with no `engine` option still has it. The returned function clears the factory.
+ */
+export function holdEngine(): () => void {
+  const loader = heldEngine()
+  _setEngineFactory(() => loader().then((m) => m.createEngine()))
+  return () => _setEngineFactory(undefined)
 }

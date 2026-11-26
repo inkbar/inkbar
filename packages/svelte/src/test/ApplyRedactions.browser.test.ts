@@ -1,5 +1,6 @@
+import { _setEngineFactory } from '@inkbar/core'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
@@ -10,6 +11,7 @@ import RedactionHarness from './harness/RedactionHarness.svelte'
 
 const assets = browserAssets()
 guardConsole()
+afterEach(() => _setEngineFactory(undefined))
 
 const src = fixtureUrl('redact-text')
 
@@ -58,7 +60,7 @@ const firstPage = () => q('[data-ink-scroll] .ink-page canvas')
 describe('InkApplyRedactions', () => {
   it('is disabled without marks', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     const apply = await q<HTMLButtonElement>(APPLY)
     expect(apply.textContent).toBe('Apply redactions')
     await firstPage()
@@ -86,7 +88,7 @@ describe('InkApplyRedactions', () => {
 
   it('shows busy while applying', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -121,7 +123,7 @@ describe('InkApplyRedactions', () => {
 
   it('renders your own element with asChild', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader, own: 'child' })
+    await render(RedactionHarness, { src, assets, own: 'child' })
     const own = await q<HTMLButtonElement>('button.host-apply')
     expect(own.hasAttribute('data-ink-apply-redactions')).toBe(true)
     expect(own.textContent).toBe('Mine')
@@ -142,7 +144,6 @@ describe('InkApplyRedactions', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       own: 'div',
       disabled: true,
     })
@@ -158,7 +159,7 @@ describe('InkApplyRedactions', () => {
 
   it('Download and Print are disabled while the marks are applied', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -176,7 +177,7 @@ describe('InkApplyRedactions', () => {
 
   it('while the marks are applied, Undo and comment threads change nothing', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     const note = currentDoc()!.annotations.add({
       type: 'text',
@@ -226,7 +227,6 @@ describe('InkApplyRedactions', () => {
     const screen = await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       own: 'children',
     })
     const label = await q('.host-label')
@@ -259,7 +259,6 @@ describe('InkApplyRedactions', () => {
     const screen = await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       confirm: 'no',
     })
     await firstPage()
@@ -287,7 +286,6 @@ describe('InkApplyRedactions', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       confirm: 'dialog',
     })
     await firstPage()
@@ -318,7 +316,7 @@ describe('InkApplyRedactions', () => {
 
   it('an onRedacted that throws reaches onError, and the file still reopens', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader, throwing: true })
+    await render(RedactionHarness, { src, assets, throwing: true })
     await firstPage()
     const before = currentDoc()
     mark()
@@ -334,7 +332,7 @@ describe('InkApplyRedactions', () => {
 
   it('the pages take no input until the redacted file has replaced the old one', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -370,7 +368,7 @@ describe('InkApplyRedactions', () => {
 
   it('an empty new note open when an apply starts from code is not written into the file', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     const threadOpen = () => document.querySelector('[data-ink-thread-popover]') !== null
     const note = currentDoc()!.annotations.add({
@@ -396,7 +394,7 @@ describe('InkApplyRedactions', () => {
 
   it('focus goes to the document once the redacted file shows, not to the page body', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -413,7 +411,7 @@ describe('InkApplyRedactions', () => {
 
   it('focus goes to the document when a failed apply’s message closes and the control cannot take it', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     const id = mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -435,7 +433,7 @@ describe('InkApplyRedactions', () => {
 
   it('the message once the redacted file shows is in the words of that moment', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader, relabel: true })
+    await render(RedactionHarness, { src, assets, relabel: true })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -447,7 +445,7 @@ describe('InkApplyRedactions', () => {
 
   it('keeps the tool across the reopen', async () => {
     const held = heldEngine()
-    await render(RedactionHarness, { src, assets, engine: held.loader })
+    await render(RedactionHarness, { src, assets })
     await firstPage()
     document.querySelector<HTMLButtonElement>('[data-tool="redact-area"]')!.click()
     await expect.poll(attr('[data-ink-tool]', 'data-ink-tool')).toBe('redact-area')
@@ -465,7 +463,6 @@ describe('InkApplyRedactions', () => {
     const screen = await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       confirm: 'no',
     })
     await firstPage()
@@ -485,7 +482,7 @@ describe('InkApplyRedactions', () => {
 
   it('unmounting mid-apply hands nothing over and reports nothing', async () => {
     const held = heldEngine()
-    const screen = await render(RedactionHarness, { src, assets, engine: held.loader })
+    const screen = await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -502,7 +499,7 @@ describe('InkApplyRedactions', () => {
 
   it('a src change mid-apply opens the new source and nothing else', async () => {
     const held = heldEngine()
-    const screen = await render(RedactionHarness, { src, assets, engine: held.loader })
+    const screen = await render(RedactionHarness, { src, assets })
     await firstPage()
     mark()
     await expect.poll(disabledOf(APPLY)).toBe(false)
@@ -523,7 +520,6 @@ describe('InkApplyRedactions', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       swap: fixtureUrl('text-simple'),
     })
     await firstPage()
@@ -552,7 +548,6 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       controlled,
       control,
     })
@@ -652,7 +647,6 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
       await render(RedactionHarness, {
         src,
         assets,
-        engine: held.loader,
         controlled: 'bound',
         proposalThrows: true,
       })
@@ -678,7 +672,6 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       controlled: 'bound',
     })
     await firstPage()
@@ -705,7 +698,6 @@ describe('InkApplyRedactions with controlled annotations and history', () => {
     await render(RedactionHarness, {
       src,
       assets,
-      engine: held.loader,
       controlled: 'bound',
     })
     await firstPage()
