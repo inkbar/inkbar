@@ -22,7 +22,12 @@ test('a document that stops shows the notice and emits error once with EngineUna
   await expect(cmp.locator('[data-ink-engine-notice][role="alert"]')).toBeVisible()
   await expect(cmp.locator('[data-ink-engine-retry]')).toHaveText('Try again')
   await expect(errors).toHaveText('EngineUnavailable')
-  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute('inert', '')
+  // The pages take no input; the scroll area around them still scrolls.
+  await expect(cmp.locator('[data-ink-scroll] > [data-ink-pages]')).toHaveAttribute(
+    'inert',
+    ''
+  )
+  await expect(cmp.locator('[data-ink-scroll]')).not.toHaveAttribute('inert')
 
   // Still stopped: nothing more is emitted.
   await page.evaluate(() => window.__setStopped?.(true))
@@ -30,6 +35,8 @@ test('a document that stops shows the notice and emits error once with EngineUna
 
   await page.evaluate(() => window.__setStopped?.(false))
   await expect(cmp.locator('[data-ink-engine-notice]')).toHaveCount(0)
-  await expect(cmp.locator('[data-ink-scroll]')).not.toHaveAttribute('inert', '')
+  await expect(cmp.locator('[data-ink-scroll] > [data-ink-pages]')).not.toHaveAttribute(
+    'inert'
+  )
   await expect(errors).toHaveText('EngineUnavailable')
 })
