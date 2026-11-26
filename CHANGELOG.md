@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.18.0](https://github.com/inkbar/inkbar/compare/v0.17.0...v0.18.0) (2026-11-26)
+
+
+### Features
+
+* **core:** build text runs from the engine's characters ([#479](https://github.com/inkbar/inkbar/issues/479)) ([2f21da0](https://github.com/inkbar/inkbar/commit/2f21da094033bb98435c6fae962c41cb7cc33607))
+* **core:** build the text layer from the reader's text when the engine reads the file ([#481](https://github.com/inkbar/inkbar/issues/481)) ([0d71e16](https://github.com/inkbar/inkbar/commit/0d71e1682826bd89ae6121846e57e58600ea810e))
+* **core:** draw field appearances with the engine ([#513](https://github.com/inkbar/inkbar/issues/513)) ([6f0aa95](https://github.com/inkbar/inkbar/commit/6f0aa9550a95a5896b1eb396236c0c7f2d724754))
+* **core:** feed the scripting sandbox from the engine ([#515](https://github.com/inkbar/inkbar/issues/515)) ([305440a](https://github.com/inkbar/inkbar/commit/305440ab0a45062bdebb4e2d0387eb46ad1efcaa))
+* **core:** lift other programs' redaction marks as session marks ([#467](https://github.com/inkbar/inkbar/issues/467)) ([a4030bb](https://github.com/inkbar/inkbar/commit/a4030bb0f7ebdd980ba57fe5d80f2e240f272e15))
+* **core:** open other programs' redaction marks as editable marks ([#468](https://github.com/inkbar/inkbar/issues/468)) ([f966e4a](https://github.com/inkbar/inkbar/commit/f966e4a7f2e421f67a8de8b470cccf5ec9283e35))
+* **core:** open the file with the engine when the engine reads it ([#516](https://github.com/inkbar/inkbar/issues/516)) ([43927e9](https://github.com/inkbar/inkbar/commit/43927e93e01214b6a9ff6fba7e53948afa803d3c))
+* **core:** read file facts, annotations, form fields and tab order from the engine ([#512](https://github.com/inkbar/inkbar/issues/512)) ([ac0b4c1](https://github.com/inkbar/inkbar/commit/ac0b4c1948efbcb0b095d7efe786b958d7eb058a))
+* **core:** read links, the outline and destinations from the engine ([#480](https://github.com/inkbar/inkbar/issues/480)) ([381bbfc](https://github.com/inkbar/inkbar/commit/381bbfc2d4f64fc3a91d9684f0a824491a43bd7f))
+* **core:** read other programs' redaction marks from the file's objects ([#466](https://github.com/inkbar/inkbar/issues/466)) ([6a8050a](https://github.com/inkbar/inkbar/commit/6a8050a846bacd58fb8f8e7f52d26529136bbea4))
+* **core:** size text boxes from the font's metrics and match the remaining link rules ([#495](https://github.com/inkbar/inkbar/issues/495)) ([8fedff1](https://github.com/inkbar/inkbar/commit/8fedff1dad116ee5d4985b3da6bdf871c583d31e))
+* **engine:** draw unembedded text with fallback fonts fetched on demand ([#456](https://github.com/inkbar/inkbar/issues/456)) ([77d986c](https://github.com/inkbar/inkbar/commit/77d986c66f460211a2248aa3d511577296df31fd))
+* **engine:** read a file's facts, a page's annotations and the form's fields ([#510](https://github.com/inkbar/inkbar/issues/510)) ([c539ac2](https://github.com/inkbar/inkbar/commit/c539ac214ec4255099310cdf6c6a8eb1dd4a102e))
+* **engine:** read a page's characters with their boxes and fonts ([#475](https://github.com/inkbar/inkbar/issues/475)) ([5bddd7f](https://github.com/inkbar/inkbar/commit/5bddd7fdf8910962145e28fe76b418097e8d03a9))
+* **engine:** read a page's links, the outline and named destinations ([#476](https://github.com/inkbar/inkbar/issues/476)) ([8b1a3f6](https://github.com/inkbar/inkbar/commit/8b1a3f6337ec511d3a4624134712e3a94171236e))
+* **engine:** read scripts and structure order and draw chosen annotations alone ([#511](https://github.com/inkbar/inkbar/issues/511)) ([95af34a](https://github.com/inkbar/inkbar/commit/95af34a1b0e49d1990e8089cbc0c64da7224b1f6))
+* **engine:** render a region at an exact size, turned, without listed annotations ([#454](https://github.com/inkbar/inkbar/issues/454)) ([2798302](https://github.com/inkbar/inkbar/commit/27983022c603af1ce1d85b48a331d2ab73315e82))
+* **engine:** report a page's user unit and draw form widgets ([#453](https://github.com/inkbar/inkbar/issues/453)) ([82a9b21](https://github.com/inkbar/inkbar/commit/82a9b21d7039c607ba8174f256d056e31086b9b7))
+* **engine:** report font metrics, cut-off reports and the remaining link facts ([#494](https://github.com/inkbar/inkbar/issues/494)) ([6c0a6f5](https://github.com/inkbar/inkbar/commit/6c0a6f59dc5e9eb5667ed2a6d1323894f41f5dd7))
+* **engine:** stop a running render when its signal aborts ([#455](https://github.com/inkbar/inkbar/issues/455)) ([abe942e](https://github.com/inkbar/inkbar/commit/abe942e60fcc0204fb23af7a81fac5e0e5bd2044))
+* read /I, null and named values, Launch files and border dashes from the engine ([#514](https://github.com/inkbar/inkbar/issues/514)) ([6d9954b](https://github.com/inkbar/inkbar/commit/6d9954bef068224bb32924176bf09fdb88b1fd62))
+
+
+### Bug Fixes
+
+* **core:** calculate the fields listed after a parent field in the calculation order ([#523](https://github.com/inkbar/inkbar/issues/523)) ([b99a32c](https://github.com/inkbar/inkbar/commit/b99a32c626083b2be76371b3e754689dd3edddd7))
+* **core:** check a redaction mark's corners and pop-up before taking it over ([#470](https://github.com/inkbar/inkbar/issues/470)) ([c5eca63](https://github.com/inkbar/inkbar/commit/c5eca63975b11c772299573a15f22740aec1bcff))
+* **core:** cover the whole column with a vertical run's text box ([#496](https://github.com/inkbar/inkbar/issues/496)) ([9e4480d](https://github.com/inkbar/inkbar/commit/9e4480ddd5249fe1c5994c97bfa0cc2a80e57af2))
+* **core:** end a document's text reads cleanly when it is destroyed ([#501](https://github.com/inkbar/inkbar/issues/501)) ([18f3fef](https://github.com/inkbar/inkbar/commit/18f3fefc9743f60c5d677eaeeaa1ab8c6a2968ed))
+* **core:** fall back to PDF.js when the engine cannot start, and ask again after a failed lookup ([#493](https://github.com/inkbar/inkbar/issues/493)) ([dc2a2f0](https://github.com/inkbar/inkbar/commit/dc2a2f0b500e5c9c273e83f7a5d3e7482df11faa))
+* **core:** hold no annotation reads after the open and map a destroyed page read ([#519](https://github.com/inkbar/inkbar/issues/519)) ([45d98d8](https://github.com/inkbar/inkbar/commit/45d98d8ac3a039a319469769bbfbb6eef520f873))
+* **core:** place the space between two runs on their baseline ([#492](https://github.com/inkbar/inkbar/issues/492)) ([4c03bc2](https://github.com/inkbar/inkbar/commit/4c03bc22d7758f3b0414e37290770de2c0e0efec))
+* **core:** stand a text span on its baseline by the browser font's ascent ([#502](https://github.com/inkbar/inkbar/issues/502)) ([fe8d603](https://github.com/inkbar/inkbar/commit/fe8d603e8ae0b434273a70736b4ef71a8798e5df))
+* **engine:** blend a page's content against an empty page, not white paper ([#464](https://github.com/inkbar/inkbar/issues/464)) ([2b202f1](https://github.com/inkbar/inkbar/commit/2b202f141e1d9b8099f80176a779e39150fb7de4))
+* **fixtures:** keep the manifest whole and the files stable when fixtures are regenerated ([#488](https://github.com/inkbar/inkbar/issues/488)) ([0f88dba](https://github.com/inkbar/inkbar/commit/0f88dba005fcc3fa5ff321f43f706213d63ca465))
+* name each radio by its option ([#499](https://github.com/inkbar/inkbar/issues/499)) ([9ff7ad3](https://github.com/inkbar/inkbar/commit/9ff7ad39b7f5d3e45720fa208c232001321c673b))
+* tighten engine rendering checks and failure handling ([#461](https://github.com/inkbar/inkbar/issues/461)) ([3bd72c2](https://github.com/inkbar/inkbar/commit/3bd72c2765b9d4e7d7f41777d5fd0c0e843b7c43))
+
 ## [0.17.0](https://github.com/inkbar/inkbar/compare/v0.16.0...v0.17.0) (2026-11-19)
 
 
