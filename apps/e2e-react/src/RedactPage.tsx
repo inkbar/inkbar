@@ -5,6 +5,7 @@
  * `src`. Same test ids and strings as the other sandboxes: all run the shared suite.
  */
 import { allTools } from '@inkbar/core/dom'
+import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { keepRedacted } from '@inkbar/e2e-shared/redaction-page'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -22,7 +23,12 @@ import {
 import { useCallback, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import type { Annotation, DocumentSource, RedactionResult } from '@inkbar/core'
+import type {
+  Annotation,
+  DocumentSource,
+  InkDocument,
+  RedactionResult,
+} from '@inkbar/core'
 
 const engine = () => import('@inkbar/engine')
 const tools = allTools()
@@ -37,6 +43,12 @@ export function RedactPage({
   confirm: boolean
 }) {
   const [status, setStatus] = useState('loading')
+  /** Which reader opened the document, for the tests. */
+  const [reader, setReader] = useState('')
+  const onReady = useCallback((doc: InkDocument) => {
+    setReader(readerOf(doc))
+    setStatus('ready')
+  }, [])
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [src, setSrc] = useState<DocumentSource>(() => ({
     url: fixtureUrl(fixture as FixtureName),
@@ -62,7 +74,7 @@ export function RedactPage({
       engine={engine}
       redactionConfirm={confirm ? undefined : false}
       className="sandbox-root"
-      onReady={() => setStatus('ready')}
+      onReady={onReady}
       onError={() => setStatus('error')}
       onRedacted={onRedacted}
     >
@@ -97,6 +109,7 @@ export function RedactPage({
         role="status"
         data-testid="status"
         data-applied={applied?.marks ?? ''}
+        data-reader={reader}
       >
         {status}
       </p>

@@ -2,13 +2,14 @@
 /*
  * A form fixture, opened with Inkbar keeping both annotations and field values, so its own
  * history undoes a field commit and the calculation it caused in one step. Form actions are
- * listed, newest first, because Inkbar never acts on them itself. On the engine-reader route
- * the page is given the engine, and the status names the reader, for the tests.
+ * listed, newest first, because Inkbar never acts on them itself. Download writes the filled
+ * values into the file. The status names the reader, for the tests.
  */
 import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { describeAction } from '@inkbar/e2e-shared/form-actions'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkDownloadButton,
   InkNextPage,
   InkPageCount,
   InkPageInput,
@@ -25,9 +26,9 @@ import { ref } from 'vue'
 
 import type { InkDocument, ViewerAction } from '@inkbar/core'
 
-const props = defineProps<{ fixture: string; engineReader?: boolean }>()
+const props = defineProps<{ fixture: string }>()
 
-const engine = props.engineReader ? () => import('@inkbar/engine') : undefined
+const engine = () => import('@inkbar/engine')
 
 const src = { url: fixtureUrl(props.fixture as FixtureName), key: props.fixture }
 const status = ref('loading')
@@ -59,6 +60,7 @@ function onAction(a: ViewerAction): void {
       <InkToolButton tool="select" />
       <InkUndo />
       <InkRedo />
+      <InkDownloadButton />
     </InkToolbar>
     <div class="sandbox-editor">
       <InkViewport />

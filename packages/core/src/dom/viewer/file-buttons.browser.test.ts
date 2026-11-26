@@ -3,6 +3,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { readerKind } from '../../reader/select'
 import { mountContainer, until } from '../test-utils'
 
 import {
@@ -107,7 +108,9 @@ describe('download and print', () => {
 
 /**
  * A stand-in engine whose every write waits for the test: `finish()` lets it save, `fail(e)`
- * makes it reject with `e`. `unavailable` makes the loader itself fail, as offline.
+ * makes it reject with `e`. `unavailable` makes the loader itself fail, as offline. `saves`
+ * counts the loads a save makes: the engine reader first loads the real engine to open the file,
+ * which goes through and is not counted.
  */
 function heldEngine(opts: { unavailable?: boolean } = {}) {
   let settle: { finish: () => void; fail: (e: Error) => void } | undefined
@@ -134,13 +137,20 @@ function heldEngine(opts: { unavailable?: boolean } = {}) {
       }),
     destroy: () => Promise.resolve(),
   } as unknown as Engine
-  const loader = vi.fn<EngineLoader>(() =>
+  const saves = vi.fn<EngineLoader>(() =>
     opts.unavailable
       ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
       : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
   )
+  let opened = readerKind() !== 'engine'
+  const loader: EngineLoader = () => {
+    if (opened) return saves()
+    opened = true
+    return import('@inkbar/engine')
+  }
   return {
     loader,
+    saves,
     writing,
     finish: () => settle!.finish(),
     fail: (e: Error) => settle!.fail(e),
@@ -190,7 +200,7 @@ describe('with an engine', () => {
     expect(busy(download)).toBe(false)
     expect(download.disabled).toBe(false)
     expect(print.disabled).toBe(false)
-    expect(held.loader).toHaveBeenCalledTimes(1)
+    expect(held.saves).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
     expect(clicked).toHaveLength(1)
   })
@@ -312,6 +322,6 @@ describe('with an engine', () => {
     await until(() => viewer.status.get().state === 'ready')
     await viewer.download()
     expect(clicked).toHaveLength(1)
-    expect(held.loader).not.toHaveBeenCalled()
+    expect(held.saves).not.toHaveBeenCalled()
   })
 })

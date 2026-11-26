@@ -90,10 +90,9 @@ export default defineConfig({
       }),
       // The tests that read text, search, links, the outline, the form and its scripts, and draw
       // pages, thumbnails and the viewer with the file's annotations, with the engine reading the
-      // file: the setup file switches the reader and passes every document the engine. Left out:
-      // the tests that count or withhold the engine a save or an apply loads, which the setup
-      // file's loader would answer, and the saved-file comparison, which draws with PDF.js and
-      // the engine side by side.
+      // file, and save, download and apply redactions from it: the setup file switches the reader
+      // and passes every document the engine. The saved-file comparison is left out; its reason
+      // is at the top of that file.
       browserProject('browser-engine', {
         include: [
           'src/dom/no-pdfjs.browser.test.ts',
@@ -121,6 +120,9 @@ export default defineConfig({
           'src/dom/viewer/password-dialog.browser.test.ts',
           'src/dom/viewer/popover.browser.test.ts',
           'src/dom/viewer/redaction-dialog.browser.test.ts',
+          'src/dom/viewer/file-buttons.browser.test.ts',
+          'src/dom/file-actions.browser.test.ts',
+          'src/dom/redaction-actions.browser.test.ts',
         ],
         setupFiles: ['src/test-support/engine-reader-setup.ts'],
       }),

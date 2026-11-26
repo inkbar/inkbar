@@ -17,6 +17,10 @@
 //   resamples to the render's two; the screen draws the glyphs themselves.
 // A pixel left uncounted for the page's own sake is still in the region, and a case fails when
 // more than MAX_EXCLUDED of its region is left out so.
+//
+// It runs only with PDF.js reading the file (not in the `browser-engine` project): the saved
+// file is drawn by PDF.js and by the engine side by side, through PDF.js's own handles on the
+// opened document, which the engine reader does not have.
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'

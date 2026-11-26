@@ -27,7 +27,7 @@ export function App() {
       {engineReader && onEngineReaderPage(doc) ? (
         <EngineReaderPage fixture={doc} />
       ) : isFormFixture(doc) ? (
-        <FormPage fixture={doc} engineReader={engineReader} />
+        <FormPage fixture={doc} />
       ) : isLinksFixture(doc) ? (
         <LinksPage fixture={doc} />
       ) : isRedactionFixture(doc) ? (

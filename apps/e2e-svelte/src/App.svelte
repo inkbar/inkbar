@@ -27,7 +27,7 @@
   {#if engineReader && onEngineReaderPage(doc)}
     <EngineReaderPage fixture={doc} />
   {:else if isFormFixture(doc)}
-    <FormPage fixture={doc} {engineReader} />
+    <FormPage fixture={doc} />
   {:else if isLinksFixture(doc)}
     <LinksPage fixture={doc} />
   {:else if isRedactionFixture(doc)}

@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { expect, test, type Page } from '@playwright/test'
 
 import { guardConsole } from './console-guard'
@@ -148,5 +150,36 @@ for (const reader of READERS)
       await field(page, 'ask').locator('button').click()
       await expect(actions(page).first()).toHaveText('prompt Name?')
       expect(dialogs).toEqual([])
+    })
+
+    test('Download writes the filled values into the file, which reopens with them', async ({
+      page,
+    }) => {
+      await openScripted(page, reader)
+      const qty = field(page, 'qty').locator('input')
+      const price = field(page, 'price').locator('input')
+      const total = field(page, 'total').locator('input')
+      await price.fill('12.5')
+      await price.press('Enter')
+      await qty.fill('2')
+      await qty.press('Enter')
+      await expect(total).toHaveValue('£25.00')
+
+      const saving = page.waitForEvent('download')
+      await page.getByRole('button', { name: 'Download' }).click()
+      const file = await saving
+      expect(file.suggestedFilename()).toBe('form-scripted.pdf')
+      const saved = await readFile(await file.path())
+      expect(saved.subarray(0, 5).toString()).toBe('%PDF-')
+
+      // The saved file served in place of the fixture: the same reader reads the values back.
+      await page.route(/\/form-scripted\.pdf(\?|$)/, (route) =>
+        route.fulfill({ body: saved, contentType: 'application/pdf' })
+      )
+      await openScripted(page, reader)
+      await expect(field(page, 'qty').locator('input')).toHaveValue('2')
+      await expect(field(page, 'price').locator('input')).toHaveValue('12.5')
+      // The file holds the total's value, not its formatted text, and opens showing that value.
+      await expect(field(page, 'total').locator('input')).toHaveValue('25')
     })
   })

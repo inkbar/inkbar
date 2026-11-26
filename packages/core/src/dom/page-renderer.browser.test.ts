@@ -92,7 +92,7 @@ describe('createPageRenderer', () => {
     const firstDraw = await started
     const firstOutcome = firstDraw.drawn.then(
       () => 'completed',
-      () => 'rejected'
+      (e: unknown) => e
     )
     const first = r.rendered
     r.update(createPageTransform(doc.pages[0]!, 2, 0))
@@ -106,8 +106,10 @@ describe('createPageRenderer', () => {
     expect(canvas.width).toBe(792 * 3)
     expect(canvas.height).toBe(612 * 3)
     expect(errors).toEqual([])
+    // The superseded draw rejects with its signal's reason (PDF.js's own cancellation is mapped
+    // to it in pdfjs/reader.browser.test.ts).
     expect(firstDraw.signal?.aborted).toBe(true)
-    expect(await firstOutcome).toBe('rejected')
+    expect(await firstOutcome).toBe(firstDraw.signal!.reason)
   })
 
   it('zeroes a canvas it replaces or drops, so its bitmap is freed at once', async () => {

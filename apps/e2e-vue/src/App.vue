@@ -26,11 +26,7 @@ const engineReader = engineReaderRoute(params)
   <main class="sandbox">
     <h1 class="sandbox-title">Inkbar review app</h1>
     <EngineReaderPage v-if="engineReader && onEngineReaderPage(doc)" :fixture="doc" />
-    <FormPage
-      v-else-if="isFormFixture(doc)"
-      :fixture="doc"
-      :engine-reader="engineReader"
-    />
+    <FormPage v-else-if="isFormFixture(doc)" :fixture="doc" />
     <LinksPage v-else-if="isLinksFixture(doc)" :fixture="doc" />
     <RedactPage
       v-else-if="isRedactionFixture(doc)"

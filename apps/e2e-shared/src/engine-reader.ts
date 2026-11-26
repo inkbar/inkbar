@@ -3,6 +3,7 @@
  * with the engine, before the app mounts the viewer. Only that route sets it.
  */
 import { isFormFixture } from './form-actions'
+import { isRedactionFixture } from './redaction-page'
 
 import type { InkDocument } from '@inkbar/core'
 
@@ -15,11 +16,12 @@ export function engineReaderRoute(params: URLSearchParams): boolean {
 
 /**
  * Whether the engine-reader route opens `doc` on the engine-reader page. A form fixture opens on
- * the form page, and a fixture with the file's own annotations (`annotated-`) on the review page,
- * as they do without the route, each given the engine.
+ * the form page, a redaction fixture on the redaction page, and a fixture with the file's own
+ * annotations (`annotated-`) on the review page, as they do without the route; each of those
+ * pages is given the engine.
  */
 export const onEngineReaderPage = (doc: string): boolean =>
-  !isFormFixture(doc) && !doc.startsWith('annotated-')
+  !isFormFixture(doc) && !isRedactionFixture(doc) && !doc.startsWith('annotated-')
 
 /** Which reader draws `doc`'s pages: `engine` or `pdfjs`. Internal to core; read for tests. */
 export const readerOf = (doc: InkDocument): string =>
