@@ -3,7 +3,7 @@ import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fi
 import { openPdfObjects, type PdfObjects } from '../pdf/objects'
 import { destinationPage } from '../pdfjs/destinations'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
-import { createPdfjsReader } from '../pdfjs/reader'
+import { createPdfjsReader, type PdfjsReader } from '../pdfjs/reader'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
 import { createTextReads, type TextReads } from '../pdfjs/text-reads'
@@ -78,13 +78,7 @@ import type { PageLink } from './links'
 import type { OutlineItem } from './outline'
 import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type { TextContent } from './text'
-import type {
-  PdfAssets,
-  PdfjsAnnotationData,
-  PdfjsDocument,
-  PdfjsModule,
-  PdfjsPage,
-} from '../pdfjs/types'
+import type { PdfAssets, PdfjsDocument, PdfjsModule, PdfjsPage } from '../pdfjs/types'
 import type { DocumentReader } from '../reader/types'
 import type { AnnotationRef } from '@inkbar/engine'
 
@@ -352,12 +346,6 @@ export interface InkDocument {
   readonly _reader: DocumentReader
 }
 
-interface PdfjsInfoDict {
-  Title?: unknown
-  Author?: unknown
-  EncryptFilterName?: unknown
-}
-
 /** The PDF.js ids of a lifted annotation's file copies: its own, and its pop-up's if it has one. */
 const fileCopies = (f: { pdfjsId: string; popupId?: string }): string[] =>
   f.popupId === undefined ? [f.pdfjsId] : [f.pdfjsId, f.popupId]
@@ -380,6 +368,8 @@ export async function openDocument(
   let destroyed = false
   let handles: InkDocument['_pdfjs'] | undefined
   let reader: DocumentReader | undefined
+  /** The PDF.js reader, which `reader` is or falls back to; the form is still built from it. */
+  let pdfjsReader: PdfjsReader | undefined
   const measure = canvasMeasureChar()
   let destroyTask: (() => Promise<void>) | undefined
 
@@ -418,11 +408,6 @@ export async function openDocument(
   /** Whether the file has annotations other than widgets and links, which Inkbar may have saved. */
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
-  /**
-   * Each page's annotations as PDF.js reads them, read once while the document opens: the open
-   * and the reader share them. Cleared when the open has read every page.
-   */
-  const annotationsRead = new Map<number, Promise<PdfjsAnnotationData[]>>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
   /**
    * Each page's searchable text, and whether its boundaries come from the page's glyphs. Declared
@@ -523,59 +508,34 @@ export async function openDocument(
       return cache.get(index)
     }
     handles = { module: pdfjs, proxy, getPage, textReads }
-    const annotationsOf = (index: number): Promise<PdfjsAnnotationData[]> => {
-      let read = annotationsRead.get(index)
-      if (!read) {
-        // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
-        const made = getPage(index).then((page) =>
-          page.getAnnotations().catch((): PdfjsAnnotationData[] => [])
-        )
-        // A page that could not be had is not cached: the next read asks again.
-        made.catch(() => {
-          if (annotationsRead.get(index) === made) annotationsRead.delete(index)
-        })
-        annotationsRead.set(index, made)
-        read = made
-      }
-      return read
-    }
-    const pdfjsReader = createPdfjsReader(handles, {
-      measure,
-      annotations: annotationsOf,
-    })
-    reader = engineReader ? await engineReader(proxy, pdfjsReader) : pdfjsReader
-    const meta = await proxy.getMetadata().catch(() => {
-      // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
-      // title/author are nice-to-have. The document itself has opened, so carry on without it.
-      return undefined
-    })
-    const docInfo = (meta?.info ?? {}) as PdfjsInfoDict
-    const title = nonEmptyString(docInfo.Title)
-    const author = nonEmptyString(docInfo.Author)
-    if (title !== undefined) info.title = title
-    if (author !== undefined) info.author = author
+    const fromPdfjs = createPdfjsReader(handles, { measure })
+    pdfjsReader = fromPdfjs
+    reader = engineReader ? await engineReader(proxy, fromPdfjs) : fromPdfjs
+    const facts = await reader.facts()
+    if (facts.title !== undefined) info.title = facts.title
+    if (facts.author !== undefined) info.author = facts.author
     info.pageCount = proxy.numPages
-    info.isEncrypted =
-      docInfo.EncryptFilterName !== null && docInfo.EncryptFilterName !== undefined
+    info.isEncrypted = facts.encrypted
     for (let i = 0; i < proxy.numPages; i++) pages.push(await reader.pageInfo(i))
 
     const importedAt = new Date().toISOString()
     const opened = reader
     const perPage = await mapInOrder(proxy.numPages, EMBEDDED_CONCURRENCY, async (i) => {
-      const raw = await annotationsOf(i)
+      const annotations = await opened.annotations(i)
       // Widgets and links keep their place in `/Annots`, which Tab order shares between them.
-      const widgets = raw.flatMap((data, at): RawWidget[] =>
-        data.subtype === 'Widget' ? [{ page: i, data, at }] : []
+      const widgets = (await fromPdfjs.pdfjsAnnotations(i)).flatMap(
+        (data, at): RawWidget[] =>
+          data.subtype === 'Widget' ? [{ page: i, data, at }] : []
       )
       const links = await opened.links(i)
-      // A reply Inkbar saved is hidden, so PDF.js leaves it out; its parent is not.
-      const others = raw.flatMap((d) =>
+      // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
+      const others = annotations.flatMap((d) =>
         d.subtype !== 'Widget' && d.subtype !== 'Link' ? [[d.id, d.subtype] as const] : []
       )
-      return { ...importEmbeddedPage(i, raw, importedAt), widgets, links, others }
+      return { ...importEmbeddedPage(i, annotations, importedAt), widgets, links, others }
     }).finally(() => {
       // Nothing reads them after the open, so they are not held: a later read asks PDF.js again.
-      annotationsRead.clear()
+      fromPdfjs.forgetAnnotations()
     })
     perPage.forEach((r, i) => {
       if (r.links.length > 0) linksByPage.set(i, r.links)
@@ -1184,7 +1144,7 @@ export async function openDocument(
       store.destroy()
       pageCache?.clear()
       searchable.clear()
-      annotationsRead.clear()
+      pdfjsReader?.forgetAnnotations()
       destinationCache.clear()
       const openReader = reader
       if (openReader) teardown(() => openReader.destroy())
@@ -1231,10 +1191,6 @@ function statusError(s: DocumentStatus): InkError {
   return s.state === 'error'
     ? s.error
     : new InkError('InvalidPdf', 'The document has not finished loading')
-}
-
-function nonEmptyString(value: unknown): string | undefined {
-  return typeof value === 'string' && value !== '' ? value : undefined
 }
 
 function errorMessage(cause: unknown): string {

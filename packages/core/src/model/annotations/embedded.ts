@@ -13,7 +13,7 @@ import { PDF_NAME } from './pdf-names'
 import { AnnotationSchema, type Annotation } from './types'
 
 import type { Fringe } from './callout'
-import type { PdfjsAnnotationData } from '../../pdfjs/types'
+import type { FileAnnotation } from '../../reader/file'
 
 export const SUPPORTED_SUBTYPES: ReadonlySet<string> = new Set([
   'Highlight',
@@ -52,23 +52,23 @@ export function pdfColorToHex(
   return `#${hex}`.toUpperCase()
 }
 
-/** PDF.js hands back `rect` already in user space, but not always ordered; normalise with min/max. */
+/** `/Rect` is in user space, but not always ordered; normalise with min/max. */
 function rectFromPdf(r: ArrayLike<number>): Rect {
   return rectFromPoints({ x: r[0]!, y: r[1]! }, { x: r[2]!, y: r[3]! })
 }
 
-/** A PDF name exactly as PDF.js gives it (names are case-sensitive), or undefined if invalid. */
+/** A PDF name exactly as the reader gives it (names are case-sensitive), or undefined if invalid. */
 function pdfName(raw: string | undefined): string | undefined {
   return raw !== undefined && PDF_NAME.test(raw) ? raw : undefined
 }
 
 /** `head` and `tail` from a Line's or PolyLine's `/LE`, left out when both are `None`. */
 function lineEndingsOf(
-  raw: readonly string[] | undefined
+  raw: readonly [string, string] | undefined
 ): { head: string; tail: string } | Record<string, never> {
   // PDF.js already turns a name it does not know into `None`.
   const endings = raw?.map((e) => pdfName(e) ?? 'None')
-  return endings && endings.length === 2 && endings.some((e) => e !== 'None')
+  return endings && endings.some((e) => e !== 'None')
     ? { head: endings[0]!, tail: endings[1]! }
     : {}
 }
@@ -91,7 +91,7 @@ export interface EmbeddedTarget {
   /** The imported id, `pdf:<page>:<pdfjsId>`. */
   id: string
   subtype: 'FreeText' | 'Text'
-  /** The annotation's `/Rect` as PDF.js gives it, `[x1, y1, x2, y2]`. */
+  /** The annotation's `/Rect` as the reader gives it, `[x1, y1, x2, y2]`. */
   rect: readonly number[]
   /** FreeText only: the `/DA` font resource name. */
   daFont?: string
@@ -115,12 +115,12 @@ export interface EmbeddedFieldPatch {
 }
 
 /**
- * Imports one page's PDF.js annotation data. `targets` is @internal: the annotations whose
- * missing fields the document reads from the file after `ready`.
+ * Imports one page's annotations as the reader lists them. `targets` is @internal: the
+ * annotations whose missing fields the document reads from the file after `ready`.
  */
 export function importEmbeddedPage(
   page: number,
-  raw: PdfjsAnnotationData[],
+  raw: readonly FileAnnotation[],
   importedAt: string
 ): {
   annotations: Annotation[]
@@ -132,7 +132,7 @@ export function importEmbeddedPage(
   const targets: EmbeddedTarget[] = []
   for (const data of raw) {
     counts[data.subtype] = (counts[data.subtype] ?? 0) + 1
-    if (!SUPPORTED_SUBTYPES.has(data.subtype) || data.hidden || data.noView) continue
+    if (!SUPPORTED_SUBTYPES.has(data.subtype)) continue
     const converted = convert(page, data, importedAt)
     if (!converted) continue
     annotations.push(converted)
@@ -142,12 +142,12 @@ export function importEmbeddedPage(
   return { annotations, counts, targets }
 }
 
-function targetOf(id: string, d: PdfjsAnnotationData): EmbeddedTarget | undefined {
-  const rect = Array.from(d.rect)
+function targetOf(id: string, d: FileAnnotation): EmbeddedTarget | undefined {
+  const rect = [...d.rect]
   if (d.subtype === 'Text')
-    return d.name === 'NoIcon' ? { id, subtype: 'Text', rect } : undefined
+    return d.icon === 'NoIcon' ? { id, subtype: 'Text', rect } : undefined
   if (d.subtype !== 'FreeText') return undefined
-  const daFont = d.defaultAppearanceData?.fontName
+  const daFont = d.defaultAppearance?.fontName
   return { id, subtype: 'FreeText', rect, ...(daFont ? { daFont } : {}) }
 }
 
@@ -172,21 +172,17 @@ export function summarise(perPage: Record<string, number>[]): EmbeddedSummary[] 
 
 function convert(
   page: number,
-  d: PdfjsAnnotationData,
+  d: FileAnnotation,
   importedAt: string
 ): Annotation | undefined {
-  const created = parsePdfDate(
-    d.creationDate,
-    parsePdfDate(d.modificationDate, importedAt)
-  )
-  const author = d.titleObj?.str
-  const contents = d.contentsObj?.str
-  const stroke = d.borderStyle?.width ?? 1
-  const quads: Quad[] = d.quadPoints ? quadsFromFlat(d.quadPoints) : []
+  const created = parsePdfDate(d.created, parsePdfDate(d.modified, importedAt))
+  const { author, contents } = d
+  const stroke = d.border?.width ?? 1
+  const quads: Quad[] = d.quads ? quadsFromFlat(d.quads) : []
   const optional = (v: unknown) => v !== undefined && v !== ''
   const withColor = (type: Annotation['type'], source = d.color) =>
     pdfColorToHex(source, staticDefaults.color(type))
-  const intent = pdfName(d.it)
+  const intent = pdfName(d.intent)
   const base = (type: Annotation['type'], color = withColor(type)) => ({
     id: importedId(page, d.id),
     page,
@@ -198,13 +194,13 @@ function convert(
     ...(d.inReplyTo ? { inReplyTo: importedId(page, d.inReplyTo) } : {}),
     ...(intent !== undefined ? { intent } : {}),
     createdAt: created,
-    modifiedAt: parsePdfDate(d.modificationDate, created),
+    modifiedAt: parsePdfDate(d.modified, created),
     source: 'pdf' as const,
     locked: true,
-    hasAppearance: d.hasAppearance === true,
+    hasAppearance: d.hasAppearance,
   })
-  const fillOf = (c: ArrayLike<number> | null | undefined) =>
-    c && c.length >= 3 ? { interiorColor: pdfColorToHex(c, '#FFFFFF') } : {}
+  const fillOf = (c: FileAnnotation['interiorColor']) =>
+    c ? { interiorColor: pdfColorToHex(c, '#FFFFFF') } : {}
 
   let candidate: Record<string, unknown>
   switch (d.subtype) {
@@ -221,7 +217,7 @@ function convert(
     case 'Text': {
       // PDF.js reports `NoIcon` for any note with an appearance stream, hiding its `/Name`.
       // Leave the icon out then, as when there is no `/Name`, so the default `Note` applies.
-      const icon = d.name === 'NoIcon' ? undefined : pdfName(d.name)
+      const icon = d.icon === 'NoIcon' ? undefined : pdfName(d.icon)
       candidate = {
         ...base('text'),
         type: 'text',
@@ -231,21 +227,16 @@ function convert(
     }
     case 'FreeText': {
       // XFDF and PDF agree: `/C` is the box's fill, `/DA` the text's colour and size.
-      const da = d.defaultAppearanceData
+      const da = d.defaultAppearance
       const { color: _stroke, ...rest } = base('freetext')
       candidate = {
         ...rest,
-        ...(d.color && d.color.length >= 3
-          ? { color: pdfColorToHex(d.color, '#FFFFFF') }
-          : {}),
+        ...(d.color ? { color: pdfColorToHex(d.color, '#FFFFFF') } : {}),
         type: 'freetext',
         contents: contents ?? '',
-        width: d.borderStyle?.width ?? 0,
+        width: d.border?.width ?? 0,
         defaultStyle: {
-          color: pdfColorToHex(
-            da?.fontColor as ArrayLike<number> | undefined,
-            staticDefaults.color('freetext')
-          ),
+          color: pdfColorToHex(da?.color, staticDefaults.color('freetext')),
           ...(da && da.fontSize > 0 ? { fontSize: da.fontSize } : {}),
         },
       }
@@ -258,7 +249,7 @@ function convert(
       break
     }
     case 'Line': {
-      const l = d.lineCoordinates ?? [d.rect[0], d.rect[1], d.rect[2], d.rect[3]]
+      const l = d.line ?? d.rect
       candidate = {
         ...base('line'),
         type: 'line',

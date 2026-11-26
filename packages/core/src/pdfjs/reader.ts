@@ -1,6 +1,8 @@
 // The document reader over PDF.js: page facts from each page proxy, pixels from
-// `PDFPageProxy.render`, and text, links, the outline and destinations as PDF.js reads them.
+// `PDFPageProxy.render`, and the file's facts, text, links, annotations, the outline and
+// destinations as PDF.js reads them.
 import { resolveDestination } from './destinations'
+import { fileAnnotationFromPdfjs } from './file-annotations'
 import { pageGlyphs } from './glyphs'
 import { linkFromPdfjs } from './links'
 import { readOutline } from './outline'
@@ -13,6 +15,7 @@ import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { MeasureChar, TextContent } from '../model/text'
+import type { FileFacts } from '../reader/file'
 import type { DocumentReader, DrawRequest } from '../reader/types'
 
 const isCancellation = (error: unknown): boolean =>
@@ -21,8 +24,24 @@ const isCancellation = (error: unknown): boolean =>
 /** @internal What the PDF.js reader takes from the document besides its handles. */
 export interface PdfjsReaderDeps {
   measure: MeasureChar | undefined
-  /** The page's annotations as PDF.js gives them. The document reads each page once and shares it. */
-  annotations(page: number): Promise<readonly PdfjsAnnotationData[]>
+}
+
+/** @internal The PDF.js reader, with what the form is still built from. */
+export interface PdfjsReader extends DocumentReader {
+  /**
+   * The page's annotations as PDF.js gives them. Each page is read once and kept, so the open
+   * and the reader share the read, until `forgetAnnotations`.
+   */
+  pdfjsAnnotations(page: number): Promise<readonly PdfjsAnnotationData[]>
+  /** Stops keeping each page's annotations: the open has read every page. Later reads ask again. */
+  forgetAnnotations(): void
+}
+
+/** The Info dictionary entries the reader reads. */
+interface PdfjsInfoDict {
+  Title?: unknown
+  Author?: unknown
+  EncryptFilterName?: unknown
 }
 
 /**
@@ -34,24 +53,68 @@ export interface PdfjsReaderDeps {
 export function createPdfjsReader(
   handles: InkDocument['_pdfjs'],
   deps: PdfjsReaderDeps
-): DocumentReader {
+): PdfjsReader {
+  const annotationsRead = new Map<number, Promise<PdfjsAnnotationData[]>>()
+  const pdfjsAnnotations = (index: number): Promise<PdfjsAnnotationData[]> => {
+    let read = annotationsRead.get(index)
+    if (!read) {
+      // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
+      const made = handles
+        .getPage(index)
+        .then((page) => page.getAnnotations().catch((): PdfjsAnnotationData[] => []))
+      // A page that could not be had is not kept: the next read asks again.
+      made.catch(() => {
+        if (annotationsRead.get(index) === made) annotationsRead.delete(index)
+      })
+      annotationsRead.set(index, made)
+      read = made
+    }
+    return read
+  }
   return {
     kind: 'pdfjs',
     pageCount: handles.proxy.numPages,
+    facts: () => facts(handles),
     async pageInfo(index) {
       return pageInfoFromProxy(await handles.getPage(index), index)
     },
     draw: (request, canvas, signal) => draw(handles, request, canvas, signal),
     text: (page, { glyphs, signal }) => text(handles, deps.measure, page, glyphs, signal),
     async links(page) {
-      const annotations = await deps.annotations(page)
+      const annotations = await pdfjsAnnotations(page)
       return annotations.flatMap((data, at) => linkFromPdfjs(page, data, at) ?? [])
     },
+    async annotations(page) {
+      return (await pdfjsAnnotations(page)).map(fileAnnotationFromPdfjs)
+    },
+    pdfjsAnnotations,
+    forgetAnnotations: () => annotationsRead.clear(),
     outline: () => readOutline(handles.proxy),
     // A lookup PDF.js cannot do gives the same answer every time: it goes nowhere.
     resolveDestination: (raw) => resolveDestination(handles.proxy, raw),
     destroy: () => Promise.resolve(),
   }
+}
+
+/** Title and author from the Info dictionary, and whether the file is encrypted. */
+async function facts(handles: InkDocument['_pdfjs']): Promise<FileFacts> {
+  const meta = await handles.proxy.getMetadata().catch(() => {
+    // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
+    // title/author are nice-to-have. The document itself has opened, so carry on without it.
+    return undefined
+  })
+  const info = (meta?.info ?? {}) as PdfjsInfoDict
+  const title = nonEmptyString(info.Title)
+  const author = nonEmptyString(info.Author)
+  return {
+    ...(title !== undefined ? { title } : {}),
+    ...(author !== undefined ? { author } : {}),
+    encrypted: info.EncryptFilterName !== null && info.EncryptFilterName !== undefined,
+  }
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value !== '' ? value : undefined
 }
 
 /**

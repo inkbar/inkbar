@@ -2,6 +2,7 @@ import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
 import { openPdfObjects } from '../../pdf/objects'
+import { fileAnnotationFromPdfjs } from '../../pdfjs/file-annotations'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
@@ -46,7 +47,7 @@ async function imported(name: FixtureName) {
   const page = await doc._pdfjs.getPage(0)
   const raw = (await page.getAnnotations()) as unknown as PdfjsAnnotationData[]
   doc.destroy()
-  return importEmbeddedPage(0, raw, NOW)
+  return importEmbeddedPage(0, raw.map(fileAnnotationFromPdfjs), NOW)
 }
 
 async function read(name: FixtureName) {
