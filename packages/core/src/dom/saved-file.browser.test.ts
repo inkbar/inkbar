@@ -869,7 +869,7 @@ describe("another program's redaction marks, adopted", () => {
 
   /** How many annotations page 0 of `doc` lists in its `/Annots`, as PDF.js reads them. */
   const annotsOn = async (doc: InkDocument) =>
-    (await (await doc._pdfjs.getPage(0)).getAnnotations()).length
+    (await (await doc._pdfjs!.getPage(0)).getAnnotations()).length
 
   /**
    * One page with SECRET-GAMMA and REPLIED-OMEGA under two Redact annotations another program

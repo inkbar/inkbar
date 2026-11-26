@@ -7,6 +7,7 @@
 // `endAnnotation`. With `AnnotationMode.ENABLE_FORMS`, a checkbox or radio has two such runs,
 // its on and off appearances, named by the sixth argument (`'checked'`, `'unchecked'`).
 // widget-appearance.browser.test.ts pins that layout.
+import type { PdfjsHandles } from './handles'
 import type { PdfjsPage } from './types'
 import type { InkDocument } from '../model/document'
 import type { FieldDrawRequest } from '../reader/types'
@@ -14,7 +15,7 @@ import type { FieldDrawRequest } from '../reader/types'
 type RenderParameters = Parameters<PdfjsPage['render']>[0]
 type OperationsFilter = NonNullable<RenderParameters['operationsFilter']>
 type OperatorList = Parameters<OperationsFilter>[1]
-type Ops = InkDocument['_pdfjs']['module']['OPS']
+type Ops = PdfjsHandles['module']['OPS']
 
 const isCancellation = (error: unknown): boolean =>
   (error as { name?: unknown } | null)?.name === 'RenderingCancelledException'
@@ -82,7 +83,7 @@ function runIndex(OPS: Ops, list: OperatorList): RunIndex {
  * @internal
  */
 export function omitAppearances(
-  pdfjs: Pick<InkDocument['_pdfjs'], 'module'>,
+  pdfjs: Pick<PdfjsHandles, 'module'>,
   ids: ReadonlySet<string>
 ): OperationsFilter {
   const { OPS } = pdfjs.module
@@ -127,7 +128,7 @@ export class AppearanceLayoutError extends Error {
  * @internal
  */
 export async function renderAppearances(
-  handles: Pick<InkDocument['_pdfjs'], 'getPage' | 'module'>,
+  handles: Pick<PdfjsHandles, 'getPage' | 'module'>,
   pass: FieldDrawRequest,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openFixtureInBrowser } from '../../dom/test-utils'
 import { createPdfjsReader } from '../../pdfjs/reader'
 import { sandboxLoader } from '../../pdfjs/sandbox'
+import { readerKind } from '../../reader/select'
 import { staticDefaults } from '../annotations/defaults'
 import { createHistory } from '../annotations/history'
 import { createAnnotationStore } from '../annotations/store'
@@ -418,9 +419,12 @@ function stage(
       }),
   } as unknown as PdfjsDocument
   // The PDF.js reader over a stand-in document, so the scripts reach the sandbox as a file's do.
-  const reader = createPdfjsReader({ proxy } as unknown as InkDocument['_pdfjs'], {
-    measure: undefined,
-  })
+  const reader = createPdfjsReader(
+    { proxy } as unknown as NonNullable<InkDocument['_pdfjs']>,
+    {
+      measure: undefined,
+    }
+  )
   cleanup.push(() => {
     form._destroy()
     history.destroy()
@@ -677,11 +681,17 @@ describe('fix round', () => {
 
   it('a document without fields or scripts loads nothing', async () => {
     const first = await open('form-fields')
-    const proto = Object.getPrototypeOf(first._pdfjs.proxy) as PdfjsDocument
-    const getFieldObjects = vi.spyOn(proto, 'getFieldObjects')
+    // PDF.js's field objects, when PDF.js reads the file; the engine reader builds its own.
+    const getFieldObjects =
+      readerKind() === 'pdfjs'
+        ? vi.spyOn(
+            Object.getPrototypeOf(first._pdfjs!.proxy) as PdfjsDocument,
+            'getFieldObjects'
+          )
+        : undefined
     const load = vi.spyOn(sandboxLoader, 'load')
     await open('text-simple')
-    expect(getFieldObjects).not.toHaveBeenCalled()
+    if (getFieldObjects) expect(getFieldObjects).not.toHaveBeenCalled()
     await open('form-fields')
     expect(load).not.toHaveBeenCalled()
   })

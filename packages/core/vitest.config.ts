@@ -41,7 +41,7 @@ function serveFonts(): Plugin {
  */
 const browserProject = (
   name: string,
-  test: { include: string[]; setupFiles?: string[] }
+  test: { include: string[]; exclude?: string[]; setupFiles?: string[] }
 ) => ({
   define,
   plugins: [serveFixtures(), serveFonts()],
@@ -83,12 +83,17 @@ export default defineConfig({
           testTimeout: 20_000,
         },
       },
-      browserProject('browser', { include: ['src/**/*.browser.test.ts'] }),
+      browserProject('browser', {
+        include: ['src/**/*.browser.test.ts'],
+        // Its subject is the engine reading the file: it runs in `browser-engine` alone.
+        exclude: ['src/dom/no-pdfjs.browser.test.ts'],
+      }),
       // The tests that read text, search, links, the outline, the form and its scripts, with the
-      // engine reading the file: the setup file switches the reader, passes every document the
-      // engine, and fails a test whose engine reader passed a script read to its fallback.
+      // engine reading the file: the setup file switches the reader and passes every document
+      // the engine.
       browserProject('browser-engine', {
         include: [
+          'src/dom/no-pdfjs.browser.test.ts',
           'src/dom/text-layer.browser.test.ts',
           'src/dom/text-spans.browser.test.ts',
           'src/dom/search/*.browser.test.ts',

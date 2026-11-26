@@ -40,7 +40,7 @@ describe('createPageTransform', () => {
     await doc.ready
     const page = doc.pages[0]!
     if (name === 'userunit-2') expect(page.userUnit).toBe(2)
-    const proxy = await doc._pdfjs.getPage(0)
+    const proxy = await doc._pdfjs!.getPage(0)
     for (const rotation of ROTATIONS) {
       for (const zoom of [0.5, 1, 1.333, 3]) {
         const t = createPageTransform(page, zoom, rotation)

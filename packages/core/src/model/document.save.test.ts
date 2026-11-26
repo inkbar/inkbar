@@ -570,7 +570,7 @@ describe('save', () => {
     doc.form._setFormatted('amount', '$1,234.50')
     const back = await reopen(await save(doc, 'formatted'))
     expect(back.form.get('amount')).toBe('1234.5')
-    const page = await back._pdfjs.getPage(0)
+    const page = await back._pdfjs!.getPage(0)
     const annotations = (await page.getAnnotations()) as {
       fieldName?: string
       textContent?: string[]
@@ -820,7 +820,7 @@ describe('save', () => {
 
   /** The PDF.js annotations of page 0, hidden ones included. */
   const pdfjsAnnotations = async (doc: InkDocument) =>
-    (await (await doc._pdfjs.getPage(0)).getAnnotations({ intent: 'any' })) as {
+    (await (await doc._pdfjs!.getPage(0)).getAnnotations({ intent: 'any' })) as {
       id: string
       subtype: string
       annotationFlags: number

@@ -144,7 +144,7 @@ describe('InkDocument.search', () => {
     const doc = await open('text-simple')
     const reads = await Promise.all(
       [0, 1, 2].map(async (i) =>
-        vi.spyOn(await doc._pdfjs.getPage(i), 'streamTextContent')
+        vi.spyOn(await doc._pdfjs!.getPage(i), 'streamTextContent')
       )
     )
     const abort = new AbortController()
@@ -178,7 +178,7 @@ describe('InkDocument.search', () => {
     await doc.search('QQ123456C').all()
     const reads = await Promise.all(
       [0, 1, 2].map(async (i) =>
-        vi.spyOn(await doc._pdfjs.getPage(i), 'streamTextContent')
+        vi.spyOn(await doc._pdfjs!.getPage(i), 'streamTextContent')
       )
     )
     await doc.search('QQ123456C').all()
@@ -227,7 +227,9 @@ describe('InkDocument.search', () => {
   it('reads glyph positions only for pages with hits, once each', async () => {
     const doc = await open('text-simple')
     const reads = await Promise.all(
-      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getOperatorList'))
+      [0, 1, 2].map(async (i) =>
+        vi.spyOn(await doc._pdfjs!.getPage(i), 'getOperatorList')
+      )
     )
     await doc.search('not anywhere in this file').all()
     expect(reads.map((r) => r.mock.calls.length)).toEqual([0, 0, 0])

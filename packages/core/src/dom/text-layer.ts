@@ -4,6 +4,7 @@
 // Span styling (transparent colour, absolute positioning, font sizing, rotation transforms)
 // is the theme's job. When the engine reads the file, core lays the spans out itself from the
 // reader's text, in the same DOM.
+import { InkError } from '../model/errors'
 import { mountPdfjsTextLayer, type MountedTextLayer } from '../pdfjs/text-layer'
 
 import { mountTextSpans } from './text-spans'
@@ -11,6 +12,7 @@ import { mountTextSpans } from './text-spans'
 import type { PageTransform } from './transform'
 import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { InkDocument } from '../model/document'
+import type { PdfjsHandles } from '../pdfjs/handles'
 import type { DocumentReader } from '../reader/types'
 
 export interface TextLayerOptions {
@@ -84,8 +86,16 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     opts.onRendered?.()
   }
 
+  /** The document's PDF.js handles: the layer reads PDF.js's text only while PDF.js reads the file. */
+  const pdfjs = (): PdfjsHandles => {
+    const handles = doc._pdfjs
+    if (!handles)
+      throw new InkError('InvalidPdf', 'The document has no PDF.js text to show')
+    return handles
+  }
+
   const viewportFor = async (transform: PageTransform) => {
-    const pdfPage = await doc._pdfjs.getPage(page)
+    const pdfPage = await pdfjs().getPage(page)
     return {
       pdfPage,
       viewport: pdfPage.getViewport({
@@ -113,13 +123,14 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     if (engine) return mountSpans(engine, transform)
     const { pdfPage, viewport } = await viewportFor(transform)
     if (abort.signal.aborted) return
+    const { module, textReads } = pdfjs()
     mounted = await mountPdfjsTextLayer({
-      module: doc._pdfjs.module,
+      module,
       pdfPage,
       container: el,
       viewport,
       signal: abort.signal,
-      reads: doc._pdfjs.textReads,
+      reads: textReads,
     })
     if (!abort.signal.aborted) opts.onRendered?.()
   }

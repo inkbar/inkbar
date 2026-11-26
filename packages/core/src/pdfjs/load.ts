@@ -1,31 +1,10 @@
 import { InkError } from '../model/errors'
 
+import { assertAssets } from './assets'
+
 import type { PdfAssets, PdfjsDocument, PdfjsLoadingTask, PdfjsModule } from './types'
 
-const REQUIRED: ReadonlyArray<keyof PdfAssets> = [
-  'worker',
-  'cMaps',
-  'standardFonts',
-  'wasm',
-]
-
-export function assertAssets(value: unknown): asserts value is PdfAssets {
-  const record = (typeof value === 'object' && value !== null ? value : {}) as Record<
-    string,
-    unknown
-  >
-  const missing = REQUIRED.filter(
-    (k) => typeof record[k] !== 'string' || record[k] === ''
-  )
-  if (value === undefined || value === null || missing.length > 0) {
-    throw new InkError(
-      'AssetConfigMissing',
-      'openDocument needs an `assets` option naming the PDF.js worker, cMaps, standardFonts and wasm locations. ' +
-        'Vite users: add the @inkbar/core/vite plugin and pass `assets` from "virtual:inkbar-assets".',
-      { missing: value == null ? [...REQUIRED] : missing }
-    )
-  }
-}
+export { assertAssets } from './assets'
 
 let modulePromise: Promise<PdfjsModule> | undefined
 let configuredWorker: string | undefined

@@ -28,7 +28,7 @@ function darkPixels(
   return dark
 }
 
-type PdfPage = Awaited<ReturnType<InkDocument['_pdfjs']['getPage']>>
+type PdfPage = Awaited<ReturnType<NonNullable<InkDocument['_pdfjs']>['getPage']>>
 type RenderTask = ReturnType<PdfPage['render']>
 
 /** Resolves with the first render task PDF.js starts for `page`, as soon as it starts. */
@@ -78,7 +78,7 @@ describe('createPageRenderer', () => {
     const doc = await openFixtureInBrowser('text-simple')
     const host = mountContainer(612, 792)
     const errors: unknown[] = []
-    const started = renderStarts(await doc._pdfjs.getPage(0))
+    const started = renderStarts(await doc._pdfjs!.getPage(0))
     const r = createPageRenderer({
       document: doc,
       page: 0,
@@ -263,7 +263,7 @@ describe('createPageRenderer', () => {
     const before = canvasIn(host)
     // Make the next page fetch fail.
     const boom = new Error('boom')
-    const spy = vi.spyOn(doc._pdfjs, 'getPage').mockRejectedValueOnce(boom)
+    const spy = vi.spyOn(doc._pdfjs!, 'getPage').mockRejectedValueOnce(boom)
     cleanup.unshift(() => spy.mockRestore())
     r.update(createPageTransform(doc.pages[0]!, 2, 0))
     await r.rendered

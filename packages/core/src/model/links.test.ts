@@ -83,7 +83,7 @@ describe('links', () => {
 
   it('resolveDestination caches', async () => {
     const doc = await open()
-    const spy = vi.spyOn(doc._pdfjs.proxy, 'getDestination')
+    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getDestination')
     const first = await doc.resolveDestination('chapter-3')
     const second = await doc.resolveDestination('chapter-3')
     expect(first).toMatchObject({ page: 2, fit: 'fit' })

@@ -964,7 +964,7 @@ describe('applyRedactions with the engine', () => {
 
   /** The text runs of `doc`'s first page whose boxes share area with `rect`. */
   async function textIn(doc: InkDocument, rect: typeof SECRET): Promise<string[]> {
-    const content = await (await doc._pdfjs.getPage(0)).getTextContent()
+    const content = await (await doc._pdfjs!.getPage(0)).getTextContent()
     return content.items.flatMap((item) => {
       if (!('str' in item) || !item.str.trim()) return []
       const [, , , , x, y] = item.transform as number[]

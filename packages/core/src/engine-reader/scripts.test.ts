@@ -17,7 +17,6 @@ import type {
   WidgetFactsShape,
 } from './types'
 import type { EngineLoader } from '../model/save/saver'
-import type { PdfjsDocument } from '../pdfjs/types'
 import type { DocumentReader } from '../reader/types'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
@@ -53,18 +52,22 @@ const noting: EngineLoader = async () => {
   }
 }
 
-/** `name` opened with the engine reader. */
-async function open(name: FixtureName): Promise<InkDocument> {
-  flag.__INKBAR_READER__ = 'engine'
+/** `name` opened with the engine reader, or with PDF.js's. */
+async function open(
+  name: FixtureName,
+  kind: 'engine' | 'pdfjs' = 'engine'
+): Promise<InkDocument> {
+  if (kind === 'engine') flag.__INKBAR_READER__ = 'engine'
   const { password } = manifest[name]
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
     engine: noting,
     ...(password === undefined ? {} : { password }),
   })
+  delete flag.__INKBAR_READER__
   opened.push(doc)
   await doc.ready
-  expect(doc._reader.kind).toBe('engine')
+  expect(doc._reader.kind).toBe(kind)
   return doc
 }
 
@@ -85,25 +88,16 @@ describe("the engine reader's scripts", () => {
     'gives the scripts, page actions and sandbox fields PDF.js gives, on %s',
     async (name) => {
       const engineDoc = await open(name)
-      // PDF.js's script reads, which the engine reader must not ask.
-      const proto = Object.getPrototypeOf(engineDoc._pdfjs.proxy) as PdfjsDocument
-      const pdfjsReads = (
-        [
-          'hasJSActions',
-          'getJSActions',
-          'getFieldObjects',
-          'getCalculationOrderIds',
-        ] as const
-      ).map((method) => vi.spyOn(proto, method))
+      // The engine opened the file: there is no PDF.js document to read the scripts from.
+      expect(engineDoc._pdfjs).toBeUndefined()
       asked = []
       const engine = await scriptsOf(engineDoc._reader)
       expect(asked.length, 'the engine read the scripts').toBeGreaterThan(0)
-      for (const read of pdfjsReads) expect(read).not.toHaveBeenCalled()
-      vi.restoreAllMocks()
 
-      // PDF.js's reader over the same PDF.js document.
+      // PDF.js's reader over the same file, opened with PDF.js.
+      const pdfjsDoc = await open(name, 'pdfjs')
       const pdfjs = await scriptsOf(
-        createPdfjsReader(engineDoc._pdfjs, { measure: undefined })
+        createPdfjsReader(pdfjsDoc._pdfjs!, { measure: undefined })
       )
       expect(engine.pages).toStrictEqual(pdfjs.pages)
       expectSameRead(

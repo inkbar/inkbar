@@ -2,9 +2,8 @@
 // project, which runs the text, search, link, outline, form and scripting browser tests a second
 // time with the engine reading the file. No build entry reaches this directory, and the package
 // publishes only `dist`.
-import { afterEach, beforeEach, expect, vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 
-import type * as ReaderModule from '../engine-reader/reader'
 import type { EngineLoader } from '../model/document'
 
 const flag = globalThis as { __INKBAR_READER__?: unknown }
@@ -30,46 +29,4 @@ vi.mock(import('../model/document'), async (importOriginal) => {
         engine: options.engine ?? engine,
       })) satisfies typeof original.openDocument,
   }
-})
-
-/** The script reads an engine reader passed to its fallback reader during the test. */
-const fallbackScriptReads: string[] = []
-
-// The engine reader reads the file's JavaScript and builds the sandbox's fields itself: it turns
-// to its fallback only when no engine can start, which no test here does.
-vi.mock(import('../engine-reader/reader'), async (importOriginal) => {
-  const original: typeof ReaderModule = await importOriginal()
-  return {
-    ...original,
-    createEngineReader: (options) => {
-      const fallback = options.fallback
-      return original.createEngineReader({
-        ...options,
-        ...(fallback && {
-          fallback: {
-            ...fallback,
-            scripts: () => {
-              fallbackScriptReads.push('scripts')
-              return fallback.scripts()
-            },
-            pageScripts: (page) => {
-              fallbackScriptReads.push('pageScripts')
-              return fallback.pageScripts(page)
-            },
-            sandboxFields: () => {
-              fallbackScriptReads.push('sandboxFields')
-              return fallback.sandboxFields()
-            },
-          },
-        }),
-      })
-    },
-  }
-})
-
-afterEach(() => {
-  expect(
-    fallbackScriptReads.splice(0),
-    'script reads the engine reader passed on'
-  ).toEqual([])
 })

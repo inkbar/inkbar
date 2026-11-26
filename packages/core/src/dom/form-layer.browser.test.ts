@@ -376,23 +376,26 @@ describe('form layer', () => {
 
   it('no form layer and ENABLE mode for a PDF without fields', async () => {
     const doc = await open('text-simple')
-    const page = await doc._pdfjs.getPage(0)
     const draws = vi.spyOn(doc._reader, 'draw')
     const modes: unknown[] = []
-    const render = page.render.bind(page)
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      modes.push(params.annotationMode)
-      return render(params)
-    })
+    // The engine reader draws the page itself: PDF.js's render, and its mode, are not used.
+    if (readerKind() === 'pdfjs') {
+      const page = await doc._pdfjs!.getPage(0)
+      const render = page.render.bind(page)
+      vi.spyOn(page, 'render').mockImplementation((params) => {
+        modes.push(params.annotationMode)
+        return render(params)
+      })
+    }
     const p = mountPage(doc)
     await p.mount.renderer.rendered
     expect(p.mount.form).toBeUndefined()
     expect(p.host.querySelector('[data-ink-form-layer]')).toBeNull()
     // Nothing is left out of the page: every widget and annotation is drawn with it.
     expect(draws.mock.calls.map(([request]) => request.hide)).toEqual([[]])
-    // The engine reader draws the page itself: PDF.js's render, and its mode, are not used.
     if (readerKind() === 'pdfjs')
-      expect(modes).toEqual([doc._pdfjs.module.AnnotationMode.ENABLE])
+      expect(modes).toEqual([doc._pdfjs!.module.AnnotationMode.ENABLE])
+    else expect(doc._pdfjs).toBeUndefined()
   })
 
   it('renders a form page once, into one canvas, and each widget’s appearance apart', async () => {
@@ -1420,8 +1423,8 @@ async function storedReference(
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   cleanup.push(() => host.remove())
   for (const [id, on] of states)
-    doc._pdfjs.proxy.annotationStorage.setValue(id, { value: on })
-  const pdfPage = await doc._pdfjs.getPage(transform.page.index)
+    doc._pdfjs!.proxy.annotationStorage.setValue(id, { value: on })
+  const pdfPage = await doc._pdfjs!.getPage(transform.page.index)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(transform.cssWidth)
   canvas.height = Math.round(transform.cssHeight)
@@ -1433,7 +1436,7 @@ async function storedReference(
       rotation: transform.totalRotation,
     }),
     background: '#ffffff',
-    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE_STORAGE,
+    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE_STORAGE,
   }).promise
   host.append(canvas)
   return host

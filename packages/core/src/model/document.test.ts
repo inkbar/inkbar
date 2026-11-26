@@ -200,7 +200,7 @@ describe('openDocument', () => {
     await expect(doc.text(7)).rejects.toMatchObject({ code: 'PageOutOfRange' })
     doc.destroy()
     await expect(doc.text(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
-    await expect(doc._pdfjs.getPage(0)).rejects.toMatchObject({
+    await expect(doc._pdfjs!.getPage(0)).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
   })

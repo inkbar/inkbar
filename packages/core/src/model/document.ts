@@ -1,10 +1,7 @@
 import { refOfPdfjsId } from '../pdf/annotation-fields'
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects, type PdfObjects } from '../pdf/objects'
-import { destinationPage } from '../pdfjs/destinations'
-import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
-import { createPdfjsReader, type PdfjsReader } from '../pdfjs/reader'
-import { createTextReads, type TextReads } from '../pdfjs/text-reads'
+import { assertAssets } from '../pdfjs/assets'
 import { readerKind } from '../reader/select'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
@@ -35,7 +32,6 @@ import { createFormScripting } from './form/scripting'
 import { buildFormFields } from './form/structure'
 import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
-import { createPageCache, type PageCache } from './page-cache'
 import { type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import {
@@ -77,7 +73,11 @@ import type { PageLink } from './links'
 import type { OutlineItem } from './outline'
 import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type { TextContent } from './text'
-import type { PdfAssets, PdfjsDocument, PdfjsModule, PdfjsPage } from '../pdfjs/types'
+import type { EngineDocumentReader } from '../engine-reader/reader'
+import type { PdfjsHandles } from '../pdfjs/handles'
+import type { PdfjsOpened } from '../pdfjs/open'
+import type { PdfjsReader } from '../pdfjs/reader'
+import type { PdfAssets } from '../pdfjs/types'
 import type { DocumentReader } from '../reader/types'
 import type { AnnotationRef } from '@inkbar/engine'
 
@@ -333,14 +333,11 @@ export interface InkDocument {
    * Never rejects.
    */
   readonly _liftSettled: Promise<void>
-  /** @internal PDF.js handles for the DOM layer. Not part of the public contract. */
-  readonly _pdfjs: {
-    module: PdfjsModule
-    proxy: PdfjsDocument
-    getPage(index: number): Promise<PdfjsPage>
-    /** Running text reads, so `destroy()` can wait for PDF.js to finish them. */
-    textReads: TextReads
-  }
+  /**
+   * @internal PDF.js handles, while PDF.js reads the file. Absent when the engine reads it. Not
+   * part of the public contract.
+   */
+  readonly _pdfjs?: PdfjsHandles | undefined
   /** @internal Page facts and pixels for the DOM layer. Not part of the public contract. */
   readonly _reader: DocumentReader
 }
@@ -363,14 +360,20 @@ export async function openDocument(
   const status = writable<DocumentStatus>({ state: 'loading' })
   const pages: PageInfo[] = []
   const info: DocumentInfo = { pageCount: 0, isEncrypted: false }
-  let pageCache: PageCache<PdfjsPage> | undefined
   let destroyed = false
-  let handles: InkDocument['_pdfjs'] | undefined
+  /** The file open in PDF.js, when PDF.js reads it. */
+  let pdfjsOpened: PdfjsOpened | undefined
   let reader: DocumentReader | undefined
-  /** The PDF.js reader, which `reader` is or falls back to; the form is still built from it. */
+  /** The PDF.js reader, when PDF.js reads the file. */
   let pdfjsReader: PdfjsReader | undefined
+  /**
+   * The engine reader, when the engine reads the file. Its engine has a copy of the file; core
+   * keeps the one below for `getData()`, the object reader, a save and a restart.
+   */
+  let engineOpened: EngineDocumentReader | undefined
+  /** The bytes the file was opened from, kept when the engine reads it. */
+  let fileBytes: Uint8Array | undefined
   const measure = canvasMeasureChar()
-  let destroyTask: (() => Promise<void>) | undefined
 
   const store = createAnnotationStore({
     mode: options.annotations ?? { mode: 'uncontrolled' },
@@ -408,10 +411,7 @@ export async function openDocument(
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
-  /**
-   * Each page's searchable text, and whether its boundaries come from the page's glyphs. Declared
-   * here: the engine reader clears it if it turns to PDF.js while the document opens.
-   */
+  /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
   const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
@@ -449,100 +449,95 @@ export async function openDocument(
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
   /**
-   * With the internal switch on, pages and the fields' appearances are drawn and their text,
-   * links, outline, destinations, and the file's facts, annotations, form fields, Tab order and
-   * scripts read by an engine reader over the file PDF.js opened, which also builds the sandbox's
-   * fields. Its module loads only then. When an engine started to replace one that stopped
-   * cannot start, the PDF.js reader answers for the rest of the document's life.
+   * With the internal switch on, the engine opens the file: pages and the fields' appearances
+   * are drawn, and their text, links, outline, destinations, and the file's facts, annotations,
+   * form fields, Tab order and scripts read, by an engine reader, which also builds the sandbox's
+   * fields. PDF.js is not loaded. With it off, PDF.js opens and reads the file.
    */
-  const engineReader =
-    readerKind() === 'engine'
-      ? async (
-          proxy: PdfjsDocument,
-          fallback: DocumentReader
-        ): Promise<DocumentReader & { forgetAnnotations(): void }> => {
-          const { createEngineReader } = await import('../engine-reader/reader')
-          return createEngineReader({
-            loader: options.engine!,
-            bytes: () => proxy.getData(),
-            password: options.password,
-            fallback,
-            // Search keeps no text read before the switch.
-            onFallback: () => searchable.clear(),
-          })
-        }
-      : undefined
+  const withEngine = readerKind() === 'engine'
+
+  /** Opens the file in a new engine reader, from core's own copy of its bytes. */
+  const openWithEngine = async (): Promise<EngineDocumentReader> => {
+    const bytes = await resolved.bytes()
+    fileBytes = bytes
+    const { createEngineReader } = await import('../engine-reader/reader')
+    // The engine copies the bytes it is given, so it is given core's copy each time.
+    const opened = await createEngineReader({
+      loader: options.engine!,
+      bytes: () => Promise.resolve(bytes),
+      password: options.password,
+    })
+    engineOpened = opened
+    return opened
+  }
+
+  /** Loads PDF.js and opens the file in it. */
+  const openWithPdfjs = async (): Promise<PdfjsReader> => {
+    const { openWithPdfjs: open } = await import('../pdfjs/open')
+    pdfjsOpened = await open({
+      assets: options.assets,
+      password: options.password,
+      verbosity: options.verbosity,
+      bytes: () => resolved.bytes(),
+      destroyed: () => destroyed,
+      destroyedError,
+      measure,
+    })
+    pdfjsReader = pdfjsOpened.reader
+    return pdfjsOpened.reader
+  }
+
+  /** A copy of the bytes the file was opened from, for the caller to keep. */
+  const fileData = (): Promise<Uint8Array> =>
+    fileBytes
+      ? Promise.resolve(fileBytes.slice())
+      : pdfjsOpened
+        ? pdfjsOpened.data()
+        : Promise.reject(statusError(status.get()))
+
+  /** The file's objects, read from the bytes it was opened from; `undefined` when unreadable. */
+  const readObjects = (): Promise<PdfObjects | undefined> =>
+    // PDF.js has detached the bytes it was given, so with it the objects are read from a copy.
+    (fileBytes ? openPdfObjects(fileBytes) : fileData().then(openPdfObjects)).catch(
+      () => undefined
+    )
 
   const load = (async () => {
-    if (engineReader && !options.engine)
+    if (withEngine && !options.engine)
       throw new InkError(
         'EngineUnavailable',
         'Drawing pages with the engine needs the engine option'
       )
-    const pdfjs = await loadPdfjs(options.assets)
-    const bytes = await resolved.bytes()
-    const { task, proxy } = await openProxy(pdfjs, bytes, {
-      assets: options.assets,
-      password: options.password,
-      verbosity: options.verbosity,
-    })
-    const textReads = createTextReads()
-    // PDF.js warns in the console when it is destroyed while a page's text is being read.
-    destroyTask = async () => {
-      await textReads.settle()
-      await task.destroy()
-    }
-    const cache = createPageCache((index) => proxy.getPage(index + 1))
-    pageCache = cache
-    const getPage = (index: number): Promise<PdfjsPage> => {
-      if (destroyed) return Promise.reject(destroyedError())
-      if (!Number.isInteger(index) || index < 0 || index >= proxy.numPages) {
-        return Promise.reject(
-          new InkError('PageOutOfRange', `Page ${index} does not exist`, {
-            index,
-            pageCount: proxy.numPages,
-          })
-        )
-      }
-      // A failed lookup is not cached: the next mount of the page asks PDF.js again.
-      return cache.get(index)
-    }
-    handles = { module: pdfjs, proxy, getPage, textReads }
-    const fromPdfjs = createPdfjsReader(handles, { measure })
-    pdfjsReader = fromPdfjs
-    const opening = engineReader ? await engineReader(proxy, fromPdfjs) : fromPdfjs
+    const opening = withEngine ? await openWithEngine() : await openWithPdfjs()
     reader = opening
+    const pageCount = opening.pageCount
     const facts = await reader.facts()
     if (facts.title !== undefined) info.title = facts.title
     if (facts.author !== undefined) info.author = facts.author
-    info.pageCount = proxy.numPages
+    info.pageCount = pageCount
     info.isEncrypted = facts.encrypted
-    for (let i = 0; i < proxy.numPages; i++) pages.push(await reader.pageInfo(i))
+    for (let i = 0; i < pageCount; i++) pages.push(await reader.pageInfo(i))
 
     const importedAt = new Date().toISOString()
     const opened = reader
     const read = (async () => {
-      const perPage = await mapInOrder(
-        proxy.numPages,
-        EMBEDDED_CONCURRENCY,
-        async (i) => {
-          const annotations = await opened.annotations(i)
-          const hasWidgets = annotations.some((d) => d.subtype === 'Widget')
-          const links = await opened.links(i)
-          // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
-          const others = annotations.flatMap((d) =>
-            d.subtype !== 'Widget' && d.subtype !== 'Link'
-              ? [[d.id, d.subtype] as const]
-              : []
-          )
-          return {
-            ...importEmbeddedPage(i, annotations, importedAt),
-            hasWidgets,
-            links,
-            others,
-          }
+      const perPage = await mapInOrder(pageCount, EMBEDDED_CONCURRENCY, async (i) => {
+        const annotations = await opened.annotations(i)
+        const hasWidgets = annotations.some((d) => d.subtype === 'Widget')
+        const links = await opened.links(i)
+        // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
+        const others = annotations.flatMap((d) =>
+          d.subtype !== 'Widget' && d.subtype !== 'Link'
+            ? [[d.id, d.subtype] as const]
+            : []
+        )
+        return {
+          ...importEmbeddedPage(i, annotations, importedAt),
+          hasWidgets,
+          links,
+          others,
         }
-      )
+      })
       // The form is read from the same page reads, before they are let go.
       const fileFields = perPage.some((r) => r.hasWidgets)
         ? await opened.form()
@@ -551,7 +546,6 @@ export async function openDocument(
     })()
     const { perPage, fileFields } = await read.finally(() => {
       // Nothing reads them after the open, so they are not held: a later read asks again.
-      fromPdfjs.forgetAnnotations()
       opening.forgetAnnotations()
     })
     perPage.forEach((r, i) => {
@@ -569,15 +563,20 @@ export async function openDocument(
     // A file with widgets reads its page `/Tabs`, which order its links too, whether or not any
     // widget makes a field.
     if (fileFields) {
-      // PDF.js has detached the bytes it was given, so the file's objects are read from a copy.
-      const objs = await proxy
-        .getData()
-        .then(openPdfObjects)
-        .catch(() => undefined)
+      const objs = await readObjects()
+      const fromPdfjs = pdfjsOpened
       formData.extras = await readFormExtras(
         objs,
         fileFields.flatMap((f) => f.widgets.map((w) => w.id)),
-        { destinationPage: (name) => destinationPage(proxy, name) }
+        {
+          destinationPage: fromPdfjs
+            ? (name) => fromPdfjs.destinationPage(name)
+            : (name) =>
+                opened.resolveDestination(name).then(
+                  (dest) => dest?.page,
+                  () => undefined
+                ),
+        }
       )
       formData.fields = buildFormFields(fileFields, formData.extras)
       // A page whose `/Tabs` is `S` and that holds fields is read in its structure tree's
@@ -659,15 +658,9 @@ export async function openDocument(
   // one copy of the file's objects.
   const liftSettled = ready.then(
     async () => {
-      if (destroyed || !handles) return
-      const { proxy } = handles
-      // PDF.js has detached the bytes it was given, so the objects are read from a copy.
+      if (destroyed || !reader) return
       let objs: Promise<PdfObjects | undefined> | undefined
-      const objects = () =>
-        (objs ??= proxy
-          .getData()
-          .then(openPdfObjects)
-          .catch(() => undefined))
+      const objects = () => (objs ??= readObjects())
       const fields = readEmbeddedFields(store.list.get(), targets, objects).then(
         (patched) => {
           if (!destroyed && patched.size > 0) store._patchEmbedded(patched)
@@ -740,8 +733,8 @@ export async function openDocument(
   const saver: Saver | undefined = options.engine
     ? createSaver({
         loader: options.engine,
-        bytes: () =>
-          handles ? handles.proxy.getData() : Promise.reject(statusError(status.get())),
+        // The engine copies the bytes it is given: core's own copy is handed over as it is.
+        bytes: () => (fileBytes ? Promise.resolve(fileBytes) : fileData()),
         password: options.password,
       })
     : undefined
@@ -906,7 +899,7 @@ export async function openDocument(
     await ready
     await baselineTaken
     if (destroyed) throw destroyedError()
-    if (!handles || !baseline) throw statusError(status.get())
+    if (!reader || !baseline) throw statusError(status.get())
     if (!saver)
       throw new InkError(
         'EngineUnavailable',
@@ -1026,8 +1019,8 @@ export async function openDocument(
       if (destroyed) throw destroyedError()
       await ready
       if (destroyed) throw destroyedError()
-      if (!handles) throw statusError(status.get())
-      return handles.proxy.getData()
+      if (!reader) throw statusError(status.get())
+      return fileData()
     },
     status: readonly(status),
     ready,
@@ -1112,9 +1105,13 @@ export async function openDocument(
       await ready
       await baselineTaken
       if (destroyed) throw destroyedError()
-      if (!handles || !baseline) throw statusError(status.get())
+      if (!reader || !baseline) throw statusError(status.get())
       const now = snapshot()
-      if (!hasChanges(now, baseline)) return handles.proxy.getData()
+      if (!hasChanges(now, baseline)) return fileData()
+      // An engine reader whose engine stopped and could not be started again: a save needs an
+      // engine, and fails as every read does.
+      const gone = engineOpened?.unavailable()
+      if (gone) throw gone
       if (!saver)
         throw new InkError(
           'EngineUnavailable',
@@ -1158,14 +1155,15 @@ export async function openDocument(
       history.destroy()
       form._destroy()
       store.destroy()
-      pageCache?.clear()
+      pdfjsOpened?.pageCache.clear()
       searchable.clear()
       pdfjsReader?.forgetAnnotations()
       destinationCache.clear()
       const openReader = reader
       if (openReader) teardown(() => openReader.destroy())
-      if (destroyTask) {
-        teardown(destroyTask)
+      const pdfjs = pdfjsOpened
+      if (pdfjs) {
+        teardown(() => pdfjs.destroy())
       }
     },
     _saves: saver !== undefined,
@@ -1182,8 +1180,9 @@ export async function openDocument(
     },
     _liftSettled,
     get _pdfjs() {
-      if (!handles) throw statusError(status.get())
-      return handles
+      if (withEngine) return undefined
+      if (!pdfjsOpened) throw statusError(status.get())
+      return pdfjsOpened.handles
     },
     get _reader() {
       if (!reader) throw statusError(status.get())
