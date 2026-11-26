@@ -1,5 +1,6 @@
 // The engine reader's module is loaded at the first open. When it cannot be loaded (a chunk the
-// host's server no longer has, say), the open fails with EngineUnavailable.
+// host's server no longer has, say), the open fails with AssetLoadFailed, as when the engine's
+// own files cannot be loaded.
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, it, vi } from 'vitest'
 
@@ -15,16 +16,16 @@ vi.mock(import('../engine-reader/reader'), () => {
   throw failed
 })
 
-it("gives EngineUnavailable, with the cause, when the engine reader's module cannot be loaded", async () => {
+it("gives AssetLoadFailed, with the cause, when the engine reader's module cannot be loaded", async () => {
   const doc = await openDocument(await fixtureBytes('text-simple'), {
     assets: nodeAssets(),
   })
   await expect(doc.ready).rejects.toMatchObject({
-    code: 'EngineUnavailable',
+    code: 'AssetLoadFailed',
     details: { cause: expect.anything() as unknown },
   })
   expect(doc.status.get()).toMatchObject({
     state: 'error',
-    error: { code: 'EngineUnavailable' },
+    error: { code: 'AssetLoadFailed' },
   })
 })

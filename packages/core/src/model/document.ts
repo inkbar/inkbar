@@ -453,7 +453,7 @@ export async function openDocument(
     const { createEngineReader } = await import('../engine-reader/reader').catch(
       (cause: unknown) => {
         throw new InkError(
-          'EngineUnavailable',
+          'AssetLoadFailed',
           "The engine reader's module could not be loaded",
           { cause },
           cause
