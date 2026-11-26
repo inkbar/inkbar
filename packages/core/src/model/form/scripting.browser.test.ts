@@ -2,7 +2,6 @@ import { browserAssets } from '@inkbar/fixtures/browser-assets'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { openFixtureInBrowser } from '../../dom/test-utils'
-import { createPdfjsReader } from '../../pdfjs/reader'
 import { sandboxLoader } from '../../pdfjs/sandbox'
 import { staticDefaults } from '../annotations/defaults'
 import { createHistory } from '../annotations/history'
@@ -13,10 +12,9 @@ import { createFormController, type FormController } from './controller'
 import { createFormScripting } from './scripting'
 
 import type { ViewerAction, FormField, FormFieldType } from './types'
-import type { PdfjsHandles } from '../../pdfjs/handles'
-import type { PdfjsDocument } from '../../pdfjs/types'
 import type { InkDocument } from '../document'
 import type { InkError } from '../errors'
+import type { FormScriptingOptions } from './scripting'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const cleanup: (() => void)[] = []
@@ -337,7 +335,7 @@ describe('form scripts', () => {
 
 type Spec = { name: string; type: FormFieldType; actions?: Record<string, string[]> }
 
-/** A form whose fields and scripts come straight from `objects`, without a PDF. */
+/** A form whose fields and scripts come straight from `specs`, without a PDF. */
 function stage(
   specs: Spec[],
   docActions?: Record<string, string[]>,
@@ -403,22 +401,28 @@ function stage(
       ],
     ])
   )
-  const proxy = {
-    hasJSActions: () => Promise.resolve(true),
-    getFieldObjects: () => Promise.resolve(objects),
-    getCalculationOrderIds: () => Promise.resolve(null),
-    getJSActions: () =>
-      Promise.resolve(docActions ? new Map(Object.entries(docActions)) : null),
-    getPage: () =>
-      Promise.resolve({
-        getJSActions: () =>
-          Promise.resolve(pageActions ? new Map(Object.entries(pageActions)) : null),
-      }),
-  } as unknown as PdfjsDocument
-  // The PDF.js reader over a stand-in document, so the scripts reach the sandbox as a file's do.
-  const reader = createPdfjsReader({ proxy } as unknown as PdfjsHandles, {
-    measure: undefined,
-  })
+  // What a reader gives for such a file: no scripts when no field and no document has any;
+  // otherwise document-level scripts by name, no calculation order, each field a widget of its
+  // own. A page's actions alone do not count.
+  const hasScripts = docActions !== undefined || specs.some((s) => s.actions)
+  const reader: FormScriptingOptions['reader'] = {
+    scripts: () =>
+      Promise.resolve(
+        hasScripts
+          ? {
+              calculationOrder: [],
+              calculationOrderIds: [],
+              document: Object.entries(docActions ?? {}).flatMap(([name, sources]) =>
+                sources.map((source) => ({ name, source }))
+              ),
+              documentActions: {},
+              fields: specs.map((s, i) => ({ name: s.name, widgets: [`${i + 1}R`] })),
+            }
+          : undefined
+      ),
+    sandboxFields: () => Promise.resolve(objects),
+    pageScripts: () => Promise.resolve(pageActions ?? {}),
+  }
   cleanup.push(() => {
     form._destroy()
     history.destroy()
@@ -698,7 +702,6 @@ describe('fix round', () => {
     })
     const plain = await openFixtureInBrowser('text-simple')
     cleanup.push(() => plain.destroy())
-    expect(plain._reader.kind).toBe('engine')
     expect(asked).toEqual([])
     // Control: the same engine notes the reads of a file with fields and scripts.
     const scripted = await openFixtureInBrowser('form-scripted')

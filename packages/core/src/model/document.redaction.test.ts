@@ -2,9 +2,9 @@ import { EngineError } from '@inkbar/engine'
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { openSecondReader } from '../pdfjs/second-reader'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 import { nodeAssets } from '../test-support/node-assets'
-import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { openDocument, type InkDocument, type OpenOptions } from './document'
 import { setEngineFactory } from './engine-factory'
@@ -938,12 +938,12 @@ describe('applyRedactions with the engine', () => {
 
   /** The text runs of `doc`'s first page whose boxes share area with `rect`. */
   async function textIn(doc: InkDocument, rect: typeof SECRET): Promise<string[]> {
-    const pdfjs = await openWithPdfjsReader(await doc.getData())
-    const content = await (await pdfjs.handles.getPage(0)).getTextContent()
+    const pdfjs = await openSecondReader(await doc.getData())
+    const items = await pdfjs.text(0)
     await pdfjs.destroy()
-    return content.items.flatMap((item) => {
-      if (!('str' in item) || !item.str.trim()) return []
-      const [, , , , x, y] = item.transform as number[]
+    return items.flatMap((item) => {
+      if (!item.str.trim()) return []
+      const [, , , , x, y] = item.transform
       const inside =
         x! < rect.x + rect.width &&
         x! + item.width > rect.x &&

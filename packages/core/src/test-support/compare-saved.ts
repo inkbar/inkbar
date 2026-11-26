@@ -14,13 +14,11 @@ import { mountContainer, nextFrame, parkPointer, until } from '../dom/test-utils
 import { createPageTransform, type PageTransform } from '../dom/transform'
 import { padRect, paintedRect } from '../model/annotations/drawing/extent'
 import { openDocument, type InkDocument } from '../model/document'
-
-import { openWithPdfjsReader } from './pdfjs-reader'
+import { openSecondReader, type SecondReader } from '../pdfjs/second-reader'
 
 import type { DrawItem, TextMeasure } from '../model/annotations/drawing/types'
 import type { Annotation, AnnotationInput } from '../model/annotations/types'
 import type { Rect } from '../model/geometry'
-import type { PdfjsHandles } from '../pdfjs/handles'
 import type { Engine } from '@inkbar/engine'
 
 /** Pixels per point of every render compared. */
@@ -177,21 +175,11 @@ async function screenOf(doc: InkDocument, page: number): Promise<Pixels> {
 
 /** A page as PDF.js draws it with every annotation the file holds. */
 async function pdfjsOf(
-  handles: PdfjsHandles,
+  reader: SecondReader,
   page: number,
   userUnit: number
 ): Promise<Pixels> {
-  const proxy = await handles.getPage(page)
-  const viewport = proxy.getViewport({ scale: PIXELS_PER_POINT / userUnit })
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(viewport.width)
-  canvas.height = Math.round(viewport.height)
-  await proxy.render({
-    canvas,
-    viewport,
-    background: '#ffffff',
-    annotationMode: handles.module.AnnotationMode.ENABLE,
-  }).promise
+  const canvas = await reader.render(page, PIXELS_PER_POINT / userUnit)
   const pixels = canvasPixels(canvas)
   canvas.width = canvas.height = 0
   return pixels
@@ -221,8 +209,8 @@ export async function renderSaved(
     assets: browserAssets(),
     pictures: savePictures(document),
   })
-  let saved: Awaited<ReturnType<typeof openWithPdfjsReader>> | undefined
-  let original: Awaited<ReturnType<typeof openWithPdfjsReader>> | undefined
+  let saved: SecondReader | undefined
+  let original: SecondReader | undefined
   try {
     await doc.ready
     await doc._liftSettled
@@ -239,8 +227,8 @@ export async function renderSaved(
     const renderer = await renderEngine()
     const fileDoc = await renderer.open(bytes)
     const openedDoc = await renderer.open(opened)
-    saved = await openWithPdfjsReader(bytes)
-    original = await openWithPdfjsReader(opened)
+    saved = await openSecondReader(bytes)
+    original = await openSecondReader(opened)
     const pages = new Map<number, SavedPage>()
     try {
       for (const p of pageIndexes) {
@@ -253,8 +241,8 @@ export async function renderSaved(
             base: await openedDoc.renderPage(p, options),
           },
           pdfjs: {
-            page: await pdfjsOf(saved.handles, p, info.userUnit),
-            base: await pdfjsOf(original.handles, p, info.userUnit),
+            page: await pdfjsOf(saved, p, info.userUnit),
+            base: await pdfjsOf(original, p, info.userUnit),
           },
           transform: createPageTransform(info, PIXELS_PER_POINT / info.userUnit),
         })

@@ -23,6 +23,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { translated } from '../model/annotations/edit'
 import { openDocument, type InkDocument } from '../model/document'
+import { openSecondReader } from '../pdfjs/second-reader'
 import {
   beyondClip,
   destroyRenderEngine,
@@ -45,7 +46,6 @@ import {
   type SavedRenders,
   type TextBand,
 } from '../test-support/compare-saved'
-import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { canvasTextPicture, savePictures } from './save-pictures'
 import { checkTextFonts, type TextClass } from './text-font-check'
@@ -869,9 +869,9 @@ describe("another program's redaction marks, adopted", () => {
 
   /** How many annotations page 0 of the file `doc` opened lists in its `/Annots`, as PDF.js reads them. */
   const annotsOn = async (doc: InkDocument) => {
-    const pdfjs = await openWithPdfjsReader(await doc.getData())
+    const pdfjs = await openSecondReader(await doc.getData())
     try {
-      return (await (await pdfjs.handles.getPage(0)).getAnnotations()).length
+      return (await pdfjs.annotations(0)).length
     } finally {
       await pdfjs.destroy()
     }
