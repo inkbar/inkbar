@@ -6,6 +6,11 @@
  * before any script runs. So the bridge rewrites the four empty bodies in the scripting source
  * before the sandbox evaluates it. Each replacement reports the call through the sandbox's own
  * `send` channel, with a command name only Inkbar uses; the host maps the arguments.
+ *
+ * One more rewrite fixes a fault in the sandbox's calculation loop. A field object built for a
+ * name with no widget of its own, such as a parent the calculation order lists, has no `send`.
+ * The loop calls it once the field's scripts have run, which throws and leaves every later
+ * field in the order uncalculated. The rewrite skips the call when there is nothing to call.
  */
 
 /** The command a rewritten method sends. */
@@ -26,6 +31,15 @@ const stub = (method: PatchedMethod) => `\n  ${method}() {}\n`
 const replacement = (method: PatchedMethod) =>
   `\n  ${method}(...args) { this._send({ command: "${ACTION_COMMAND}", method: "${method}", args }); }\n`
 
+/** The calculation loop's report of a field's new value, and the same call when `send` is set. */
+const CALCULATE_SEND = 'target.obj._send({'
+const CALCULATE_SEND_GUARDED = 'target.obj._send?.({'
+
+/** How many times the calculation loop's unguarded send appears in `source`. */
+export function countCalculateSends(source: string): number {
+  return source.split(CALCULATE_SEND).length - 1
+}
+
 /** How many times each empty method appears in `source`. */
 export function countStubs(source: string): Record<PatchedMethod, number> {
   const counts = {} as Record<PatchedMethod, number>
@@ -34,15 +48,20 @@ export function countStubs(source: string): Record<PatchedMethod, number> {
 }
 
 /**
- * Rewrites the four empty methods. Throws when any of them does not appear exactly once, which
- * means the PDF.js build differs from the one this was written against.
+ * Rewrites the four empty methods and the calculation loop's send. Throws when any of them does
+ * not appear exactly once, which means the PDF.js build differs from the one this was written
+ * against.
  */
 export function patchScriptingSource(source: string): string {
   const counts = countStubs(source)
-  const off = METHODS.filter((m) => counts[m] !== 1)
+  const off: string[] = METHODS.filter((m) => counts[m] !== 1)
+  if (countCalculateSends(source) !== 1) off.push('runCalculate')
   if (off.length > 0)
     throw new Error(`The PDF.js scripting source does not match: ${off.join(', ')}`)
-  return METHODS.reduce((src, m) => src.replace(stub(m), () => replacement(m)), source)
+  return METHODS.reduce(
+    (src, m) => src.replace(stub(m), () => replacement(m)),
+    source.replace(CALCULATE_SEND, () => CALCULATE_SEND_GUARDED)
+  )
 }
 
 interface SourceModule {

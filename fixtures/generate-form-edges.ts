@@ -396,10 +396,10 @@ function writeScriptedParents() {
   write(
     'form-scripted-parents',
     buildPdf([
-      // 1: the catalog. /CO names the parent last. PDF.js's sandbox gives a name with no widget
-      // object no `send`, so calculating total throws in `runCalculate`, which ends the loop over
-      // /CO: an entry after it would never be calculated.
-      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 13 0 R 7 0 R] >> >>',
+      // 1: the catalog. /CO names the parent before count. PDF.js's sandbox gives a name with no
+      // widget object no `send`, so unpatched it throws on reaching total in `runCalculate`,
+      // which ends the loop over /CO and leaves count uncalculated.
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 7 0 R 13 0 R] >> >>',
       INFO,
       PAGES,
       page('/Annots [8 0 R 9 0 R 11 0 R 12 0 R 13 0 R 15 0 R 16 0 R]'),
@@ -440,7 +440,7 @@ function writeScriptedParents() {
       pages: 1,
       opens: true,
       describes:
-        'A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate("SUM", new Array("total")); count (/V 0) calculates this.getField("total").getArray().length. /CO is [sum count total], naming the parent last. choice is a radio parent (/V x) over widgets with on-states x and y',
+        'A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate("SUM", new Array("total")); count (/V 0) calculates this.getField("total").getArray().length. /CO is [sum total count], naming the parent before count. choice is a radio parent (/V x) over widgets with on-states x and y',
       annotations: { Widget: 7 },
     }
   )
