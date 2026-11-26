@@ -2732,3 +2732,40 @@ describe('the stopped state', () => {
     })
   })
 })
+
+describe('a link stored as a direct object', () => {
+  it('has the id its annotation has', async () => {
+    const entry = {
+      index: 8,
+      subtype: 'Link',
+      flags: 4,
+      rectOk: true,
+      hasQuads: false,
+      quadsOk: true,
+    }
+    const t = setup({
+      pageLinks: () =>
+        Promise.resolve({
+          annotations: [entry],
+          links: [{ index: 8, rect: { x: 72, y: 700, width: 100, height: 20 } }],
+        }),
+      pageAnnotations: () =>
+        Promise.resolve({
+          annotations: [
+            {
+              ...entry,
+              rect: [72, 700, 172, 720],
+              hasAppearance: false,
+              appearanceStates: [],
+            },
+          ],
+          truncated: false,
+        }),
+    })
+    const reader = await t.open()
+    const [annotation] = await reader.annotations(0)
+    expect(annotation!.id).toBe('p0i8')
+    const [link] = await reader.links(0)
+    expect(link!.id).toBe(`pdf:0:${annotation!.id}`)
+  })
+})

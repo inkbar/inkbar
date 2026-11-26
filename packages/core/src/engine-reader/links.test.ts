@@ -185,8 +185,8 @@ describe('linksFromFacts', () => {
     expect(links.map((l) => l.id)).toEqual(['pdf:0:10R', 'pdf:0:11R3'])
   })
 
-  it('a link stored as a direct object gets the id PDF.js makes for one', () => {
-    // PDF.js numbers the page's direct annotations from 1 as it reads /Annots: annot_p<page>_<n>.
+  it('a link stored as a direct object gets the id its annotation has', () => {
+    // Its page and place in /Annots, p<page>i<index>, as the annotations read names it.
     const links = linksFromFacts(
       2,
       page([
@@ -198,11 +198,7 @@ describe('linksFromFacts', () => {
         entry(5, { objectNumber: undefined }),
       ])
     )
-    expect(links.map((l) => l.id)).toEqual([
-      'pdf:2:11R',
-      'pdf:2:annot_p2_2',
-      'pdf:2:annot_p2_5',
-    ])
+    expect(links.map((l) => l.id)).toEqual(['pdf:2:11R', 'pdf:2:p2i2', 'pdf:2:p2i5'])
   })
 
   it('pairs each link with its entry by index, whatever order the links come in', () => {
