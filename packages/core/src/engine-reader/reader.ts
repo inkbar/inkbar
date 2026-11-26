@@ -54,11 +54,12 @@ export const MAX_PIXELS = 268_435_456
 const TEXT_PAGES = 8
 
 /**
- * How many engines the name lookups of one outline read may stop in a row, with none of them
- * succeeding in between, before the read stops asking: each stop costs a new engine, which reads
- * the whole file again. One name that stops the engine stops at most two: the one it was looked
- * up on, and the one its retry stops. So three in a row take more than one bad name. Reads that
- * name a page are held by the page rule instead (see `./stops`).
+ * How many engines link reads, or the name lookups of one outline read, may stop in a row, with
+ * none of them succeeding in between, before the reader stops asking: each stop costs a new
+ * engine, which reads the whole file again. One item that stops the engine stops at most two:
+ * the one it was read on, and the one its retry stops. So three in a row take more than one bad
+ * item. Link reads' stops do not count towards stopping the reader (see `./stops`): this limit
+ * is theirs.
  */
 const STOPS_IN_A_ROW = 3
 
@@ -360,10 +361,10 @@ export async function createEngineReader(
    */
   const counted = (
     page: number | undefined,
-    retry: boolean,
+    counts: boolean,
     cause: unknown
   ): InkError | undefined => {
-    const next = stops.found(page, retry, cause)
+    const next = stops.found(page, counts, cause)
     if (next.kind === 'blocked') return next.error
     if (next.kind === 'stop') {
       stopReader(
@@ -384,6 +385,11 @@ export async function createEngineReader(
     signal?: AbortSignal | undefined
     /** The page the call reads, which its stops count towards. */
     page?: number | undefined
+    /**
+     * False for a call whose stops do not count towards stopping the reader, as it has a limit
+     * of its own; they still count towards its page. Default true.
+     */
+    counts?: boolean | undefined
     onDrop?: (() => void) | undefined
     onGone?: (() => void) | undefined
   }
@@ -403,7 +409,7 @@ export async function createEngineReader(
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
-    { signal, page, onDrop, onGone }: RunOptions = {}
+    { signal, page, counts = true, onDrop, onGone }: RunOptions = {}
   ): Promise<T> => {
     let retried = false
     for (;;) {
@@ -444,7 +450,7 @@ export async function createEngineReader(
         if (await stillWorks(s)) throw error
         if (drop(used, s)) {
           onDrop?.()
-          const refusal = counted(page, retried, error)
+          const refusal = counted(page, counts && !retried, error)
           if (refusal) {
             onGone?.()
             throw refusal
@@ -752,16 +758,35 @@ export async function createEngineReader(
   }
 
   /**
+   * Engines that link reads dropped since a link read last succeeded. Each drop counts once,
+   * however many reads failed with it: reads run several at a time on the engine's one queue,
+   * and every read queued behind the one that stopped it fails too.
+   */
+  let linkStops = 0
+  /**
    * A page's links. A page whose links the engine cannot read has none, as a page whose
-   * annotations PDF.js cannot parse has none with the PDF.js reader; so does a blocked page,
-   * without asking. While the reader is stopped the read rejects as every call does.
+   * annotations PDF.js cannot parse has none with the PDF.js reader. So does a blocked page,
+   * without asking: the links are read at open, and a page with no links is better than a file
+   * that will not open. Link reads' stops count towards their page's block but not towards
+   * stopping the reader; once they have dropped `STOPS_IN_A_ROW` engines with none succeeding in
+   * between, the rest of the pages have none without asking, so a file whose link reads stop the
+   * engine opens, with no links, rather than start a new engine for every page. While the reader
+   * is stopped the read rejects as every call does.
    */
   const links = async (page: number): Promise<PageLink[]> => {
     if (destroyed) throw destroyedError()
     checkPage(page)
     const found = await onEngine(
       async () => {
-        const facts = await run((doc) => doc.pageLinks(page), { page })
+        if (linkStops >= STOPS_IN_A_ROW) return []
+        const facts = await run((doc) => doc.pageLinks(page), {
+          page,
+          counts: false,
+          onDrop: () => {
+            linkStops++
+          },
+        })
+        linkStops = 0
         return linksFromFacts(page, facts, refPages)
       },
       undefined,
@@ -1275,7 +1300,7 @@ export async function createEngineReader(
       engine: s.engine,
       // A stop the borrower found counts as any other, towards no page.
       stopped: async () => {
-        if (!(await stillWorks(s)) && drop(used, s)) counted(undefined, false, undefined)
+        if (!(await stillWorks(s)) && drop(used, s)) counted(undefined, true, undefined)
       },
     }
   }

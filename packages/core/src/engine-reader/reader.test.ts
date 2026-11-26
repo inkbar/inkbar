@@ -1315,7 +1315,7 @@ describe('links, the outline and destinations', () => {
       8,
       async (page) => (await reader.links(page)).length
     )
-    return { t, found }
+    return { t, reader, found }
   }
 
   it('reads every other page of a file in which one page stops the engine, 8 at a time', async () => {
@@ -1334,18 +1334,13 @@ describe('links, the outline and destinations', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(3)
   })
 
-  it('stops the reader once link reads have stopped the engine three times, rather than start one for every page', async () => {
-    const t = setup({ pageCount: 40, pageLinks: oneQueue(() => true, oneLink) })
-    const reader = await t.open()
-    await reader.pageInfo(0)
-    await expect(
-      mapInOrder(40, 8, async (page) => (await reader.links(page)).length)
-    ).rejects.toMatchObject({ code: 'EngineUnavailable' })
-    expect(reader.engineStopped.get()).toBe(true)
-    // The engine the file opened in; two for each of the first two pages read in a batch, the
-    // one it stopped and the one its retry stopped, which blocks it; and the one the third
-    // stops, which stops the reader.
-    expect(t.createEngine).toHaveBeenCalledTimes(5)
+  it('stops asking for links once link reads have stopped three engines in a row', async () => {
+    const { t, reader, found } = await linksAtOpen(40, () => true)
+    expect(found).toEqual(Array<number>(40).fill(0))
+    // The engine the file opened in, then one for each of the three it dropped; then no more.
+    expect(t.createEngine).toHaveBeenCalledTimes(4)
+    // Link reads' stops do not count towards stopping the reader.
+    expect(reader.engineStopped.get()).toBe(false)
   })
 
   it('reads the links of the pages after one whose read stopped the engine', async () => {
@@ -1359,6 +1354,22 @@ describe('links, the outline and destinations', () => {
     await expect(reader.links(0)).resolves.toEqual([])
     for (let page = 1; page < 50; page++)
       await expect(reader.links(page)).resolves.toHaveLength(1)
+  })
+
+  it('counts only reads in a row: one that succeeds starts the count again', async () => {
+    const trapping = new Set([0, 2, 4, 6])
+    const t = setup({
+      pageCount: 8,
+      pageLinks: (index) =>
+        trapping.has(index) ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const found = []
+    for (let page = 0; page < 8; page++) found.push((await reader.links(page)).length)
+    expect(found).toEqual([0, 1, 0, 1, 0, 1, 0, 1])
+    // Eight engines stopped, none of them counted towards stopping the reader.
+    expect(reader.engineStopped.get()).toBe(false)
   })
 
   it('rejects with PageOutOfRange, and after destroy with DocumentDestroyed', async () => {
@@ -2682,6 +2693,21 @@ describe('the stopped state', () => {
       await expect(reader.restart()).rejects.toMatchObject(unavailable)
       expect(t.engines.at(-1)!.destroy).toHaveBeenCalledTimes(1)
       expect(reader.engineStopped.get()).toBe(true)
+    })
+
+    it('turns engineStopped true once for each stop, however many reads it rejects', async () => {
+      const { t, reader } = await stoppedReader()
+      const seen: boolean[] = []
+      reader.engineStopped.subscribe((stopped) => seen.push(stopped))
+      for (let page = 0; page < 3; page++)
+        await expect(read(reader, page)).rejects.toMatchObject(unavailable)
+      await reader.restart()
+      // Stopped again: the engine stops, and its replacement cannot start.
+      t.states.at(-1)!.stopped = true
+      t.createEngine.mockRejectedValueOnce(new Error('no wasm'))
+      for (let page = 0; page < 3; page++)
+        await expect(read(reader, page)).rejects.toMatchObject(unavailable)
+      expect(seen).toEqual([false, true])
     })
 
     it('makes one engine for two calls at once', async () => {

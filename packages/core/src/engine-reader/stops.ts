@@ -21,12 +21,13 @@ export type StopOutcome =
 /** @internal The engine reader's count of stops. */
 export interface StopCount {
   /**
-   * Records a stop found by a call: `page` is the page it read, when it names one, and `retry`
-   * is true when the stop came on the call's second attempt. The stop that brings a page to
-   * `PAGE_STOPS` blocks it and is not counted towards `STOPS_TO_STOP`, nor is a stop on a retry:
-   * a page that stops every engine it is read on costs one count, not two.
+   * Records a stop found by a call: `page` is the page it read, when it names one, and `counts`
+   * is false for a stop that does not count towards `STOPS_TO_STOP`: one on a call's second
+   * attempt, so a page that stops every engine it is read on costs one count, not two, and one
+   * whose reads have a limit of their own. The stop that brings a page to `PAGE_STOPS` blocks it
+   * and is not counted either.
    */
-  found(page: number | undefined, retry: boolean, cause: unknown): StopOutcome
+  found(page: number | undefined, counts: boolean, cause: unknown): StopOutcome
   /** The error a blocked page's reads reject with; `undefined` for a page that is not blocked. */
   blocked(page: number): InkError | undefined
   /** Forgets every stop and block, for an engine started again by hand. */
@@ -41,7 +42,7 @@ export function createStopCount(now: () => number = Date.now): StopCount {
   let times: number[] = []
 
   return {
-    found(page, retry, cause) {
+    found(page, counts, cause) {
       if (page !== undefined) {
         const stops = (pageStops.get(page) ?? 0) + 1
         pageStops.set(page, stops)
@@ -56,7 +57,7 @@ export function createStopCount(now: () => number = Date.now): StopCount {
           return { kind: 'blocked', error }
         }
       }
-      if (retry) return { kind: 'go-on' }
+      if (!counts) return { kind: 'go-on' }
       const at = now()
       times = times.filter((t) => at - t < STOP_WINDOW)
       times.push(at)
