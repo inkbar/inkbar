@@ -17,7 +17,7 @@ import {
   createPluginHost,
   createRedactionDialog,
   applyRedactionsFlow,
-  redactionBusy,
+  editingPaused,
   redactionDoneMessage,
   createSearchController,
   createPasswordPrompt,
@@ -264,12 +264,15 @@ function syncRootEl(): void {
 }
 
 const document = shallowRef<InkDocument | null>(null)
-/** Whether the open document's redaction marks are being applied: nothing may edit it. */
-const redacting = useReadable(
-  () => (document.value ? redactionBusy(document.value) : null),
+/**
+ * Whether the open document takes no edits: its redaction marks are being applied, or it has
+ * stopped reading (`editingPaused`).
+ */
+const paused = useReadable(
+  () => (document.value ? editingPaused(document.value) : null),
   false
 )
-watch(redacting, (on) => {
+watch(paused, (on) => {
   if (on) activated.value = null
 })
 /** Overrides the document's status while opening, and when opening itself failed. */
@@ -295,8 +298,9 @@ const controlled = computed(() => props.annotations !== undefined)
 const fieldsControlled = computed(() => props.fields !== undefined)
 
 function setActivated(id: string | null): void {
-  // While the marks are applied no thread opens: a reply written then would be lost.
-  if (id !== null && redacting.value) return
+  // While the marks are applied, or the document has stopped reading, no thread opens: a reply
+  // written then would be lost.
+  if (id !== null && paused.value) return
   activated.value = id
   if (id) emit('activate', id)
 }
@@ -498,25 +502,24 @@ const refHistory = createRefHistory({
 })
 const coreCanUndo = useReadable(() => document.value?.history.canUndo ?? null, false)
 const coreCanRedo = useReadable(() => document.value?.history.canRedo ?? null, false)
-// While the marks are applied the history stays still, as Undo and Redo show.
+// While the marks are applied, or the document has stopped reading, the history stays still, as
+// Undo and Redo show.
 const inkHistory: InkHistory = {
   canUndo: computed(
     () =>
-      !redacting.value &&
-      (controlled.value ? refHistory.canUndo.value : coreCanUndo.value)
+      !paused.value && (controlled.value ? refHistory.canUndo.value : coreCanUndo.value)
   ),
   canRedo: computed(
     () =>
-      !redacting.value &&
-      (controlled.value ? refHistory.canRedo.value : coreCanRedo.value)
+      !paused.value && (controlled.value ? refHistory.canRedo.value : coreCanRedo.value)
   ),
   undo: () => {
-    if (redacting.value) return
+    if (paused.value) return
     if (controlled.value) refHistory.undo()
     else document.value?.history.undo()
   },
   redo: () => {
-    if (redacting.value) return
+    if (paused.value) return
     if (controlled.value) refHistory.redo()
     else document.value?.history.redo()
   },

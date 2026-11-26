@@ -310,6 +310,8 @@ function setup(): void {
       signRequest.value = signRequest.value?.widget === req.widget ? null : req
     },
     onAction: (a) => ctx.reportAction(a),
+    // The document stopped reading: once per stop, as the root's `error` event.
+    onError: (error) => ctx.reportError(error),
     onFormAlert: (message) => {
       alertMessage.value = message
       alertsShown.value += 1

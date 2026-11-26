@@ -225,6 +225,8 @@ export function InkViewport({
       onSignField: (req) =>
         setSignRequest((open) => (open?.widget === req.widget ? null : req)),
       onAction: (a) => latest.current.ctx.reportAction(a),
+      // The document stopped reading: once per stop, as the root's `onError`.
+      onError: (error) => latest.current.ctx.reportError(error),
       onFormAlert: (message) =>
         setAlert((prev) => ({ message, shown: (prev?.shown ?? 0) + 1 })),
       onActivate: (id) => latest.current.ctx.setActivated(id),

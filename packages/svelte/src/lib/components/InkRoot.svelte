@@ -208,7 +208,7 @@
     lockedStatus,
     MIN_DOCUMENT_WIDTH,
     pageSelectionText,
-    redactionBusy,
+    editingPaused,
     redactionDoneMessage,
     savePictures,
     SIGNATURE_FONTS,
@@ -695,8 +695,9 @@
     onToolChange?.(id)
   }
   function setActivated(id: string | null): void {
-    // While the marks are applied no thread opens: a reply written then would be lost.
-    if (id !== null && documentNow && redactionBusy(documentNow).get()) return
+    // While the marks are applied, or the document has stopped reading, no thread opens: a reply
+    // written then would be lost.
+    if (id !== null && documentNow && editingPaused(documentNow).get()) return
     activated = id
     activatedNow = id
     hostActivated.set(id)
@@ -813,32 +814,36 @@
     return view
   }
 
-  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
-  const redacting = useReadable(() => (document ? redactionBusy(document) : null), false)
+  /**
+   * Whether the open document takes no edits: its redaction marks are being applied, or it has
+   * stopped reading (`editingPaused`).
+   */
+  const paused = useReadable(() => (document ? editingPaused(document) : null), false)
   $effect(() => {
-    if (redacting.current) setActivated(null)
+    if (paused.current) setActivated(null)
   })
   const snapCanUndo = useReadable(() => snapshotHistory.canUndo, false)
   const snapCanRedo = useReadable(() => snapshotHistory.canRedo, false)
   const coreCanUndo = useReadable(() => document?.history.canUndo, false)
   const coreCanRedo = useReadable(() => document?.history.canRedo, false)
   const inkHistory: InkHistory = {
-    // While the marks are applied the history stays still, as Undo and Redo show.
+    // While the marks are applied, or the document has stopped reading, the history stays still,
+    // as Undo and Redo show.
     get canUndo() {
-      if (redacting.current) return false
+      if (paused.current) return false
       return controlled ? historyEnabled && snapCanUndo.current : coreCanUndo.current
     },
     get canRedo() {
-      if (redacting.current) return false
+      if (paused.current) return false
       return controlled ? historyEnabled && snapCanRedo.current : coreCanRedo.current
     },
     undo: () => {
-      if (document && redactionBusy(document).get()) return
+      if (document && editingPaused(document).get()) return
       if (controlled) snapshotHistory.undo()
       else document?.history.undo()
     },
     redo: () => {
-      if (document && redactionBusy(document).get()) return
+      if (document && editingPaused(document).get()) return
       if (controlled) snapshotHistory.redo()
       else document?.history.redo()
     },
