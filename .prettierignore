@@ -3,3 +3,5 @@ pnpm-lock.yaml
 .svelte-kit
 CHANGELOG.md
 packages/engine/vendor
+# Written byte for byte by the parity suite (src/stable-json.ts)
+parity/baselines

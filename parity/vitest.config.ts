@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,24 +18,18 @@ import type { BrowserCommand } from 'vitest/node'
 
 const root = dirname(fileURLToPath(import.meta.url))
 /**
- * Core's own PDF.js, for its scripting sandbox. Core loads it through its `#pdfjs-sandbox` import,
- * which Vite's dependency scan does not follow, so on a cold cache Vite found it mid-run and
- * reloaded the page, failing every test. Aliased so the name resolves from here and can be
- * pre-bundled under the name core asks for.
+ * The package core's scripting sandbox comes from. Core loads the sandbox through its
+ * `#pdfjs-sandbox` import, which Vite's dependency scan does not follow, so on a cold cache Vite
+ * found it mid-run and reloaded the page, failing every test. Aliased so the name resolves from
+ * here and can be pre-bundled under the name core asks for.
  */
-const pdfjsDir = dirname(
+const sandboxPackage = dirname(
   createRequire(
     createRequire(import.meta.url).resolve('@inkbar/core/package.json')
   ).resolve('pdfjs-dist/package.json')
 )
-/** `PARITY_REPORT=1` lists the pages that are not the same; `PARITY_REPORT=all` lists every page. */
-const reportMode = process.env.PARITY_REPORT ?? ''
-const report =
-  reportMode === 'all'
-    ? 'all'
-    : reportMode === '' || reportMode === '0'
-      ? 'off'
-      : 'differences'
+/** `PARITY_REPORT=1` writes what differs from its baseline to `.report/`. */
+const report = ['', '0'].includes(process.env.PARITY_REPORT ?? '') ? 'off' : 'differences'
 const baseline = process.env.PARITY_BASELINE ?? ''
 
 /** `path` resolved inside the package, or an error when it would land outside `dirs`. */
@@ -52,9 +53,30 @@ const writeParityFile: BrowserCommand<[string, string, 'base64' | 'utf8']> = (
   writeFileSync(file, Buffer.from(content, encoding))
 }
 
-const readParityFile: BrowserCommand<[string]> = (_ctx, path) => {
+const readParityFile: BrowserCommand<[string, 'base64' | 'utf8']> = (
+  _ctx,
+  path,
+  encoding
+) => {
   const file = inside(path, ['baselines'])
-  return existsSync(file) ? readFileSync(file).toString('base64') : null
+  return existsSync(file) ? readFileSync(file).toString(encoding) : null
+}
+
+const baselines = join(root, 'baselines')
+
+/** Every file under `baselines/`, relative to it, `/` between folders, sorted. */
+const listBaselines: BrowserCommand<[]> = () =>
+  existsSync(baselines)
+    ? readdirSync(baselines, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) =>
+          relative(baselines, join(entry.parentPath, entry.name)).split(sep).join('/')
+        )
+        .sort()
+    : []
+
+const removeBaseline: BrowserCommand<[string]> = (_ctx, path) => {
+  rmSync(inside(join('baselines', path), ['baselines']))
 }
 
 /** Serves the `@inkbar/fonts` files at `/inkbar-fonts/`, for the engine's fallback fonts. */
@@ -98,27 +120,21 @@ export default defineConfig({
         optimizeDeps: {
           include: ['pdfjs-dist/build/pdf.sandbox.mjs', '@inkbar/fonts'],
         },
-        resolve: { alias: { 'pdfjs-dist': pdfjsDir } },
+        resolve: { alias: { 'pdfjs-dist': sandboxPackage } },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
-          // A fixture draws up to three pages twice at 2 px per point.
+          // A fixture's data is read on every page of the file.
           testTimeout: 120_000,
-          // Empties .report/ when a report run starts.
+          // Empties .report/ when a report run starts and indexes it when the run ends.
           globalSetup: ['src/report-setup.ts'],
           provide: { parityReport: report, parityBaseline: baseline },
           browser: {
             enabled: true,
             headless: true,
-            // PDF.js draws text through the browser, with the machine's fonts and font settings.
-            // fontconfig.xml fixes both, so a page compares the same on every Linux machine.
-            provider: playwright({
-              launchOptions: {
-                env: { ...process.env, FONTCONFIG_FILE: join(root, 'fontconfig.xml') },
-              },
-            }),
+            provider: playwright(),
             instances: [{ browser: 'chromium', viewport: { width: 1280, height: 900 } }],
-            commands: { writeParityFile, readParityFile },
+            commands: { writeParityFile, readParityFile, listBaselines, removeBaseline },
             screenshotFailures: false,
           },
         },
