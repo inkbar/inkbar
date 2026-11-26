@@ -1,0 +1,78 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [72, 640, 192, 664],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "18R",
+        "rect": [72, 590, 192, 614],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "22R",
+        "rect": [72, 540, 192, 564],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "26R",
+        "rect": [72, 490, 192, 514],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "30R",
+        "rect": [72, 440, 192, 464],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "hasAppearance": true,
+        "id": "34R",
+        "rect": [72, 390, 192, 414],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "hasAppearance": true,
+        "id": "38R",
+        "rect": [72, 340, 192, 364],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

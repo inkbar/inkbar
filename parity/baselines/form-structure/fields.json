@@ -1,0 +1,74 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "first",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [71.5, 639.5, 272.5, 662.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "second",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [71.5, 579.5, 272.5, 602.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "third",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "page": 0,
+        "rect": [71.5, 519.5, 272.5, 542.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

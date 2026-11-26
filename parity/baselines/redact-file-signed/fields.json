@@ -1,0 +1,22 @@
+[
+  {
+    "flags": 0,
+    "kind": "signature",
+    "name": "sig",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "7R",
+        "page": 0,
+        "rect": [300, 40, 380, 80],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

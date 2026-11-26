@@ -1,0 +1,33 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117095000Z",
+        "hasAppearance": true,
+        "id": "8R",
+        "modified": "D:20261117095000Z",
+        "rect": [72, 600, 172, 680],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "Hi",
+        "created": "D:20261117095000Z",
+        "hasAppearance": true,
+        "icon": "NoIcon",
+        "id": "12R",
+        "modified": "D:20261117095000Z",
+        "rect": [300, 650, 320, 670],
+        "subtype": "Text"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

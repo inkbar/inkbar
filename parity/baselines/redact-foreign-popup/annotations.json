@@ -1,0 +1,28 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [255, 0, 0],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "6R",
+        "rect": [45, 190, 215, 225],
+        "subtype": "Redact"
+      },
+      {
+        "author": "Another program",
+        "border": { "width": 0 },
+        "color": [255, 0, 0],
+        "contents": "",
+        "created": "",
+        "hasAppearance": false,
+        "id": "7R",
+        "rect": [220, 40, 380, 100],
+        "subtype": "Popup"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

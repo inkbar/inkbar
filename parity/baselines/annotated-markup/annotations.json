@@ -1,0 +1,54 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "Ed",
+        "border": { "width": 0 },
+        "color": [255, 255, 0],
+        "contents": "highlighted",
+        "hasAppearance": false,
+        "id": "7R",
+        "modified": "D:20261012120000Z",
+        "opacity": 0.5,
+        "quads": [72, 715, 400, 715, 72, 695, 400, 695],
+        "rect": [72, 695, 400, 715],
+        "subtype": "Highlight"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "8R",
+        "quads": [72, 691, 400, 691, 72, 671, 400, 671],
+        "rect": [72, 671, 400, 691],
+        "subtype": "Underline"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [255, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "9R",
+        "quads": [72, 667, 400, 667, 72, 647, 400, 647],
+        "rect": [72, 647, 400, 667],
+        "subtype": "StrikeOut"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 128, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "10R",
+        "quads": [72, 643, 400, 643, 72, 623, 400, 623],
+        "rect": [72, 616.3333, 400, 629.6667],
+        "subtype": "Squiggly"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

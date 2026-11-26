@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "", "fontSize": 0 },
+        "hasAppearance": false,
+        "id": "7R",
+        "rect": [300, 40, 380, 80],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

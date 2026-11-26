@@ -1,0 +1,245 @@
+[
+  {
+    "links": [
+      {
+        "id": "pdf:0:7R",
+        "order": 0,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 750 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/a" }
+      },
+      {
+        "id": "pdf:0:8R",
+        "order": 1,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 729 },
+        "target": { "kind": "url", "newWindow": true, "url": "https://example.com/doc.pdf" }
+      },
+      {
+        "id": "pdf:0:9R",
+        "order": 2,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 708 },
+        "target": { "kind": "unsupported", "reason": "remote" }
+      },
+      {
+        "id": "pdf:0:10R",
+        "order": 3,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 687 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/run" }
+      },
+      {
+        "id": "pdf:0:11R",
+        "order": 4,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 666 },
+        "target": { "kind": "unsupported", "reason": "launch" }
+      },
+      {
+        "id": "pdf:0:12R",
+        "order": 5,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 645 },
+        "target": { "kind": "url", "newWindow": true, "url": "https://example.com/js" }
+      },
+      {
+        "id": "pdf:0:13R",
+        "order": 6,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 624 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/open" }
+      },
+      {
+        "id": "pdf:0:14R",
+        "order": 7,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 603 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:15R",
+        "order": 8,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 582 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/aa" }
+      },
+      {
+        "id": "pdf:0:16R",
+        "order": 9,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 561 },
+        "target": { "kind": "url", "newWindow": false, "url": "http://www.example.com/path" }
+      },
+      {
+        "id": "pdf:0:17R",
+        "order": 10,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 540 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/%C3%A9" }
+      },
+      {
+        "id": "pdf:0:18R",
+        "order": 11,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 519 },
+        "target": { "kind": "unsupported", "reason": "unsafe-url" }
+      },
+      {
+        "id": "pdf:0:19R",
+        "order": 12,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 498 },
+        "target": { "kind": "unsupported", "reason": "unsafe-url" }
+      },
+      {
+        "id": "pdf:0:20R",
+        "order": 13,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 477 },
+        "target": { "kind": "unsupported", "reason": "unsafe-url" }
+      },
+      {
+        "id": "pdf:0:21R",
+        "order": 14,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 456 },
+        "target": { "kind": "unsupported", "reason": "launch" }
+      },
+      {
+        "id": "pdf:0:22R",
+        "order": 15,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 435 },
+        "target": { "kind": "unsupported", "reason": "unsafe-url" }
+      },
+      {
+        "id": "pdf:0:23R",
+        "order": 16,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 414 },
+        "target": { "action": "NextPage", "kind": "named" }
+      },
+      {
+        "id": "pdf:0:24R",
+        "order": 17,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 393 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:25R",
+        "order": 18,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 372 },
+        "target": { "kind": "dest", "raw": [] }
+      },
+      {
+        "id": "pdf:0:26R",
+        "order": 19,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 351 },
+        "target": { "dest": { "fit": "fit", "page": 0 }, "kind": "resolved" }
+      },
+      {
+        "id": "pdf:0:27R",
+        "order": 20,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 330 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:28R",
+        "order": 21,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 309 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:29R",
+        "order": 22,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 288 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:30R1",
+        "order": 23,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 267 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/generation" }
+      },
+      {
+        "id": "pdf:0:31R",
+        "order": 24,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 246 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:32R",
+        "order": 25,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 225 },
+        "target": { "kind": "unsupported", "reason": "launch" }
+      },
+      {
+        "id": "pdf:0:33R",
+        "order": 26,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 204 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/spec" }
+      },
+      {
+        "id": "pdf:0:34R",
+        "order": 27,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 183 },
+        "target": { "kind": "unsupported", "reason": "launch" }
+      },
+      {
+        "id": "pdf:0:35R",
+        "order": 28,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 162 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:36R",
+        "order": 29,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 141 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:37R",
+        "order": 30,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 120 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:38R",
+        "order": 31,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 99 },
+        "target": { "dest": { "fit": "fith", "page": 0, "top": 500 }, "kind": "resolved" }
+      },
+      {
+        "id": "pdf:0:39R",
+        "order": 32,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 78 },
+        "target": { "kind": "unsupported", "reason": "unknown" }
+      },
+      {
+        "id": "pdf:0:41R",
+        "order": 33,
+        "page": 0,
+        "rect": { "height": 16, "width": 120, "x": 300, "y": 57 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/after-markup" }
+      }
+    ],
+    "page": 1
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [
+      {
+        "name": "tick",
+        "source": "var ticking = app.setInterval(\"this.getField('ticker').value = String(Number(this.getField('ticker').value || 0) + 1)\", 50)"
+      }
+    ],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": { "fullName": "ticker", "kids": ["9R"], "page": -1, "rotation": 0 },
+        "id": "8R",
+        "name": "ticker",
+        "widgets": ["9R"]
+      },
+      {
+        "container": { "fullName": "note", "kids": ["13R"], "page": -1, "rotation": 0 },
+        "id": "12R",
+        "name": "note",
+        "widgets": ["13R"]
+      }
+    ]
+  },
+  "pages": []
+}

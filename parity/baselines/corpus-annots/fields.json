@@ -1,0 +1,29 @@
+[
+  {
+    "flags": 131072,
+    "kind": "combo",
+    "name": "Combo1",
+    "options": [
+      { "displayValue": "Highlight", "exportValue": "Highlight" },
+      { "displayValue": "Link", "exportValue": "Link" },
+      { "displayValue": "Popup", "exportValue": "Popup" },
+      { "displayValue": "Widget", "exportValue": "Widget" }
+    ],
+    "value": [],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 7,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 12 },
+        "flags": 0,
+        "hasAppearance": false,
+        "id": "23R",
+        "page": 0,
+        "rect": [70, 350, 170, 380],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

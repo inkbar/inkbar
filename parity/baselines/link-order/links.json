@@ -1,0 +1,46 @@
+[
+  {
+    "links": [
+      {
+        "id": "pdf:0:8R",
+        "order": 1,
+        "page": 0,
+        "rect": { "height": 30, "width": 200, "x": 72, "y": 640 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/link-one" }
+      },
+      {
+        "id": "pdf:0:11R",
+        "order": 2,
+        "page": 0,
+        "rect": { "height": 30, "width": 200, "x": 72, "y": 460 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/link-two" }
+      },
+      {
+        "id": "pdf:0:13R",
+        "order": 3,
+        "page": 0,
+        "rect": { "height": 30, "width": 200, "x": 72, "y": 340 },
+        "target": {
+          "kind": "url",
+          "newWindow": false,
+          "url": "https://example.com/link-bad-quads"
+        }
+      },
+      {
+        "id": "pdf:0:14R",
+        "order": 4,
+        "page": 0,
+        "rect": { "height": 30, "width": 200, "x": 72, "y": 280 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/link-hidden" }
+      },
+      {
+        "id": "pdf:0:p0i8",
+        "order": 5,
+        "page": 0,
+        "rect": { "height": 30, "width": 200, "x": 72, "y": 220 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://example.com/link-direct" }
+      }
+    ],
+    "page": 1
+  }
+]

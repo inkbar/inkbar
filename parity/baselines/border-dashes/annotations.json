@@ -1,0 +1,78 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 2 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "7R",
+        "rect": [72, 650, 172, 700],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "rect": [72, 570, 172, 620],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [72, 490, 172, 540],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "10R",
+        "rect": [72, 410, 172, 460],
+        "subtype": "Square"
+      },
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "11R",
+        "rect": [300, 650, 500, 680],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 2 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "12R",
+        "rect": [300, 570, 500, 600],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [300, 490, 500, 520],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

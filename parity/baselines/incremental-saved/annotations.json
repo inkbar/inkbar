@@ -1,0 +1,20 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [255, 255, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "7R",
+        "opacity": 1,
+        "quads": [72, 715, 300, 715, 72, 695, 300, 695],
+        "rect": [72, 695, 300, 715],
+        "subtype": "Highlight"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

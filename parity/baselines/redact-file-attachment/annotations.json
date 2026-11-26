@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": false,
+        "icon": "Paperclip",
+        "id": "10R",
+        "rect": [340, 40, 360, 60],
+        "subtype": "FileAttachment"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

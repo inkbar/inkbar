@@ -1,0 +1,243 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "11R",
+        "modified": "D:20261117093000Z",
+        "opacity": 0.4,
+        "quads": [72, 714, 272, 714, 72, 700, 272, 700],
+        "rect": [72, 700, 272, 714],
+        "subtype": "Highlight"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [43, 90, 158],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "14R",
+        "modified": "D:20261117093000Z",
+        "quads": [72, 694, 272, 694, 72, 680, 272, 680],
+        "rect": [71.5, 680, 272.5, 694],
+        "subtype": "Underline"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "18R",
+        "modified": "D:20261117093000Z",
+        "quads": [72, 674, 272, 674, 72, 660, 272, 660],
+        "rect": [71.5, 660, 272.5, 674],
+        "subtype": "StrikeOut"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [31, 122, 77],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "22R",
+        "modified": "D:20261117093000Z",
+        "quads": [72, 654, 272, 654, 72, 640, 272, 640],
+        "rect": [71.5, 640, 272.5, 654],
+        "subtype": "Squiggly"
+      },
+      {
+        "author": "Sam",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A note",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "icon": "NoIcon",
+        "id": "26R",
+        "modified": "D:20261117093000Z",
+        "rect": [520, 700, 540, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A reply",
+        "created": "D:20261117093000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "30R",
+        "inReplyTo": "26R",
+        "modified": "D:20261117093000Z",
+        "rect": [520, 698, 542, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Saved by Inkbar",
+        "created": "D:20261117093000Z",
+        "defaultAppearance": { "color": [21, 24, 32], "fontName": "Helv", "fontSize": 12 },
+        "hasAppearance": true,
+        "id": "32R",
+        "modified": "D:20261117093000Z",
+        "rect": [300, 560, 460, 600],
+        "subtype": "FreeText"
+      },
+      {
+        "author": "",
+        "border": { "width": 2 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "38R",
+        "modified": "D:20261117093000Z",
+        "rect": [72, 540, 152, 600],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "42R",
+        "modified": "D:20261117093000Z",
+        "rect": [180, 540, 260, 600],
+        "subtype": "Circle"
+      },
+      {
+        "author": "",
+        "border": { "width": 2 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "46R",
+        "line": [72, 500, 260, 520],
+        "lineEndings": ["OpenArrow", "Circle"],
+        "modified": "D:20261117093000Z",
+        "rect": [71, 496.6516, 264.0002, 524.0002],
+        "subtype": "Line"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "50R",
+        "lineEndings": ["None", "None"],
+        "modified": "D:20261117093000Z",
+        "rect": [299.5, 479.5, 420.5, 520.5],
+        "subtype": "PolyLine",
+        "vertices": [300, 480, 360, 520, 420, 480]
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "54R",
+        "modified": "D:20261117093000Z",
+        "rect": [449.5, 479.5, 540.5, 530.5],
+        "subtype": "Polygon",
+        "vertices": [450, 480, 540, 480, 495, 530]
+      },
+      {
+        "author": "",
+        "border": { "width": 3 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "58R",
+        "inkLists": [[72, 400, 110, 450, 150, 400, 190, 450]],
+        "modified": "D:20261117093000Z",
+        "opacity": 1,
+        "rect": [70.953, 398.9511, 164.2054, 435.2929],
+        "subtype": "Ink"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "62R",
+        "modified": "D:20261117093000Z",
+        "rect": [300, 380, 420, 440],
+        "subtype": "Stamp"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "68R",
+        "modified": "D:20261117093000Z",
+        "rect": [450, 360, 540, 450],
+        "subtype": "Stamp"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "74R",
+        "modified": "D:20261117093000Z",
+        "rect": [0, 0, 612, 792],
+        "subtype": "Stamp"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "77R",
+        "modified": "D:20261117093000Z",
+        "rect": [299.5, 219.5, 500.5, 260.5],
+        "subtype": "Redact"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117093000Z",
+        "hasAppearance": true,
+        "id": "81R",
+        "modified": "D:20261117093000Z",
+        "rect": [100, 100, 220, 180],
+        "subtype": "Square"
+      }
+    ],
+    "page": 2,
+    "tabOrder": []
+  }
+]

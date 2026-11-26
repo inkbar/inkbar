@@ -1,0 +1,113 @@
+[
+  {
+    "bold": false,
+    "children": [],
+    "id": "0",
+    "italic": false,
+    "open": false,
+    "target": { "dest": { "fit": "xyz", "page": 0, "top": 700 }, "kind": "resolved" },
+    "title": "Cover"
+  },
+  {
+    "bold": true,
+    "children": [
+      {
+        "bold": false,
+        "children": [],
+        "id": "1.0",
+        "italic": false,
+        "open": false,
+        "target": { "dest": { "fit": "fith", "page": 1, "top": 600 }, "kind": "resolved" },
+        "title": "Chapter 1"
+      },
+      {
+        "bold": false,
+        "children": [],
+        "id": "1.1",
+        "italic": false,
+        "open": false,
+        "target": {
+          "dest": { "fit": "xyz", "left": 72, "page": 1, "top": 500 },
+          "kind": "resolved"
+        },
+        "title": "Chapter 2"
+      }
+    ],
+    "id": "1",
+    "italic": false,
+    "open": false,
+    "target": { "dest": { "fit": "fit", "page": 1 }, "kind": "resolved" },
+    "title": "Part One"
+  },
+  {
+    "bold": false,
+    "children": [
+      {
+        "bold": false,
+        "children": [],
+        "id": "2.0",
+        "italic": false,
+        "open": false,
+        "target": {
+          "dest": {
+            "fit": "fitr",
+            "page": 3,
+            "rect": { "height": 300, "width": 228, "x": 72, "y": 100 }
+          },
+          "kind": "resolved"
+        },
+        "title": "Section A"
+      },
+      {
+        "bold": false,
+        "children": [],
+        "id": "2.1",
+        "italic": true,
+        "open": false,
+        "target": { "dest": { "fit": "fitb", "page": 3 }, "kind": "resolved" },
+        "title": "Section B"
+      }
+    ],
+    "id": "2",
+    "italic": false,
+    "open": true,
+    "target": { "dest": { "fit": "fitv", "left": 144, "page": 2 }, "kind": "resolved" },
+    "title": "Part Two"
+  },
+  {
+    "bold": false,
+    "children": [],
+    "id": "3",
+    "italic": false,
+    "open": false,
+    "target": { "dest": { "fit": "fit", "page": 4 }, "kind": "resolved" },
+    "title": "Appendix"
+  },
+  {
+    "bold": false,
+    "children": [],
+    "id": "4",
+    "italic": false,
+    "open": false,
+    "target": { "kind": "url", "newWindow": false, "url": "https://example.com/outline" },
+    "title": "Website"
+  },
+  {
+    "bold": false,
+    "children": [],
+    "id": "5",
+    "italic": false,
+    "open": false,
+    "target": { "action": "NextPage", "kind": "named" },
+    "title": "Next page"
+  },
+  {
+    "bold": false,
+    "children": [],
+    "id": "6",
+    "italic": false,
+    "open": false,
+    "target": { "kind": "unsupported", "reason": "unknown" },
+    "title": "Broken"
+  }
+]

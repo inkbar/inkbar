@@ -1,0 +1,48 @@
+{
+  "file": {
+    "calculationOrder": ["sum", "total", "count"],
+    "calculationOrderIds": ["12R", "7R", "13R"],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "backgroundColor": [0, 0, 255],
+          "borderColor": [255, 0, 0],
+          "fullName": "total",
+          "kids": ["8R", "9R", "10R"],
+          "page": 0,
+          "rotation": 0,
+          "scripts": { "Focus": ["var totalFocused = true;"] }
+        },
+        "id": "7R",
+        "name": "total",
+        "widgets": []
+      },
+      { "name": "total.a", "widgets": ["8R"] },
+      { "name": "total.b", "widgets": ["9R"] },
+      {
+        "container": {
+          "fullName": "total.more",
+          "kids": ["11R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Focus": ["var totalFocused = true;"] }
+        },
+        "id": "10R",
+        "name": "total.more",
+        "widgets": []
+      },
+      { "name": "total.more.c", "widgets": ["11R"] },
+      { "name": "sum", "widgets": ["12R"] },
+      { "name": "count", "widgets": ["13R"] },
+      {
+        "container": { "fullName": "choice", "kids": ["15R", "16R"], "page": -1, "rotation": 0 },
+        "id": "14R",
+        "name": "choice",
+        "widgets": ["15R", "16R"]
+      }
+    ]
+  },
+  "pages": []
+}

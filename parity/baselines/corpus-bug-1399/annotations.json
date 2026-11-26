@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 1 },
+        "color": [255, 0, 0],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "12R",
+        "modified": "D:20140730145544+08'00'",
+        "rect": [429.595, 680.655, 528.974, 767.466],
+        "subtype": "Link"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

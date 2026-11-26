@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F2", "fontSize": 18 },
+        "hasAppearance": false,
+        "id": "11R",
+        "rect": [72, 500, 400, 540],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

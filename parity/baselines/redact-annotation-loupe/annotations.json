@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 255],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "rect": [220, 40, 380, 160],
+        "subtype": "Square"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

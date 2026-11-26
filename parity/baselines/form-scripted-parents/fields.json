@@ -1,0 +1,153 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "total.a",
+    "value": "1",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Focus": ["var totalFocused = true;"] } },
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "page": 0,
+        "rect": [72, 700, 272, 725],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "total.b",
+    "value": "2",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Focus": ["var totalFocused = true;"] } },
+        "at": 1,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [72, 655, 272, 680],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "total.more.c",
+    "value": "3",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Focus": ["var totalFocused = true;"] } },
+        "at": 2,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "11R",
+        "page": 0,
+        "rect": [72, 610, 272, 635],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "sum",
+    "value": "6",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": { "Calculate": ["AFSimple_Calculate(\"SUM\", new Array(\"total\"));"] }
+        },
+        "at": 3,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "12R",
+        "page": 0,
+        "rect": [72, 565, 272, 590],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "count",
+    "value": "0",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": { "Calculate": ["event.value = this.getField(\"total\").getArray().length;"] }
+        },
+        "at": 4,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [72, 520, 272, 545],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 49152,
+    "kind": "radio",
+    "name": "choice",
+    "value": "x",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 5,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "15R",
+        "onValue": "x",
+        "page": 0,
+        "rect": [72, 430, 92, 450],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": {},
+        "at": 6,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "onValue": "y",
+        "page": 0,
+        "rect": [102, 430, 122, 450],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

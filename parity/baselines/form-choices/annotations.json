@@ -1,0 +1,28 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [71.5, 559.5, 192.5, 620.5],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [319.5, 559.5, 440.5, 620.5],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

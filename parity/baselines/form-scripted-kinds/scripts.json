@@ -1,0 +1,96 @@
+{
+  "file": {
+    "calculationOrder": ["amount", "person", "note"],
+    "calculationOrderIds": ["7R", "22R", "12R"],
+    "document": [
+      { "name": "alpha", "source": "var alpha = 1;" },
+      { "name": "beta", "source": "  var beta = 2;  " }
+    ],
+    "documentActions": {
+      "DidPrint": ["var printed = true;"],
+      "OpenAction": ["var started = true;"],
+      "WillClose": ["var closing = true;"],
+      "WillSave": ["var saving = true;"]
+    },
+    "fields": [
+      { "name": "amount", "widgets": ["7R"] },
+      { "name": "start", "widgets": ["8R"] },
+      { "name": "due", "widgets": ["9R"] },
+      { "name": "size", "widgets": ["10R"] },
+      { "name": "colours", "widgets": ["11R"] },
+      {
+        "container": {
+          "fullName": "note",
+          "kids": ["13R", "14R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Blur": ["var blurred = true"] }
+        },
+        "id": "12R",
+        "name": "note",
+        "widgets": ["13R", "14R"]
+      },
+      {
+        "container": { "fullName": "pick", "kids": ["17R", "16R"], "page": -1, "rotation": 0 },
+        "id": "15R",
+        "name": "pick",
+        "widgets": ["17R", "16R"]
+      },
+      {
+        "container": { "fullName": "extras", "kids": ["19R", "20R"], "page": -1, "rotation": 0 },
+        "id": "18R",
+        "name": "extras",
+        "widgets": ["19R", "20R"]
+      },
+      { "name": "sig", "widgets": ["21R"] },
+      {
+        "container": { "fullName": "person", "kids": ["23R"], "page": -1, "rotation": 0 },
+        "id": "22R",
+        "name": "person",
+        "widgets": []
+      },
+      { "name": "person.first", "widgets": ["23R"] },
+      { "name": "go", "widgets": ["24R"] },
+      {
+        "container": {
+          "fullName": "twin",
+          "kids": ["32R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Keystroke": ["var firstTwin = true"] }
+        },
+        "id": "31R",
+        "name": "twin",
+        "widgets": ["32R"]
+      },
+      {
+        "container": {
+          "fullName": "twin",
+          "kids": ["34R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Format": ["var secondTwin = true"] }
+        },
+        "id": "33R",
+        "name": "twin",
+        "widgets": ["34R"]
+      },
+      {
+        "container": { "fullName": "flags", "kids": ["37R", "36R"], "page": -1, "rotation": 0 },
+        "id": "35R",
+        "name": "flags",
+        "widgets": ["37R", "36R"]
+      },
+      { "name": "stamp", "widgets": ["38R"] }
+    ]
+  },
+  "pages": [
+    {
+      "actions": {
+        "PageClose": ["var pageClosed = true;"],
+        "PageOpen": ["var pageOpened = 'yes';"]
+      },
+      "page": 1
+    }
+  ]
+}

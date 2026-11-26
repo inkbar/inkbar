@@ -1,0 +1,10 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [{ "name": "hello", "source": "app.alert(\"SECRET-OMEGA\");" }],
+    "documentActions": { "OpenAction": ["app.alert(\"SECRET-SIGMA\");"] },
+    "fields": []
+  },
+  "pages": [{ "actions": { "PageOpen": ["app.alert(\"SECRET-KAPPA\");"] }, "page": 1 }]
+}

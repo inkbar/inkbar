@@ -1,0 +1,23 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "shared",
+          "kids": ["9R", "14R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Validate": ["event.rc = true"] }
+        },
+        "id": "8R",
+        "name": "shared",
+        "widgets": ["9R", "14R"]
+      }
+    ]
+  },
+  "pages": []
+}

@@ -1,0 +1,19 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Standard callout",
+        "defaultAppearance": { "color": [208, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "hasAppearance": true,
+        "id": "5R",
+        "intent": "FreeTextCallout",
+        "rect": [56.5, 516.5, 283.5, 663.5],
+        "subtype": "FreeText"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

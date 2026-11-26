@@ -1,0 +1,40 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [255, 0, 0],
+        "contents": "An indirect Square",
+        "hasAppearance": true,
+        "id": "7R",
+        "rect": [72, 700, 172, 750],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [0, 0, 255],
+        "contents": "A Square written inline",
+        "hasAppearance": true,
+        "id": "p0i1",
+        "rect": [72, 600, 172, 650],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [255, 255, 0],
+        "contents": "A Highlight written inline",
+        "hasAppearance": true,
+        "id": "p0i2",
+        "opacity": 1,
+        "quads": [72, 560, 272, 560, 72, 540, 272, 540],
+        "rect": [72, 540, 272, 560],
+        "subtype": "Highlight"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

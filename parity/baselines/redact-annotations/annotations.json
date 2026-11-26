@@ -1,0 +1,57 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "6R",
+        "rect": [50, 160, 125, 200],
+        "subtype": "Stamp"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "SECRET-NOTE",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "10R",
+        "rect": [60, 213, 82, 235],
+        "subtype": "Text"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "8R",
+        "rect": [130, 160, 230, 185],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [260, 60, 360, 85],
+        "subtype": "Widget"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "SECRET-NOTE",
+        "created": "",
+        "hasAppearance": false,
+        "id": "11R",
+        "rect": [260, 200, 380, 260],
+        "subtype": "Popup"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

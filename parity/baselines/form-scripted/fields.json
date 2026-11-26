@@ -1,0 +1,456 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "qty",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Format": ["AFNumber_Format(0, 0, 0, 0, \"\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(0, 0, 0, 0, \"\", true)"]
+          }
+        },
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [71.5, 679.5, 192.5, 702.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "price",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [231.5, 679.5, 352.5, 702.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 1,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "total",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Calculate": ["AFSimple_Calculate(\"PRD\", new Array(\"qty\", \"price\"))"],
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "at": 2,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "page": 0,
+        "rect": [391.5, 679.5, 512.5, 702.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "when",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "keystrokeInFormat": true,
+          "scripts": {
+            "Format": ["AFDate_FormatEx(\"dd/mm/yyyy\");", "AFDate_KeystrokeEx(\"dd/mm/yyyy\");"]
+          }
+        },
+        "at": 3,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "19R",
+        "page": 0,
+        "rect": [71.5, 623.5, 272.5, 646.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "age",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": { "Validate": ["event.rc = event.value >= 18 && event.value <= 120"] }
+        },
+        "at": 4,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "22R",
+        "page": 0,
+        "rect": [319.5, 623.5, 400.5, 646.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "more",
+    "value": "Off",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Mouse Up": [
+              "this.getField(\"extra\").display = event.target.value == \"Off\" ? display.hidden : display.visible"
+            ]
+          }
+        },
+        "at": 5,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "25R",
+        "onValue": "Yes",
+        "page": 0,
+        "rect": [71.5, 567.5, 90.5, 586.5],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Off"
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "extra",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 6,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 6,
+        "hasAppearance": true,
+        "id": "31R",
+        "page": 0,
+        "rect": [319.5, 567.5, 520.5, 590.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "hello",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["app.alert(\"Hello\")"] } },
+        "at": 7,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "34R",
+        "page": 0,
+        "rect": [72, 512, 192, 536],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "ask",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["app.response(\"Name?\")"] } },
+        "at": 8,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "38R",
+        "page": 0,
+        "rect": [232, 512, 352, 536],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "submit",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["this.submitForm(\"https://example.com/submit\")"] } },
+        "at": 9,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "42R",
+        "page": 0,
+        "rect": [392, 512, 512, 536],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "mail",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["this.mailDoc(false, \"forms@example.com\")"] } },
+        "at": 10,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "46R",
+        "page": 0,
+        "rect": [72, 456, 192, 480],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "link",
+    "widgets": [
+      {
+        "actions": {
+          "newWindow": true,
+          "scripts": { "Action": ["app.launchURL(\"https://example.com\", true)"] },
+          "url": "https://example.com/"
+        },
+        "at": 11,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "50R",
+        "page": 0,
+        "rect": [232, 456, 352, 480],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "print",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["this.print()"] } },
+        "at": 12,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "54R",
+        "page": 0,
+        "rect": [392, 456, 512, 480],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "send",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 13,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "58R",
+        "page": 0,
+        "rect": [72, 400, 192, 424],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "site",
+    "widgets": [
+      {
+        "actions": { "url": "https://example.com/" },
+        "at": 14,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "62R",
+        "page": 0,
+        "rect": [232, 400, 352, 424],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "clear",
+    "widgets": [
+      {
+        "actions": {
+          "resetForm": { "fields": [], "include": true, "refs": [] },
+          "scripts": { "Mouse Up": ["this.getField(\"qty\").value = 0"] }
+        },
+        "at": 15,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "66R",
+        "page": 0,
+        "rect": [392, 400, 512, 424],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "discount",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Format": ["AFPercent_Format(1, 0)"],
+            "Keystroke": ["AFPercent_Keystroke(1, 0)"]
+          }
+        },
+        "at": 16,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "70R",
+        "page": 0,
+        "rect": [71.5, 343.5, 192.5, 366.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 1,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "due",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Calculate": [
+              "var total = this.getField(\"total\").value; var off = this.getField(\"discount\").value; event.value = total * (1 - off);"
+            ],
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "at": 17,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "73R",
+        "page": 0,
+        "rect": [231.5, 343.5, 352.5, 366.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

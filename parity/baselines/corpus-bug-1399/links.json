@@ -1,0 +1,14 @@
+[
+  {
+    "links": [
+      {
+        "id": "pdf:0:12R",
+        "order": 0,
+        "page": 0,
+        "rect": { "height": 86.811, "width": 99.379, "x": 429.595, "y": 680.655 },
+        "target": { "kind": "unsupported", "reason": "remote" }
+      }
+    ],
+    "page": 1
+  }
+]

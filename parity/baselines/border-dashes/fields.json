@@ -1,0 +1,68 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "bs-dash",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 4,
+        "border": { "style": 2, "width": 1 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "11R",
+        "page": 0,
+        "rect": [300, 650, 500, 680],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "border-dash",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 5,
+        "border": { "style": 2, "width": 2 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "12R",
+        "page": 0,
+        "rect": [300, 570, 500, 600],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "bad-dash",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 6,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [300, 490, 500, 520],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

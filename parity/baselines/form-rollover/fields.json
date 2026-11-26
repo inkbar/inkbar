@@ -1,0 +1,46 @@
+[
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "go",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "7R",
+        "page": 0,
+        "rect": [72, 680, 172, 710],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "agree",
+    "value": "Yes No",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "onValue": "Yes No",
+        "page": 0,
+        "rect": [72, 620, 102, 650],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Yes No"
+      }
+    ]
+  }
+]

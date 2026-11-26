@@ -1,0 +1,218 @@
+[
+  {
+    "items": [
+      {
+        "advances": [0, 0.3333, 0.6667, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 8,
+        "glyphEnds": [0.3333, 0.6667, 1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 72, "y": 718.214 },
+          "p2": { "x": 89.328, "y": 718.214 },
+          "p3": { "x": 72, "y": 711.014 },
+          "p4": { "x": 89.328, "y": 711.014 }
+        },
+        "str": "AAA"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 8,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 89.328, "y": 718.214 },
+          "p2": { "x": 532.8, "y": 718.214 },
+          "p3": { "x": 89.328, "y": 711.014 },
+          "p4": { "x": 532.8, "y": 711.014 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 0.3333, 0.6667, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 8,
+        "glyphEnds": [0.3333, 0.6667, 1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 532.8, "y": 718.214 },
+          "p2": { "x": 544.8, "y": 718.214 },
+          "p3": { "x": 532.8, "y": 711.014 },
+          "p4": { "x": 544.8, "y": 711.014 }
+        },
+        "str": "111"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 8,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 544.8, "y": 718.214 },
+          "p2": { "x": 544.8, "y": 718.214 },
+          "p3": { "x": 544.8, "y": 711.014 },
+          "p4": { "x": 544.8, "y": 711.014 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 257.37, "y": 674.67 },
+          "p2": { "x": 262.37, "y": 674.67 },
+          "p3": { "x": 257.37, "y": 665.67 },
+          "p4": { "x": 262.37, "y": 665.67 }
+        },
+        "str": "2"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 262.37, "y": 674.67 },
+          "p2": { "x": 428.73, "y": 674.67 },
+          "p3": { "x": 262.37, "y": 665.67 },
+          "p4": { "x": 428.73, "y": 665.67 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 428.73, "y": 674.67 },
+          "p2": { "x": 433.73, "y": 674.67 },
+          "p3": { "x": 428.73, "y": 665.67 },
+          "p4": { "x": 433.73, "y": 665.67 }
+        },
+        "str": "3"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 433.73, "y": 674.67 },
+          "p2": { "x": 514.41, "y": 674.67 },
+          "p3": { "x": 433.73, "y": 665.67 },
+          "p4": { "x": 514.41, "y": 665.67 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 514.41, "y": 674.67 },
+          "p2": { "x": 519.41, "y": 674.67 },
+          "p3": { "x": 514.41, "y": 665.67 },
+          "p4": { "x": 519.41, "y": 665.67 }
+        },
+        "str": "4"
+      },
+      {
+        "advances": [0, 0.5, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [0.5, 1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 259.87, "y": 644.37 },
+          "p2": { "x": 273.21, "y": 644.37 },
+          "p3": { "x": 259.87, "y": 635.37 },
+          "p4": { "x": 273.21, "y": 635.37 }
+        },
+        "str": "BB"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 273.21, "y": 644.37 },
+          "p2": { "x": 431.23, "y": 644.37 },
+          "p3": { "x": 273.21, "y": 635.37 },
+          "p4": { "x": 431.23, "y": 635.37 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 0.5, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [0.5, 1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 431.23, "y": 644.37 },
+          "p2": { "x": 444.57, "y": 644.37 },
+          "p3": { "x": 431.23, "y": 635.37 },
+          "p4": { "x": 444.57, "y": 635.37 }
+        },
+        "str": "CC"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 444.57, "y": 644.37 },
+          "p2": { "x": 528.16, "y": 644.37 },
+          "p3": { "x": 444.57, "y": 635.37 },
+          "p4": { "x": 528.16, "y": 635.37 }
+        },
+        "str": " "
+      },
+      {
+        "advances": [0, 0.5, 1],
+        "dir": "ltr",
+        "fontName": "Times-Roman",
+        "fontSize": 10,
+        "glyphEnds": [0.5, 1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 528.16, "y": 644.37 },
+          "p2": { "x": 542.6, "y": 644.37 },
+          "p3": { "x": 528.16, "y": 635.37 },
+          "p4": { "x": 542.6, "y": 635.37 }
+        },
+        "str": "DD"
+      }
+    ],
+    "page": 1,
+    "text": "AAA 111 2 3 4 BB CC DD"
+  }
+]

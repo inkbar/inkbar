@@ -1,0 +1,54 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "Ed",
+        "border": { "width": 0 },
+        "contents": "Root note",
+        "created": "D:20261012110000Z",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "7R",
+        "modified": "D:20261012110500Z",
+        "rect": [400, 698, 422, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "Sam",
+        "border": { "width": 0 },
+        "contents": "First reply",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "8R",
+        "inReplyTo": "7R",
+        "modified": "D:20261012111000Z",
+        "rect": [400, 698, 422, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "Ed",
+        "border": { "width": 0 },
+        "contents": "Second reply",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "9R",
+        "inReplyTo": "7R",
+        "modified": "D:20261012112000Z",
+        "rect": [400, 698, 422, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "Ed",
+        "border": { "width": 0 },
+        "contents": "Standalone",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "10R",
+        "rect": [72, 498, 94, 520],
+        "subtype": "Text"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

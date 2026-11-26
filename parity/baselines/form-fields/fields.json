@@ -1,0 +1,535 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "name",
+    "value": "Sam",
+    "widgets": [
+      {
+        "actions": {},
+        "alignment": 0,
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "11R",
+        "page": 0,
+        "rect": [71.5, 679.5, 272.5, 702.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 4096,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "notes",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "alignment": 1,
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "15R",
+        "page": 0,
+        "rect": [319.5, 679.5, 520.5, 724.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 8192,
+    "kind": "text",
+    "maxLength": 4,
+    "name": "pin",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "18R",
+        "page": 0,
+        "rect": [71.5, 623.5, 152.5, 646.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 16777216,
+    "kind": "text",
+    "maxLength": 6,
+    "name": "code",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 3,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "21R",
+        "page": 0,
+        "rect": [319.5, 623.5, 440.5, 646.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "auto",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 4,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "24R",
+        "page": 0,
+        "rect": [71.5, 567.5, 272.5, 590.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 1,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "locked",
+    "value": "fixed",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 5,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "27R",
+        "page": 0,
+        "rect": [319.5, 567.5, 520.5, 590.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 2,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "email",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 6,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "30R",
+        "page": 0,
+        "rect": [71.5, 511.5, 272.5, 534.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 4,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "internal",
+    "value": "x",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 7,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "33R",
+        "page": 0,
+        "rect": [319.5, 511.5, 520.5, 534.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "agree",
+    "value": "Off",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 8,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "36R",
+        "onValue": "Yes",
+        "page": 0,
+        "rect": [71.5, 455.5, 90.5, 474.5],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Off"
+      }
+    ]
+  },
+  {
+    "defaultValue": "yearly",
+    "flags": 32768,
+    "kind": "radio",
+    "name": "plan",
+    "value": "monthly",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 9,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "42R",
+        "onValue": "monthly",
+        "page": 0,
+        "rect": [319.5, 455.5, 338.5, 474.5],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": {},
+        "at": 10,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "47R",
+        "onValue": "yearly",
+        "page": 0,
+        "rect": [419.5, 455.5, 438.5, 474.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "A",
+    "flags": 32768,
+    "kind": "radio",
+    "name": "shared",
+    "value": "Off",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 11,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "53R",
+        "onValue": "A",
+        "page": 0,
+        "rect": [71.5, 399.5, 90.5, 418.5],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": {},
+        "at": 13,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "58R",
+        "onValue": "A",
+        "page": 0,
+        "rect": [171.5, 399.5, 190.5, 418.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 131072,
+    "kind": "combo",
+    "name": "country",
+    "options": [
+      { "displayValue": "United Kingdom", "exportValue": "gb" },
+      { "displayValue": "France", "exportValue": "fr" }
+    ],
+    "value": ["gb"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 12,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "64R",
+        "page": 0,
+        "rect": [319.5, 399.5, 520.5, 422.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 393216,
+    "kind": "combo",
+    "name": "city",
+    "options": [
+      { "displayValue": "Leeds", "exportValue": "Leeds" },
+      { "displayValue": "Lyon", "exportValue": "Lyon" },
+      { "displayValue": "Lisbon", "exportValue": "Lisbon" }
+    ],
+    "value": [],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 14,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "67R",
+        "page": 0,
+        "rect": [71.5, 343.5, 272.5, 366.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "interests",
+    "options": [
+      { "displayValue": "maths", "exportValue": "maths" },
+      { "displayValue": "engines", "exportValue": "engines" },
+      { "displayValue": "poetry", "exportValue": "poetry" }
+    ],
+    "value": [],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 15,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "70R",
+        "page": 0,
+        "rect": [319.5, 287.5, 520.5, 348.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "header.ref",
+    "value": "REF-0042",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 16,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "75R",
+        "page": 0,
+        "rect": [71.5, 287.5, 272.5, 310.5],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "77R",
+        "page": 1,
+        "rect": [49.5, 599.5, 72.5, 800.5],
+        "rotation": 90,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "styled",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 17,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 255], "fontName": "F1", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "83R",
+        "page": 0,
+        "rect": [71.5, 231.5, 272.5, 254.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "signature",
+    "name": "sig",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 18,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "85R",
+        "page": 0,
+        "rect": [72, 176, 272, 216],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "reset",
+    "widgets": [
+      {
+        "actions": { "resetForm": { "fields": [], "include": true, "refs": [] } },
+        "at": 19,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "88R",
+        "page": 0,
+        "rect": [320, 176, 420, 200],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "rotated",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "80R",
+        "page": 1,
+        "rect": [97.5, 599.5, 120.5, 800.5],
+        "rotation": 90,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "signature",
+    "name": "sig2",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "86R",
+        "page": 1,
+        "rect": [300, 400, 340, 600],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

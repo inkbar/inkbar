@@ -1,0 +1,96 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "11R",
+        "rect": [68, 696, 138, 714],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "12R",
+        "rect": [68, 666, 138, 684],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "13R",
+        "rect": [68, 636, 144, 654],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "14R",
+        "rect": [68, 606, 140, 624],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "15R",
+        "rect": [68, 576, 140, 594],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "16R",
+        "rect": [68, 546, 133, 564],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "17R",
+        "rect": [68, 516, 149, 534],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "18R",
+        "quads": [68, 504, 158, 504, 68, 486, 158, 486, 68, 480, 161, 480, 68, 462, 161, 462],
+        "rect": [68, 462, 161, 504],
+        "subtype": "Link"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "19R",
+        "rect": [68, 696, 155, 714],
+        "subtype": "Link"
+      }
+    ],
+    "page": 3,
+    "tabOrder": []
+  }
+]
