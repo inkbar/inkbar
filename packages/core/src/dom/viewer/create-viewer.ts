@@ -568,8 +568,27 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     // menu is open: what they wrote then would be lost, or could not be drawn.
     const stopPaused = editingPaused(doc).subscribe((on) => {
       if (!on) return
+      const owner = root.ownerDocument
+      const focused = owner.activeElement
       activated.set(null)
       signFieldMenu?.close()
+      // Focus in what that closed (each is a panel of its own) is lost: on the page's body, or
+      // still on an element no longer shown. While the document is stopped it goes to the
+      // notice's button, which shows once every listener has heard of the stop.
+      const lost = (): boolean => {
+        const now = owner.activeElement
+        return (
+          now === null ||
+          now === owner.body ||
+          (now === focused && now.getClientRects().length === 0)
+        )
+      }
+      if (focused === null || focused === owner.body || !lost()) return
+      if (!doc.engineStopped.get()) return
+      queueMicrotask(() => {
+        const button = root.querySelector<HTMLElement>('[data-ink-engine-retry]')
+        if (button && lost()) button.focus()
+      })
     })
     // A failed script leaves the form fillable; its error reaches the host. Subscribed first,
     // so the form replays the errors from while the document opened here, and they are held

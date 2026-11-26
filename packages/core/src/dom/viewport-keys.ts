@@ -9,6 +9,17 @@ export interface ViewportKeysOptions {
 /** Factor `+`/`=` zoom in by; `-` zooms out by its inverse. */
 const ZOOM_STEP = 1.25
 
+/** @internal The keys the viewport handles. */
+export const VIEWPORT_KEYS: ReadonlySet<string> = new Set([
+  '+',
+  '=',
+  '-',
+  'Home',
+  'End',
+  'PageDown',
+  'PageUp',
+])
+
 /** Keys typed here belong to the element, not the viewport. */
 const IGNORE =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-annotation]'

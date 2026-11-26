@@ -7,6 +7,7 @@ import { stoppableEngines } from '../test-support/stoppable-engines'
 
 import { mountContainer, settle, until } from './test-utils'
 import { createThumbnails } from './thumbnails/list'
+import { noteTool } from './tools'
 import {
   createViewer,
   type CreateViewerOptions,
@@ -267,15 +268,17 @@ describe('the notice when the viewer has stopped', () => {
   it('pauses annotating: the pages take no input, while scrolling and zoom work', async () => {
     const stop = engines()
     const viewer = make('form-fields')
-    const { doc, scroll } = await ready(viewer)
-    expect(scroll.inert).toBe(false)
+    const { doc, scroll, page } = await ready(viewer)
+    const pages = scroll.querySelector<HTMLElement>('[data-ink-pages]')!
+    const field = () =>
+      scroll.querySelector<HTMLInputElement>('[data-ink-form-layer] input')
+    await until(() => field() !== null)
+    expect(pages.inert).toBe(false)
     await stop.stop(doc)
-    expect(scroll.inert).toBe(true)
-    const field = scroll.querySelector<HTMLInputElement>('[data-ink-form-layer] input')
-    if (field) {
-      field.focus()
-      expect(document.activeElement).not.toBe(field)
-    }
+    expect(pages.inert).toBe(true)
+    expect(page(0)!.closest('[inert]')).not.toBeNull()
+    field()!.focus()
+    expect(document.activeElement).not.toBe(field())
     viewer.viewport.get()!.setZoom(2)
     expect(viewer.viewport.get()!.zoom.get()).toBe(2)
     scroll.scrollTop = 300
@@ -284,7 +287,100 @@ describe('the notice when the viewer has stopped', () => {
     stop.allow()
     retry(viewer)!.click()
     await until(() => notice(viewer) === null)
-    expect(scroll.inert).toBe(false)
+    expect(scroll.querySelector('[inert]')).toBeNull()
+    expect(scroll.closest('[inert]')).toBeNull()
+    field()!.focus()
+    expect(document.activeElement).toBe(field())
+  })
+
+  it('scrolls by the wheel and by the keyboard while stopped', async () => {
+    const stop = engines()
+    const viewer = make('text-simple')
+    const { doc, scroll } = await ready(viewer)
+    await stop.stop(doc)
+    // A real wheel turn over the pages, as a mouse or trackpad gives it.
+    await userEvent.wheel(viewer.element, { delta: { y: 300 } })
+    await until(() => scroll.scrollTop > 0)
+    // And the keyboard, with focus on the pages' scroll area.
+    const top = scroll.scrollTop
+    scroll.focus()
+    expect(document.activeElement).toBe(scroll)
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
+    await until(() => scroll.scrollTop > top)
+  })
+
+  it('takes no press or key on the pages while stopped, and takes them again once started', async () => {
+    const stop = engines()
+    const viewer = make('text-simple', { tools: [noteTool()] })
+    const { doc, scroll, page } = await ready(viewer)
+    const notes = () => doc.annotations.list.get().filter((a) => a.type === 'text')
+    await stop.stop(doc)
+    viewer.engine.get()!.tools.set('note')
+    await userEvent.click(page(0)!, { force: true, position: { x: 200, y: 300 } })
+    await settle()
+    expect(notes()).toEqual([])
+
+    // A page mounted while stopped is inert as well.
+    scroll.scrollTop = scroll.scrollHeight
+    await until(() => page(2) !== null)
+    expect(page(2)!.closest('[inert]')).not.toBeNull()
+    scroll.scrollTop = 0
+    await settle()
+
+    stop.allow()
+    retry(viewer)!.click()
+    await until(() => notice(viewer) === null)
+    viewer.engine.get()!.tools.set('note')
+    await userEvent.click(page(0)!, { force: true, position: { x: 200, y: 300 } })
+    await until(() => notes().length === 1)
+  })
+
+  it('deletes nothing selected by a key pressed on the pages while stopped', async () => {
+    const stop = engines()
+    const viewer = make('text-simple', { tools: [noteTool()] })
+    const { doc, scroll } = await ready(viewer)
+    const { id } = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 500, width: 40, height: 40 },
+    })
+    viewer.engine.get()!.tools.set('select')
+    doc.annotations.select([id])
+    await stop.stop(doc)
+    scroll.focus()
+    await userEvent.keyboard('{Delete}')
+    await settle()
+    expect(doc.annotations.get(id)).toBeDefined()
+
+    // Once started again the same key deletes it.
+    stop.allow()
+    retry(viewer)!.click()
+    await until(() => notice(viewer) === null)
+    doc.annotations.select([id])
+    scroll.focus()
+    await userEvent.keyboard('{Delete}')
+    await until(() => doc.annotations.get(id) === undefined)
+  })
+
+  it('moves focus from an open thread to its button when the stop closes the thread', async () => {
+    const stop = engines()
+    const viewer = make('text-simple', { tools: [noteTool()] })
+    const { doc } = await ready(viewer)
+    const { id } = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 100, y: 500, width: 20, height: 20 },
+      contents: 'A note',
+    })
+    viewer.setActivated(id)
+    // The thread opens in a panel of its own, outside the viewer.
+    const panel = () => document.querySelector<HTMLElement>('[data-ink-thread-popover]')
+    await until(() => panel() !== null && !panel()!.hidden)
+    panel()!.querySelector<HTMLElement>('textarea')!.focus()
+    expect(panel()!.contains(document.activeElement)).toBe(true)
+    await stop.stop(doc)
+    await until(() => panel() === null || panel()!.hidden !== false)
+    await until(() => document.activeElement === retry(viewer))
   })
 
   it('a page error that is not the stop still shows', async () => {
