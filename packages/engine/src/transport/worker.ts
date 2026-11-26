@@ -1,4 +1,5 @@
 import { EngineError } from '../errors.ts'
+import { nextTask } from '../native/core.ts'
 
 import { CallQueue } from './queue.ts'
 
@@ -33,7 +34,12 @@ interface Pending {
 
 class WorkerTransport implements Transport {
   readonly #worker: Worker
-  readonly #queue = new CallQueue()
+  /**
+   * Once the worker has died, each queued call fails a task after the one before it: the call
+   * that was running is seen to fail first, however long the chain of promises its callers wait
+   * through, so a caller can tell which call stopped the engine.
+   */
+  readonly #queue = new CallQueue(() => (this.#dead ? nextTask() : Promise.resolve()))
   readonly #pending = new Map<number, Pending>()
   #nextId = 1
   readonly #destroyTimeout: number

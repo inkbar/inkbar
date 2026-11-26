@@ -325,3 +325,24 @@ test('destroy does not tell a running pageInfo to stop', async () => {
   await running
   await destroyed
 })
+
+test('when the worker dies, the running call fails a task before the calls waiting behind it', async () => {
+  const { worker, engine, doc } = await manualEngine()
+  const seen: string[] = []
+  const watch = (name: string, call: Promise<unknown>) =>
+    call.catch(() => {
+      seen.push(name)
+    })
+  const running = watch('running', doc.pageInfo(0))
+  const first = watch('first', doc.pageInfo(0))
+  const second = watch('second', doc.pageInfo(0))
+  await vi.waitUntil(() => worker.waiting.length === 1)
+  worker.dispatchEvent(new ErrorEvent('error', { message: 'gone' }))
+  await running
+  // However long a caller's chain of promises, the waiting calls have not failed yet.
+  for (let i = 0; i < 1000; i++) await Promise.resolve()
+  expect(seen).toEqual(['running'])
+  await Promise.all([first, second])
+  expect(seen).toEqual(['running', 'first', 'second'])
+  await engine.destroy()
+})
