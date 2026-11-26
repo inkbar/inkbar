@@ -94,30 +94,38 @@ export class InThreadTransport implements Transport {
     return this.#core.heapBytes
   }
 
-  call<T>(request: Request, signal?: AbortSignal): Promise<T> {
-    return this.#queue.enqueue(() => {
-      // Only a call that can stop part way listens to the caller's signal once it runs.
-      const stoppable =
-        request.op === 'renderPage' ||
-        request.op === 'renderAnnotations' ||
-        (this.#core.fetchesFonts &&
-          (request.op === 'pageText' ||
-            request.op === 'write' ||
-            request.op === 'redact'))
-      if (!stoppable || !signal)
-        return dispatch(this.#core, request, this.#ending.signal) as T
-      const stop = anySignal([signal, this.#ending.signal])
-      let result: unknown
-      try {
-        result = dispatch(this.#core, request, stop.signal)
-      } catch (error) {
+  call<T>(
+    request: Request,
+    signal?: AbortSignal,
+    options?: { background?: boolean }
+  ): Promise<T> {
+    return this.#queue.enqueue(
+      () => {
+        // Only a call that can stop part way listens to the caller's signal once it runs.
+        const stoppable =
+          request.op === 'renderPage' ||
+          request.op === 'renderAnnotations' ||
+          (this.#core.fetchesFonts &&
+            (request.op === 'pageText' ||
+              request.op === 'write' ||
+              request.op === 'redact'))
+        if (!stoppable || !signal)
+          return dispatch(this.#core, request, this.#ending.signal) as T
+        const stop = anySignal([signal, this.#ending.signal])
+        let result: unknown
+        try {
+          result = dispatch(this.#core, request, stop.signal)
+        } catch (error) {
+          stop.dispose()
+          throw error
+        }
+        if (result instanceof Promise) return result.finally(stop.dispose) as T
         stop.dispose()
-        throw error
-      }
-      if (result instanceof Promise) return result.finally(stop.dispose) as T
-      stop.dispose()
-      return result as T
-    }, signal)
+        return result as T
+      },
+      signal,
+      options
+    )
   }
 
   destroy(): Promise<void> {

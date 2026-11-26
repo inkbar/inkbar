@@ -6,13 +6,15 @@ interface Job {
   /** Runs the work and settles the caller's promise; never rejects. */
   start: () => Promise<unknown>
   reject: (reason: unknown) => void
+  background: boolean
   detach: () => void
 }
 
 /**
- * Runs jobs one at a time, in the order they were queued: the next job starts only once the
+ * Runs jobs one at a time, in the order they were queued, except that a job queued as
+ * `background` waits for every other waiting job: the next job starts only once the
  * running one has settled, even when that one waits on the event loop between steps, as a sliced
- * render does. A queued job can be aborted and never runs. The queue stops listening to a job's
+ * render does. A running job is never interrupted, background or not. A queued job can be aborted and never runs. The queue stops listening to a job's
  * signal when the job starts; stopping a running job is the transport's part. Shared by every
  * transport so they all queue and abort the same way.
  */
@@ -28,7 +30,11 @@ export class CallQueue {
     this.#beforeEach = beforeEach
   }
 
-  enqueue<T>(run: () => T | Promise<T>, signal?: AbortSignal): Promise<T> {
+  enqueue<T>(
+    run: () => T | Promise<T>,
+    signal?: AbortSignal,
+    options: { background?: boolean } = {}
+  ): Promise<T> {
     if (this.#destroyed)
       return Promise.reject(new EngineError('engine-failure', 'The engine is destroyed.'))
     if (signal?.aborted) return Promise.reject(abortedError())
@@ -36,6 +42,7 @@ export class CallQueue {
       const job: Job = {
         start: () => Promise.resolve().then(run).then(resolve, reject),
         reject,
+        background: options.background === true,
         detach: () => signal?.removeEventListener('abort', onAbort),
       }
       const onAbort = () => {
@@ -72,7 +79,9 @@ export class CallQueue {
           failed = true
           hookError = error
         }
-        const job = this.#jobs.shift()
+        // The first job that is not background, else the first one.
+        const at = this.#jobs.findIndex((j) => !j.background)
+        const [job] = this.#jobs.splice(Math.max(at, 0), 1)
         if (!job) break
         job.detach()
         if (failed) {

@@ -102,3 +102,90 @@ test('a job waiting behind one that yields between slices starts only once it se
   await expect(waiting).resolves.toBe('ran')
   expect(log).toEqual(['slice 0', 'slice 1', 'slice 2', 'slice 3', 'slice 4', 'waiting'])
 })
+
+/** Holds the queue's first job open so the ones queued after it wait. */
+const gate = (queue: CallQueue) => {
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  let started!: () => void
+  const running = new Promise<void>((resolve) => (started = resolve))
+  const first = queue.enqueue(async () => {
+    started()
+    await held
+    return 'first'
+  })
+  return { release, running, first }
+}
+
+test('background jobs wait for every other waiting job, each kind in its own order', async () => {
+  const queue = new CallQueue()
+  const log: string[] = []
+  const { release, running, first } = gate(queue)
+  await running
+  const job = (name: string) => () => {
+    log.push(name)
+    return name
+  }
+  const rest = [
+    queue.enqueue(job('b1'), undefined, { background: true }),
+    queue.enqueue(job('n1')),
+    queue.enqueue(job('b2'), undefined, { background: true }),
+    queue.enqueue(job('n2')),
+  ]
+  release()
+  await Promise.all([first, ...rest])
+  expect(log).toEqual(['n1', 'n2', 'b1', 'b2'])
+})
+
+test('a running background job is not interrupted by a normal one', async () => {
+  const queue = new CallQueue()
+  const log: string[] = []
+  let started!: () => void
+  const running = new Promise<void>((resolve) => (started = resolve))
+  const bg = queue.enqueue(
+    async () => {
+      log.push('start bg')
+      started()
+      await later(20)
+      log.push('end bg')
+    },
+    undefined,
+    { background: true }
+  )
+  await running
+  const normal = queue.enqueue(() => log.push('normal'))
+  await Promise.all([bg, normal])
+  expect(log).toEqual(['start bg', 'end bg', 'normal'])
+})
+
+test('a queued background job can be aborted and never runs', async () => {
+  const queue = new CallQueue()
+  const { release, running, first } = gate(queue)
+  await running
+  const c = new AbortController()
+  let ran = false
+  const bg = queue.enqueue(() => (ran = true), c.signal, { background: true })
+  const other = queue.enqueue(() => 'other')
+  c.abort()
+  await expect(bg).rejects.toMatchObject({ code: 'aborted' })
+  release()
+  await expect(Promise.all([first, other])).resolves.toEqual(['first', 'other'])
+  expect(ran).toBe(false)
+})
+
+test('destroy aborts queued jobs of both kinds', async () => {
+  const queue = new CallQueue()
+  const { release, running, first } = gate(queue)
+  await running
+  const bg = queue.enqueue(() => 'bg', undefined, { background: true })
+  const normal = queue.enqueue(() => 'normal')
+  const rejected = Promise.all([
+    expect(bg).rejects.toMatchObject({ code: 'aborted' }),
+    expect(normal).rejects.toMatchObject({ code: 'aborted' }),
+  ])
+  const destroyed = queue.destroy()
+  release()
+  await destroyed
+  await expect(first).resolves.toBe('first')
+  await rejected
+})

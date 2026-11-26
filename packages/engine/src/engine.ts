@@ -271,9 +271,13 @@ class Session {
   destroyed = false
   constructor(readonly transport: Transport) {}
 
-  call<T>(request: Request, signal?: AbortSignal): Promise<T> {
+  call<T>(
+    request: Request,
+    signal?: AbortSignal,
+    options?: { background?: boolean }
+  ): Promise<T> {
     if (this.destroyed) return Promise.reject(failure('The engine is destroyed.'))
-    return this.transport.call<T>(request, signal)
+    return this.transport.call<T>(request, signal, options)
   }
 }
 
@@ -334,12 +338,14 @@ class Document implements EngineDocument {
   async renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
     if (typeof options !== 'object' || options === null)
       throw new ArgumentError('render options must be an object')
-    const { signal, ...rest } = options
+    const { signal, background, ...rest } = options
     // A copy taken now, as in `write`, so a region or list the caller changes while the call
     // waits is not used. The core checks the options. Options that cannot be copied reject
     // with the DataCloneError the copy throws.
     const copy = structuredClone(rest)
-    return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal)
+    return this.#call({ op: 'renderPage', doc: this.id, index, options: copy }, signal, {
+      background: background === true,
+    })
   }
 
   async renderAnnotations(
@@ -387,9 +393,13 @@ class Document implements EngineDocument {
     }
   }
 
-  #call<T>(request: Request, signal?: AbortSignal): Promise<T> {
+  #call<T>(
+    request: Request,
+    signal?: AbortSignal,
+    options?: { background?: boolean }
+  ): Promise<T> {
     if (this.#closed) return Promise.reject(failure('The document is closed.'))
-    return this.session.call<T>(request, signal)
+    return this.session.call<T>(request, signal, options)
   }
 }
 
