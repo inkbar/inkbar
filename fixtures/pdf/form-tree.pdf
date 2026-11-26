@@ -1,0 +1,67 @@
+%PDF-1.7
+1 0 obj
+<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R] /DR << /Font << /Helv 6 0 R >> >> >> >>
+endobj
+2 0 obj
+<< /Title (Form edge fixture) /Producer (Inkbar fixtures) >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> /Annots [8 0 R 10 0 R] >>
+endobj
+5 0 obj
+<<  /Length 98 >>
+stream
+BT /F1 12 Tf 72 760 Td (Two fields inherit their type, flags, default appearance and value) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /T (group) /Kids [9 0 R] /FT /Tx /Ff 4096 /DA (/Helv 12 Tf 0 g) /V (inherited text) >>
+endobj
+8 0 obj
+<< /Type /Annot /Subtype /Widget /T (a) /Parent 9 0 R /P 4 0 R /Rect [72 640 372 700] /F 4 /AP << /N 11 0 R >>  >>
+endobj
+9 0 obj
+<< /T (sub) /Parent 7 0 R /Kids [8 0 R 10 0 R] >>
+endobj
+10 0 obj
+<< /Type /Annot /Subtype /Widget /T (b) /Parent 9 0 R /P 4 0 R /Rect [72 560 372 620] /F 4 /AP << /N 12 0 R >> /V (its own text) >>
+endobj
+11 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 300 60] /Resources << /Font << /Helv 6 0 R >> >> /Length 65 >>
+stream
+/Tx BMC q BT /Helv 12 Tf 0 g 2 44 Td (inherited text) Tj ET Q EMC
+endstream
+endobj
+12 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 300 60] /Resources << /Font << /Helv 6 0 R >> >> /Length 63 >>
+stream
+/Tx BMC q BT /Helv 12 Tf 0 g 2 44 Td (its own text) Tj ET Q EMC
+endstream
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000009 00000 n 
+0000000124 00000 n 
+0000000200 00000 n 
+0000000257 00000 n 
+0000000406 00000 n 
+0000000555 00000 n 
+0000000652 00000 n 
+0000000757 00000 n 
+0000000887 00000 n 
+0000000952 00000 n 
+0000001100 00000 n 
+0000001306 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R /Info 2 0 R >>
+startxref
+1510
+%%EOF

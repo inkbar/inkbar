@@ -2652,6 +2652,113 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
+exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-rollover 1`] = `
+[
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "go",
+    "options": [],
+    "type": "button",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "color": "#000000",
+          "fileAppearance": false,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 12,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "7R",
+        "order": 0,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 30,
+          "width": 100,
+          "x": 72,
+          "y": 680,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "defaultValue": "Off",
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": false,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "agree",
+    "options": [
+      {
+        "label": "Yes No",
+        "value": "Yes No",
+      },
+    ],
+    "type": "checkbox",
+    "value": "Yes No",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 12,
+          "offAppearance": false,
+          "onAppearance": true,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "8R",
+        "onState": "Yes No",
+        "order": 1,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 30,
+          "width": 30,
+          "x": 72,
+          "y": 620,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+]
+`;
+
 exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-scripted 1`] = `
 [
   {
@@ -4066,6 +4173,105 @@ exports[`form building across the fixtures > builds every fixture's fields the s
           "width": 201,
           "x": 71.5,
           "y": 539.5,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+]
+`;
+
+exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-tree 1`] = `
+[
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": true,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "group.sub.a",
+    "options": [],
+    "type": "text",
+    "value": "inherited text",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 12,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "8R",
+        "order": 0,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 60,
+          "width": 300,
+          "x": 72,
+          "y": 640,
+        },
+        "rotation": 0,
+      },
+    ],
+  },
+  {
+    "flags": {
+      "comb": false,
+      "doNotScroll": false,
+      "doNotSpellCheck": false,
+      "editable": false,
+      "fileSelect": false,
+      "multiSelect": false,
+      "multiline": true,
+      "noExport": false,
+      "password": false,
+      "radiosInUnison": false,
+      "readOnly": false,
+      "required": false,
+    },
+    "locked": false,
+    "name": "group.sub.b",
+    "options": [],
+    "type": "text",
+    "value": "its own text",
+    "widgets": [
+      {
+        "appearance": {
+          "align": "left",
+          "color": "#000000",
+          "fileAppearance": true,
+          "font": {
+            "family": "Helvetica",
+          },
+          "fontSize": 12,
+        },
+        "hasScripts": false,
+        "hidden": false,
+        "id": "10R",
+        "order": 1,
+        "page": 0,
+        "printOnly": false,
+        "rect": {
+          "height": 60,
+          "width": 300,
+          "x": 72,
+          "y": 560,
         },
         "rotation": 0,
       },
