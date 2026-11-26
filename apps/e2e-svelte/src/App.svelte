@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { engineReaderRoute } from '@inkbar/e2e-shared/engine-reader'
+  import { engineReaderRoute, onEngineReaderPage } from '@inkbar/e2e-shared/engine-reader'
   import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
   import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
   import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -24,10 +24,10 @@
 
 <main class="sandbox">
   <h1 class="sandbox-title">Inkbar review app</h1>
-  {#if engineReader}
+  {#if engineReader && onEngineReaderPage(doc)}
     <EngineReaderPage fixture={doc} />
   {:else if isFormFixture(doc)}
-    <FormPage fixture={doc} />
+    <FormPage fixture={doc} {engineReader} />
   {:else if isLinksFixture(doc)}
     <LinksPage fixture={doc} />
   {:else if isRedactionFixture(doc)}

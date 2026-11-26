@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { engineReaderRoute } from '@inkbar/e2e-shared/engine-reader'
+import { engineReaderRoute, onEngineReaderPage } from '@inkbar/e2e-shared/engine-reader'
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
 import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -25,8 +25,12 @@ const engineReader = engineReaderRoute(params)
 <template>
   <main class="sandbox">
     <h1 class="sandbox-title">Inkbar review app</h1>
-    <EngineReaderPage v-if="engineReader" :fixture="doc" />
-    <FormPage v-else-if="isFormFixture(doc)" :fixture="doc" />
+    <EngineReaderPage v-if="engineReader && onEngineReaderPage(doc)" :fixture="doc" />
+    <FormPage
+      v-else-if="isFormFixture(doc)"
+      :fixture="doc"
+      :engine-reader="engineReader"
+    />
     <LinksPage v-else-if="isLinksFixture(doc)" :fixture="doc" />
     <RedactPage
       v-else-if="isRedactionFixture(doc)"

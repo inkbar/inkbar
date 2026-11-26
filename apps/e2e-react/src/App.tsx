@@ -1,4 +1,4 @@
-import { engineReaderRoute } from '@inkbar/e2e-shared/engine-reader'
+import { engineReaderRoute, onEngineReaderPage } from '@inkbar/e2e-shared/engine-reader'
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
 import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -24,10 +24,10 @@ export function App() {
   return (
     <main className="sandbox">
       <h1 className="sandbox-title">Inkbar review app</h1>
-      {engineReader ? (
+      {engineReader && onEngineReaderPage(doc) ? (
         <EngineReaderPage fixture={doc} />
       ) : isFormFixture(doc) ? (
-        <FormPage fixture={doc} />
+        <FormPage fixture={doc} engineReader={engineReader} />
       ) : isLinksFixture(doc) ? (
         <LinksPage fixture={doc} />
       ) : isRedactionFixture(doc) ? (

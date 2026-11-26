@@ -2,8 +2,10 @@
 /*
  * A form fixture, opened with Inkbar keeping both annotations and field values, so its own
  * history undoes a field commit and the calculation it caused in one step. Form actions are
- * listed, newest first, because Inkbar never acts on them itself.
+ * listed, newest first, because Inkbar never acts on them itself. On the engine-reader route
+ * the page is given the engine, and the status names the reader, for the tests.
  */
+import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { describeAction } from '@inkbar/e2e-shared/form-actions'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -21,13 +23,21 @@ import {
 import { assets } from 'virtual:inkbar-assets'
 import { ref } from 'vue'
 
-import type { ViewerAction } from '@inkbar/core'
+import type { InkDocument, ViewerAction } from '@inkbar/core'
 
-const props = defineProps<{ fixture: string }>()
+const props = defineProps<{ fixture: string; engineReader?: boolean }>()
+
+const engine = props.engineReader ? () => import('@inkbar/engine') : undefined
 
 const src = { url: fixtureUrl(props.fixture as FixtureName), key: props.fixture }
 const status = ref('loading')
 const actions = ref<string[]>([])
+const reader = ref('')
+
+function onReady(doc: InkDocument): void {
+  reader.value = readerOf(doc)
+  status.value = 'ready'
+}
 
 function onAction(a: ViewerAction): void {
   actions.value = [describeAction(a), ...actions.value]
@@ -38,8 +48,9 @@ function onAction(a: ViewerAction): void {
   <InkRoot
     :src="src"
     :assets="assets"
+    :engine="engine"
     class="sandbox-root"
-    @ready="status = 'ready'"
+    @ready="onReady"
     @error="status = 'error'"
     @action="onAction"
   >
@@ -61,6 +72,8 @@ function onAction(a: ViewerAction): void {
     <ol class="sandbox-actions" aria-label="Form actions" data-testid="form-actions">
       <li v-for="(line, i) in actions" :key="actions.length - i">{{ line }}</li>
     </ol>
-    <p class="sandbox-status" role="status" data-testid="status">{{ status }}</p>
+    <p class="sandbox-status" role="status" data-testid="status" :data-reader="reader">
+      {{ status }}
+    </p>
   </InkRoot>
 </template>

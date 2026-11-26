@@ -14,6 +14,7 @@
     type InkDocument,
   } from '@inkbar/core'
   import { allTools } from '@inkbar/core/dom'
+  import { readerOf } from '@inkbar/e2e-shared/engine-reader'
   import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
   import { recordReady } from '@inkbar/e2e-shared/metrics'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -59,6 +60,8 @@
     initialLargePages > 0 ? `generating ${initialLargePages} pages` : 'loading'
   )
   let readyCount = $state(0)
+  /** Which reader opened the document, for the tests. */
+  let reader = $state('')
   let openDoc = $state.raw<InkDocument | null>(null)
   const tools = allTools()
   /** Download and Print write the session's annotations into the file. */
@@ -99,6 +102,7 @@
     const count = import.meta.env.DEV ? recordReady() : readyCount + 1
     readyCount = count
     openDoc = doc
+    reader = readerOf(doc)
     const forKey = doc.key
     const saved = await server.load(forKey)
     if (openDoc !== doc) return
@@ -242,6 +246,7 @@
     data-ready-count={readyCount}
     data-version={version}
     data-signature={signature}
+    data-reader={reader}
   >
     {status} · {annotations.length} annotation{annotations.length === 1 ? '' : 's'}
   </p>

@@ -12,6 +12,7 @@ import {
   type InkDocument,
 } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
+import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -64,6 +65,8 @@ const annotations = ref<Annotation[]>([])
 const status = ref('loading')
 const readyCount = ref(0)
 const document = shallowRef<InkDocument | null>(null)
+/** Which reader opened the document, for the tests. */
+const reader = computed(() => (document.value ? readerOf(document.value) : ''))
 const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
 const largeBytes = shallowRef<Uint8Array | null>(null)
 /** The key whose saved annotations have been loaded; saving waits for it. */
@@ -239,6 +242,7 @@ async function newVersion(): Promise<void> {
       :data-ready-count="readyCount"
       :data-version="version"
       :data-signature="signature"
+      :data-reader="reader"
     >
       {{ status }} · {{ annotations.length }} annotation{{
         annotations.length === 1 ? '' : 's'
