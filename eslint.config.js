@@ -18,8 +18,9 @@ const DRAWING = 'packages/core/src/model/annotations/drawing'
  * The imports a drawing may not make, from a file `depth` folders below drawing/. The package's
  * root index re-exports dom, so it is matched exactly at the file's own depth: a pattern of a
  * fixed number of `..` would also catch the pure modules beside drawing/ reached from deeper.
+ * With `testSupport`, for a file that is not a test, test-support/ is refused too.
  */
-const drawingImports = (depth) => {
+const drawingImports = (depth, { testSupport = false } = {}) => {
   // src/ from the file: drawing/, annotations/ and model/, then one more per folder below drawing/.
   const src = Array.from({ length: 3 + depth }, () => '\\.\\.').join('/')
   const index = 'A drawing is described without the package index, which exports dom.'
@@ -41,6 +42,7 @@ const drawingImports = (depth) => {
           group: ['pdfjs-dist', 'pdfjs-dist/**', '**/pdfjs', '**/pdfjs/**'],
           message: 'A drawing is described without PDF.js.',
         },
+        ...(testSupport ? [{ regex: TEST_SUPPORT, message: TEST_SUPPORT_MESSAGE }] : []),
       ],
     },
   ]
@@ -327,5 +329,19 @@ export default defineConfig(
     name: 'inkbar/drawing-is-pure-in-folders',
     files: [`${DRAWING}/*/*.ts`],
     rules: { 'no-restricted-imports': drawingImports(1) },
+  },
+  {
+    // The blocks above replace the quarantine's rule, so a drawing that is not a test is kept
+    // from test-support/ here again; drawing tests may import it.
+    name: 'inkbar/drawing-is-pure-outside-tests',
+    files: [`${DRAWING}/**/*.ts`],
+    ignores: TEST_FILES,
+    rules: { 'no-restricted-imports': drawingImports(0, { testSupport: true }) },
+  },
+  {
+    name: 'inkbar/drawing-is-pure-in-folders-outside-tests',
+    files: [`${DRAWING}/*/*.ts`],
+    ignores: TEST_FILES,
+    rules: { 'no-restricted-imports': drawingImports(1, { testSupport: true }) },
   }
 )
