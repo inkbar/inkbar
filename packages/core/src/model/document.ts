@@ -572,8 +572,14 @@ export async function openDocument(
       const structured = [...formData.extras.tabs].flatMap(([page, order]) =>
         order === 'S' && withFields.has(page) ? [page] : []
       )
+      // A page whose reads stopped the engine twice has no structure order, as a page whose
+      // order the engine cannot read: its fields go in page order.
       const orders = await mapInOrder(structured.length, EMBEDDED_CONCURRENCY, (i) =>
-        opened.tabOrder(structured[i]!)
+        opened.tabOrder(structured[i]!).catch((error: unknown) => {
+          if (blockedPage(error, structured[i]!) && opened.unavailable() === undefined)
+            return []
+          throw error
+        })
       )
       structured.forEach((page, i) => formData.structure.set(page, orders[i]!))
     }

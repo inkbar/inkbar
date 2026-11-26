@@ -1169,6 +1169,8 @@ export async function createEngineReader(
    * The form's fields. A form refused for its size has none; PDF.js would read its fields. When
    * a working engine cannot read the form there are none, as when PDF.js cannot read a page's
    * annotations; a page whose annotations it cannot read lists none, so its widgets are left out.
+   * So does a page other reads have blocked, as it gives no annotations and no links at open: a
+   * field whose widgets are all there is left out, and the file opens rather than not at all.
    * `listed` gives each page's annotations.
    */
   const engineForm = (
@@ -1178,7 +1180,12 @@ export async function createEngineReader(
       async (onGone) => {
         const facts = await formFacts(onGone)
         if (facts.tooLarge) return []
-        return fileFieldsFromEngine(facts, listed)
+        return fileFieldsFromEngine(facts, (page) =>
+          listed(page).catch((error: unknown) => {
+            if (!stoppedWith && stops.blocked(page) !== undefined) return []
+            throw error
+          })
+        )
       },
       (): FileField[] => []
     )

@@ -166,6 +166,49 @@ describe('a page whose annotations stop every engine they are read on', () => {
     })
     doc.destroy()
   })
+
+  it('opens a form whose widgets sit on that page and another; the other page’s fields work', async () => {
+    // Page 0 holds most of the fields, page 1 a few, and `header.ref` has a widget on each.
+    const bytes = await fixtureBytes('form-fields')
+    setEngineFactory(
+      trapsOn((method, args) => method === 'pageAnnotations' && args[0] === 1)
+    )
+    const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await doc.ready
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    expect(doc.engineStopped.get()).toBe(false)
+    const fields = doc.form.fields.get()
+    const names = fields.map((f) => f.name)
+    expect(names).toEqual(expect.arrayContaining(['name', 'notes', 'header.ref']))
+    // The blocked page lists no widgets, so fields only it holds have none to show.
+    expect(names).not.toContain('rotated')
+    expect(fields.flatMap((f) => f.widgets.map((w) => w.page))).not.toContain(1)
+    expect(doc.form.set({ name: 'Ada' }).applied).toEqual(['name'])
+    expect(doc.form.get('name')).toBe('Ada')
+    doc.destroy()
+  })
+})
+
+describe('a page whose structure order stops every engine it is read on', () => {
+  afterEach(() => {
+    setEngineFactory(undefined)
+  })
+
+  it('opens with the same fields', async () => {
+    const bytes = await fixtureBytes('form-structure')
+    const plain = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await plain.ready
+    const names = plain.form.fields.get().map((f) => f.name)
+    plain.destroy()
+
+    setEngineFactory(trapsOn((method) => method === 'structureOrder'))
+    const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await doc.ready
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    expect(doc.engineStopped.get()).toBe(false)
+    expect(doc.form.fields.get().map((f) => f.name)).toEqual(names)
+    doc.destroy()
+  })
 })
 
 describe('form fields', () => {

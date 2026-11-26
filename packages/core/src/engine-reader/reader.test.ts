@@ -2076,11 +2076,58 @@ describe("the file's facts, annotations, form and Tab order", () => {
   })
 
   it('rejects the form when a page read inside it finds no engine to answer', async () => {
-    const { reader } = await opened({
+    const { t, reader } = await opened({
       pageAnnotations: () => Promise.reject(engineError('engine-failure')),
     })
     await reader.pageInfo(0)
+    // The engine the read stops cannot be replaced.
+    const real = t.createEngine.getMockImplementation()!
+    t.createEngine.mockImplementation(() =>
+      t.createEngine.mock.calls.length > 1 ? Promise.reject(new Error('no wasm')) : real()
+    )
     await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await reader.destroy()
+  })
+
+  it('gives the fields of the other pages when a page holding widgets is blocked', async () => {
+    const field = textField(1)
+    const widget = field.widgets[0]!
+    // One field with a widget on each page; page 1's annotations stop every engine.
+    const { reader } = await opened({
+      formFields: () =>
+        Promise.resolve({
+          ...formWithText(),
+          fields: [
+            {
+              ...field,
+              objectNumber: 20,
+              generation: 0,
+              widgets: [widget, { ...widget, page: 1, index: 0, objectNumber: 21 }],
+            },
+          ],
+          fieldsRoot: [
+            {
+              ref: { objectNumber: 20, generation: 0 },
+              dictionary: true,
+              hasKids: false,
+              partialName: 'name',
+            },
+          ],
+        }),
+      pageAnnotations: (index) =>
+        index === 0
+          ? Promise.resolve(squareAndWidget)
+          : Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    const blocked = { code: 'EngineUnavailable', details: { page: 1 } }
+    await expect(reader.annotations(1)).rejects.toMatchObject(blocked)
+    const fields = await reader.form()
+    expect(fields).toMatchObject([{ name: 'name', value: 'Ann' }])
+    expect(fields[0]!.widgets.map((w) => [w.id, w.page])).toEqual([['20R', 0]])
+    const objects = await reader.sandboxFields()
+    expect(objects?.get('name')).toMatchObject([{ id: '20R' }])
+    expect(reader.unavailable()).toBeUndefined()
     await reader.destroy()
   })
 
