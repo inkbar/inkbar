@@ -1,7 +1,8 @@
 // The document reader over @inkbar/engine: page facts, pixels, text, links, the outline and
 // destinations from an engine of its own, loaded through the host's loader, with the file open
-// in it; the file's facts and annotations from the fallback reader. Nothing here imports the
-// engine: its shapes are declared in ./types and checked when the file is opened.
+// in it; the file's facts, annotations, form fields and Tab order from the fallback reader.
+// Nothing here imports the engine: its shapes are declared in ./types and checked when the file
+// is opened.
 import {
   destinationFromArray,
   type Destination,
@@ -58,8 +59,8 @@ export interface EngineReaderOptions {
    * the fallback's item boundaries (the text the reader kept is dropped when it happens), and
    * where the two readers differ, pages read after it differ from pages read before. The page
    * facts the engine gave are kept, and links keep their ids, which both readers give alike.
-   * The file's facts and annotations always come from it; without it they reject with
-   * EngineUnavailable.
+   * The file's facts, annotations, form fields and Tab order always come from it; without it
+   * they reject with EngineUnavailable.
    */
   fallback?: DocumentReader
   /** Called once, when the reader turns to `fallback`. */
@@ -751,7 +752,7 @@ export async function createEngineReader(
       return Promise.reject(
         new InkError(
           'EngineUnavailable',
-          "Reading the file's facts and annotations needs the fallback reader"
+          "Reading the file's facts, annotations and form needs the fallback reader"
         )
       )
     return untilDestroyed(call(options.fallback))
@@ -793,6 +794,8 @@ export async function createEngineReader(
       ),
     links,
     annotations: (page) => fromFallback((reader) => reader.annotations(page)),
+    form: () => fromFallback((reader) => reader.form()),
+    tabOrder: (page) => fromFallback((reader) => reader.tabOrder(page)),
     outline,
     resolveDestination,
     destroy() {

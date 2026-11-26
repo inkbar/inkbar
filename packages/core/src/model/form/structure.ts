@@ -14,15 +14,7 @@ import type {
   WidgetAppearance,
 } from './types'
 import type { FormExtras, WidgetExtras } from '../../pdf/form-fields'
-import type { PdfjsAnnotationData } from '../../pdfjs/types'
-
-/** One widget as PDF.js reported it, with the page it sits on. */
-export interface RawWidget {
-  page: number
-  data: PdfjsAnnotationData
-  /** Position among all the page's annotations in `/Annots`; else among its widgets. */
-  at?: number
-}
+import type { FileField, FileWidget } from '../../reader/file'
 
 // `/Ff` bits (PDF 32000-1, tables 221, 226, 228 and 230).
 const FF = {
@@ -48,23 +40,6 @@ const F_NO_VIEW = 1 << 5
 const BORDER_STYLES = ['solid', 'dashed', 'beveled', 'inset', 'underline'] as const
 const ALIGN = ['left', 'center', 'right'] as const
 
-function fieldType(d: PdfjsAnnotationData): FormFieldType | undefined {
-  switch (d.fieldType) {
-    case 'Tx':
-      return 'text'
-    case 'Ch':
-      return d.combo ? 'combo' : 'list'
-    case 'Sig':
-      return 'signature'
-    case 'Btn':
-      if (d.pushButton) return 'button'
-      if (d.radioButton) return 'radio'
-      return d.checkBox ? 'checkbox' : undefined
-    default:
-      return undefined
-  }
-}
-
 function flagsOf(type: FormFieldType, ff: number): FieldFlags {
   const has = (bit: number) => (ff & bit) !== 0
   const text = type === 'text'
@@ -89,15 +64,15 @@ const hex = (c: ArrayLike<number> | null | undefined): string | undefined =>
   c && c.length >= 3 ? pdfColorToHex(c, '') : undefined
 
 function appearanceOf(
-  d: PdfjsAnnotationData,
+  w: FileWidget,
   type: FormFieldType,
   extra: WidgetExtras | undefined
 ): WidgetAppearance {
-  const da = d.defaultAppearanceData
+  const da = w.defaultAppearance
   const appearance: WidgetAppearance = {
     fontSize: da && Number.isFinite(da.fontSize) ? da.fontSize : 0,
-    align: ALIGN[d.textAlignment ?? 0] ?? 'left',
-    fileAppearance: d.hasAppearance === true,
+    align: ALIGN[w.alignment ?? 0] ?? 'left',
+    fileAppearance: w.hasAppearance,
   }
   const font =
     extra?.font ?? (da?.fontName ? fontFromBaseName(da.fontName, true) : undefined)
@@ -108,18 +83,18 @@ function appearanceOf(
       ...(font.fontStyle ? { fontStyle: font.fontStyle } : {}),
     }
   }
-  const color = hex(da?.fontColor as ArrayLike<number> | undefined)
+  const color = hex(da?.color)
   if (color) appearance.color = color
-  const width = d.borderStyle?.width ?? 0
+  const width = w.border?.width ?? 0
   if (width > 0) {
-    const borderColor = hex(d.borderColor)
+    const borderColor = hex(w.borderColor)
     appearance.border = {
       ...(borderColor ? { color: borderColor } : {}),
       width,
-      style: BORDER_STYLES[(d.borderStyle?.style ?? 1) - 1] ?? 'solid',
+      style: BORDER_STYLES[(w.border?.style ?? 1) - 1] ?? 'solid',
     }
   }
-  const background = hex(d.backgroundColor)
+  const background = hex(w.backgroundColor)
   if (background) appearance.background = background
   if (extra?.caption !== undefined) {
     if (type === 'button') appearance.caption = extra.caption
@@ -133,40 +108,42 @@ function appearanceOf(
   return appearance
 }
 
-/** Whether the widget's own `/A` is JavaScript: read from the file, else from PDF.js. */
-function scriptAction(d: PdfjsAnnotationData, id: string, extras: FormExtras): boolean {
-  // PDF.js's `actions.Action` holds the JavaScript of the whole `/A` chain, `/Next` included,
-  // so it is only the answer when the file's own objects could not be read.
-  return extras.widgets.has(id) ? extras.scriptActions.has(id) : hasActionScript(d)
+/** Whether the widget's own `/A` is JavaScript: read from the file's objects, else the reader's. */
+function scriptAction(w: FileWidget, extras: FormExtras): boolean {
+  // The reader's `Action` scripts are those of the whole `/A` chain, `/Next` included, so they
+  // are only the answer when the file's own objects could not be read.
+  return extras.widgets.has(w.id)
+    ? extras.scriptActions.has(w.id)
+    : 'Action' in (w.actions.scripts ?? {})
 }
 
-const uriOf = (d: PdfjsAnnotationData): WidgetAction | undefined =>
-  d.url
-    ? { kind: 'uri', url: d.url, ...(d.newWindow ? { newWindow: true } : {}) }
+const uriOf = ({ actions: a }: FileWidget): WidgetAction | undefined =>
+  a.url
+    ? { kind: 'uri', url: a.url, ...(a.newWindow ? { newWindow: true } : {}) }
     : undefined
 
 function actionOf(
-  d: PdfjsAnnotationData,
-  id: string,
+  w: FileWidget,
   extras: FormExtras,
   namesById: ReadonlyMap<string, string>
 ): WidgetAction | undefined {
-  const submit = extras.submits.get(id)
+  const submit = extras.submits.get(w.id)
   if (submit) return submit
   // A JavaScript `/A`'s URL is its fallback, not a second action: see `fallbackOf`.
-  if (scriptAction(d, id, extras)) return undefined
-  if (d.resetForm) {
-    const refs = d.resetForm.refs.flatMap((r) => namesById.get(r) ?? [])
+  if (scriptAction(w, extras)) return undefined
+  const { resetForm, named } = w.actions
+  if (resetForm) {
+    const refs = resetForm.refs.flatMap((r) => namesById.get(r) ?? [])
     return {
       kind: 'reset',
-      fields: [...d.resetForm.fields, ...refs],
-      include: d.resetForm.include,
+      fields: [...resetForm.fields, ...refs],
+      include: resetForm.include,
     }
   }
-  const uri = uriOf(d)
+  const uri = uriOf(w)
   if (uri) return uri
-  if (d.action) return { kind: 'named', name: d.action }
-  const page = extras.destPages.get(id)
+  if (named) return { kind: 'named', name: named }
+  const page = extras.destPages.get(w.id)
   if (page !== undefined) return { kind: 'goto', page }
   return undefined
 }
@@ -175,18 +152,8 @@ function actionOf(
  * The URL a JavaScript `/A` opens: PDF.js fills `url` and `newWindow` from its
  * `app.launchURL`. The script opens it itself when it runs.
  */
-function fallbackOf(
-  d: PdfjsAnnotationData,
-  id: string,
-  extras: FormExtras
-): WidgetAction | undefined {
-  return scriptAction(d, id, extras) ? uriOf(d) : undefined
-}
-
-function hasActionScript(d: PdfjsAnnotationData): boolean {
-  const actions = d.actions
-  if (!actions) return false
-  return actions instanceof Map ? actions.has('Action') : 'Action' in actions
+function fallbackOf(w: FileWidget, extras: FormExtras): WidgetAction | undefined {
+  return scriptAction(w, extras) ? uriOf(w) : undefined
 }
 
 const rotationOf = (r: number | undefined): FormWidget['rotation'] => {
@@ -195,66 +162,61 @@ const rotationOf = (r: number | undefined): FormWidget['rotation'] => {
 }
 
 function widgetOf(
-  raw: RawWidget,
+  w: FileWidget,
   type: FormFieldType,
   extras: FormExtras,
-  namesById: ReadonlyMap<string, string>,
-  order: ReadonlyMap<RawWidget, number>
+  namesById: ReadonlyMap<string, string>
 ): FormWidget {
-  const { data: d, page } = raw
-  const extra = extras.widgets.get(d.id)
-  const [x1, y1, x2, y2] = d.rect
-  const flags = d.annotationFlags ?? 0
+  const extra = extras.widgets.get(w.id)
+  const [x1, y1, x2, y2] = w.rect
+  const flags = w.flags
   const widget: FormWidget = {
-    id: d.id,
-    page,
+    id: w.id,
+    page: w.page,
     rect: {
       x: Math.min(x1, x2),
       y: Math.min(y1, y2),
       width: Math.abs(x2 - x1),
       height: Math.abs(y2 - y1),
     },
-    rotation: rotationOf(d.rotation),
-    hidden: (flags & F_HIDDEN) !== 0 || d.hidden === true,
+    rotation: rotationOf(w.rotation),
+    // NoView alone hides a widget too: it is never shown on screen.
+    hidden: (flags & (F_HIDDEN | F_NO_VIEW)) !== 0,
     printOnly: (flags & F_NO_VIEW) !== 0 && (flags & F_PRINT) !== 0,
-    appearance: appearanceOf(d, type, extra),
-    hasScripts: hasScripts(d.actions),
+    appearance: appearanceOf(w, type, extra),
+    hasScripts: Object.keys(w.actions.scripts ?? {}).length > 0,
+    order: w.at,
   }
-  const at = order.get(raw)
-  if (at !== undefined) widget.order = at
   if (type === 'checkbox' || type === 'radio') {
-    const on = extra?.onState ?? (type === 'radio' ? d.buttonValue : d.exportValue)
+    const on = extra?.onState ?? w.onValue
     if (on) widget.onState = on
   }
-  const action = actionOf(d, d.id, extras, namesById)
+  const action = actionOf(w, extras, namesById)
   if (action) widget.action = action
-  const fallback = fallbackOf(d, d.id, extras)
+  const fallback = fallbackOf(w, extras)
   if (fallback) widget.fallback = fallback
-  const next = extras.next.get(d.id)
+  const next = extras.next.get(w.id)
   if (next) widget.next = next
   return widget
 }
 
-function hasScripts(actions: PdfjsAnnotationData['actions']): boolean {
-  if (!actions) return false
-  return actions instanceof Map ? actions.size > 0 : Object.keys(actions).length > 0
-}
-
 /** Checkbox and radio options: each widget's on state, labelled with its export value. */
-function stateOptions(widgets: readonly RawWidget[], onStates: readonly FormWidget[]) {
+function stateOptions(widgets: readonly FileWidget[], onStates: readonly FormWidget[]) {
   const options: FieldOption[] = []
   widgets.forEach((w, i) => {
     const value = onStates[i]!.onState
     if (value === undefined || options.some((o) => o.value === value)) return
-    const label = (w.data.radioButton ? w.data.buttonValue : w.data.exportValue) ?? value
-    options.push({ value, label })
+    options.push({ value, label: w.onValue ?? value })
   })
   return options
 }
 
-/** A checkbox or radio value as a state name: PDF.js maps `/V` through `/Opt` to an export value. */
+/**
+ * A checkbox or radio value as a state name: the reader maps `/V` through `/Opt` to an export
+ * value.
+ */
 function stateValue(
-  v: PdfjsAnnotationData['fieldValue'],
+  v: FileField['value'],
   options: readonly FieldOption[]
 ): string | undefined {
   if (typeof v !== 'string') return undefined
@@ -263,55 +225,48 @@ function stateValue(
   return byLabel.length === 1 ? byLabel[0]!.value : v
 }
 
-function choiceValue(
-  v: PdfjsAnnotationData['fieldValue'],
-  multi: boolean
-): FieldValue | undefined {
-  if (v === null || v === undefined) return undefined
+function choiceValue(v: FileField['value'], multi: boolean): FieldValue | undefined {
+  if (v === undefined) return undefined
   const list = Array.isArray(v) ? v : [v]
   if (multi) return list
   return list[0]
 }
 
 function buildField(
-  name: string,
-  widgets: readonly RawWidget[],
+  f: FileField,
   extras: FormExtras,
-  namesById: ReadonlyMap<string, string>,
-  order: ReadonlyMap<RawWidget, number>
-): FormField | undefined {
-  const d = widgets[0]!.data
-  const type = fieldType(d)
-  if (!type) return undefined
-  const flags = flagsOf(type, d.fieldFlags ?? 0)
-  const built = widgets.map((w) => widgetOf(w, type, extras, namesById, order))
+  namesById: ReadonlyMap<string, string>
+): FormField {
+  const { name, kind: type, widgets } = f
+  const flags = flagsOf(type, f.flags)
+  const built = widgets.map((w) => widgetOf(w, type, extras, namesById))
   let options: FieldOption[] = []
   let value: FieldValue | undefined
   let defaultValue: FieldValue | undefined
   if (type === 'checkbox' || type === 'radio') {
     options = stateOptions(widgets, built)
     const stored = widgets
-      .map((w) => extras.widgets.get(w.data.id)?.state)
+      .map((w) => extras.widgets.get(w.id)?.state)
       .find((s) => s !== undefined)
-    value = stored ?? stateValue(d.fieldValue, options) ?? 'Off'
+    value = stored ?? stateValue(f.value, options) ?? 'Off'
     const storedDefault = widgets
-      .map((w) => extras.widgets.get(w.data.id)?.defaultState)
+      .map((w) => extras.widgets.get(w.id)?.defaultState)
       .find((s) => s !== undefined)
-    defaultValue = storedDefault ?? stateValue(d.defaultFieldValue, options)
+    defaultValue = storedDefault ?? stateValue(f.defaultValue, options)
   } else if (type === 'combo' || type === 'list') {
-    options = (d.options ?? []).map((o) => ({
+    options = (f.options ?? []).map((o) => ({
       value: o.exportValue,
       label: o.displayValue,
     }))
-    value = choiceValue(d.fieldValue, flags.multiSelect)
-    defaultValue = choiceValue(d.defaultFieldValue, flags.multiSelect)
+    value = choiceValue(f.value, flags.multiSelect)
+    defaultValue = choiceValue(f.defaultValue, flags.multiSelect)
   } else if (type === 'text') {
-    if (typeof d.fieldValue === 'string') value = d.fieldValue
-    if (typeof d.defaultFieldValue === 'string') defaultValue = d.defaultFieldValue
+    if (typeof f.value === 'string') value = f.value
+    if (typeof f.defaultValue === 'string') defaultValue = f.defaultValue
   }
 
   const signed = extras.signed.has(name)
-  const barcode = widgets.some((w) => extras.widgets.get(w.data.id)?.barcode)
+  const barcode = widgets.some((w) => extras.widgets.get(w.id)?.barcode)
   const field: FormField = {
     name,
     type,
@@ -325,46 +280,29 @@ function buildField(
       flags.fileSelect ||
       barcode,
   }
-  if (type === 'text' && d.maxLen) field.maxLength = d.maxLen
+  if (type === 'text' && f.maxLength) field.maxLength = f.maxLength
   // Like a value a host sets, a default the field cannot hold is dropped: a reset then
   // empties the field instead.
   if (defaultValue !== undefined && suits(field, defaultValue))
     field.defaultValue = defaultValue
   if (value !== undefined) field.value = value
-  const tooltip = d.alternativeText || extras.widgets.get(d.id)?.tooltip
+  // The field's tooltip is its first widget's.
+  const first = widgets[0]!
+  const tooltip = first.tooltip || extras.widgets.get(first.id)?.tooltip
   if (tooltip) field.tooltip = tooltip
   if (signed) field.signed = 'certificate'
   return field
 }
 
 /**
- * Terminal fields from the widgets PDF.js reports, grouped by full name, in the order of each
- * field's first widget. `raw` lists each page's widgets in its `/Annots` order, which each
- * widget's `order` keeps. Widgets of unknown field types are left out.
+ * The form's fields from the reader's terminal fields, in its order. Each widget's `order` is its
+ * place among its page's listed annotations.
  */
 export function buildFormFields(
-  raw: readonly RawWidget[],
+  fields: readonly FileField[],
   extras: FormExtras
 ): FormField[] {
-  const groups = new Map<string, RawWidget[]>()
   const namesById = new Map<string, string>()
-  const order = new Map<RawWidget, number>()
-  const perPage = new Map<number, number>()
-  for (const w of raw) {
-    const name = w.data.fieldName
-    if (w.data.subtype !== 'Widget' || !name) continue
-    const at = perPage.get(w.page) ?? 0
-    order.set(w, w.at ?? at)
-    perPage.set(w.page, at + 1)
-    namesById.set(w.data.id, name)
-    let group = groups.get(name)
-    if (!group) groups.set(name, (group = []))
-    group.push(w)
-  }
-  const fields: FormField[] = []
-  for (const [name, widgets] of groups) {
-    const field = buildField(name, widgets, extras, namesById, order)
-    if (field) fields.push(field)
-  }
-  return fields
+  for (const f of fields) for (const w of f.widgets) namesById.set(w.id, f.name)
+  return fields.map((f) => buildField(f, extras, namesById))
 }

@@ -1,11 +1,13 @@
 // The document reader over PDF.js: page facts from each page proxy, pixels from
-// `PDFPageProxy.render`, and the file's facts, text, links, annotations, the outline and
-// destinations as PDF.js reads them.
+// `PDFPageProxy.render`, and the file's facts, text, links, annotations, form fields, Tab
+// order, the outline and destinations as PDF.js reads them.
 import { resolveDestination } from './destinations'
 import { fileAnnotationFromPdfjs } from './file-annotations'
+import { fileFieldsFromPdfjs } from './file-form'
 import { pageGlyphs } from './glyphs'
 import { linkFromPdfjs } from './links'
 import { readOutline } from './outline'
+import { structureAnnotationOrder } from './structure'
 import { readTextContent } from './text-content'
 import { textContentFromPdfjs } from './text-items'
 import { omitAppearances } from './widget-appearance'
@@ -26,13 +28,11 @@ export interface PdfjsReaderDeps {
   measure: MeasureChar | undefined
 }
 
-/** @internal The PDF.js reader, with what the form is still built from. */
+/**
+ * @internal The PDF.js reader. Each page's annotations are read from PDF.js once and kept, so the
+ * open's reads of annotations, links and the form share them, until `forgetAnnotations`.
+ */
 export interface PdfjsReader extends DocumentReader {
-  /**
-   * The page's annotations as PDF.js gives them. Each page is read once and kept, so the open
-   * and the reader share the read, until `forgetAnnotations`.
-   */
-  pdfjsAnnotations(page: number): Promise<readonly PdfjsAnnotationData[]>
   /** Stops keeping each page's annotations: the open has read every page. Later reads ask again. */
   forgetAnnotations(): void
 }
@@ -87,7 +87,18 @@ export function createPdfjsReader(
     async annotations(page) {
       return (await pdfjsAnnotations(page)).map(fileAnnotationFromPdfjs)
     },
-    pdfjsAnnotations,
+    async form() {
+      const widgets: { page: number; at: number; data: PdfjsAnnotationData }[] = []
+      for (let page = 0; page < handles.proxy.numPages; page++) {
+        const annotations = await pdfjsAnnotations(page)
+        // Widgets keep their place among the page's annotations, which Tab order shares with links.
+        annotations.forEach((data, at) => {
+          if (data.subtype === 'Widget') widgets.push({ page, at, data })
+        })
+      }
+      return fileFieldsFromPdfjs(widgets)
+    },
+    tabOrder: async (page) => structureAnnotationOrder(await handles.getPage(page)),
     forgetAnnotations: () => annotationsRead.clear(),
     outline: () => readOutline(handles.proxy),
     // A lookup PDF.js cannot do gives the same answer every time: it goes nowhere.

@@ -1,37 +1,48 @@
-import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
 import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
 import { openPdfObjects } from '../../pdf/objects'
 import { destinationPage } from '../../pdfjs/destinations'
+import { fileFieldsFromPdfjs } from '../../pdfjs/file-form'
+import { loadPdfjs, openProxy } from '../../pdfjs/load'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
 import { buildFormFields } from './structure'
 
-import type { RawWidget } from './structure'
 import type { FormField } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
+
+/** A widget as PDF.js reports it, with its page and place among the page's annotations. */
+type PdfjsWidget = { page: number; at: number; data: PdfjsAnnotationData }
+
+/** Fields built from widgets given as PDF.js data. */
+const build = (widgets: PdfjsWidget[], extras = emptyFormExtras()) =>
+  buildFormFields(fileFieldsFromPdfjs(widgets), extras)
 
 /** Fields built from the widgets PDF.js reports for an opened fixture, by name. */
 async function fieldsOf(name: FixtureName): Promise<Map<string, FormField>> {
   const doc = await openDocument(await fixtureBytes(name), { assets: nodeAssets() })
   await doc.ready
-  const raw: { page: number; data: PdfjsAnnotationData }[] = []
+  const raw: PdfjsWidget[] = []
   for (let page = 0; page < doc.pages.length; page++) {
     const annots = (await (
       await doc._pdfjs.getPage(page)
     ).getAnnotations()) as PdfjsAnnotationData[]
-    for (const data of annots) if (data.subtype === 'Widget') raw.push({ page, data })
+    annots.forEach((data, at) => {
+      if (data.subtype === 'Widget') raw.push({ page, at, data })
+    })
   }
+  const fields = fileFieldsFromPdfjs(raw)
   const objs = (await openPdfObjects(await fixtureBytes(name)))!
   const extras = await readFormExtras(
     objs,
-    raw.map((r) => r.data.id),
+    fields.flatMap((f) => f.widgets.map((w) => w.id)),
     { destinationPage: (dest) => destinationPage(doc._pdfjs.proxy, dest) }
   )
   doc.destroy()
-  return new Map(buildFormFields(raw, extras).map((f) => [f.name, f]))
+  return new Map(buildFormFields(fields, extras).map((f) => [f.name, f]))
 }
 
 describe('buildFormFields', () => {
@@ -82,9 +93,15 @@ describe('buildFormFields', () => {
     expect(names.slice(-2)).toEqual(['rotated', 'sig2'])
   })
 
-  it("numbers each widget by its place in its page's /Annots", () => {
-    const widget = (id: string, page: number, field: string): RawWidget => ({
+  it("numbers each widget by its place among its page's annotations", () => {
+    const widget = (
+      id: string,
+      page: number,
+      at: number,
+      field: string
+    ): PdfjsWidget => ({
       page,
+      at,
       data: {
         id,
         subtype: 'Widget',
@@ -94,21 +111,18 @@ describe('buildFormFields', () => {
         fieldType: 'Tx',
       },
     })
-    // One field's two widgets on page 0 sit either side of another field's.
-    const fields = buildFormFields(
-      [
-        widget('a1', 0, 'a'),
-        widget('b1', 0, 'b'),
-        widget('a2', 0, 'a'),
-        widget('b2', 1, 'b'),
-        widget('c1', 1, 'c'),
-      ],
-      emptyFormExtras()
-    )
+    // One field's two widgets on page 0 sit either side of another field's and a link.
+    const fields = build([
+      widget('a1', 0, 0, 'a'),
+      widget('b1', 0, 1, 'b'),
+      widget('a2', 0, 3, 'a'),
+      widget('b2', 1, 0, 'b'),
+      widget('c1', 1, 1, 'c'),
+    ])
     const order = Object.fromEntries(
       fields.flatMap((f) => f.widgets.map((w) => [w.id, w.order]))
     )
-    expect(order).toEqual({ a1: 0, a2: 2, b1: 1, b2: 0, c1: 1 })
+    expect(order).toEqual({ a1: 0, a2: 3, b1: 1, b2: 0, c1: 1 })
   })
 
   it('reads flags', async () => {
@@ -311,8 +325,9 @@ describe('buildFormFields', () => {
   })
 
   it('reads NoView with Print as print-only, and NoView alone as hidden', () => {
-    const widget = (id: string, flags: number): RawWidget => ({
+    const widget = (id: string, flags: number): PdfjsWidget => ({
       page: 0,
+      at: 0,
       data: {
         id,
         subtype: 'Widget',
@@ -325,10 +340,11 @@ describe('buildFormFields', () => {
         hidden: (flags & 34) !== 0,
       },
     })
-    const fields = buildFormFields(
-      [widget('screen', 4), widget('print', 32 | 4), widget('never', 32)],
-      emptyFormExtras()
-    )
+    const fields = build([
+      widget('screen', 4),
+      widget('print', 32 | 4),
+      widget('never', 32),
+    ])
     const w = (i: number) => fields[i]!.widgets[0]!
     expect([w(0).hidden, w(0).printOnly]).toEqual([false, false])
     expect([w(1).hidden, w(1).printOnly]).toEqual([true, true])
@@ -337,8 +353,9 @@ describe('buildFormFields', () => {
 
   it('drops a /DV that is not one of the options', () => {
     const base = { subtype: 'Widget', annotationType: 20, rect: [0, 0, 10, 10] } as const
-    const radio = (id: string, state: string, dv: string): RawWidget => ({
+    const radio = (id: string, state: string, dv: string): PdfjsWidget => ({
       page: 0,
+      at: 0,
       data: {
         ...base,
         rect: [0, 0, 10, 10],
@@ -351,8 +368,9 @@ describe('buildFormFields', () => {
         defaultFieldValue: dv,
       },
     })
-    const list = (name: string, dv: string): RawWidget => ({
+    const list = (name: string, dv: string): PdfjsWidget => ({
       page: 0,
+      at: 0,
       data: {
         ...base,
         rect: [0, 0, 10, 10],
@@ -367,7 +385,7 @@ describe('buildFormFields', () => {
     extras.widgets.set('r1', { onState: 'one' })
     extras.widgets.set('r2', { onState: 'two', defaultState: 'three' })
     const fields = new Map(
-      buildFormFields(
+      build(
         [
           radio('r1', 'one', 'three'),
           radio('r2', 'two', 'three'),
@@ -381,4 +399,104 @@ describe('buildFormFields', () => {
     expect(fields.get('good')!.defaultValue).toBe('a')
     expect(fields.get('bad')!.defaultValue).toBeUndefined()
   })
+})
+
+describe('a reset naming a widget of a field PDF.js cannot type', () => {
+  it.each([true, false])(
+    'keeps that field name, matching no field, with include %s',
+    (include) => {
+      const fields = build([
+        {
+          page: 0,
+          at: 0,
+          data: {
+            id: '9R',
+            subtype: 'Widget',
+            annotationType: 20,
+            rect: [0, 0, 10, 10],
+            fieldName: 'odd',
+            fieldType: 'Btn',
+          },
+        },
+        {
+          page: 0,
+          at: 1,
+          data: {
+            id: '1R',
+            subtype: 'Widget',
+            annotationType: 20,
+            rect: [0, 0, 10, 10],
+            fieldName: 'reset',
+            fieldType: 'Btn',
+            pushButton: true,
+            resetForm: { fields: [], refs: ['9R'], include },
+          },
+        },
+      ])
+      expect(fields.map((f) => f.name)).toEqual(['reset'])
+      // Not `fields: []`, which would name every field.
+      expect(fields[0]!.widgets[0]!.action).toEqual({
+        kind: 'reset',
+        fields: ['odd'],
+        include,
+      })
+    }
+  )
+})
+
+/**
+ * Every page's widgets as the document reads them, each with its place among the page's
+ * annotations, and the PDF.js document they came from.
+ */
+async function pdfjsWidgets(name: FixtureName) {
+  const assets = nodeAssets()
+  const { task, proxy } = await openProxy(
+    await loadPdfjs(assets),
+    await fixtureBytes(name),
+    { assets, password: manifest[name].password, verbosity: 0 }
+  )
+  const widgets: PdfjsWidget[] = []
+  for (let i = 0; i < proxy.numPages; i++) {
+    const page = await proxy.getPage(i + 1)
+    // As the document reads them: a page PDF.js cannot parse has none.
+    const annots = await page.getAnnotations().then(
+      (raw) => raw as unknown as PdfjsAnnotationData[],
+      () => []
+    )
+    annots.forEach((data, at) => {
+      if (data.subtype === 'Widget') widgets.push({ page: i, data, at })
+    })
+  }
+  return { task, proxy, widgets }
+}
+
+describe('form building across the fixtures', () => {
+  const opening = (Object.keys(manifest) as FixtureName[]).filter(
+    (n) => manifest[n].opens
+  )
+
+  it.each(opening)(
+    "builds every fixture's fields the same from the shape as from PDF.js data: %s",
+    async (name) => {
+      const { task, proxy, widgets } = await pdfjsWidgets(name)
+      try {
+        if (widgets.length === 0) {
+          expect(
+            buildFormFields(fileFieldsFromPdfjs(widgets), emptyFormExtras())
+          ).toEqual([])
+          return
+        }
+        const fields = fileFieldsFromPdfjs(widgets)
+        const extras = await readFormExtras(
+          await openPdfObjects(await fixtureBytes(name)),
+          fields.flatMap((f) => f.widgets.map((w) => w.id)),
+          { destinationPage: (dest) => destinationPage(proxy, dest) }
+        )
+        // The snapshot was taken from PDF.js's data, before fields were built from core's shape.
+        expect(buildFormFields(fields, extras)).toMatchSnapshot()
+      } finally {
+        await task.destroy()
+      }
+    }
+  )
 })

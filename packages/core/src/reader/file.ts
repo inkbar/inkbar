@@ -1,5 +1,5 @@
-// What the reader tells the document about the file itself: its annotations as they stand in the
-// file, and the facts of its trailer and Info dictionary.
+// What the reader tells the document about the file itself: its annotations and form fields as
+// they stand in the file, and the facts of its trailer and Info dictionary.
 
 /**
  * @internal One annotation of a page that is listed (see `listed` in engine-reader/links.ts).
@@ -47,6 +47,76 @@ export interface FileAnnotation {
     fontName?: string
     color?: [number, number, number]
   }
+}
+
+/** @internal What a widget's actions hold, as the file says it. */
+export interface FileWidgetActions {
+  /** JavaScript sources by event name (`Action`, `Keystroke`, `Format`, `Validate`, `Calculate`, …). */
+  scripts?: Record<string, string[]>
+  /** A URI action's address, or the one a JavaScript `/A` opens with `app.launchURL`. */
+  url?: string
+  /** The `app.launchURL` call that gave `url` asks for a new window. */
+  newWindow?: boolean
+  /** A Named action's name. */
+  named?: string
+  /** A ResetForm action: field names, field object ids, and whether they are the ones reset. */
+  resetForm?: { fields: string[]; refs: string[]; include: boolean }
+}
+
+/** @internal One widget of a field. Colours are RGB, each 0–255. */
+export interface FileWidget {
+  /** The object reference as core writes it: `12R`, `12R3`. */
+  id: string
+  page: number
+  /** Position among the page's listed annotations; Tab order shares it with links. */
+  at: number
+  /** `/Rect` in user space, as written: its corners are not put in order. */
+  rect: [number, number, number, number]
+  /** `/F`, with Hidden also set for a widget the reader hides (PDF.js: a text widget's `/PMD`). */
+  flags: number
+  hasAppearance: boolean
+  /** A checkbox's or radio's on value, mapped through `/Opt`. */
+  onValue?: string
+  border?: { width: number; style?: number }
+  /** `/MK /BC`. */
+  borderColor?: [number, number, number]
+  /** `/MK /BG`. */
+  backgroundColor?: [number, number, number]
+  /** `/MK /R`. */
+  rotation?: number
+  /** `/Q`: 0 left, 1 centre, 2 right. */
+  alignment?: number
+  /** The widget's own `/TU`. */
+  tooltip?: string
+  /** What `/DA` sets. */
+  defaultAppearance?: {
+    fontSize: number
+    fontName?: string
+    color?: [number, number, number]
+  }
+  actions: FileWidgetActions
+}
+
+/** @internal */
+export type FileFieldKind =
+  'text' | 'checkbox' | 'radio' | 'button' | 'combo' | 'list' | 'signature'
+
+/** @internal One terminal field with its widgets in document order. */
+export interface FileField {
+  /** The full name. */
+  name: string
+  kind: FileFieldKind
+  /** `/Ff`. */
+  flags: number
+  /** `/V`; a checkbox's or radio's is its export value, mapped through `/Opt`. */
+  value?: string | string[]
+  /** `/DV`, as `value` is read. */
+  defaultValue?: string | string[]
+  /** `/Opt` of a choice field. */
+  options?: { exportValue: string; displayValue: string }[]
+  /** `/MaxLen`. */
+  maxLength?: number
+  widgets: FileWidget[]
 }
 
 /** @internal */
