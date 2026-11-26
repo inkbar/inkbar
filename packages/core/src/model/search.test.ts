@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { textContentFromPdfjs } from '../pdfjs/text-items'
-
 import { rectFromQuad, unionRects } from './geometry'
 import { CONTEXT_CHARS, matchPage } from './search'
 import { searchableText } from './search-text'
 
-import type { TextItem } from './text'
+import type { TextContent, TextItem } from './text'
 
 const SIZE = 10
 const OPTS = { matchCase: false, wholeWord: false }
@@ -175,24 +173,28 @@ describe('matchPage', () => {
     expect(hit!.quads[0]!.p4).toEqual({ x: 10, y: 10 })
   })
 
-  it('covers the part of a vertical column a hit reads, from a PDF.js item', () => {
-    // A column of 8 characters, 28 pt each, down from y 760 and centred on x 400.
-    const content = textContentFromPdfjs(0, {
+  it('covers the part of a vertical column a hit reads', () => {
+    // A column of 8 characters, 28 pt each, down from y 760 and centred on x 400: its quad runs
+    // from p1/p3 at the top to p2/p4 at the bottom.
+    const content: TextContent = {
+      page: 0,
       items: [
         {
           str: '日本語のテキスト',
           dir: 'ttb',
-          transform: [28, 0, 0, 28, 400, 760],
-          width: 28,
-          height: 224,
           fontName: 'v',
+          fontSize: 28,
           hasEOL: false,
+          quad: {
+            p1: { x: 414, y: 760 },
+            p2: { x: 414, y: 536 },
+            p3: { x: 386, y: 760 },
+            p4: { x: 386, y: 536 },
+          },
+          rect: { x: 386, y: 536, width: 28, height: 224 },
         },
       ],
-      styles: {
-        v: { fontFamily: 'monospace', ascent: 0.88, descent: -0.12, vertical: true },
-      },
-    } as never)
+    }
     const [hit] = matchPage(searchableText(content), 'テキスト', OPTS)
     expect(hit!.quads).toEqual([
       {
