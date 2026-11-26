@@ -21,7 +21,8 @@ export type StopOutcome =
 /** @internal The engine reader's count of stops. */
 export interface StopCount {
   /**
-   * Records a stop found by a call: `page` is the page it read, when it names one, and `counts`
+   * Records a stop found by a call: `page` is the page whose block it counts towards, when it
+   * counts towards one (a link read's stop counts towards none), and `counts`
    * is false for a stop that does not count towards `STOPS_TO_STOP`: one on a call's second
    * attempt, so a page that stops every engine it is read on costs one count, not two, and one
    * whose reads have a limit of their own. The stop that brings a page to `PAGE_STOPS` blocks it

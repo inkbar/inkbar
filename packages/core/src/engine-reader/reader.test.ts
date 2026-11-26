@@ -1339,7 +1339,31 @@ describe('links, the outline and destinations', () => {
     expect(found).toEqual(Array<number>(40).fill(0))
     // The engine the file opened in, then one for each of the three it dropped; then no more.
     expect(t.createEngine).toHaveBeenCalledTimes(4)
-    // Link reads' stops do not count towards stopping the reader.
+    // Link reads' stops count towards neither stopping the reader nor blocking a page: every
+    // page still draws and reads.
+    expect(reader.engineStopped.get()).toBe(false)
+    for (let page = 0; page < 40; page++) {
+      await expect(reader.draw(request({ page }), fakeCanvas().canvas)).resolves.toBe(
+        undefined
+      )
+      await expect(reader.tabOrder(page)).resolves.toEqual([])
+    }
+  })
+
+  it('draws a page whose link read stops every engine, and reads its Tab order', async () => {
+    const t = setup({
+      pageCount: 2,
+      pageLinks: (index) =>
+        index === 1 ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    for (let i = 0; i < 2; i++) await expect(reader.links(1)).resolves.toEqual([])
+    const { canvas, context } = fakeCanvas()
+    await reader.draw(request({ page: 1 }), canvas)
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    await expect(reader.tabOrder(1)).resolves.toEqual([])
+    await expect(reader.text(1, { glyphs: false })).resolves.toMatchObject({ page: 1 })
     expect(reader.engineStopped.get()).toBe(false)
   })
 

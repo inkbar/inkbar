@@ -58,8 +58,8 @@ const TEXT_PAGES = 8
  * none of them succeeding in between, before the reader stops asking: each stop costs a new
  * engine, which reads the whole file again. One item that stops the engine stops at most two:
  * the one it was read on, and the one its retry stops. So three in a row take more than one bad
- * item. Link reads' stops do not count towards stopping the reader (see `./stops`): this limit
- * is theirs.
+ * item. Link reads' stops count towards neither a page's block nor stopping the reader (see
+ * `./stops`): this limit is theirs.
  */
 const STOPS_IN_A_ROW = 3
 
@@ -387,7 +387,7 @@ export async function createEngineReader(
     page?: number | undefined
     /**
      * False for a call whose stops do not count towards stopping the reader, as it has a limit
-     * of its own; they still count towards its page. Default true.
+     * of its own. Default true.
      */
     counts?: boolean | undefined
     onDrop?: (() => void) | undefined
@@ -765,13 +765,14 @@ export async function createEngineReader(
   let linkStops = 0
   /**
    * A page's links. A page whose links the engine cannot read has none, as a page whose
-   * annotations PDF.js cannot parse has none with the PDF.js reader. So does a blocked page,
-   * without asking: the links are read at open, and a page with no links is better than a file
-   * that will not open. Link reads' stops count towards their page's block but not towards
-   * stopping the reader; once they have dropped `STOPS_IN_A_ROW` engines with none succeeding in
-   * between, the rest of the pages have none without asking, so a file whose link reads stop the
-   * engine opens, with no links, rather than start a new engine for every page. While the reader
-   * is stopped the read rejects as every call does.
+   * annotations PDF.js cannot parse has none with the PDF.js reader. So does a page other reads
+   * have blocked, without asking: the links are read at open, and a page with no links is better
+   * than a file that will not open. Link reads' stops count towards neither a page's block nor
+   * stopping the reader, so a page whose links stop the engine is still drawn and read. Once
+   * they have dropped `STOPS_IN_A_ROW` engines with none succeeding in between, the rest of the
+   * pages have none without asking, so a file whose link reads stop the engine opens, with no
+   * links, rather than start a new engine for every page. While the reader is stopped the read
+   * rejects as every call does.
    */
   const links = async (page: number): Promise<PageLink[]> => {
     if (destroyed) throw destroyedError()
@@ -779,8 +780,8 @@ export async function createEngineReader(
     const found = await onEngine(
       async () => {
         if (linkStops >= STOPS_IN_A_ROW) return []
+        // No `page`: a link read's stops block no page.
         const facts = await run((doc) => doc.pageLinks(page), {
-          page,
           counts: false,
           onDrop: () => {
             linkStops++
