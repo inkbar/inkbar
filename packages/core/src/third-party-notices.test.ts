@@ -35,3 +35,19 @@ describe('the published package carries the font metrics notice', () => {
     expect(header).toContain('@pdf-lib/standard-fonts 1.0.0')
   })
 })
+
+describe('the published package carries the QuickJS notices', () => {
+  test('the licences directory is in the package files list', () => {
+    expect(pkg.files).toContain('licences')
+  })
+
+  test('the notices file holds both licence texts in full', () => {
+    const text = read('THIRD-PARTY-NOTICES').replace(/\s+/g, ' ')
+    for (const name of ['licences/quickjs.txt', 'licences/pdfjs-quickjs.txt']) {
+      const licence = read(name).replace(/\s+/g, ' ').trim()
+      expect(text, name).toContain(licence)
+    }
+    expect(text).toContain('Copyright (c) 2017-2021 Fabrice Bellard')
+    expect(text).toContain('Copyright (c) 2026 Mozilla Foundation')
+  })
+})

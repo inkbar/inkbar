@@ -89,6 +89,9 @@ function files(): Map<string, Shipped> {
   // @inkbar/fonts exports its fonts and not its package.json.
   const fonts = from('@inkbar/fonts', 'files/NotoSans-Regular.ttf')
   const pdfjs = from('pdfjs-dist')
+  // Resolved through the package's own name, so it finds the licences/ directory it ships whether
+  // the plugin runs from source or from dist.
+  const core = from('@inkbar/core')
   return new Map([
     ['inkbar-pdfium.wasm', engine('dist/inkbar-pdfium.wasm')],
     ['worker.mjs', engine('dist/worker.mjs')],
@@ -101,8 +104,12 @@ function files(): Map<string, Shipped> {
     ['fonts/OFL.txt', fonts('OFL.txt')],
     ['sandbox/quickjs-eval.js', pdfjs('wasm/quickjs-eval.js')],
     ['sandbox/quickjs-eval.wasm', pdfjs('wasm/quickjs-eval.wasm')],
-    // pdfjs-dist ships the two files under its own licence, and no other for them.
+    // pdfjs-dist ships the two files under its own licence (Apache 2.0, PDF.js). They contain
+    // QuickJS (MIT) built by Mozilla's pdf.js.quickjs (MIT), whose notices pdfjs-dist does not
+    // carry, so @inkbar/core ships them.
     ['sandbox/LICENSE', pdfjs('LICENSE')],
+    ['sandbox/LICENSE-quickjs', core('licences/quickjs.txt')],
+    ['sandbox/LICENSE-pdfjs-quickjs', core('licences/pdfjs-quickjs.txt')],
   ])
 }
 

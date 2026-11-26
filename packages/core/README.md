@@ -992,7 +992,7 @@ A worker started from its own URL runs under the policy its server sends with `w
 
 In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
 
-Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come with `pdfjs-dist` under the Apache License 2.0, in its `LICENSE`. The Vite plugin copies each of these beside the files it covers, as `THIRD-PARTY-NOTICES`, `fonts/OFL.txt` and `sandbox/LICENSE`; copy them the same way when you copy the files by hand.
+Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come from `pdfjs-dist`, which is under the Apache License 2.0 (in its `LICENSE`). They also contain QuickJS (MIT licence, Fabrice Bellard and Charlie Gordon), built by Mozilla's `pdf.js.quickjs` (MIT licence), and `pdfjs-dist` carries neither notice, so `@inkbar/core` ships both: `licences/quickjs.txt` and `licences/pdfjs-quickjs.txt` in the installed `@inkbar/core` package. The Vite plugin copies each of these beside the files it covers, as `THIRD-PARTY-NOTICES`, `fonts/OFL.txt`, `sandbox/LICENSE`, `sandbox/LICENSE-quickjs` and `sandbox/LICENSE-pdfjs-quickjs`; copy them the same way when you copy the files by hand.
 
 ## Licence
 
