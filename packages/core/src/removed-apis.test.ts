@@ -28,6 +28,12 @@ import type {
   SaveEngine,
   // @ts-expect-error `SaveEngineDocument` is gone with the `engine` option.
   SaveEngineDocument,
+  // @ts-expect-error `SaveInput` is gone with the `engine` option: it described the engine's input.
+  SaveInput,
+  // @ts-expect-error `RedactSaveInput` is gone with the `engine` option.
+  RedactSaveInput,
+  // @ts-expect-error `RedactEngineResult` is gone with the `engine` option.
+  RedactEngineResult,
 } from './index'
 import type { SignatureStore } from './model/signatures'
 
@@ -116,7 +122,14 @@ describe('the engine option is gone', () => {
   })
 
   it('no longer exports the types that described it', () => {
-    const gone: [EngineLoader?, SaveEngine?, SaveEngineDocument?] = []
+    const gone: [
+      EngineLoader?,
+      SaveEngine?,
+      SaveEngineDocument?,
+      SaveInput?,
+      RedactSaveInput?,
+      RedactEngineResult?,
+    ] = []
     expect(gone).toEqual([])
   })
 })

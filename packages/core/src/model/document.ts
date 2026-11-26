@@ -86,13 +86,10 @@ export type LockedStatus = { state: 'locked'; incorrect: boolean }
 export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
 
 export type {
-  RedactEngineResult,
   RedactionCandidate,
   RedactionFindings,
   RedactionRegion,
   RedactionSanitised,
-  RedactSaveInput,
-  SaveInput,
 } from './save/saver'
 export type { RedactionPreview, RedactionResult } from './redaction/types'
 export type {
