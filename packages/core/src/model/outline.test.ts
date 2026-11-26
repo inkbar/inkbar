@@ -117,7 +117,7 @@ describe('outline', () => {
 
   it('reads nothing until called', async () => {
     const doc = await open()
-    const spy = vi.spyOn(doc._pdfjs.proxy, 'getOutline')
+    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getOutline')
     await new Promise((r) => setTimeout(r, 20))
     expect(spy).not.toHaveBeenCalled()
     const first = await doc.outline()

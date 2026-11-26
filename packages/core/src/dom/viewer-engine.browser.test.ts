@@ -115,7 +115,7 @@ describe('mountViewer', () => {
   it('flags a failed page and clears it once it renders again', async () => {
     const doc = await openFixtureInBrowser('mixed-page-sizes')
     let failing = true
-    const handles = doc._pdfjs
+    const handles = doc._pdfjs!
     const original = handles.getPage.bind(handles)
     handles.getPage = async (index) => {
       if (failing && index === 1) throw new Error('The page could not be drawn')

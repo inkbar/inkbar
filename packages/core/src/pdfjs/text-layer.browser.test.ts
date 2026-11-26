@@ -11,7 +11,7 @@ describe('mountPdfjsTextLayer', () => {
   it('drops a failed layer from the shared signal, so retries keep only the live one', async () => {
     const doc = await openFixtureInBrowser('text-simple')
     cleanup.push(() => doc.destroy())
-    const pdfPage = await doc._pdfjs.getPage(0)
+    const pdfPage = await doc._pdfjs!.getPage(0)
     const container = document.createElement('div')
     document.body.append(container)
     cleanup.push(() => container.remove())
@@ -31,7 +31,7 @@ describe('mountPdfjsTextLayer', () => {
       if (type === 'abort' && fn) live.delete(fn)
       remove(type, fn, options)
     })
-    const cancel = vi.spyOn(doc._pdfjs.module.TextLayer.prototype, 'cancel')
+    const cancel = vi.spyOn(doc._pdfjs!.module.TextLayer.prototype, 'cancel')
     cleanup.push(() => cancel.mockRestore())
 
     const stream = pdfPage.streamTextContent.bind(pdfPage)
@@ -45,7 +45,7 @@ describe('mountPdfjsTextLayer', () => {
     })
     const attempt = () =>
       mountPdfjsTextLayer({
-        module: doc._pdfjs.module,
+        module: doc._pdfjs!.module,
         pdfPage,
         container,
         viewport,

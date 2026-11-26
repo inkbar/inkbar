@@ -13,8 +13,8 @@ import { readTextContent } from './text-content'
 import { textContentFromPdfjs } from './text-items'
 import { omitAppearances, renderAppearances } from './widget-appearance'
 
+import type { PdfjsHandles } from './handles'
 import type { PdfjsAnnotationData, PdfjsPage } from './types'
-import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { MeasureChar, TextContent } from '../model/text'
@@ -52,7 +52,7 @@ interface PdfjsInfoDict {
  * @internal
  */
 export function createPdfjsReader(
-  handles: InkDocument['_pdfjs'],
+  handles: PdfjsHandles,
   deps: PdfjsReaderDeps
 ): PdfjsReader {
   const annotationsRead = new Map<number, Promise<PdfjsAnnotationData[]>>()
@@ -115,7 +115,7 @@ export function createPdfjsReader(
 }
 
 /** Title and author from the Info dictionary, and whether the file is encrypted. */
-async function facts(handles: InkDocument['_pdfjs']): Promise<FileFacts> {
+async function facts(handles: PdfjsHandles): Promise<FileFacts> {
   const meta = await handles.proxy.getMetadata().catch(() => {
     // Metadata is optional: PDF.js throws on malformed Info dictionaries or XMP, and
     // title/author are nice-to-have. The document itself has opened, so carry on without it.
@@ -142,7 +142,7 @@ function nonEmptyString(value: unknown): string | undefined {
  * cancelled, and a read of the drawing commands already asked for is left to finish unused.
  */
 async function text(
-  handles: InkDocument['_pdfjs'],
+  handles: PdfjsHandles,
   measure: MeasureChar | undefined,
   page: number,
   glyphs: boolean,
@@ -171,7 +171,7 @@ async function text(
  * names.
  */
 async function draw(
-  handles: InkDocument['_pdfjs'],
+  handles: PdfjsHandles,
   request: DrawRequest,
   canvas: HTMLCanvasElement,
   signal?: AbortSignal

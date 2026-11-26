@@ -2314,7 +2314,7 @@ describe('createViewer', () => {
     )
     let failing = true
     if (readerKind() === 'pdfjs') {
-      const handles = doc._pdfjs
+      const handles = doc._pdfjs!
       const original = handles.getPage.bind(handles)
       handles.getPage = async (index) => {
         if (failing && index === 0) throw new Error('The page could not be drawn')

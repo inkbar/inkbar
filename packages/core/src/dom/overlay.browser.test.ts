@@ -2171,7 +2171,7 @@ describe('loupe', () => {
     // PDF.js's page proxy, so with it each render is counted at the reader's draw.
     const renders =
       readerKind() === 'pdfjs'
-        ? vi.spyOn(doc._pdfjs, 'getPage')
+        ? vi.spyOn(doc._pdfjs!, 'getPage')
         : vi.spyOn(doc._reader, 'draw')
     const overlay = createOverlay({
       host,

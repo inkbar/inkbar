@@ -5,6 +5,7 @@ import { page as browserPage, userEvent } from 'vitest/browser'
 
 import { template } from '../messages'
 import { openDocument } from '../model/document'
+import { InkError } from '../model/errors'
 import { readerKind } from '../reader/select'
 
 import { SCRATCH_BUDGET } from './form-appearance'
@@ -376,23 +377,26 @@ describe('form layer', () => {
 
   it('no form layer and ENABLE mode for a PDF without fields', async () => {
     const doc = await open('text-simple')
-    const page = await doc._pdfjs.getPage(0)
     const draws = vi.spyOn(doc._reader, 'draw')
     const modes: unknown[] = []
-    const render = page.render.bind(page)
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      modes.push(params.annotationMode)
-      return render(params)
-    })
+    // The engine reader draws the page itself: PDF.js's render, and its mode, are not used.
+    if (readerKind() === 'pdfjs') {
+      const page = await doc._pdfjs!.getPage(0)
+      const render = page.render.bind(page)
+      vi.spyOn(page, 'render').mockImplementation((params) => {
+        modes.push(params.annotationMode)
+        return render(params)
+      })
+    }
     const p = mountPage(doc)
     await p.mount.renderer.rendered
     expect(p.mount.form).toBeUndefined()
     expect(p.host.querySelector('[data-ink-form-layer]')).toBeNull()
     // Nothing is left out of the page: every widget and annotation is drawn with it.
     expect(draws.mock.calls.map(([request]) => request.hide)).toEqual([[]])
-    // The engine reader draws the page itself: PDF.js's render, and its mode, are not used.
     if (readerKind() === 'pdfjs')
-      expect(modes).toEqual([doc._pdfjs.module.AnnotationMode.ENABLE])
+      expect(modes).toEqual([doc._pdfjs!.module.AnnotationMode.ENABLE])
+    else expect(doc._pdfjs).toBeUndefined()
   })
 
   it('renders a form page once, into one canvas, and each widget’s appearance apart', async () => {
@@ -998,6 +1002,40 @@ describe('form layer', () => {
     expect(onError.mock.calls.length).toBeGreaterThan(passes)
   })
 
+  it('does not retry a pass the engine can no longer draw, and reports it once', async () => {
+    const doc = await open('form-fields')
+    let attempts = 0
+    hookFieldDraws(doc, () => {
+      attempts++
+      return Promise.reject(new InkError('EngineUnavailable', 'gone'))
+    })
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    let seen = -1
+    while (seen !== attempts) {
+      seen = attempts
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    }
+    expect(attempts).toBeGreaterThan(0)
+    // Each pass is asked once and reported once.
+    expect(onError).toHaveBeenCalledTimes(attempts)
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'EngineUnavailable' }),
+      'form'
+    )
+  })
+
   it('keeps a value a script refuses on Enter, so it can be corrected', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -1420,8 +1458,8 @@ async function storedReference(
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   cleanup.push(() => host.remove())
   for (const [id, on] of states)
-    doc._pdfjs.proxy.annotationStorage.setValue(id, { value: on })
-  const pdfPage = await doc._pdfjs.getPage(transform.page.index)
+    doc._pdfjs!.proxy.annotationStorage.setValue(id, { value: on })
+  const pdfPage = await doc._pdfjs!.getPage(transform.page.index)
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(transform.cssWidth)
   canvas.height = Math.round(transform.cssHeight)
@@ -1433,7 +1471,7 @@ async function storedReference(
       rotation: transform.totalRotation,
     }),
     background: '#ffffff',
-    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE_STORAGE,
+    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE_STORAGE,
   }).promise
   host.append(canvas)
   return host

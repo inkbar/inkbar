@@ -28,7 +28,7 @@ async function rawAnnotations(name: Parameters<typeof fixtureBytes>[0]) {
     verbosity: 0,
   })
   await doc.ready
-  const page = await doc._pdfjs.getPage(0)
+  const page = await doc._pdfjs!.getPage(0)
   const raw = ((await page.getAnnotations()) as unknown as PdfjsAnnotationData[]).map(
     fileAnnotationFromPdfjs
   )

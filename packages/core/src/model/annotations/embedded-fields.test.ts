@@ -44,7 +44,7 @@ async function imported(name: FixtureName) {
     verbosity: 0,
   })
   await doc.ready
-  const page = await doc._pdfjs.getPage(0)
+  const page = await doc._pdfjs!.getPage(0)
   const raw = (await page.getAnnotations()) as unknown as PdfjsAnnotationData[]
   doc.destroy()
   return importEmbeddedPage(0, raw.map(fileAnnotationFromPdfjs), NOW)

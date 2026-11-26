@@ -11,7 +11,7 @@ import type { PdfjsDocument } from './types'
 async function proxyOf(name: FixtureName): Promise<PdfjsDocument> {
   const doc = await openDocument(await fixtureBytes(name), { assets: nodeAssets() })
   await doc.ready
-  return doc._pdfjs.proxy
+  return doc._pdfjs!.proxy
 }
 
 interface OutlineNode {

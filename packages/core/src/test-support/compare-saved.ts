@@ -174,7 +174,7 @@ async function screenOf(doc: InkDocument, page: number): Promise<Pixels> {
 
 /** A page as PDF.js draws it with every annotation the file holds. */
 async function pdfjsOf(doc: InkDocument, page: number): Promise<Pixels> {
-  const proxy = await doc._pdfjs.getPage(page)
+  const proxy = await doc._pdfjs!.getPage(page)
   const viewport = proxy.getViewport({
     scale: PIXELS_PER_POINT / doc.pages[page]!.userUnit,
   })
@@ -185,7 +185,7 @@ async function pdfjsOf(doc: InkDocument, page: number): Promise<Pixels> {
     canvas,
     viewport,
     background: '#ffffff',
-    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE,
+    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
   }).promise
   const pixels = canvasPixels(canvas)
   canvas.width = canvas.height = 0

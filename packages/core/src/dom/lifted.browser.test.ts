@@ -71,7 +71,7 @@ function mountPage(doc: InkDocument) {
 
 /** Page 0 as PDF.js draws it with every annotation the file holds. */
 async function plainRender(doc: InkDocument): Promise<HTMLCanvasElement> {
-  const page = await doc._pdfjs.getPage(0)
+  const page = await doc._pdfjs!.getPage(0)
   const viewport = page.getViewport({ scale: 1 })
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(viewport.width)
@@ -80,7 +80,7 @@ async function plainRender(doc: InkDocument): Promise<HTMLCanvasElement> {
     canvas,
     viewport,
     background: '#ffffff',
-    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE,
+    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
   }).promise
   return canvas
 }
@@ -281,7 +281,7 @@ describe('annotations lifted from a file Inkbar saved', () => {
       await saved._liftSettled
       const lifted = writable<ReadonlySet<string>>(new Set())
       const view = Object.create(saved, { _lifted: { value: lifted } }) as InkDocument
-      const page: PdfjsPage = await saved._pdfjs.getPage(0)
+      const page: PdfjsPage = await saved._pdfjs!.getPage(0)
       const render = page.render.bind(page)
       let held: Promise<void> | undefined
       let release = (): void => undefined
@@ -450,7 +450,7 @@ describe('annotations lifted from a file Inkbar saved', () => {
       const { saved, view, lift, release } = await gap()
       const page = mountFull(view)
       await page.mount.renderer.rendered
-      const pdfPage = await saved._pdfjs.getPage(0)
+      const pdfPage = await saved._pdfjs!.getPage(0)
       const real = pdfPage.render.bind(pdfPage)
       pdfPage.render = (params) => {
         const task = real(params)

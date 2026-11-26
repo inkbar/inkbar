@@ -18,7 +18,7 @@ export async function formFieldsOf(name: FixtureName): Promise<FormField[]> {
   const raw: { page: number; at: number; data: PdfjsAnnotationData }[] = []
   for (let page = 0; page < doc.pages.length; page++) {
     const annots = (await (
-      await doc._pdfjs.getPage(page)
+      await doc._pdfjs!.getPage(page)
     ).getAnnotations()) as PdfjsAnnotationData[]
     annots.forEach((data, at) => {
       if (data.subtype === 'Widget') raw.push({ page, at, data })
@@ -29,7 +29,7 @@ export async function formFieldsOf(name: FixtureName): Promise<FormField[]> {
   const extras = await readFormExtras(
     objs,
     fields.flatMap((f) => f.widgets.map((w) => w.id)),
-    { destinationPage: (dest) => destinationPage(doc._pdfjs.proxy, dest) }
+    { destinationPage: (dest) => destinationPage(doc._pdfjs!.proxy, dest) }
   )
   doc.destroy()
   return buildFormFields(fields, extras)

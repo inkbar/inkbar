@@ -22,8 +22,8 @@ async function open(): Promise<InkDocument> {
 
 /** The annotation runs of page 0's operator list in `mode`: id, look name, balanced. */
 async function runs(doc: InkDocument, mode: 'ENABLE' | 'ENABLE_FORMS') {
-  const page = await doc._pdfjs.getPage(0)
-  const { AnnotationMode, OPS } = doc._pdfjs.module
+  const page = await doc._pdfjs!.getPage(0)
+  const { AnnotationMode, OPS } = doc._pdfjs!.module
   const list = await page.getOperatorList({ annotationMode: AnnotationMode[mode] })
   const found: { id: unknown; look: unknown }[] = []
   let open = false
@@ -98,7 +98,7 @@ describe('renderAppearances', () => {
 
   it('rejects with the signal’s reason, and cancels the render, once it aborts mid-render', async () => {
     const doc = await open()
-    const page = await doc._pdfjs.getPage(0)
+    const page = await doc._pdfjs!.getPage(0)
     const render = page.render.bind(page)
     const controller = new AbortController()
     const reason = new Error('moved on')
@@ -116,7 +116,7 @@ describe('renderAppearances', () => {
     })
     await expect(
       renderAppearances(
-        doc._pdfjs,
+        doc._pdfjs!,
         pass([nameId(doc)]),
         canvasFor(doc),
         controller.signal
@@ -127,7 +127,7 @@ describe('renderAppearances', () => {
 
   it('passes on a render that fails', async () => {
     const doc = await open()
-    const page = await doc._pdfjs.getPage(0)
+    const page = await doc._pdfjs!.getPage(0)
     const broken = new Error('broken')
     vi.spyOn(page, 'render').mockImplementation(
       () =>
@@ -137,18 +137,18 @@ describe('renderAppearances', () => {
         }) as unknown as ReturnType<typeof page.render>
     )
     await expect(
-      renderAppearances(doc._pdfjs, pass([nameId(doc)]), canvasFor(doc))
+      renderAppearances(doc._pdfjs!, pass([nameId(doc)]), canvasFor(doc))
     ).rejects.toBe(broken)
   })
 
   it('resolves with no ids for a pass whose ids match nothing', async () => {
     const doc = await open()
     await expect(
-      renderAppearances(doc._pdfjs, pass(['999R', 'nothing']), canvasFor(doc))
+      renderAppearances(doc._pdfjs!, pass(['999R', 'nothing']), canvasFor(doc))
     ).resolves.toEqual(new Set())
     // A checked look of a text field finds nothing either.
     await expect(
-      renderAppearances(doc._pdfjs, pass([nameId(doc)], 'checked'), canvasFor(doc))
+      renderAppearances(doc._pdfjs!, pass([nameId(doc)], 'checked'), canvasFor(doc))
     ).resolves.toEqual(new Set())
   })
 })

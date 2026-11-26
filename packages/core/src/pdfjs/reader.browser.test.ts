@@ -63,7 +63,7 @@ async function fullRender(
   scale: number,
   rotation: number
 ): Promise<HTMLCanvasElement> {
-  const page = await doc._pdfjs.getPage(0)
+  const page = await doc._pdfjs!.getPage(0)
   const viewport = page.getViewport({ scale, rotation })
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(viewport.width)
@@ -72,7 +72,7 @@ async function fullRender(
     canvas,
     viewport,
     background: '#ffffff',
-    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE,
+    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
   }).promise
   return canvas
 }
@@ -121,7 +121,7 @@ describe('the PDF.js reader', () => {
     const height = Math.round(t.cssHeight * dpr)
 
     // The page canvas's own PDF.js call before the reader drew it.
-    const page = await doc._pdfjs.getPage(0)
+    const page = await doc._pdfjs!.getPage(0)
     const expected = document.createElement('canvas')
     expected.width = width
     expected.height = height
@@ -129,7 +129,7 @@ describe('the PDF.js reader', () => {
       canvas: expected,
       viewport: page.getViewport({ scale: zoom, rotation: t.totalRotation }),
       background: '#ffffff',
-      annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE,
+      annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
       transform: [dpr, 0, 0, dpr, 0, 0],
     }).promise
 
@@ -254,7 +254,7 @@ describe('the PDF.js reader', () => {
 
     // Abort once the render has started, so it is the cancel that rejects, not the check
     // before rendering. PDF.js hands out one proxy per page, so the patch reaches the reader.
-    const page = await doc._pdfjs.getPage(0)
+    const page = await doc._pdfjs!.getPage(0)
     const render = page.render.bind(page)
     let started!: () => void
     const begun = new Promise<void>((resolve) => (started = resolve))
@@ -312,7 +312,7 @@ const stringsAndBoxes = (content: TextContent) =>
 describe('what the PDF.js reader reads besides pixels', () => {
   /** A PDF.js reader over `doc`'s handles. */
   const readerOf = (doc: InkDocument) =>
-    createPdfjsReader(doc._pdfjs, { measure: canvasMeasureChar() })
+    createPdfjsReader(doc._pdfjs!, { measure: canvasMeasureChar() })
 
   async function openAny(
     name: 'text-search' | 'links' | 'outline' | 'annotated-markup'
@@ -425,7 +425,7 @@ describe('what the PDF.js reader reads besides pixels', () => {
 
   it('carries on without the metadata when PDF.js cannot read it', async () => {
     const doc = await openAny('text-search')
-    vi.spyOn(doc._pdfjs.proxy, 'getMetadata').mockRejectedValue(new Error('bad XMP'))
+    vi.spyOn(doc._pdfjs!.proxy, 'getMetadata').mockRejectedValue(new Error('bad XMP'))
     expect(await readerOf(doc).facts()).toEqual({ encrypted: false })
   })
 
@@ -449,7 +449,7 @@ describe('what the PDF.js reader reads besides pixels', () => {
 
   it('reads a page again after a read that rejected', async () => {
     const doc = await openAny('annotated-markup')
-    const getPage = vi.spyOn(doc._pdfjs, 'getPage')
+    const getPage = vi.spyOn(doc._pdfjs!, 'getPage')
     getPage.mockRejectedValueOnce(new Error('page gone'))
     const reader = readerOf(doc)
     await expect(reader.annotations(0)).rejects.toThrow('page gone')
@@ -462,7 +462,7 @@ describe('what the PDF.js reader reads besides pixels', () => {
   it("reads each page's annotations once while it opens, for its own use and the reader's links", async () => {
     // Every page proxy shares one prototype: spying on it sees each document's pages.
     const first = await openAny('links')
-    const proto = Object.getPrototypeOf(await first._pdfjs.getPage(0)) as {
+    const proto = Object.getPrototypeOf(await first._pdfjs!.getPage(0)) as {
       getAnnotations(): Promise<PdfjsAnnotationData[]>
     }
     const spy = vi.spyOn(proto, 'getAnnotations')

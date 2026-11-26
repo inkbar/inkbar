@@ -28,21 +28,15 @@ import type { Point, Rect } from '../model/geometry'
 
 const flag = globalThis as { __INKBAR_READER__?: unknown }
 
-/** How many engine readers were made, and how many times one turned to its fallback. */
-const fellBack = vi.hoisted(() => ({ made: 0, count: 0 }))
+/** How many engine readers were made. */
+const readers = vi.hoisted(() => ({ made: 0 }))
 vi.mock('./reader', async (importOriginal) => {
   const real = await importOriginal<typeof ReaderModule>()
   return {
     ...real,
     createEngineReader: (options: Parameters<typeof real.createEngineReader>[0]) => {
-      fellBack.made++
-      return real.createEngineReader({
-        ...options,
-        onFallback: () => {
-          fellBack.count++
-          options.onFallback?.()
-        },
-      })
+      readers.made++
+      return real.createEngineReader(options)
     },
   }
 })
@@ -1026,13 +1020,11 @@ describe("the engine reader's file facts, annotations and form", () => {
   ])(
     'gives the same facts, annotations, fields and tab order as PDF.js, on %s',
     async (name) => {
-      fellBack.made = 0
-      fellBack.count = 0
+      readers.made = 0
       const { kind: engineKind, ...engine } = await readFile(name)
-      expect(fellBack.made, 'the engine reader is the one spied on').toBe(1)
-      // The engine answered: the reads did not come from the fallback.
+      expect(readers.made, 'the engine reader is the one spied on').toBe(1)
+      // The engine answered every read.
       expect(new Set(asked)).toEqual(new Set(FILE_READS))
-      expect(fellBack.count).toBe(0)
       delete flag.__INKBAR_READER__
       const { kind: pdfjsKind, ...pdfjs } = await readFile(name)
       expect([engineKind, pdfjsKind]).toEqual(['engine', 'pdfjs'])

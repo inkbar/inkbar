@@ -470,46 +470,92 @@ describe('opening', () => {
     expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1]), { password: '' })
   })
 
-  it('rejects with SaveFailed at the engine stage when the loader fails', async () => {
+  it('rejects with EngineUnavailable, with the cause, when the loader fails', async () => {
+    const offline = new Error('offline')
     const reader = createEngineReader({
-      loader: () => Promise.reject(new Error('offline')),
+      loader: () => Promise.reject(offline),
       bytes: () => Promise.resolve(new Uint8Array()),
       password: undefined,
     })
     await expect(reader).rejects.toMatchObject({
-      code: 'SaveFailed',
-      details: { stage: 'engine' },
+      code: 'EngineUnavailable',
+      details: { cause: offline },
     })
   })
 
-  it('rejects with SaveFailed at the engine stage when createEngine fails', async () => {
+  it('rejects with EngineUnavailable, with the cause, when createEngine fails', async () => {
+    const noWasm = new Error('no wasm')
     const reader = createEngineReader({
-      loader: () =>
-        Promise.resolve({ createEngine: () => Promise.reject(new Error('no wasm')) }),
+      loader: () => Promise.resolve({ createEngine: () => Promise.reject(noWasm) }),
       bytes: () => Promise.resolve(new Uint8Array()),
       password: undefined,
     })
     await expect(reader).rejects.toMatchObject({
-      code: 'SaveFailed',
-      details: { stage: 'engine' },
+      code: 'EngineUnavailable',
+      details: { cause: noWasm },
     })
   })
 
-  it('rejects with SaveFailed at the write stage when the engine refuses the file, and destroys it', async () => {
+  /** A reader whose engine refuses the file with `refusal`, opened with `password`. */
+  const refusedWith = async (refusal: unknown, password?: string) => {
     const t = setup()
     t.createEngine.mockImplementationOnce(() => {
       const engine = {
-        open: vi.fn(() => Promise.reject(engineError('invalid-pdf'))),
+        open: vi.fn(() => Promise.reject(refusal as Error)),
         destroy: vi.fn(() => Promise.resolve()),
       }
       t.engines.push(engine as unknown as FakeEngine)
       return Promise.resolve(engine as unknown as FakeEngine)
     })
-    await expect(t.open()).rejects.toMatchObject({
-      code: 'SaveFailed',
-      details: { stage: 'write' },
-    })
+    const error: unknown = await createEngineReader({
+      loader: t.loader as unknown as EngineLoader,
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password,
+    }).catch((e: unknown) => e)
     expect(t.engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    return error
+  }
+
+  it('rejects with InvalidPdf, with the engine code and message, when the engine refuses the file, and destroys it', async () => {
+    const refusal = Object.assign(new Error('The file is not a valid PDF.'), {
+      name: 'EngineError',
+      code: 'invalid-pdf',
+    })
+    expect(await refusedWith(refusal)).toMatchObject({
+      name: 'InkError',
+      code: 'InvalidPdf',
+      message: 'The file is not a valid PDF.',
+      details: {
+        engineCode: 'invalid-pdf',
+        engineMessage: 'The file is not a valid PDF.',
+      },
+      cause: refusal,
+    })
+    // Whatever else the engine refuses the file for is a file it cannot read, as with PDF.js.
+    expect(await refusedWith(engineError('unsupported-security'))).toMatchObject({
+      code: 'InvalidPdf',
+      details: { engineCode: 'unsupported-security' },
+    })
+    expect(await refusedWith(engineError('engine-failure'))).toMatchObject({
+      code: 'InvalidPdf',
+      details: { engineCode: 'engine-failure' },
+    })
+  })
+
+  it('rejects with PasswordRequired when the engine asks for a password, and says when the one given is wrong', async () => {
+    expect(await refusedWith(engineError('password-required'))).toMatchObject({
+      code: 'PasswordRequired',
+      details: { passwordSupplied: false, incorrect: false },
+    })
+    expect(await refusedWith(engineError('password-incorrect'), 'nope')).toMatchObject({
+      code: 'PasswordRequired',
+      details: { passwordSupplied: true, incorrect: true },
+    })
+    // An empty password is no password, as with PDF.js: the file still asks for one.
+    expect(await refusedWith(engineError('password-incorrect'), '')).toMatchObject({
+      code: 'PasswordRequired',
+      details: { passwordSupplied: true, incorrect: false },
+    })
   })
 
   it('rejects with EngineUnavailable when the document cannot render, and frees it once', async () => {
@@ -674,7 +720,7 @@ describe('an engine that stops', () => {
     const t = setup({ render: () => Promise.reject(engineError('engine-failure')) })
     const reader = await t.open()
     await expect(reader.draw(request(), fakeCanvas().canvas)).rejects.toMatchObject({
-      code: 'engine-failure',
+      code: 'EngineUnavailable',
     })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
@@ -780,7 +826,10 @@ describe('an engine that stops', () => {
     await vi.waitFor(() => expect(t.renders).toHaveLength(2))
     gate.resolve()
     const [bad, good] = await Promise.allSettled([failingDraw, siblingDraw])
-    expect(bad).toMatchObject({ status: 'rejected', reason: { code: 'engine-failure' } })
+    expect(bad).toMatchObject({
+      status: 'rejected',
+      reason: { code: 'EngineUnavailable' },
+    })
     expect(good).toEqual({ status: 'fulfilled', value: undefined })
     expect(sibling.context.putImageData).toHaveBeenCalledTimes(1)
     expect(failing.context.putImageData).not.toHaveBeenCalled()
@@ -1137,7 +1186,7 @@ describe('text', () => {
     const t = setup({ pageText: () => Promise.reject(engineError('engine-failure')) })
     const reader = await t.open()
     await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject({
-      code: 'engine-failure',
+      code: 'EngineUnavailable',
     })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
@@ -1440,7 +1489,7 @@ describe('links, the outline and destinations', () => {
     const reader = await t.open()
     await reader.pageInfo(0)
     await expect(reader.resolveDestination('a')).rejects.toMatchObject({
-      code: 'engine-failure',
+      code: 'EngineUnavailable',
     })
     await expect(reader.resolveDestination('a')).resolves.toEqual({ page: 0, fit: 'fit' })
     await expect(reader.resolveDestination('a')).resolves.toEqual({ page: 0, fit: 'fit' })
@@ -1579,93 +1628,17 @@ describe('links, the outline and destinations', () => {
   })
 })
 
-/** What the fallback reader answers, told apart from the engine's by its values. */
-const fallbackText = { page: 0, items: [] }
-const fallbackLink = {
-  id: 'pdf:0:1R',
-  page: 0,
-  rect: { x: 0, y: 0, width: 1, height: 1 },
-  target: { kind: 'named', action: 'NextPage' } as const,
-}
-const fallbackOutline = [
-  {
-    id: '0',
-    title: 'From the fallback',
-    target: { kind: 'named', action: 'FirstPage' } as const,
-    bold: false,
-    italic: false,
-    open: false,
-    children: [],
-  },
-]
-const fallbackFacts = {
-  index: 0,
-  box: { x: 0, y: 0, width: 100, height: 100 },
-  rotate: 0,
-  userUnit: 1,
-  width: 100,
-  height: 100,
-} as const
-const fileFacts = { title: 'From the fallback', encrypted: false }
-const fileAnnotation = {
-  id: '9R',
-  subtype: 'Square',
-  rect: [0, 0, 10, 10] as [number, number, number, number],
-  hasAppearance: false,
-}
-const fileField = {
-  name: 'name',
-  kind: 'text' as const,
-  flags: 0,
-  widgets: [],
-}
-const fileScripts = {
-  calculationOrder: ['total'],
-  calculationOrderIds: ['15R'],
-  document: [{ name: 'init', source: 'var ready = true' }],
-  documentActions: {},
-  fields: [{ name: 'total', id: '15R', widgets: ['16R'] }],
-}
-const pageScripts = { PageOpen: ['var opened = true'] }
-const sandboxFields = new Map([['total', [{ id: '15R' }]]])
-const fallback = () => ({
-  kind: 'pdfjs' as const,
-  pageCount: 2,
-  facts: vi.fn(() => Promise.resolve(fileFacts)),
-  annotations: vi.fn((_: number) => Promise.resolve([fileAnnotation])),
-  form: vi.fn(() => Promise.resolve([fileField])),
-  tabOrder: vi.fn((_: number) => Promise.resolve(['9R'])),
-  scripts: vi.fn(() => Promise.resolve(fileScripts)),
-  pageScripts: vi.fn((_: number) => Promise.resolve(pageScripts)),
-  sandboxFields: vi.fn(() => Promise.resolve(sandboxFields)),
-  pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
-  draw: vi.fn(() => Promise.resolve()),
-  drawFields: vi.fn((..._: unknown[]) => Promise.resolve(new Set(['9R']))),
-  text: vi.fn(() => Promise.resolve(fallbackText)),
-  links: vi.fn(() => Promise.resolve([fallbackLink])),
-  outline: vi.fn(() => Promise.resolve(fallbackOutline)),
-  resolveDestination: vi.fn(() => Promise.resolve({ page: 1, fit: 'fit' as const })),
-  destroy: vi.fn(() => Promise.resolve()),
-})
-
 describe('an engine that cannot start', () => {
   /**
    * A two-page file whose first engine stops on its first text read, and whose replacement
    * cannot start.
    */
-  const stopsThenCannotStart = async (withFallback = true) => {
+  const stopsThenCannotStart = async () => {
     const t = setup({
       pageCount: 2,
       pageText: () => Promise.reject(engineError('engine-failure')),
     })
-    const instead = fallback()
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
-      password: undefined,
-      warn: t.warn,
-      ...(withFallback && { fallback: instead }),
-    })
+    const reader = await t.open()
     // A page the engine has read, so the reader can tell the engine stopped.
     await reader.pageInfo(0)
     const real = t.createEngine.getMockImplementation()!
@@ -1674,81 +1647,55 @@ describe('an engine that cannot start', () => {
         return Promise.reject(new Error('no wasm'))
       return real()
     })
-    return { t, reader, instead }
+    return { t, reader }
   }
 
-  it('a text read whose engine stopped and could not be replaced comes from the fallback', async () => {
-    const { t, reader, instead } = await stopsThenCannotStart()
-    await expect(reader.text(1, { glyphs: true })).resolves.toBe(fallbackText)
-    expect(instead.text).toHaveBeenCalledWith(1, { glyphs: true })
+  const unavailable = { name: 'InkError', code: 'EngineUnavailable' }
+
+  it('a text read whose engine stopped and could not be replaced rejects with EngineUnavailable', async () => {
+    const { t, reader } = await stopsThenCannotStart()
+    expect(reader.unavailable()).toBeUndefined()
+    await expect(reader.text(1, { glyphs: true })).rejects.toMatchObject(unavailable)
+    expect(reader.unavailable()).toMatchObject(unavailable)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 
-  it("then text, links, the outline, names, pixels, field appearances and the file's facts, annotations, form, Tab order and scripts come from the fallback, with no engine started again", async () => {
-    const { t, reader, instead } = await stopsThenCannotStart()
-    await reader.text(0, { glyphs: false })
+  it('then every call rejects with EngineUnavailable, kept answers included, with no engine started again', async () => {
+    const { t, reader } = await stopsThenCannotStart()
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
+    const { canvas } = fakeCanvas()
     for (let i = 0; i < 3; i++) {
-      await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
-      await expect(reader.facts()).resolves.toBe(fileFacts)
-      await expect(reader.annotations(1)).resolves.toEqual([fileAnnotation])
-      await expect(reader.form()).resolves.toEqual([fileField])
-      await expect(reader.tabOrder(1)).resolves.toEqual(['9R'])
-      await expect(reader.scripts()).resolves.toBe(fileScripts)
-      await expect(reader.pageScripts(1)).resolves.toBe(pageScripts)
-      await expect(reader.sandboxFields()).resolves.toBe(sandboxFields)
-      await expect(reader.links(1)).resolves.toEqual([fallbackLink])
-      await expect(reader.outline()).resolves.toBe(fallbackOutline)
-      await expect(reader.resolveDestination(`name-${i}`)).resolves.toEqual({
-        page: 1,
-        fit: 'fit',
-      })
-      const { canvas } = fakeCanvas()
-      await reader.draw(request({ page: 1 }), canvas)
-      const fields = { ...fieldRequest, page: 1 }
-      await expect(reader.drawFields(fields, canvas)).resolves.toEqual(new Set(['9R']))
-      expect(instead.drawFields).toHaveBeenLastCalledWith(fields, canvas, undefined)
+      const calls: [string, Promise<unknown>][] = [
+        ['text', reader.text(0, { glyphs: false })],
+        ['textFamilies', reader.textFamilies(0)],
+        ['textBaselines', reader.textBaselines(0)],
+        // Page 0's facts were read before the engine stopped; page 1's never were.
+        ['pageInfo 0', reader.pageInfo(0)],
+        ['pageInfo 1', reader.pageInfo(1)],
+        ['facts', reader.facts()],
+        ['annotations', reader.annotations(1)],
+        ['form', reader.form()],
+        ['tabOrder', reader.tabOrder(1)],
+        ['scripts', reader.scripts()],
+        ['pageScripts', reader.pageScripts(1)],
+        ['sandboxFields', reader.sandboxFields()],
+        ['links', reader.links(1)],
+        ['outline', reader.outline()],
+        ['name', reader.resolveDestination(`name-${i}`)],
+        ['explicit', reader.resolveDestination([1, { name: 'Fit' }])],
+        ['draw', reader.draw(request({ page: 1 }), canvas)],
+        ['drawFields', reader.drawFields({ ...fieldRequest, page: 1 }, canvas)],
+      ]
+      for (const [name, call] of calls)
+        await expect(call, name).rejects.toMatchObject(unavailable)
     }
-    expect(instead.links).toHaveBeenCalledTimes(3)
-    expect(instead.facts).toHaveBeenCalledTimes(3)
-    expect(instead.annotations).toHaveBeenCalledWith(1)
-    expect(instead.form).toHaveBeenCalledTimes(3)
-    expect(instead.tabOrder).toHaveBeenCalledWith(1)
-    expect(instead.scripts).toHaveBeenCalledTimes(3)
-    expect(instead.pageScripts).toHaveBeenCalledWith(1)
-    expect(instead.sandboxFields).toHaveBeenCalledTimes(3)
-    expect(instead.outline).toHaveBeenCalledTimes(3)
-    expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
-    expect(instead.draw).toHaveBeenCalledTimes(3)
-    expect(instead.drawFields).toHaveBeenCalledTimes(3)
-    // An explicit destination needs no reader.
-    await expect(reader.resolveDestination([1, { name: 'Fit' }])).resolves.toEqual({
-      page: 1,
-      fit: 'fit',
-    })
-    expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
-    // A page reference the engine never gave, as the fallback's own links give, goes to it.
-    const fallbackRaw = [{ num: 5, gen: 0 }, { name: 'Fit' }]
-    await expect(reader.resolveDestination(fallbackRaw)).resolves.toEqual({
-      page: 1,
-      fit: 'fit',
-    })
-    expect(instead.resolveDestination).toHaveBeenLastCalledWith(fallbackRaw)
-    // Facts the engine gave are kept; a page it never gave comes from the fallback.
-    await expect(reader.pageInfo(0)).resolves.toMatchObject({ width: 612 })
-    await expect(reader.pageInfo(1)).resolves.toBe(fallbackFacts)
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 
-  it('the text has no families once it comes from the fallback', async () => {
+  it('a call aborted, or made after destroy, rejects with its own reason', async () => {
     const { reader } = await stopsThenCannotStart()
-    await expect(reader.textFamilies(0)).resolves.toEqual([])
-  })
-
-  it('a call aborted, or made after destroy, does not reach the fallback', async () => {
-    const { reader, instead } = await stopsThenCannotStart()
-    await reader.text(0, { glyphs: false })
-    instead.text.mockClear()
+    await reader.text(0, { glyphs: false }).catch(() => undefined)
     const reason = new Error('moved on')
     const c = new AbortController()
     c.abort(reason)
@@ -1758,11 +1705,25 @@ describe('an engine that cannot start', () => {
       code: 'DocumentDestroyed',
     })
     await expect(reader.outline()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
-    expect(instead.text).not.toHaveBeenCalled()
-    expect(instead.outline).not.toHaveBeenCalled()
   })
 
-  it('drops the text it kept, and tells the host once', async () => {
+  it('a call waiting on a replacement still starting at destroy rejects with DocumentDestroyed', async () => {
+    const t = setup({ pageCount: 2 })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const starting = deferred<never>()
+    t.createEngine.mockImplementation(() => starting.promise)
+    // The first engine stops, and page 1's facts wait on its replacement.
+    t.states[0]!.stopped = true
+    const asking = reader.pageInfo(1)
+    await vi.waitFor(() => expect(t.createEngine).toHaveBeenCalledTimes(2))
+    void reader.destroy()
+    starting.reject(new Error('no wasm'))
+    await expect(asking).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    expect(reader.unavailable()).toBeUndefined()
+  })
+
+  it('drops the text it kept', async () => {
     const t = setup({
       pageCount: 2,
       pageText: (index) =>
@@ -1770,94 +1731,36 @@ describe('an engine that cannot start', () => {
           ? Promise.resolve(hiText())
           : Promise.reject(engineError('engine-failure')),
     })
-    const instead = fallback()
-    const onFallback = vi.fn()
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
-      password: undefined,
-      warn: t.warn,
-      fallback: instead,
-      onFallback,
-    })
+    const reader = await t.open()
     await reader.pageInfo(0)
     // Page 0 is read by the engine and kept.
     const engineText = await reader.text(0, { glyphs: false })
     expect(engineText.items.map((i) => i.str).join('')).toContain('Hi')
     t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
-    await expect(reader.text(1, { glyphs: false })).resolves.toBe(fallbackText)
-    // Page 0, read again, is the fallback's too.
-    await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
-    await reader.text(1, { glyphs: false })
-    expect(onFallback).toHaveBeenCalledTimes(1)
+    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject(unavailable)
+    // Page 0, read again, is not given from what was kept.
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
+    expect(t.engines[0]!.doc.pageText).toHaveBeenCalledTimes(2)
   })
 
-  it('a fallback call running at destroy rejects with DocumentDestroyed', async () => {
-    const { reader, instead } = await stopsThenCannotStart()
-    await reader.text(0, { glyphs: false })
-    const text = deferred<typeof fallbackText>()
-    const facts = deferred<typeof fallbackFacts>()
-    const draw = deferred<void>()
-    instead.text.mockReturnValueOnce(text.promise)
-    instead.pageInfo.mockReturnValueOnce(facts.promise)
-    instead.draw.mockReturnValueOnce(draw.promise)
-    const reading = reader.text(1, { glyphs: false })
-    const asking = reader.pageInfo(1)
-    const { canvas } = fakeCanvas()
-    const drawing = reader.draw(request({ page: 1 }), canvas)
-    // Let each call reach the fallback before the reader goes.
-    await vi.waitFor(() => expect(instead.draw).toHaveBeenCalled())
-    await reader.destroy()
-    const destroyedError = { code: 'DocumentDestroyed' }
-    await expect(reading).rejects.toMatchObject(destroyedError)
-    await expect(asking).rejects.toMatchObject(destroyedError)
-    await expect(drawing).rejects.toMatchObject(destroyedError)
-    // Settling after destroy changes nothing.
-    text.resolve(fallbackText)
-    facts.resolve(fallbackFacts)
-    draw.reject(new Error('worker gone'))
-  })
-
-  it('page facts still being read when the engine cannot start come from the fallback', async () => {
+  it('page facts still being read when the engine cannot start reject with EngineUnavailable', async () => {
     const t = setup({
       pageCount: 2,
       pageText: () => Promise.reject(engineError('engine-failure')),
     })
-    const instead = fallback()
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
-      password: undefined,
-      warn: t.warn,
-      fallback: instead,
-    })
+    const reader = await t.open()
     await reader.pageInfo(0)
     // Page 1's facts are still on their way from the first engine when it stops.
     const slow = deferred<Awaited<ReturnType<ReaderEngineDocument['pageInfo']>>>()
     t.engines[0]!.doc.pageInfo.mockImplementationOnce(() => slow.promise)
     const first = reader.pageInfo(1)
     t.createEngine.mockImplementation(() => Promise.reject(new Error('no wasm')))
-    await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
+    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(unavailable)
     // The engine cannot start; page 1's read on the stopped engine has not failed yet.
     const second = reader.pageInfo(1)
     slow.reject(engineError('engine-failure'))
-    await expect(first).resolves.toBe(fallbackFacts)
-    await expect(second).resolves.toBe(fallbackFacts)
-  })
-
-  it('without a fallback, calls reject with why the engine did not start, and none starts it again', async () => {
-    const { t, reader } = await stopsThenCannotStart(false)
-    const notStarted = { code: 'SaveFailed', details: { stage: 'engine' } }
-    await expect(reader.text(0, { glyphs: false })).rejects.toMatchObject(notStarted)
-    await expect(reader.text(1, { glyphs: false })).rejects.toMatchObject(notStarted)
-    await expect(reader.outline()).rejects.toMatchObject(notStarted)
-    await expect(reader.resolveDestination('a')).rejects.toMatchObject(notStarted)
-    await expect(reader.links(1)).resolves.toEqual([])
-    const { canvas } = fakeCanvas()
-    await expect(reader.draw(request({ page: 1 }), canvas)).rejects.toMatchObject(
-      notStarted
-    )
-    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    await expect(first).rejects.toMatchObject(unavailable)
+    await expect(second).rejects.toMatchObject(unavailable)
   })
 })
 
@@ -1934,7 +1837,7 @@ const formWithText = (index = 1): FormResult => ({
 
 describe("the file's facts, annotations, form and Tab order", () => {
   /** A reader over a two-page file: a Square and a text field's widget on page 0. */
-  const opened = async (over: Parameters<typeof setup>[0] = {}, withFallback = true) => {
+  const opened = async (over: Parameters<typeof setup>[0] = {}) => {
     const t = setup({
       pageCount: 2,
       documentFacts: () =>
@@ -1956,19 +1859,12 @@ describe("the file's facts, annotations, form and Tab order", () => {
         ),
       ...over,
     })
-    const instead = fallback()
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
-      password: undefined,
-      warn: t.warn,
-      ...(withFallback && { fallback: instead }),
-    })
-    return { t, reader, instead }
+    const reader = await t.open()
+    return { t, reader }
   }
 
-  it('reads them from the engine while it works, and the fallback is not asked', async () => {
-    const { t, reader, instead } = await opened()
+  it('reads them from the engine while it works', async () => {
+    const { t, reader } = await opened()
     // Bytes that are not text are decoded as PDF.js decodes them.
     await expect(reader.facts()).resolves.toEqual({
       title: 'Report',
@@ -1985,10 +1881,6 @@ describe("the file's facts, annotations, form and Tab order", () => {
     expect(fields[0]!.widgets[0]).toMatchObject({ id: '20R', page: 0, at: 1 })
     await expect(reader.tabOrder(0)).resolves.toEqual(['20R', '9R'])
     await expect(reader.tabOrder(1)).resolves.toEqual([])
-    expect(instead.facts).not.toHaveBeenCalled()
-    expect(instead.annotations).not.toHaveBeenCalled()
-    expect(instead.form).not.toHaveBeenCalled()
-    expect(instead.tabOrder).not.toHaveBeenCalled()
     // The form is read once for both the widget's annotation and the fields.
     expect(t.engines[0]!.doc.formFields).toHaveBeenCalledTimes(1)
     await reader.destroy()
@@ -2103,7 +1995,7 @@ describe("the file's facts, annotations, form and Tab order", () => {
       pageAnnotations: () => Promise.reject(engineError('engine-failure')),
     })
     await reader.pageInfo(0)
-    await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
     await reader.destroy()
   })
 
@@ -2125,25 +2017,24 @@ describe("the file's facts, annotations, form and Tab order", () => {
   })
 
   it('rejects when no engine can answer, rather than giving nothing', async () => {
-    const { reader } = await opened(
-      {
-        documentFacts: () => Promise.reject(engineError('engine-failure')),
-        formFields: () => Promise.reject(engineError('engine-failure')),
-        pageAnnotations: () => Promise.reject(engineError('engine-failure')),
-      },
-      false
-    )
+    const { reader } = await opened({
+      documentFacts: () => Promise.reject(engineError('engine-failure')),
+      formFields: () => Promise.reject(engineError('engine-failure')),
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+    })
     await reader.pageInfo(0)
     // Each engine stops on the read and so does the one that replaces it.
-    await expect(reader.facts()).rejects.toMatchObject({ code: 'engine-failure' })
-    await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
-    await expect(reader.annotations(0)).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.facts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.annotations(0)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
     await reader.destroy()
   })
 
   it("reads the file's scripts, its pages' actions and the sandbox's fields from the engine, once", async () => {
     const field = textField(1)
-    const { t, reader, instead } = await opened({
+    const { t, reader } = await opened({
       formFields: () =>
         Promise.resolve({
           ...formWithText(),
@@ -2201,9 +2092,6 @@ describe("the file's facts, annotations, form and Tab order", () => {
       },
     ])
     expect(t.engines[0]!.doc.scripts).toHaveBeenCalledTimes(1)
-    expect(instead.scripts).not.toHaveBeenCalled()
-    expect(instead.pageScripts).not.toHaveBeenCalled()
-    expect(instead.sandboxFields).not.toHaveBeenCalled()
     await reader.destroy()
     await expect(reader.scripts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.pageScripts(0)).rejects.toMatchObject({
@@ -2214,11 +2102,10 @@ describe("the file's facts, annotations, form and Tab order", () => {
     })
   })
 
-  it('reads a file whose scripts a working engine cannot read as having none, without a fallback', async () => {
-    const { reader } = await opened(
-      { scripts: () => Promise.reject(engineError('bad-argument')) },
-      false
-    )
+  it('reads a file whose scripts a working engine cannot read as having none', async () => {
+    const { reader } = await opened({
+      scripts: () => Promise.reject(engineError('bad-argument')),
+    })
     await reader.pageInfo(0)
     await expect(reader.scripts()).resolves.toBeUndefined()
     await expect(reader.pageScripts(1)).resolves.toStrictEqual({})
@@ -2227,13 +2114,14 @@ describe("the file's facts, annotations, form and Tab order", () => {
   })
 
   it('rejects the scripts when no engine can answer', async () => {
-    const { reader } = await opened(
-      { scripts: () => Promise.reject(engineError('engine-failure')) },
-      false
-    )
+    const { reader } = await opened({
+      scripts: () => Promise.reject(engineError('engine-failure')),
+    })
     await reader.pageInfo(0)
-    await expect(reader.scripts()).rejects.toMatchObject({ code: 'engine-failure' })
-    await expect(reader.pageScripts(0)).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.scripts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.pageScripts(0)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
     await reader.destroy()
   })
 })
@@ -2447,7 +2335,7 @@ describe('field appearances', () => {
     expect(t.fieldRenders.map((r) => r.engine)).toEqual([0, 1])
     stops = 2
     await expect(reader.drawFields(pass(), fakeCanvas().canvas)).rejects.toMatchObject({
-      code: 'engine-failure',
+      code: 'EngineUnavailable',
     })
     expect(t.createEngine).toHaveBeenCalledTimes(3)
     await reader.destroy()
