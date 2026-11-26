@@ -23,6 +23,8 @@
 // - `strokeColor` and `fillColor` as PDF.js keeps colours, three bytes in a typed array, which
 //   reach the sandbox as an object of indices: what scripts reading them get with PDF.js too.
 // - `defaultValue`: a text field's empty when it has none, every other kind's `null`.
+import { DATE_TIME } from '../engine-reader/scripts'
+
 import type {
   FileField,
   FileFieldContainer,
@@ -60,10 +62,6 @@ const DATE_FORMATS = [
   'm/d/yy HH:MM',
 ]
 const TIME_FORMATS = ['HH:MM', 'h:MM tt', 'HH:MM:ss', 'h:MM:ss tt']
-
-/** @internal A standard date or time script, as PDF.js matches one. */
-export const DATE_TIME =
-  /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 /**
  * The field objects of `fields` as PDF.js gives the sandbox them, by name in the order of

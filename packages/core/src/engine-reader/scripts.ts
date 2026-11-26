@@ -2,8 +2,6 @@
 // document's scripts and actions, each page's actions, each widget's scripts, `/CO`, the fields
 // the sandbox is started with, and whether the file has any JavaScript at all. The engine gives
 // every source of each action's chain as written; each rule here is PDF.js's.
-import { DATE_TIME } from '../pdfjs/sandbox-fields'
-
 import { refId, rgbOf, rotationOf, textOf } from './file-values'
 
 import type {
@@ -16,6 +14,10 @@ import type {
   WidgetFactsShape,
 } from './types'
 import type { FileFieldContainer, FileScripts } from '../reader/file'
+
+/** @internal A standard date or time script, as PDF.js matches one. */
+export const DATE_TIME =
+  /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 /** A widget's additional-action keys by the event names PDF.js gives them, and `A` its own `/A`. */
 const WIDGET_EVENTS: ReadonlyMap<string, string> = new Map([

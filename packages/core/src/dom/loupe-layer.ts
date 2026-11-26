@@ -10,11 +10,11 @@
 // top:0; width:100%; height:100%`), is clipped to the lens circle (`clip-path`, set from the
 // drawing at each attach) and leaves the pointer to the rim (`pointer-events:none`).
 import { loupeRegion } from '../model/annotations/drawing/loupe'
-import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio, type DprWatch } from './dpr-watch'
 import { hiddenFromIds, regionCanvasSize } from './draw-request'
 import { drawingFor } from './drawing-context'
+import { hiddenAppearances } from './hidden-appearances'
 
 import type { PageTransform } from './transform'
 import type { LoupeAnnotation } from '../model/annotations/types'

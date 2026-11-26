@@ -9,7 +9,6 @@
 // widget-appearance.browser.test.ts pins that layout.
 import type { PdfjsHandles } from './handles'
 import type { PdfjsPage } from './types'
-import type { InkDocument } from '../model/document'
 import type { FieldDrawRequest } from '../reader/types'
 
 type RenderParameters = Parameters<PdfjsPage['render']>[0]
@@ -93,20 +92,6 @@ export function omitAppearances(
     // Dependencies only load fonts and images; one a later operation needs must still load.
     return id === undefined || !ids.has(id) || list.fnArray[i] === OPS.dependency
   }
-}
-
-/**
- * What a render of the page leaves out: the annotations `ids` names (form widgets the form
- * layer draws) plus the file annotations lifted into the session, which the overlay draws
- * instead.
- *
- * @internal
- */
-export function hiddenAppearances(
-  doc: InkDocument,
-  ids: Iterable<string> = []
-): ReadonlySet<string> {
-  return new Set([...ids, ...doc._lifted.get()])
 }
 
 /** The operator list does not hold annotation runs as PDF.js 6.4 lays them out. */
