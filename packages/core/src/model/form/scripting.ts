@@ -1,17 +1,17 @@
-import { InkError } from '../model/errors'
-import { submitValues } from '../model/form/submit'
-import { safeAddress, safeUrl } from '../model/form/url'
-import { sameValue } from '../model/form/values'
+import {
+  ACTION_COMMAND,
+  patchSandboxSource,
+  sandboxDocumentActions,
+  sandboxLoader,
+  type PdfjsSandbox,
+} from '../../pdfjs/sandbox'
+import { InkError } from '../errors'
 
-import { ACTION_COMMAND, patchSandboxSource } from './sandbox-patch'
+import { submitValues } from './submit'
+import { safeAddress, safeUrl } from './url'
+import { sameValue } from './values'
 
-import type { PdfjsSandbox, QuickJSSandbox } from '#pdfjs-sandbox'
-import type { PdfAssets, PdfjsDocument } from './types'
-import type {
-  FormController,
-  FormScripting,
-  KeystrokeResult,
-} from '../model/form/controller'
+import type { FormController, FormScripting, KeystrokeResult } from './controller'
 import type {
   FieldValue,
   ViewerAction,
@@ -19,16 +19,12 @@ import type {
   FormField,
   FormWidget,
   WidgetOverride,
-} from '../model/form/types'
-
-/** Where the sandbox module comes from. An object, so tests can see whether it was loaded. */
-export const sandboxLoader = {
-  load: (): Promise<{ QuickJSSandbox: typeof QuickJSSandbox }> =>
-    import('#pdfjs-sandbox'),
-}
+} from './types'
+import type { PdfAssets } from '../../pdfjs/types'
+import type { DocumentReader } from '../../reader/types'
 
 export interface FormScriptingOptions {
-  proxy: PdfjsDocument
+  reader: DocumentReader
   assets: PdfAssets
   form: FormController
   info: { title?: string | undefined; author?: string | undefined; pageCount: number }
@@ -49,10 +45,10 @@ type Update = Record<string, unknown> & { id?: unknown; command?: unknown }
 type SandboxEvent = Record<string, unknown> & { id: string; name: string }
 
 /**
- * Runs the document's JavaScript in PDF.js's QuickJS sandbox, wired to `form`. Resolves
- * `undefined` without loading the sandbox when the document has no JavaScript. A sandbox that
- * fails to load or start is reported as a `FormScriptError` on `form`, and resolves `undefined`,
- * so the form stays fillable without scripts.
+ * Runs the document's JavaScript, as `reader` reads it, in PDF.js's QuickJS sandbox, wired to
+ * `form`. Resolves `undefined` without loading the sandbox when the document has no JavaScript.
+ * A sandbox that fails to load or start is reported as a `FormScriptError` on `form`, and
+ * resolves `undefined`, so the form stays fillable without scripts.
  *
  * The sandbox gets its own `window`: alerts go to `form`'s `alert` event, `app.response` returns
  * `null` and asks the host with a `prompt` action, and timers are tracked and cleared on destroy.
@@ -61,20 +57,15 @@ type SandboxEvent = Record<string, unknown> & { id: string; name: string }
 export async function createFormScripting(
   opts: FormScriptingOptions
 ): Promise<(FormScripting & { _sandboxForTesting?: PdfjsSandbox }) | undefined> {
-  const { proxy, assets, form } = opts
+  const { reader, assets, form } = opts
   // The sandbox runs on a browser page; elsewhere (Node) the form works without scripts.
   if (typeof window === 'undefined') return undefined
-  // Cheap, and never misses JavaScript; the stricter check below needs the field objects.
-  if (!(await proxy.hasJSActions())) return undefined
-  const [objects, calculationOrder, actions] = await Promise.all([
-    proxy.getFieldObjects(),
-    proxy.getCalculationOrderIds(),
-    proxy.getJSActions(),
-  ])
-  const hasFieldScripts = [...(objects?.values() ?? [])].some((list) =>
-    list.some((o) => hasEntries((o as { actions?: unknown }).actions))
-  )
-  if (!hasFieldScripts && !hasEntries(actions)) return undefined
+  const scripts = await reader.scripts()
+  if (!scripts) return undefined
+  const objects = await reader.sandboxFields()
+  const calculationOrder =
+    scripts.calculationOrderIds.length > 0 ? scripts.calculationOrderIds : null
+  const actions = sandboxDocumentActions(scripts)
 
   const fields = form.fields.get()
   const byName = new Map(fields.map((f) => [f.name, f]))
@@ -348,10 +339,11 @@ export async function createFormScripting(
       // In order, so a page's close follows its open. Like PDF.js's viewer, the page's own
       // actions go with its first open; the sandbox keeps them for later events.
       const step = pages.then(async () => {
-        let actions: unknown = null
+        let actions: Record<string, string[]> | null = null
         if (name === 'PageOpen' && !visited.has(page)) {
           visited.add(page)
-          actions = await (await proxy.getPage(page + 1)).getJSActions()
+          const own = await reader.pageScripts(page)
+          if (Object.keys(own).length > 0) actions = own
         }
         if (dead) return
         apply(run({ id: 'page', name, pageNumber: page + 1, actions }), { values: true })
@@ -410,11 +402,6 @@ function withTimeout(promise: Promise<PdfjsSandbox>, ms: number): Promise<PdfjsS
       }
     )
   })
-}
-
-function hasEntries(value: unknown): boolean {
-  if (value instanceof Map) return value.size > 0
-  return typeof value === 'object' && value !== null && Object.keys(value).length > 0
 }
 
 interface ShimWindow {

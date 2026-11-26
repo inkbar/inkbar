@@ -25,7 +25,7 @@ const scriptsAtOpen = vi.hoisted((): { values?: Record<string, string> } => ({})
 
 // Node runs no form scripts. A test that needs a calculation at open has it set here, the way
 // the sandbox sets it: after the fields load and before `ready`.
-vi.mock(import('../pdfjs/scripting'), async (original) => {
+vi.mock(import('./form/scripting'), async (original) => {
   const actual = await original()
   return {
     ...actual,

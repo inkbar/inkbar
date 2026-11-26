@@ -10,7 +10,7 @@ import {
   type SignatureTemplate,
 } from '../../model/signatures'
 import { createMemoryStorage } from '../../model/storage'
-import { sandboxLoader } from '../../pdfjs/scripting'
+import { sandboxLoader } from '../../pdfjs/sandbox'
 import { readerKind } from '../../reader/select'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'

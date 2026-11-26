@@ -4,7 +4,6 @@ import { openPdfObjects, type PdfObjects } from '../pdf/objects'
 import { destinationPage } from '../pdfjs/destinations'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createPdfjsReader, type PdfjsReader } from '../pdfjs/reader'
-import { createFormScripting } from '../pdfjs/scripting'
 import { createTextReads, type TextReads } from '../pdfjs/text-reads'
 import { readerKind } from '../reader/select'
 
@@ -32,6 +31,7 @@ import { isThreadRoot } from './annotations/threads'
 import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
+import { createFormScripting } from './form/scripting'
 import { buildFormFields } from './form/structure'
 import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
@@ -597,7 +597,7 @@ export async function openDocument(
     // load in time, leaves the form without scripts and never fails the document.
     if (formData.fields.length === 0) return
     const scripting = await createFormScripting({
-      proxy,
+      reader: opened,
       assets: options.assets,
       form,
       info,

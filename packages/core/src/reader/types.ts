@@ -1,7 +1,7 @@
 // What the document and the DOM layer ask of whatever reads the PDF: the file's facts, the facts
 // of each page, its pixels, its text, links and annotations, and the document's outline and
-// destinations, its form fields and Tab order.
-import type { FileAnnotation, FileFacts, FileField } from './file'
+// destinations, its form fields and Tab order, and its JavaScript.
+import type { FileAnnotation, FileFacts, FileField, FileScripts } from './file'
 import type { Destination, RawDestination } from '../model/destination'
 import type { Rect } from '../model/geometry'
 import type { PageLink } from '../model/links'
@@ -113,6 +113,21 @@ export interface DocumentReader {
    * order or it cannot be read.
    */
   tabOrder(page: number): Promise<string[]>
+  /**
+   * The file's JavaScript. `undefined` when neither the document nor any field has any; a page's
+   * own actions alone do not count, so a file with only those has none.
+   */
+  scripts(): Promise<FileScripts | undefined>
+  /**
+   * The page's actions by event (`PageOpen`, `PageClose`), read when the form's scripts first
+   * open the page. `{}` when it has none.
+   */
+  pageScripts(page: number): Promise<Record<string, string[]>>
+  /**
+   * The field objects the kept sandbox is started with, in its own format: by field name, each
+   * name's objects. `null` when the file has none.
+   */
+  sandboxFields(): Promise<Map<string, unknown[]> | null>
   /**
    * The outline, every destination resolved. `[]` when the file has none. Rejects when it could
    * not be read; the document then reads it again on the next call.

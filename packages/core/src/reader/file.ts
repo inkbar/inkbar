@@ -125,3 +125,19 @@ export interface FileFacts {
   author?: string
   encrypted: boolean
 }
+
+/** @internal A file's JavaScript, as text. Nothing here is run by a reader. */
+export interface FileScripts {
+  /** Field names in `/CO` order. */
+  calculationOrder: string[]
+  /**
+   * `/CO` as the kept sandbox takes it: the ids of `sandboxFields()`'s objects, one per entry,
+   * entries naming no field object included. Names alone cannot give them back: two fields can
+   * share a name, and an entry may name no field.
+   */
+  calculationOrderIds: string[]
+  /** Document-level scripts (the `/Names /JavaScript` tree) in name order. */
+  document: { name: string; source: string }[]
+  /** Document actions by event: `OpenAction`, `WillClose`, `WillSave`, `DidSave`, `WillPrint`, `DidPrint`. */
+  documentActions: Record<string, string[]>
+}

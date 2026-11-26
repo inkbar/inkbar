@@ -1,9 +1,10 @@
 // The document reader over PDF.js: page facts from each page proxy, pixels from
 // `PDFPageProxy.render`, and the file's facts, text, links, annotations, form fields, Tab
-// order, the outline and destinations as PDF.js reads them.
+// order, the outline, destinations and the file's JavaScript as PDF.js reads them.
 import { resolveDestination } from './destinations'
 import { fileAnnotationFromPdfjs } from './file-annotations'
 import { fileFieldsFromPdfjs } from './file-form'
+import { fileScriptsFromPdfjs, pageScriptsFromPdfjs } from './file-scripts'
 import { pageGlyphs } from './glyphs'
 import { linkFromPdfjs } from './links'
 import { readOutline } from './outline'
@@ -101,6 +102,10 @@ export function createPdfjsReader(
       return fileFieldsFromPdfjs(widgets)
     },
     tabOrder: async (page) => structureAnnotationOrder(await handles.getPage(page)),
+    scripts: () => fileScriptsFromPdfjs(handles.proxy),
+    pageScripts: (page) => pageScriptsFromPdfjs(handles.proxy, page),
+    // PDF.js builds these for its own sandbox: handed over as they are.
+    sandboxFields: () => handles.proxy.getFieldObjects(),
     forgetAnnotations: () => annotationsRead.clear(),
     outline: () => readOutline(handles.proxy),
     // A lookup PDF.js cannot do gives the same answer every time: it goes nowhere.

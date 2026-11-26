@@ -1518,6 +1518,14 @@ const fileField = {
   flags: 0,
   widgets: [],
 }
+const fileScripts = {
+  calculationOrder: ['total'],
+  calculationOrderIds: ['15R'],
+  document: [{ name: 'init', source: 'var ready = true' }],
+  documentActions: {},
+}
+const pageScripts = { PageOpen: ['var opened = true'] }
+const sandboxFields = new Map([['total', [{ id: '15R' }]]])
 const fallback = () => ({
   kind: 'pdfjs' as const,
   pageCount: 2,
@@ -1525,6 +1533,9 @@ const fallback = () => ({
   annotations: vi.fn((_: number) => Promise.resolve([fileAnnotation])),
   form: vi.fn(() => Promise.resolve([fileField])),
   tabOrder: vi.fn((_: number) => Promise.resolve(['9R'])),
+  scripts: vi.fn(() => Promise.resolve(fileScripts)),
+  pageScripts: vi.fn((_: number) => Promise.resolve(pageScripts)),
+  sandboxFields: vi.fn(() => Promise.resolve(sandboxFields)),
   pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
   draw: vi.fn(() => Promise.resolve()),
   drawFields: vi.fn((..._: unknown[]) => Promise.resolve(new Set(['9R']))),
@@ -1741,8 +1752,8 @@ const fieldRequest = {
   y: 0,
 }
 
-describe("the file's facts, annotations and form", () => {
-  it("reads the file's facts, annotations, form and Tab order from the fallback while the engine works", async () => {
+describe("the file's facts, annotations, form and scripts", () => {
+  it("reads the file's facts, annotations, form, Tab order and scripts from the fallback while the engine works", async () => {
     const t = setup({ pageCount: 2 })
     const instead = fallback()
     const reader = await createEngineReader({
@@ -1758,6 +1769,10 @@ describe("the file's facts, annotations and form", () => {
     await expect(reader.form()).resolves.toEqual([fileField])
     await expect(reader.tabOrder(1)).resolves.toEqual(['9R'])
     expect(instead.tabOrder).toHaveBeenCalledWith(1)
+    await expect(reader.scripts()).resolves.toBe(fileScripts)
+    await expect(reader.pageScripts(1)).resolves.toBe(pageScripts)
+    expect(instead.pageScripts).toHaveBeenCalledWith(1)
+    await expect(reader.sandboxFields()).resolves.toBe(sandboxFields)
     const fields = { ...fieldRequest }
     const { canvas } = fakeCanvas()
     const controller = new AbortController()
@@ -1772,6 +1787,13 @@ describe("the file's facts, annotations and form", () => {
     })
     await expect(reader.form()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.scripts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.pageScripts(0)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    await expect(reader.sandboxFields()).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
     await expect(reader.drawFields(fields, canvas)).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
@@ -1779,10 +1801,13 @@ describe("the file's facts, annotations and form", () => {
     expect(instead.annotations).toHaveBeenCalledTimes(1)
     expect(instead.form).toHaveBeenCalledTimes(1)
     expect(instead.tabOrder).toHaveBeenCalledTimes(1)
+    expect(instead.scripts).toHaveBeenCalledTimes(1)
+    expect(instead.pageScripts).toHaveBeenCalledTimes(1)
+    expect(instead.sandboxFields).toHaveBeenCalledTimes(1)
     expect(instead.drawFields).toHaveBeenCalledTimes(1)
   })
 
-  it("without a fallback, the file's facts, annotations and form reject with EngineUnavailable", async () => {
+  it("without a fallback, the file's facts, annotations, form and scripts reject with EngineUnavailable", async () => {
     const t = setup({ pageCount: 2 })
     const reader = await createEngineReader({
       loader: t.loader as unknown as EngineLoader,
@@ -1796,6 +1821,13 @@ describe("the file's facts, annotations and form", () => {
     })
     await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
     await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.scripts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.pageScripts(0)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
+    await expect(reader.sandboxFields()).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
     await expect(
       reader.drawFields(fieldRequest, fakeCanvas().canvas)
     ).rejects.toMatchObject({
