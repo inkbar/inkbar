@@ -147,6 +147,12 @@
   },
   "link-order": {
     "state": "same",
+    "links": {
+      "state": "different",
+      "reason": "A Link written as a direct object in /Annots has no object number: PDF.js gives it an id from a counter (annot_p0_1), the engine reader one from its place in /Annots (p0i8), the id its annotation has",
+      "accepted": false,
+      "pages": [1]
+    },
     "annotations": {
       "state": "different",
       "reason": "A Link written as a direct object in /Annots has no object number: PDF.js gives it an id from a counter (annot_p0_1), the engine reader one from its place in /Annots (p0i8)",
