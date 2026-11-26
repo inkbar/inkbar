@@ -548,8 +548,10 @@ export async function createEngineReader(
       signal?.throwIfAborted()
       const { page, width, height, region } = request
       const info = await pageInfo(page)
+      // A region with no area has nothing to draw, and the engine refuses one.
+      const empty = region !== undefined && !(region.width > 0 && region.height > 0)
       let bitmap: Bitmap | undefined
-      if (width >= 1 && height >= 1) {
+      if (width >= 1 && height >= 1 && !empty) {
         // One written as a direct object is named by its place in `/Annots`, when known.
         const hide = request.hide.flatMap((h): (number | { index: number })[] =>
           h.objectNumber !== undefined
@@ -575,8 +577,9 @@ export async function createEngineReader(
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
       if (!bitmap) {
-        canvas.width = width
-        canvas.height = height
+        // One clear pixel for a region with no area.
+        canvas.width = empty ? 1 : width
+        canvas.height = empty ? 1 : height
         return
       }
       reportMissing(bitmap.missingFonts)

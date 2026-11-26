@@ -2733,6 +2733,21 @@ describe('the stopped state', () => {
   })
 })
 
+describe('a region with no area', () => {
+  it('draws a 1 × 1 transparent canvas without asking the engine', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const { canvas, raw, context } = fakeCanvas()
+    await reader.draw(
+      request({ width: 10, height: 10, region: { x: 72, y: 72, width: 0, height: 20 } }),
+      canvas
+    )
+    expect([raw.width, raw.height]).toEqual([1, 1])
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect(t.renders).toHaveLength(0)
+  })
+})
+
 describe('a link stored as a direct object', () => {
   it('has the id its annotation has', async () => {
     const entry = {
