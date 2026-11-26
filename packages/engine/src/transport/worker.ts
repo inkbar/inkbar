@@ -210,9 +210,11 @@ const DESTROY_TIMEOUT_MS = 2_000
 export async function createWorkerTransport(
   worker: Worker,
   wasm: string | URL | Uint8Array,
-  // Internal: `url` names the worker script in errors; tests shorten the two bounds.
+  // Internal: `url` names the worker script in errors, and `hint` follows what they say when the
+  // worker cannot start; tests shorten the two bounds.
   options: {
     url?: string | undefined
+    hint?: string | undefined
     startTimeout?: number
     destroyTimeout?: number
     fallbackFonts?: FontSources | undefined
@@ -223,6 +225,7 @@ export async function createWorkerTransport(
     options.destroyTimeout ?? DESTROY_TIMEOUT_MS
   )
   const named = options.url === undefined ? '' : ` at ${options.url}`
+  const hint = options.hint === undefined ? '' : ` ${options.hint}`
   let source: string | Uint8Array
   try {
     // The worker's base URL can differ from the page's.
@@ -244,7 +247,7 @@ export async function createWorkerTransport(
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
-      fail(failure(`The engine worker${named} did not start in time.`))
+      fail(failure(`The engine worker${named} did not start in time.${hint}`))
     }, options.startTimeout ?? START_TIMEOUT_MS)
     const fail = (error: EngineError) => {
       clearTimeout(timer)
@@ -272,11 +275,8 @@ export async function createWorkerTransport(
       } else transport.handle(message)
     })
     worker.addEventListener('error', (event) => {
-      fail(
-        failure(
-          `The engine worker${named} failed: ${event.message || 'it could not be loaded or started'}.`
-        )
-      )
+      const why = event.message || 'it could not be loaded or started'
+      fail(failure(`The engine worker${named} failed: ${why}.${started ? '' : hint}`))
     })
     worker.addEventListener('messageerror', () => {
       fail(failure('The engine worker sent a message that could not be read.'))

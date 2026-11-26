@@ -941,7 +941,7 @@ Then import the URLs from the virtual module:
 import { assets } from 'virtual:inkbar-assets'
 ```
 
-In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/<version>/`, where `<version>` is the installed `@inkbar/core` version, so a file a browser has cached is never served for a later release. The URLs respect your `base`. With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name in place of `inkbar`.
+In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/<version>/`, where `<version>` is the installed `@inkbar/core` version, so a file a browser has cached is never served for a later release. The URLs respect your `base`. A `base` on another origin, such as a CDN, works when that origin sends CORS headers for the files (see [Without Vite](#without-vite)). With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name in place of `inkbar`.
 
 For TypeScript, reference the module declaration once, for example in `env.d.ts`:
 
@@ -974,11 +974,13 @@ const assets = {
 ```
 
 - `engine` is the URL of `inkbar-pdfium.wasm`.
-- `worker` is the URL of `worker.mjs`. A browser starts a worker only from the page's own origin, so serve `worker.mjs` from the page's origin even when the other files come from elsewhere, such as a CDN.
+- `worker` is the URL of `worker.mjs`.
 - `fonts` is the URL of the directory holding the five fonts. Pass one URL per font instead, as `{ default, japanese, 'simplified-chinese', 'traditional-chinese', korean }`, to name each file yourself or to leave some out. Pass `false` for no fallback fonts: Latin text in the standard fonts still draws, but Chinese, Japanese, Korean, Cyrillic or Greek text in a font the file does not embed draws wrong or not at all. Each Chinese, Japanese or Korean font is 4 to 8 MB.
 - `sandbox` is the URL of the directory holding `quickjs-eval.js` and `quickjs-eval.wasm`.
 
 A key that is missing or of the wrong type fails the open with `AssetConfigMissing`, and `details.key` names it. When the engine's binary or worker cannot be fetched or started, the open fails with `AssetLoadFailed`. A font that cannot be fetched is reported with `console.warn`, and its text draws with a substitute. When the sandbox cannot be loaded, the form stays fillable and its scripts do not run: the viewer's `onError` hears a `FormScriptError`.
+
+The files may be on another origin than the page, such as a CDN, when that origin sends CORS headers (`Access-Control-Allow-Origin`) for them. A browser does not start a worker from another origin's script, so the engine then starts it from a small `blob:` module of the page's own that imports `worker.mjs`.
 
 In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
 

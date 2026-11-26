@@ -36,7 +36,7 @@ The package holds a 7.1 MB WebAssembly binary (3.0 MB gzipped) and a worker scri
 
 With Vite there is nothing to set up. The engine names its files with `new URL('./inkbar-pdfium.wasm', import.meta.url)` and `new Worker(new URL('./worker.mjs', import.meta.url))`, and a production build emits the wasm and a worker beside your code. The dev server serves them too, also when it pre-bundles the package, so you do not need `optimizeDeps.exclude`. Other bundlers that follow these two forms should emit the files the same way; Inkbar is tested with Vite only.
 
-Without a bundler, or to serve the files from a path of your own, copy `dist/inkbar-pdfium.wasm` and `dist/worker.mjs` from the package and pass their URLs to `createEngine`. `worker.mjs` imports nothing, so it can sit alone beside the wasm. A browser starts a worker only from the page's own origin.
+Without a bundler, or to serve the files from a path of your own, copy `dist/inkbar-pdfium.wasm` and `dist/worker.mjs` from the package and pass their URLs to `createEngine`. `worker.mjs` imports nothing, so it can sit alone beside the wasm. The files may be on another origin than the page, such as a CDN, when that origin sends CORS headers (`Access-Control-Allow-Origin`) for them. A browser does not start a worker from another origin's script, so the engine then starts the worker from a small `blob:` module of the page's own that imports `worker.mjs`; under a content security policy, `worker-src` must allow `blob:`.
 
 ```ts
 import { createEngine } from '@inkbar/engine'

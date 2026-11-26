@@ -1,6 +1,7 @@
 import { ArgumentError, EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
 import { createWorkerTransport } from './transport/worker.ts'
+import { CROSS_ORIGIN_HINT, workerStart } from './worker-start.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
@@ -467,9 +468,35 @@ export interface EngineDefaults {
   workerHref(): string
 }
 
-function startWorker(worker: string | URL | Worker): { worker: Worker; url?: string } {
+/** A worker the engine started, the URL that names it, and what to free once it has started. */
+interface StartedWorker {
+  worker: Worker
+  url?: string
+  /** Set for a script on another origin, started through a module of the page's own. */
+  imported?: { release(): void }
+}
+
+function startWorker(worker: string | URL | Worker): StartedWorker {
   if (worker instanceof Worker) return { worker }
-  return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
+  const how = workerStart(worker, globalThis.location?.href)
+  if (how.kind !== 'imported')
+    return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
+  // The browser refuses a worker script from another origin, but a module worker of the page's
+  // own origin may import one that its origin serves with CORS headers.
+  const script = URL.createObjectURL(
+    new Blob([`import ${JSON.stringify(how.href)}\n`], { type: 'text/javascript' })
+  )
+  const release = () => URL.revokeObjectURL(script)
+  try {
+    return {
+      worker: new Worker(script, { type: 'module' }),
+      url: String(worker),
+      imported: { release },
+    }
+  } catch (error) {
+    release()
+    throw error
+  }
 }
 
 /**
@@ -491,7 +518,7 @@ export async function createEngineWith(
   }
   if (worker !== false && typeof Worker !== 'undefined') {
     const wasm = options.wasm ?? (defaults as EngineDefaults).wasmUrl()
-    let started: { worker: Worker; url?: string }
+    let started: StartedWorker
     try {
       started =
         worker === undefined
@@ -507,20 +534,29 @@ export async function createEngineWith(
           : worker instanceof Worker
             ? ''
             : ` from ${String(worker)}`
+      const imported =
+        worker !== undefined &&
+        workerStart(worker, globalThis.location?.href).kind === 'imported'
       throw new EngineError(
         'engine-failure',
-        `Could not start the engine worker${from}.`,
+        `Could not start the engine worker${from}.${imported ? ` ${CROSS_ORIGIN_HINT}` : ''}`,
         {
           cause,
         }
       )
     }
-    return engineOver(
-      await createWorkerTransport(started.worker, wasm, {
-        url: started.url,
-        fallbackFonts,
-      })
-    )
+    try {
+      return engineOver(
+        await createWorkerTransport(started.worker, wasm, {
+          url: started.url,
+          fallbackFonts,
+          ...(started.imported && { hint: CROSS_ORIGIN_HINT }),
+        })
+      )
+    } finally {
+      // The worker has fetched its module, or failed to: its address is no longer needed.
+      started.imported?.release()
+    }
   }
   const wasm = options.wasm ?? (await (defaults as EngineDefaults).readWasm())
   return engineOver(await createInThreadTransport({ wasm }, { fallbackFonts }))
