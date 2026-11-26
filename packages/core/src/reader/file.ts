@@ -9,7 +9,7 @@ export interface FileAnnotation {
   /** The object reference as core writes it: `12R`, `12R3`. Invented for a direct object. */
   id: string
   subtype: string
-  /** `/Rect` in user space, as written: its corners are not put in order. */
+  /** `/Rect` in user space, lower-left corner first; all 0 when it is not four numbers. */
   rect: [number, number, number, number]
   hasAppearance: boolean
   /** `/QuadPoints`, flat. */
@@ -70,7 +70,7 @@ export interface FileWidget {
   page: number
   /** Position among the page's listed annotations; Tab order shares it with links. */
   at: number
-  /** `/Rect` in user space, as written: its corners are not put in order. */
+  /** `/Rect` in user space, lower-left corner first; all 0 when it is not four numbers. */
   rect: [number, number, number, number]
   /** `/F`, with Hidden also set for a widget the reader hides (PDF.js: a text widget's `/PMD`). */
   flags: number

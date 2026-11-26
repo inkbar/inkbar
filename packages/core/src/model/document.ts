@@ -449,17 +449,19 @@ export async function openDocument(
     new InkError('DocumentDestroyed', 'The document has been destroyed')
 
   /**
-   * With the internal switch on, pages are drawn and their text, links, outline and destinations
-   * read by an engine reader over the file PDF.js opened; PDF.js still reads annotations and
-   * forms. Its module loads only then. When an engine started to replace one that stopped
-   * cannot start, the PDF.js reader answers for the rest of the document's life.
+   * With the internal switch on, pages are drawn and their text, links, outline, destinations,
+   * and the file's facts, annotations, form fields and Tab order read by an engine reader over
+   * the file PDF.js opened; PDF.js still reads the file's scripts, draws the fields' appearances
+   * and builds the sandbox's fields. Its module loads only then. When an engine started to
+   * replace one that stopped cannot start, the PDF.js reader answers for the rest of the
+   * document's life.
    */
   const engineReader =
     readerKind() === 'engine'
       ? async (
           proxy: PdfjsDocument,
           fallback: DocumentReader
-        ): Promise<DocumentReader> => {
+        ): Promise<DocumentReader & { forgetAnnotations(): void }> => {
           const { createEngineReader } = await import('../engine-reader/reader')
           return createEngineReader({
             loader: options.engine!,
@@ -509,7 +511,8 @@ export async function openDocument(
     handles = { module: pdfjs, proxy, getPage, textReads }
     const fromPdfjs = createPdfjsReader(handles, { measure })
     pdfjsReader = fromPdfjs
-    reader = engineReader ? await engineReader(proxy, fromPdfjs) : fromPdfjs
+    const opening = engineReader ? await engineReader(proxy, fromPdfjs) : fromPdfjs
+    reader = opening
     const facts = await reader.facts()
     if (facts.title !== undefined) info.title = facts.title
     if (facts.author !== undefined) info.author = facts.author
@@ -548,8 +551,9 @@ export async function openDocument(
       return { perPage, fileFields }
     })()
     const { perPage, fileFields } = await read.finally(() => {
-      // Nothing reads them after the open, so they are not held: a later read asks PDF.js again.
+      // Nothing reads them after the open, so they are not held: a later read asks again.
       fromPdfjs.forgetAnnotations()
+      opening.forgetAnnotations()
     })
     perPage.forEach((r, i) => {
       if (r.links.length > 0) linksByPage.set(i, r.links)

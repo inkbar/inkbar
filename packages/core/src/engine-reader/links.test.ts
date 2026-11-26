@@ -80,12 +80,13 @@ describe('linksFromFacts', () => {
     ])
   })
 
-  it('drops a link with the NoView flag, or the Invisible flag, as PDF.js does', () => {
+  it('drops a link with the NoView flag, and keeps one with only Invisible, as PDF.js does', () => {
+    // PDF.js clears Invisible from an annotation of a kind it knows, a Link included.
     const links = linksFromFacts(
       0,
       page([entry(0, { flags: 32 }), entry(1, { flags: 1 }), entry(2, { flags: 36 })])
     )
-    expect(links).toEqual([])
+    expect(links.map((l) => [l.id, l.order])).toEqual([['pdf:0:11R', 0]])
   })
 
   it('keeps a link with the Hidden flag, as PDF.js does', () => {
@@ -125,17 +126,19 @@ describe('linksFromFacts', () => {
         entry(2, { subtype: 'Widget', flags: 32 }), // a widget: listed after the rest
         entry(3, { flags: 32 }), // no view: left out
         entry(4, { subtype: 'Popup' }), // a popup: listed after the rest
-        entry(5, { subtype: 'Square', flags: 1 }), // invisible: left out
+        entry(5, { subtype: 'Square', flags: 1 }), // invisible, a kind PDF.js knows: order 2
         entry(6, { subtype: 'Highlight', hasQuads: true, quadsOk: false }), // bad quads: left out
-        entry(7, { subtype: 'Ink', flags: 0 }), // order 2
-        entry(8, { subtype: 'Ink', flags: 33 }), // left out: flags are only ignored when 0
-        entry(9, { subtype: 'Underline', hasQuads: true }), // order 3
-        entry(10), // order 4
+        entry(7, { subtype: 'Ink', flags: 0 }), // order 3
+        entry(8, { subtype: 'Ink', flags: 33 }), // no view: left out
+        entry(9, { subtype: 'Underline', hasQuads: true }), // order 4
+        entry(10, { subtype: 'Redact', flags: 1 }), // invisible, a kind PDF.js does not know: left out
+        entry(11, { subtype: 'Square', flags: -4 }), // flags below 0 count as 0: order 5
+        entry(12), // order 6
       ])
     )
     expect(links.map((l) => [l.id, l.order])).toEqual([
       ['pdf:0:11R', 1],
-      ['pdf:0:20R', 4],
+      ['pdf:0:22R', 6],
     ])
   })
 

@@ -16,6 +16,10 @@ type PageTextResult = Awaited<ReturnType<ReaderEngineDocument['pageText']>>
 type PageLinksResult = Awaited<ReturnType<ReaderEngineDocument['pageLinks']>>
 type OutlineResult = Awaited<ReturnType<ReaderEngineDocument['outline']>>
 type NamedResult = Awaited<ReturnType<ReaderEngineDocument['namedDestination']>>
+type FactsResult = Awaited<ReturnType<ReaderEngineDocument['documentFacts']>>
+type AnnotationsResult = Awaited<ReturnType<ReaderEngineDocument['pageAnnotations']>>
+type FormResult = Awaited<ReturnType<ReaderEngineDocument['formFields']>>
+type OrderResult = Awaited<ReturnType<ReaderEngineDocument['structureOrder']>>
 
 /** The engine's characters for one Courier word, `Hi`, on the baseline at (72, 700). */
 function hiText(): PageTextResult {
@@ -126,6 +130,14 @@ interface FakeEngine extends ReaderEngine {
   }
 }
 
+const emptyForm: FormResult = {
+  kind: 'none',
+  needAppearances: false,
+  fields: [],
+  tooLarge: false,
+  truncated: false,
+}
+
 /**
  * A fake engine module: every `createEngine` makes a new engine over a one-page document. By
  * default an `engine-failure` from a render stops that engine, as a trap does: every later call
@@ -146,6 +158,14 @@ function setup(
     outline?: (engine: EngineState) => Promise<OutlineResult>
     /** What `namedDestination` answers; by default nothing. */
     namedDestination?: (name: Uint8Array, engine: EngineState) => Promise<NamedResult>
+    /** What `documentFacts` answers; by default an unencrypted file with no title. */
+    documentFacts?: (engine: EngineState) => Promise<FactsResult>
+    /** What `pageAnnotations` answers; by default none. A rejection stops the engine. */
+    pageAnnotations?: (index: number, engine: EngineState) => Promise<AnnotationsResult>
+    /** What `formFields` answers; by default no form. A rejection stops the engine. */
+    formFields?: (engine: EngineState) => Promise<FormResult>
+    /** What `structureOrder` answers; by default no order. */
+    structureOrder?: (index: number, engine: EngineState) => Promise<OrderResult>
   } = {}
 ) {
   const engines: FakeEngine[] = []
@@ -165,6 +185,15 @@ function setup(
       state.stopped || ending.signal.aborted
         ? Promise.reject(engineError('engine-failure'))
         : Promise.resolve()
+    /** `answer` on a live engine; an `engine-failure` from it stops the engine. */
+    const stopping = <T>(answer: () => T | Promise<T>): Promise<T> =>
+      live()
+        .then(answer)
+        .catch((error: unknown) => {
+          if ((opts.traps ?? true) && hasCode(error, 'engine-failure'))
+            state.stopped = true
+          throw error
+        })
     const doc = {
       pageCount: opts.pageCount ?? 1,
       pageInfo: vi.fn<ReaderEngineDocument['pageInfo']>(() =>
@@ -231,6 +260,28 @@ function setup(
               state.stopped = true
             throw error
           })
+      ),
+      documentFacts: vi.fn<ReaderEngineDocument['documentFacts']>(() =>
+        stopping(() =>
+          opts.documentFacts ? opts.documentFacts(state) : { encrypted: false }
+        )
+      ),
+      pageAnnotations: vi.fn<ReaderEngineDocument['pageAnnotations']>((index) =>
+        stopping(() =>
+          opts.pageAnnotations
+            ? opts.pageAnnotations(index, state)
+            : { annotations: [], truncated: false }
+        )
+      ),
+      formFields: vi.fn<ReaderEngineDocument['formFields']>(() =>
+        stopping(() => (opts.formFields ? opts.formFields(state) : emptyForm))
+      ),
+      structureOrder: vi.fn<ReaderEngineDocument['structureOrder']>((index) =>
+        stopping(() =>
+          opts.structureOrder
+            ? opts.structureOrder(index, state)
+            : { order: [], truncated: false }
+        )
       ),
       close: vi.fn(() => Promise.resolve()),
     }
@@ -1582,12 +1633,16 @@ describe('an engine that cannot start', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(2)
   })
 
-  it('then text, links, the outline, names and pixels come from the fallback, with no engine started again', async () => {
+  it("then text, links, the outline, names, pixels and the file's facts, annotations, form and Tab order come from the fallback, with no engine started again", async () => {
     const { t, reader, instead } = await stopsThenCannotStart()
     await reader.text(0, { glyphs: false })
     expect(t.createEngine).toHaveBeenCalledTimes(2)
     for (let i = 0; i < 3; i++) {
       await expect(reader.text(0, { glyphs: false })).resolves.toBe(fallbackText)
+      await expect(reader.facts()).resolves.toBe(fileFacts)
+      await expect(reader.annotations(1)).resolves.toEqual([fileAnnotation])
+      await expect(reader.form()).resolves.toEqual([fileField])
+      await expect(reader.tabOrder(1)).resolves.toEqual(['9R'])
       await expect(reader.links(1)).resolves.toEqual([fallbackLink])
       await expect(reader.outline()).resolves.toBe(fallbackOutline)
       await expect(reader.resolveDestination(`name-${i}`)).resolves.toEqual({
@@ -1598,6 +1653,10 @@ describe('an engine that cannot start', () => {
       await reader.draw(request({ page: 1 }), canvas)
     }
     expect(instead.links).toHaveBeenCalledTimes(3)
+    expect(instead.facts).toHaveBeenCalledTimes(3)
+    expect(instead.annotations).toHaveBeenCalledWith(1)
+    expect(instead.form).toHaveBeenCalledTimes(3)
+    expect(instead.tabOrder).toHaveBeenCalledWith(1)
     expect(instead.outline).toHaveBeenCalledTimes(3)
     expect(instead.resolveDestination).toHaveBeenCalledTimes(3)
     expect(instead.draw).toHaveBeenCalledTimes(3)
@@ -1752,34 +1811,124 @@ const fieldRequest = {
   y: 0,
 }
 
-describe("the file's facts, annotations, form and scripts", () => {
-  it("reads the file's facts, annotations, form, Tab order and scripts from the fallback while the engine works", async () => {
-    const t = setup({ pageCount: 2 })
+/** A widget of a text field `name` on page 0, object 20, at /Annots index `index`. */
+const textField = (index: number): FormResult['fields'][number] => ({
+  name: 'name',
+  kind: 'text',
+  flags: 0,
+  valueKind: 'string',
+  value: 'Ann',
+  defaultValueKind: 'none',
+  widgets: [
+    {
+      page: 0,
+      index,
+      objectNumber: 20,
+      generation: 0,
+      rect: [10, 10, 50, 30],
+      rectOk: true,
+      flags: 4,
+      hasAppearance: true,
+      appearanceStates: [],
+      scripts: {},
+    },
+  ],
+})
+
+/** Page 0's annotations: a Square (object 9) at 0 and the text field's widget (object 20) at 1. */
+const squareAndWidget: AnnotationsResult = {
+  annotations: [
+    {
+      index: 0,
+      subtype: 'Square',
+      objectNumber: 9,
+      generation: 0,
+      rect: [0, 0, 10, 10],
+      rectOk: true,
+      flags: 4,
+      hasAppearance: true,
+      appearanceStates: [],
+    },
+    {
+      index: 1,
+      subtype: 'Widget',
+      objectNumber: 20,
+      generation: 0,
+      rect: [10, 10, 50, 30],
+      rectOk: true,
+      flags: 4,
+      hasAppearance: true,
+      appearanceStates: [],
+    },
+  ],
+  truncated: false,
+}
+
+const formWithText = (index = 1): FormResult => ({
+  ...emptyForm,
+  kind: 'acroform',
+  fields: [textField(index)],
+})
+
+describe("the file's facts, annotations, form and Tab order", () => {
+  /** A reader over a two-page file: a Square and a text field's widget on page 0. */
+  const opened = async (over: Parameters<typeof setup>[0] = {}, withFallback = true) => {
+    const t = setup({
+      pageCount: 2,
+      documentFacts: () =>
+        Promise.resolve({
+          title: 'Report',
+          author: { bytes: new Uint8Array([0x41, 0x80]) },
+          encrypted: true,
+        }),
+      pageAnnotations: (index) =>
+        Promise.resolve(
+          index === 0 ? squareAndWidget : { annotations: [], truncated: false }
+        ),
+      formFields: () => Promise.resolve(formWithText()),
+      structureOrder: (index) =>
+        Promise.resolve(
+          index === 0
+            ? { order: [20, 9], truncated: false }
+            : { order: [], truncated: false }
+        ),
+      ...over,
+    })
     const instead = fallback()
     const reader = await createEngineReader({
       loader: t.loader as unknown as EngineLoader,
       bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
       password: undefined,
       warn: t.warn,
-      fallback: instead,
+      ...(withFallback && { fallback: instead }),
     })
-    await expect(reader.facts()).resolves.toBe(fileFacts)
-    await expect(reader.annotations(1)).resolves.toEqual([fileAnnotation])
-    expect(instead.annotations).toHaveBeenCalledWith(1)
-    await expect(reader.form()).resolves.toEqual([fileField])
-    await expect(reader.tabOrder(1)).resolves.toEqual(['9R'])
-    expect(instead.tabOrder).toHaveBeenCalledWith(1)
-    await expect(reader.scripts()).resolves.toBe(fileScripts)
-    await expect(reader.pageScripts(1)).resolves.toBe(pageScripts)
-    expect(instead.pageScripts).toHaveBeenCalledWith(1)
-    await expect(reader.sandboxFields()).resolves.toBe(sandboxFields)
-    const fields = { ...fieldRequest }
-    const { canvas } = fakeCanvas()
-    const controller = new AbortController()
-    await expect(reader.drawFields(fields, canvas, controller.signal)).resolves.toEqual(
-      new Set(['9R'])
-    )
-    expect(instead.drawFields).toHaveBeenCalledWith(fields, canvas, controller.signal)
+    return { t, reader, instead }
+  }
+
+  it('reads them from the engine while it works, and the fallback is not asked', async () => {
+    const { t, reader, instead } = await opened()
+    // Bytes that are not text are decoded as PDF.js decodes them.
+    await expect(reader.facts()).resolves.toEqual({
+      title: 'Report',
+      author: 'A•',
+      encrypted: true,
+    })
+    const annotations = await reader.annotations(0)
+    expect(annotations.map((a) => [a.id, a.subtype])).toEqual([
+      ['9R', 'Square'],
+      ['20R', 'Widget'],
+    ])
+    const fields = await reader.form()
+    expect(fields).toMatchObject([{ name: 'name', kind: 'text', value: 'Ann' }])
+    expect(fields[0]!.widgets[0]).toMatchObject({ id: '20R', page: 0, at: 1 })
+    await expect(reader.tabOrder(0)).resolves.toEqual(['20R', '9R'])
+    await expect(reader.tabOrder(1)).resolves.toEqual([])
+    expect(instead.facts).not.toHaveBeenCalled()
+    expect(instead.annotations).not.toHaveBeenCalled()
+    expect(instead.form).not.toHaveBeenCalled()
+    expect(instead.tabOrder).not.toHaveBeenCalled()
+    // The form is read once for both the widget's annotation and the fields.
+    expect(t.engines[0]!.doc.formFields).toHaveBeenCalledTimes(1)
     await reader.destroy()
     await expect(reader.facts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.annotations(0)).rejects.toMatchObject({
@@ -1787,40 +1936,152 @@ describe("the file's facts, annotations, form and scripts", () => {
     })
     await expect(reader.form()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
-    await expect(reader.scripts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
-    await expect(reader.pageScripts(0)).rejects.toMatchObject({
-      code: 'DocumentDestroyed',
-    })
-    await expect(reader.sandboxFields()).rejects.toMatchObject({
-      code: 'DocumentDestroyed',
-    })
-    await expect(reader.drawFields(fields, canvas)).rejects.toMatchObject({
-      code: 'DocumentDestroyed',
-    })
-    expect(instead.facts).toHaveBeenCalledTimes(1)
-    expect(instead.annotations).toHaveBeenCalledTimes(1)
-    expect(instead.form).toHaveBeenCalledTimes(1)
-    expect(instead.tabOrder).toHaveBeenCalledTimes(1)
-    expect(instead.scripts).toHaveBeenCalledTimes(1)
-    expect(instead.pageScripts).toHaveBeenCalledTimes(1)
-    expect(instead.sandboxFields).toHaveBeenCalledTimes(1)
-    expect(instead.drawFields).toHaveBeenCalledTimes(1)
   })
 
-  it("without a fallback, the file's facts, annotations, form and scripts reject with EngineUnavailable", async () => {
-    const t = setup({ pageCount: 2 })
-    const reader = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
-      bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
-      password: undefined,
-      warn: t.warn,
+  it('gives a page that is not in the file PageOutOfRange', async () => {
+    const { reader } = await opened()
+    await expect(reader.annotations(2)).rejects.toMatchObject({ code: 'PageOutOfRange' })
+    await expect(reader.tabOrder(-1)).rejects.toMatchObject({ code: 'PageOutOfRange' })
+    await reader.destroy()
+  })
+
+  it('gives a form refused for its size no fields', async () => {
+    const { reader } = await opened({
+      formFields: () =>
+        Promise.resolve({ ...formWithText(), fields: [], tooLarge: true }),
     })
-    await expect(reader.facts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
-    await expect(reader.annotations(0)).rejects.toMatchObject({
-      code: 'EngineUnavailable',
+    await expect(reader.form()).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it('reads again on a new engine once the engine stops under a read', async () => {
+    let calls = 0
+    const { t, reader } = await opened({
+      // The first engine stops on its first annotations read.
+      pageAnnotations: (_, engine) =>
+        engine.index === 0 && calls++ === 0
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve(squareAndWidget),
     })
-    await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
-    await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await reader.pageInfo(0)
+    await expect(reader.annotations(0)).resolves.toHaveLength(2)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    await reader.destroy()
+  })
+
+  it('a page whose annotations or order a working engine cannot read has none', async () => {
+    const { reader } = await opened({
+      traps: false,
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+      structureOrder: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.annotations(0)).resolves.toEqual([])
+    await expect(reader.tabOrder(0)).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it("gives a page's annotations, and no fields, when a working engine cannot read the form", async () => {
+    const { reader } = await opened({
+      traps: false,
+      formFields: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.annotations(0)).resolves.toHaveLength(2)
+    await expect(reader.form()).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it('leaves out the widgets of a page whose annotations a working engine cannot read', async () => {
+    const { reader } = await opened({
+      traps: false,
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.form()).resolves.toEqual([])
+    await expect(reader.annotations(0)).resolves.toEqual([])
+    await reader.destroy()
+  })
+
+  it("gives no title or author when a working engine cannot read the file's facts, and the last encrypted", async () => {
+    let fail = false
+    const { reader } = await opened({
+      traps: false,
+      documentFacts: () =>
+        fail
+          ? Promise.reject(engineError('engine-failure'))
+          : Promise.resolve({ title: 'Report', encrypted: true }),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.facts()).resolves.toEqual({ title: 'Report', encrypted: true })
+    fail = true
+    await expect(reader.facts()).resolves.toEqual({ encrypted: true })
+    await reader.destroy()
+    const never = await opened({
+      traps: false,
+      documentFacts: () => Promise.reject(engineError('engine-failure')),
+    })
+    await never.reader.pageInfo(0)
+    await expect(never.reader.facts()).resolves.toEqual({ encrypted: false })
+    await never.reader.destroy()
+  })
+
+  it("answers the file's facts asked first, before any page, when a working engine cannot read them", async () => {
+    const { t, reader } = await opened({
+      traps: false,
+      documentFacts: () => Promise.reject(engineError('engine-failure')),
+    })
+    await expect(reader.facts()).resolves.toEqual({ encrypted: false })
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+    await reader.destroy()
+  })
+
+  it('rejects the form when a page read inside it finds no engine to answer', async () => {
+    const { reader } = await opened({
+      pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+    })
+    await reader.pageInfo(0)
+    await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
+    await reader.destroy()
+  })
+
+  it("shares each page's annotations read with the form until forgetAnnotations", async () => {
+    const { t, reader } = await opened()
+    const first = await reader.annotations(0)
+    // Each caller gets its own.
+    first[0]!.rect[0] = 99
+    await reader.form()
+    await expect(reader.annotations(0)).resolves.toMatchObject([
+      { rect: [0, 0, 10, 10] },
+      {},
+    ])
+    expect(t.engines[0]!.doc.pageAnnotations).toHaveBeenCalledTimes(1)
+    reader.forgetAnnotations()
+    await reader.annotations(0)
+    expect(t.engines[0]!.doc.pageAnnotations).toHaveBeenCalledTimes(2)
+    await reader.destroy()
+  })
+
+  it('rejects when no engine can answer, rather than giving nothing', async () => {
+    const { reader } = await opened(
+      {
+        documentFacts: () => Promise.reject(engineError('engine-failure')),
+        formFields: () => Promise.reject(engineError('engine-failure')),
+        pageAnnotations: () => Promise.reject(engineError('engine-failure')),
+      },
+      false
+    )
+    await reader.pageInfo(0)
+    // Each engine stops on the read and so does the one that replaces it.
+    await expect(reader.facts()).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.form()).rejects.toMatchObject({ code: 'engine-failure' })
+    await expect(reader.annotations(0)).rejects.toMatchObject({ code: 'engine-failure' })
+    await reader.destroy()
+  })
+
+  it('without a fallback, the scripts, field drawing and sandbox fields reject with EngineUnavailable', async () => {
+    const { reader } = await opened({}, false)
+    await expect(reader.facts()).resolves.toMatchObject({ encrypted: true })
     await expect(reader.scripts()).rejects.toMatchObject({ code: 'EngineUnavailable' })
     await expect(reader.pageScripts(0)).rejects.toMatchObject({
       code: 'EngineUnavailable',
@@ -1834,6 +2095,36 @@ describe("the file's facts, annotations, form and scripts", () => {
       code: 'EngineUnavailable',
     })
     await reader.destroy()
+  })
+
+  it('reads the scripts, draws the fields and gives the sandbox fields from the fallback', async () => {
+    const { reader, instead } = await opened()
+    await expect(reader.scripts()).resolves.toBe(fileScripts)
+    await expect(reader.pageScripts(1)).resolves.toBe(pageScripts)
+    expect(instead.pageScripts).toHaveBeenCalledWith(1)
+    await expect(reader.sandboxFields()).resolves.toBe(sandboxFields)
+    const fields = { ...fieldRequest }
+    const { canvas } = fakeCanvas()
+    const controller = new AbortController()
+    await expect(reader.drawFields(fields, canvas, controller.signal)).resolves.toEqual(
+      new Set(['9R'])
+    )
+    expect(instead.drawFields).toHaveBeenCalledWith(fields, canvas, controller.signal)
+    await reader.destroy()
+    await expect(reader.scripts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.pageScripts(0)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    await expect(reader.sandboxFields()).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    await expect(reader.drawFields(fields, canvas)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+    expect(instead.scripts).toHaveBeenCalledTimes(1)
+    expect(instead.pageScripts).toHaveBeenCalledTimes(1)
+    expect(instead.sandboxFields).toHaveBeenCalledTimes(1)
+    expect(instead.drawFields).toHaveBeenCalledTimes(1)
   })
 })
 

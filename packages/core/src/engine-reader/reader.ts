@@ -1,6 +1,7 @@
-// The document reader over @inkbar/engine: page facts, pixels, text, links, the outline and
-// destinations from an engine of its own, loaded through the host's loader, with the file open
-// in it; the file's facts, annotations, form fields and Tab order from the fallback reader.
+// The document reader over @inkbar/engine: page facts, pixels, text, links, the outline,
+// destinations, and the file's facts, annotations, form fields and Tab order from an engine of
+// its own, loaded through the host's loader, with the file open in it; the rest from the
+// fallback reader.
 // Nothing here imports the engine: its shapes are declared in ./types and checked when the file
 // is opened.
 import {
@@ -10,16 +11,25 @@ import {
 } from '../model/destination'
 import { InkError, isInkError } from '../model/errors'
 
+import { fileAnnotationsFromEngine } from './annotations'
+import { annotationId, textOf } from './file-values'
+import { fileFieldsFromEngine, widgetContexts } from './form'
 import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
 import { nameBytes, rawDestination, refKey, type RefPages } from './targets'
 
-import type { FileDestinationShape, ReaderEngine, ReaderEngineDocument } from './types'
+import type {
+  FileDestinationShape,
+  FormFactsShape,
+  ReaderEngine,
+  ReaderEngineDocument,
+} from './types'
 import type { PageLink } from '../model/links'
 import type { OutlineItem } from '../model/outline'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { EngineLoader } from '../model/save/saver'
 import type { TextContent } from '../model/text'
+import type { FileAnnotation, FileFacts, FileField } from '../reader/file'
 import type { DocumentReader, DrawRequest } from '../reader/types'
 
 /**
@@ -54,13 +64,14 @@ export interface EngineReaderOptions {
   warn?: (message: string) => void
   /**
    * The reader that answers once a replacement engine cannot start: page facts, pixels, text,
-   * links, the outline and destinations then all come from it. Absent: those calls reject with
-   * the error the start failed with. A host can see the switch: text read again for a page has
-   * the fallback's item boundaries (the text the reader kept is dropped when it happens), and
-   * where the two readers differ, pages read after it differ from pages read before. The page
-   * facts the engine gave are kept, and links keep their ids, which both readers give alike.
-   * The file's facts, annotations, form fields and Tab order always come from it; without it
-   * they reject with EngineUnavailable.
+   * links, the outline, destinations, and the file's facts, annotations, form fields and Tab
+   * order then all come from it. Absent: those calls reject with the error the start failed
+   * with. A host can see the switch: text read again for a page has the fallback's item
+   * boundaries (the text the reader kept is dropped when it happens), and where the two readers
+   * differ, pages read after it differ from pages read before. The page facts the engine gave
+   * are kept, and links keep their ids, which both readers give alike. The file's scripts, its
+   * fields' appearances and the sandbox's fields always come from it; without it they reject
+   * with EngineUnavailable.
    */
   fallback?: DocumentReader
   /** Called once, when the reader turns to `fallback`. */
@@ -84,6 +95,8 @@ export interface EngineDocumentReader extends DocumentReader {
    * the engine cannot start.
    */
   textBaselines(page: number, signal?: AbortSignal): Promise<readonly number[]>
+  /** Stops keeping each page's annotations: the open has read every page. Later reads ask again. */
+  forgetAnnotations(): void
 }
 
 /** An engine and the file open in it. */
@@ -745,6 +758,252 @@ export async function createEngineReader(
     return outlineFromFacts(facts.items, resolve, refPages)
   }
 
+  /**
+   * `work`'s answer, or `instead` when it fails for a reason of its own on a working engine, as
+   * the PDF.js reader answers when PDF.js cannot read the part asked for. It rejects when no
+   * engine could answer (`work` passes `onGone` to `run`), the engine cannot start, or the reader
+   * is destroyed.
+   */
+  const orElse = async <T>(
+    work: (onGone: () => void) => Promise<T>,
+    instead: () => T
+  ): Promise<T> => {
+    let gone = false
+    try {
+      return await work(() => {
+        gone = true
+      })
+    } catch (error) {
+      if (gone && typeof error === 'object' && error !== null) goneErrors.add(error)
+      if (gone || goneErrors.has(error as object) || destroyed || cannotStart) throw error
+      return instead()
+    }
+  }
+  /**
+   * The errors of reads no engine could answer, so a read made of others (the form, of each
+   * page's annotations) rejects with them too rather than giving nothing.
+   */
+  const goneErrors = new WeakSet<object>()
+
+  /** `encrypted` from the last facts the engine gave. */
+  let knownEncrypted = false
+  /**
+   * The file's facts: the title and author as PDF.js gives them, a text string that is empty
+   * counting as none. A title or author the engine cut short is given as far as it was read.
+   * When a working engine cannot read them, as when PDF.js cannot read the Info dictionary,
+   * there is no title or author, and `encrypted` is what an earlier read gave, else false.
+   */
+  const fileFacts = async (): Promise<FileFacts> => {
+    if (destroyed) throw destroyedError()
+    try {
+      return await orFallback(
+        () =>
+          orElse(
+            async (onGone) => {
+              // A page the engine has read lets `run` tell a stopped engine from a read the
+              // engine fails on its own: the open asks for the facts before any page.
+              if (knownPage === undefined && pageCount > 0)
+                await enginePageInfo(0).catch(() => undefined)
+              const facts = await run(
+                (doc) => doc.documentFacts(),
+                undefined,
+                undefined,
+                onGone
+              )
+              knownEncrypted = facts.encrypted
+              const title = facts.title === undefined ? '' : textOf(facts.title)
+              const author = facts.author === undefined ? '' : textOf(facts.author)
+              return {
+                ...(title !== '' ? { title } : {}),
+                ...(author !== '' ? { author } : {}),
+                encrypted: facts.encrypted,
+              }
+            },
+            () => ({ encrypted: knownEncrypted })
+          ),
+        (reader) => reader.facts()
+      )
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+  }
+
+  /**
+   * The form's facts, read once and kept: each page's annotations and the fields take what the
+   * form says about widgets, and the file does not change under the reader. A failed read is not
+   * kept.
+   */
+  let formRead: Promise<FormFactsShape> | undefined
+  /** What the form tells each page's widgets, worked out once from the kept facts. */
+  let contexts: ReturnType<typeof widgetContexts> | undefined
+  const formFacts = (onGone?: () => void): Promise<FormFactsShape> => {
+    if (!formRead) {
+      const made = run((doc) => doc.formFields(), undefined, undefined, onGone)
+      formRead = made
+      contexts = undefined
+      made.catch(() => {
+        if (formRead === made) formRead = undefined
+      })
+    }
+    return formRead
+  }
+
+  /**
+   * A page's annotations from the engine, as the PDF.js reader lists them. A page with a widget
+   * or a FreeText also takes what the form says about them; a form a working engine cannot read
+   * leaves them without it. A page cut short at the engine's limit gives what was read.
+   */
+  const engineAnnotations = async (
+    page: number,
+    onGone: () => void
+  ): Promise<FileAnnotation[]> => {
+    const facts = await run(
+      (doc) => doc.pageAnnotations(page),
+      undefined,
+      undefined,
+      onGone
+    )
+    const needsForm = facts.annotations.some(
+      (a) => a.subtype === 'Widget' || a.subtype === 'FreeText'
+    )
+    let context
+    if (needsForm) {
+      const form = await orElse<FormFactsShape | undefined>(
+        (gone) =>
+          formFacts(() => {
+            gone()
+            onGone()
+          }),
+        () => undefined
+      )
+      if (form) {
+        contexts ??= widgetContexts(form)
+        context = contexts.get(page)
+      }
+    }
+    return fileAnnotationsFromEngine(page, facts, context)
+  }
+
+  /**
+   * Each page's annotations read, kept until `forgetAnnotations`, so the open's reads of the
+   * annotations and of the form share them, as the PDF.js reader's do. A read that rejects is
+   * not kept.
+   */
+  const pageReads = new Map<number, Promise<FileAnnotation[]>>()
+  /**
+   * A page's annotations from the engine. A page whose annotations a working engine cannot read
+   * has none, as a page whose annotations PDF.js cannot parse has none with the PDF.js reader.
+   */
+  const pageAnnotations = (page: number): Promise<FileAnnotation[]> => {
+    let read = pageReads.get(page)
+    if (!read) {
+      const made = orElse(
+        (onGone) => engineAnnotations(page, onGone),
+        (): FileAnnotation[] => []
+      )
+      pageReads.set(page, made)
+      made.catch(() => {
+        if (pageReads.get(page) === made) pageReads.delete(page)
+      })
+      read = made
+    }
+    return read
+  }
+
+  const annotations = async (page: number): Promise<FileAnnotation[]> => {
+    if (destroyed) throw destroyedError()
+    checkPage(page)
+    let found: FileAnnotation[]
+    try {
+      found = await orFallback(
+        // Each caller gets annotations of its own, as the PDF.js reader gives.
+        async () => structuredClone(await pageAnnotations(page)),
+        (reader) => reader.annotations(page)
+      )
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+    if (destroyed) throw destroyedError()
+    return found
+  }
+
+  /**
+   * The form's fields. A form refused for its size has none; PDF.js would read its fields. When
+   * a working engine cannot read the form there are none, as when PDF.js cannot read a page's
+   * annotations; a page whose annotations it cannot read lists none, so its widgets are left out.
+   */
+  const form = async (): Promise<FileField[]> => {
+    if (destroyed) throw destroyedError()
+    try {
+      const fields = await orFallback(
+        () =>
+          orElse(
+            async (onGone) => {
+              const facts = await formFacts(onGone)
+              if (facts.tooLarge) return []
+              return fileFieldsFromEngine(facts, pageAnnotations)
+            },
+            (): FileField[] => []
+          ),
+        (reader) => reader.form()
+      )
+      if (destroyed) throw destroyedError()
+      return fields
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+  }
+
+  /**
+   * The page's annotations in the order its structure tree gives them, by id. A page whose order
+   * a working engine cannot read has none, as with PDF.js.
+   */
+  const tabOrder = async (page: number): Promise<string[]> => {
+    if (destroyed) throw destroyedError()
+    checkPage(page)
+    let found: string[]
+    try {
+      found = await orFallback(
+        () =>
+          orElse(
+            async (onGone) => {
+              const { order } = await run(
+                (doc) => doc.structureOrder(page),
+                undefined,
+                undefined,
+                onGone
+              )
+              if (order.length === 0) return []
+              // The engine names each by object number; its id needs the generation too.
+              const { annotations: entries } = await run(
+                (doc) => doc.pageAnnotations(page),
+                undefined,
+                undefined,
+                onGone
+              )
+              const generations = new Map<number, number>()
+              for (const a of entries)
+                if (a.objectNumber !== undefined && !generations.has(a.objectNumber))
+                  generations.set(a.objectNumber, a.generation ?? 0)
+              return order.map((objectNumber) =>
+                annotationId(page, {
+                  index: -1,
+                  objectNumber,
+                  generation: generations.get(objectNumber) ?? 0,
+                })
+              )
+            },
+            (): string[] => []
+          ),
+        (reader) => reader.tabOrder(page)
+      )
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+    if (destroyed) throw destroyedError()
+    return found
+  }
+
   /** `call` on the fallback, as the reader's own. */
   const fromFallback = <T>(call: (reader: DocumentReader) => Promise<T>): Promise<T> => {
     if (destroyed) return Promise.reject(destroyedError())
@@ -752,7 +1011,7 @@ export async function createEngineReader(
       return Promise.reject(
         new InkError(
           'EngineUnavailable',
-          "Reading the file's facts, annotations and form needs the fallback reader"
+          "Reading the file's scripts and drawing its fields needs the fallback reader"
         )
       )
     return untilDestroyed(call(options.fallback))
@@ -762,7 +1021,7 @@ export async function createEngineReader(
   return {
     kind: 'engine',
     pageCount,
-    facts: () => fromFallback((reader) => reader.facts()),
+    facts: fileFacts,
     pageInfo,
     draw,
     drawFields: (request, canvas, signal) =>
@@ -795,9 +1054,10 @@ export async function createEngineReader(
         signal
       ),
     links,
-    annotations: (page) => fromFallback((reader) => reader.annotations(page)),
-    form: () => fromFallback((reader) => reader.form()),
-    tabOrder: (page) => fromFallback((reader) => reader.tabOrder(page)),
+    annotations,
+    form,
+    tabOrder,
+    forgetAnnotations: () => pageReads.clear(),
     scripts: () => fromFallback((reader) => reader.scripts()),
     pageScripts: (page) => fromFallback((reader) => reader.pageScripts(page)),
     sandboxFields: () => fromFallback((reader) => reader.sandboxFields()),
@@ -809,6 +1069,9 @@ export async function createEngineReader(
       stopped.abort(destroyedError())
       texts.clear()
       named.clear()
+      formRead = undefined
+      contexts = undefined
+      pageReads.clear()
       const last = current
       current = undefined
       // A session still starting frees itself when it finds the reader destroyed.
