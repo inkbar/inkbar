@@ -219,6 +219,41 @@
   }
 
   /*
+   * The viewer stopped reading the document: a bar over the top of the viewport root, which it
+   * positions against, so it stays put while the pages scroll under it.
+   */
+  :where(.ink-engine-notice) {
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    z-index: 4;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem 0.75rem;
+    padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+    border: 1px solid var(--ink-border);
+    border-radius: var(--ink-radius);
+    background: var(--ink-surface);
+    color: var(--ink-fg);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+    transform: translateX(-50%);
+  }
+
+  :where(.ink-engine-notice-text) {
+    flex: 1 1 16rem;
+    margin: 0;
+  }
+
+  :where(.ink-engine-notice .ink-button[aria-busy='true']) {
+    cursor: progress;
+  }
+
+  /*
    * Text layer: the .textLayer rules from pdfjs-dist 6.4.299 web/pdf_viewer.css, renamed to
    * .ink-text-layer. PDF.js sizes the layer from --total-scale-factor (set on the page) and
    * --scale-round-x/y, writes --font-height, --scale-x and --rotate on each span and
