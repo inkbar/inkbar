@@ -151,8 +151,8 @@ export function pagesWithFields(doc: InkDocument, pages: number): Set<number> {
 export interface FieldsMount {
   /**
    * The widgets whose look the form layer leaves to its HTML control now (a value a script or a
-   * person changed, a script's colour) or hides (the file or a script hides it): these show no appearance
-   * canvas.
+   * person changed, a script's colour) or hides (the file or a script hides it): these show no
+   * appearance canvas.
    */
   leftToControls(): Set<string>
   /** Every widget of a field on the page. */

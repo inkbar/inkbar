@@ -86,7 +86,10 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     opts.onRendered?.()
   }
 
-  /** The document's PDF.js handles: the layer reads PDF.js's text only while PDF.js reads the file. */
+  /**
+   * The document's PDF.js handles: the layer reads PDF.js's text only while PDF.js reads the
+   * file.
+   */
   const pdfjs = (): PdfjsHandles => {
     const handles = doc._pdfjs
     if (!handles)

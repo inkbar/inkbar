@@ -179,7 +179,8 @@ for (const reader of READERS)
       await expect(alert(page)).toHaveText(
         '1 mark covers content that cannot be removed. Move or delete it and try again.'
       )
-      // The document is as it was: the mark is still there, now selected, and nothing was handed over.
+      // The document is as it was: the mark is still there, now selected, and nothing was
+      // handed over.
       await expect(marks(page)).toHaveCount(1)
       await expect(marks(page)).toHaveAttribute('data-state', 'selected')
       await expect(textLayer(page)).toContainText('KEEP-BETA')

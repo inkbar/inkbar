@@ -57,11 +57,17 @@ const LINE_ENDINGS = new Set([
 /** The size PDF.js gives a note's icon when the note has no appearance of its own. */
 const NOTE_ICON_SIZE = 22
 
-/** @internal What the form tells the page's widgets: what PDF.js reads along `/Parent` and from `/AcroForm`. */
+/**
+ * @internal What the form tells the page's widgets: what PDF.js reads along `/Parent` and from
+ * `/AcroForm`.
+ */
 export interface WidgetContext {
   /** `/DA`, inherited, else `/AcroForm /DA`, as `defaultAppearanceText` picks it. */
   defaultAppearance: string
-  /** `/AcroForm /NeedAppearances` is true and the field has a value: PDF.js then counts an appearance. */
+  /**
+   * `/AcroForm /NeedAppearances` is true and the field has a value: PDF.js then counts an
+   * appearance.
+   */
   drawnFromValue: boolean
 }
 

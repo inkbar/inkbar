@@ -28,7 +28,10 @@ function darkPixels(
   return dark
 }
 
-/** Resolves with the first draw the reader starts for `doc`, and its signal, as soon as it starts. */
+/**
+ * Resolves with the first draw the reader starts for `doc`, and its signal, as soon as it
+ * starts.
+ */
 function drawStarts(
   doc: InkDocument
 ): Promise<{ drawn: Promise<void>; signal: AbortSignal | undefined }> {

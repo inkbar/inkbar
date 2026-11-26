@@ -24,8 +24,20 @@ export interface FieldPlace {
   toggle?: { onState: string | undefined }
 }
 
-/** @internal The page's widgets the page canvas shows, by id, at each place `/Annots` holds them. */
+/**
+ * @internal The page's widgets the page canvas shows, by id, at each place `/Annots` holds
+ * them.
+ */
 export type FieldPlaces = ReadonlyMap<string, readonly FieldPlace[]>
+
+const noToggles: ReadonlyMap<string, string | undefined> = new Map()
+/** Each form's toggles, worked out once for all its pages. */
+const toggleCache = new WeakMap<FormFactsShape, ReturnType<typeof toggleOnStates>>()
+const togglesOf = (form: FormFactsShape): ReturnType<typeof toggleOnStates> => {
+  let toggles = toggleCache.get(form)
+  if (!toggles) toggleCache.set(form, (toggles = toggleOnStates(form)))
+  return toggles
+}
 
 /**
  * @internal The widgets of page `page` that the page canvas draws, from the page's annotation
@@ -37,9 +49,7 @@ export function fieldPlaces(
   facts: PageAnnotationsShape,
   form: FormFactsShape | undefined
 ): FieldPlaces {
-  const toggles = form
-    ? toggleOnStates(form, page)
-    : new Map<string, string | undefined>()
+  const toggles = (form && togglesOf(form).get(page)) ?? noToggles
   const places = new Map<string, FieldPlace[]>()
   for (const a of facts.annotations) {
     if (a.subtype !== 'Widget' || (knownFlags(a.flags) & (F_HIDDEN | F_NO_VIEW)) !== 0)

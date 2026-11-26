@@ -18,7 +18,10 @@ import type { TextContent } from '../model/text'
 export interface HiddenAppearance {
   id: string
   objectNumber?: number
-  /** Its place in `/Annots` on the page drawn, for one written as a direct object; used only without `objectNumber`. */
+  /**
+   * Its place in `/Annots` on the page drawn, for one written as a direct object; used only
+   * without `objectNumber`.
+   */
   index?: number
 }
 
@@ -59,7 +62,10 @@ export interface DrawRequest {
   hide: readonly HiddenAppearance[]
 }
 
-/** @internal File and page facts, pixels, text, links, annotations, the outline and destinations. */
+/**
+ * @internal File and page facts, pixels, text, links, annotations, the outline and
+ * destinations.
+ */
 export interface DocumentReader {
   readonly kind: 'pdfjs' | 'engine'
   readonly pageCount: number

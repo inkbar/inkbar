@@ -264,7 +264,10 @@ function optAt(info: OptInfo, index: number | null | undefined): string | null {
   return typeof entry === 'object' && 'name' in entry ? entry.name : textOf(entry)
 }
 
-/** PDF.js's `_getExportValue`: a state mapped through `/Opt`, for a widget whose on-state is `onState`. */
+/**
+ * PDF.js's `_getExportValue`: a state mapped through `/Opt`, for a widget whose on-state is
+ * `onState`.
+ */
 function exportValueOf(
   state: Value,
   info: OptInfo | null,
@@ -286,27 +289,28 @@ function exportValueOf(
 }
 
 /**
- * @internal The checkbox and radio widgets of page `page` by id, each with the on-state PDF.js
- * draws for it: a checkbox's picked from its states and its field's value as `checkboxOn` picks
- * it, a radio's the first state of `/AP /N` that is not `Off`, as the engine reports it (absent
- * when it has none).
+ * @internal The checkbox and radio widgets of each page, by page and then by id, each with the
+ * on-state PDF.js draws for it: a checkbox's picked from its states and its field's value as
+ * `checkboxOn` picks it, a radio's the first state of `/AP /N` that is not `Off`, as the engine
+ * reports it (absent when it has none). A widget on no page is left out.
  */
 export function toggleOnStates(
-  form: FormFactsShape,
-  page: number
-): Map<string, string | undefined> {
-  const toggles = new Map<string, string | undefined>()
+  form: FormFactsShape
+): Map<number, Map<string, string | undefined>> {
+  const pages = new Map<number, Map<string, string | undefined>>()
   for (const field of form.fields) {
     if (field.kind !== 'checkbox' && field.kind !== 'radio') continue
     const raw = field.kind === 'checkbox' ? rawValue(field) : null
     for (const w of field.widgets) {
-      if (w.page !== page) continue
-      const id = annotationId(page, w)
+      if (w.page < 0) continue
+      let toggles = pages.get(w.page)
+      if (!toggles) pages.set(w.page, (toggles = new Map<string, string | undefined>()))
+      const id = annotationId(w.page, w)
       if (toggles.has(id)) continue
       toggles.set(id, field.kind === 'checkbox' ? checkboxOn(w, raw) : w.onState)
     }
   }
-  return toggles
+  return pages
 }
 
 /** A checkbox widget's on-state as PDF.js picks it, with the field's value `value`. */
@@ -390,8 +394,9 @@ function fieldOf(
     }
     case 'combo':
     case 'list': {
-      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`. A separate widget gives its own `/I`; a widget that is the field's dictionary has the
-      // field's `/I` only when that dictionary holds it, not when it is inherited.
+      // PDF.js reads `/I` from the widget's own dictionary, not along `/Parent`. A separate
+      // widget gives its own `/I`; a widget that is the field's dictionary has the field's `/I`
+      // only when that dictionary holds it, not when it is inherited.
       const merged =
         field.objectNumber !== undefined &&
         first.objectNumber === field.objectNumber &&

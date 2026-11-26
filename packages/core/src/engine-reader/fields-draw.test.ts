@@ -98,6 +98,52 @@ describe('fieldPlaces', () => {
     expect(places.get('10R')![0]!.toggle).toEqual({ onState: 'B' })
   })
 
+  it('works out the toggles once per form, for every page, and each page gets its own', () => {
+    const box = widget(0, { appearanceStates: ['Off', 'Yes'], appearanceState: 'Off' })
+    const facts = form([
+      field('checkbox', [box]),
+      {
+        ...field('checkbox', [widget(1, { appearanceStates: ['Off', 'On'] })]),
+        name: 'other',
+        widgets: [
+          {
+            ...widget(1, { appearanceStates: ['Off', 'On'] }),
+            page: 1,
+            scripts: {},
+            onState: 'On',
+          },
+        ],
+      },
+    ])
+    let reads = 0
+    const counted = { ...facts }
+    Object.defineProperty(counted, 'fields', {
+      get: () => {
+        reads++
+        return facts.fields
+      },
+    })
+    const onPage = (page: number) =>
+      fieldPlaces(
+        page,
+        {
+          annotations: [widget(0, box), widget(1, { appearanceStates: ['Off', 'On'] })],
+          truncated: false,
+        },
+        counted
+      )
+    expect([...onPage(0)].map(([id, [p]]) => [id, p!.toggle])).toEqual([
+      ['10R', { onState: 'Yes' }],
+      ['11R', undefined],
+    ])
+    expect([...onPage(1)].map(([id, [p]]) => [id, p!.toggle])).toEqual([
+      ['10R', undefined],
+      ['11R', { onState: 'On' }],
+    ])
+    onPage(2)
+    expect(reads).toBe(1)
+  })
+
   it('keeps each place of a widget `/Annots` lists twice', () => {
     const w = widget(0)
     const places = fieldPlaces(

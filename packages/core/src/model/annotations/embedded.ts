@@ -57,7 +57,10 @@ function rectFromPdf(r: ArrayLike<number>): Rect {
   return rectFromPoints({ x: r[0]!, y: r[1]! }, { x: r[2]!, y: r[3]! })
 }
 
-/** A PDF name exactly as the reader gives it (names are case-sensitive), or undefined if invalid. */
+/**
+ * A PDF name exactly as the reader gives it (names are case-sensitive), or undefined if
+ * invalid.
+ */
 function pdfName(raw: string | undefined): string | undefined {
   return raw !== undefined && PDF_NAME.test(raw) ? raw : undefined
 }

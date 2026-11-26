@@ -1,5 +1,6 @@
-// Opening a file with PDF.js. The document loads this module only when PDF.js reads the file, so
-// a bundler leaves it, and PDF.js, out of what the engine's open path loads.
+// Opening a file with PDF.js. The document imports this module statically; PDF.js itself is
+// imported only when this module opens a file (`loadPdfjs`), so the engine's open path never
+// loads PDF.js.
 import { InkError } from '../model/errors'
 import { createPageCache, type PageCache } from '../model/page-cache'
 
