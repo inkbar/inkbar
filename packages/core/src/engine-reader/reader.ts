@@ -193,7 +193,7 @@ export async function createEngineReader(
       doc = await engine.open(await options.bytes(), passwordOption)
     } catch (error) {
       void quietly(() => engine.destroy())
-      throw isInkError(error) ? error : refused(error, options.password !== undefined)
+      throw isInkError(error) ? error : refused(error, options.password)
     }
     const s: Session = { engine, doc }
     if (typeof doc?.renderPage !== 'function' || typeof doc.pageInfo !== 'function') {
@@ -1214,16 +1214,18 @@ const unavailable = (cause: unknown): InkError =>
  * Why the engine refused to open the file, as PDF.js's open says it: a password it needs or that
  * is wrong, and otherwise a file it cannot read, with the engine's own code and message.
  */
-const refused = (cause: unknown, passwordSupplied: boolean): InkError => {
+const refused = (cause: unknown, password: string | undefined): InkError => {
   const code = codeOf(cause)
   if (code === 'password-required' || code === 'password-incorrect') {
-    const incorrect = code === 'password-incorrect'
+    // As PDF.js: an empty password is no password, so it asks for one rather than refusing it.
+    const incorrect =
+      code === 'password-incorrect' && password !== undefined && password !== ''
     return new InkError(
       'PasswordRequired',
       incorrect
         ? 'The password is incorrect'
         : 'This document is encrypted and needs a password',
-      { passwordSupplied, incorrect },
+      { passwordSupplied: password !== undefined, incorrect },
       cause
     )
   }

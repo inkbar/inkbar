@@ -2,6 +2,7 @@ import { refOfPdfjsId } from '../pdf/annotation-fields'
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects, type PdfObjects } from '../pdf/objects'
 import { assertAssets } from '../pdfjs/assets'
+import { openWithPdfjs as openPdfjs, type PdfjsOpened } from '../pdfjs/open'
 import { readerKind } from '../reader/select'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
@@ -75,7 +76,6 @@ import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type { TextContent } from './text'
 import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { PdfjsHandles } from '../pdfjs/handles'
-import type { PdfjsOpened } from '../pdfjs/open'
 import type { PdfjsReader } from '../pdfjs/reader'
 import type { PdfAssets } from '../pdfjs/types'
 import type { DocumentReader } from '../reader/types'
@@ -460,7 +460,16 @@ export async function openDocument(
   const openWithEngine = async (): Promise<EngineDocumentReader> => {
     const bytes = await resolved.bytes()
     fileBytes = bytes
-    const { createEngineReader } = await import('../engine-reader/reader')
+    const { createEngineReader } = await import('../engine-reader/reader').catch(
+      (cause: unknown) => {
+        throw new InkError(
+          'EngineUnavailable',
+          "The engine reader's module could not be loaded",
+          { cause },
+          cause
+        )
+      }
+    )
     // The engine copies the bytes it is given, so it is given core's copy each time.
     const opened = await createEngineReader({
       loader: options.engine!,
@@ -473,8 +482,7 @@ export async function openDocument(
 
   /** Loads PDF.js and opens the file in it. */
   const openWithPdfjs = async (): Promise<PdfjsReader> => {
-    const { openWithPdfjs: open } = await import('../pdfjs/open')
-    pdfjsOpened = await open({
+    pdfjsOpened = await openPdfjs({
       assets: options.assets,
       password: options.password,
       verbosity: options.verbosity,
@@ -623,6 +631,8 @@ export async function openDocument(
       status.set({ state: 'ready' })
     },
     (cause: unknown) => {
+      // A failed open keeps no copy of the file: a retry with a password opens the source again.
+      fileBytes = undefined
       const error = isInkError(cause)
         ? cause
         : new InkError('InvalidPdf', errorMessage(cause), {}, cause)
@@ -952,6 +962,13 @@ export async function openDocument(
   const abortError = (signal: AbortSignal | undefined): unknown =>
     signal?.reason ?? new DOMException('Aborted', 'AbortError')
   const searchableFor = (page: number, placed: boolean): Promise<SearchableText> => {
+    // Once the engine is gone for good no page answers, so no kept page does either: a search
+    // rejects rather than finding hits in some pages and failing on the others.
+    const gone = engineOpened?.unavailable()
+    if (gone) {
+      searchable.clear()
+      return Promise.reject(gone)
+    }
     let cached = searchable.get(page)
     if (!cached) {
       cached = pageContent(page, placed).then((c) => ({ st: searchableText(c), placed }))

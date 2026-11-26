@@ -19,6 +19,8 @@
 // Inline styles are structural or geometric: the layer is `position:absolute; inset:0;
 // overflow:hidden` over the page, and each canvas is placed at its widget's rect.
 
+import { isInkError } from '../model/errors'
+
 import { watchDevicePixelRatio } from './dpr-watch'
 
 import type { PageTransform } from './transform'
@@ -446,11 +448,13 @@ export function createWidgetAppearances(
   }
 
   const fail = (pass: Pass, error: unknown) => {
+    // No engine can draw for this document any more: a retry would fail the same way.
+    const final = isInkError(error) && error.code === 'EngineUnavailable'
     for (const { item } of pass.members) {
       const slot = slotOf(item, pass.look)
       if (slot.failedKey !== pass.key) slot.failures = 0
       slot.failedKey = pass.key
-      slot.failures++
+      slot.failures = final ? ATTEMPTS : slot.failures + 1
     }
     if (pass.shown) failed = true
     // Try once more; a look that keeps failing waits for a new geometry. Only a failure that

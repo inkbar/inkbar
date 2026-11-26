@@ -1,6 +1,6 @@
-// With the engine reading the file, PDF.js is never loaded: no request for its module or worker,
-// and core's own PDF.js open path is never evaluated. Only a document with scripts loads the kept
-// scripting sandbox. Runs in the `browser-engine` project, whose setup file turns the switch on
+// With the engine reading the file, PDF.js is never loaded: `loadPdfjs` is never called, PDF.js's
+// module is never evaluated, and no request for its module, worker or assets is made. Only a
+// document with scripts loads the kept scripting sandbox. Runs in the `browser-engine` project, whose setup file turns the switch on
 // and passes every document the engine.
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,15 +12,21 @@ import { createViewer } from './viewer/create-viewer'
 
 import type { InkDocument } from '../model/document'
 
-/** Which of core's PDF.js modules were evaluated: none, while only the engine reads files. */
-const evaluated = vi.hoisted(() => ({ load: false, open: false }))
-vi.mock(import('../pdfjs/load'), async (original) => {
-  evaluated.load = true
+/** Whether PDF.js's module was evaluated, and how often core asked to load it. */
+const pdfjsUse = vi.hoisted(() => ({ evaluated: false, loads: 0 }))
+vi.mock('#pdfjs', async (original) => {
+  pdfjsUse.evaluated = true
   return original()
 })
-vi.mock(import('../pdfjs/open'), async (original) => {
-  evaluated.open = true
-  return original()
+vi.mock(import('../pdfjs/load'), async (original) => {
+  const real = await original()
+  return {
+    ...real,
+    loadPdfjs: (...args: Parameters<typeof real.loadPdfjs>) => {
+      pdfjsUse.loads++
+      return real.loadPdfjs(...args)
+    },
+  }
 })
 
 let cleanup: (() => void)[] = []
@@ -29,7 +35,11 @@ afterEach(() => {
   cleanup = []
 })
 
-/** The URLs the page requests while `work` runs, from Resource Timing. */
+/**
+ * The URLs the page requests while `work` runs, from Resource Timing. A module cannot be imported
+ * without an entry here: Resource Timing lists a response from the HTTP cache too, and each test
+ * file runs in a page of its own, whose module map starts empty.
+ */
 async function requestsDuring(work: () => Promise<void>): Promise<string[]> {
   const urls: string[] = []
   const observer = new PerformanceObserver((list) => {
@@ -99,7 +109,7 @@ describe('with the engine reading the file', () => {
     // The page's own requests were seen: the fixture, and the engine's worker.
     expect(urls.some((url) => url.includes('form-fields.pdf'))).toBe(true)
     expect(urls.filter(isPdfjs)).toEqual([])
-    expect(evaluated).toEqual({ load: false, open: false })
+    expect(pdfjsUse).toEqual({ evaluated: false, loads: 0 })
   })
 
   it('loads the scripting sandbox, and nothing else of PDF.js, for a form with scripts', async () => {
@@ -113,6 +123,19 @@ describe('with the engine reading the file', () => {
     const pdfjs = urls.filter(isPdfjs)
     expect(pdfjs.length).toBeGreaterThan(0)
     expect(pdfjs.filter((url) => !isSandbox(url))).toEqual([])
-    expect(evaluated).toEqual({ load: false, open: false })
+    expect(pdfjsUse).toEqual({ evaluated: false, loads: 0 })
+  })
+
+  // Control, last as it loads PDF.js into the page: with the switch off the same watch sees it.
+  it('sees PDF.js load when PDF.js reads the file', async () => {
+    const flag = globalThis as { __INKBAR_READER__?: unknown }
+    delete flag.__INKBAR_READER__
+    let doc!: InkDocument
+    const urls = await requestsDuring(async () => {
+      doc = await view('text-simple')
+    })
+    expect(doc._reader.kind).toBe('pdfjs')
+    expect(pdfjsUse).toEqual({ evaluated: true, loads: 1 })
+    expect(urls.filter(isPdfjs)).not.toEqual([])
   })
 })

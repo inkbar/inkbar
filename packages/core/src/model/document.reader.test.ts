@@ -134,6 +134,27 @@ function trapsOnNextCall() {
   }
 }
 
+describe('form fields', () => {
+  it("with the switch on, a button's GoTo destinations go to the same pages as with it off", async () => {
+    const fieldsOf = async () => {
+      const doc = await openDocument(await fixtureBytes('form-goto'), {
+        assets: nodeAssets(),
+        engine: () => import('@inkbar/engine'),
+      })
+      await doc.ready
+      const out = { kind: doc._reader.kind, fields: doc.form.fields.get() }
+      doc.destroy()
+      return out
+    }
+    const off = await fieldsOf()
+    flag.__INKBAR_READER__ = 'engine'
+    const on = await fieldsOf()
+    expect([off.kind, on.kind]).toEqual(['pdfjs', 'engine'])
+    expect(off.fields.length).toBeGreaterThan(0)
+    expect(on.fields).toEqual(off.fields)
+  })
+})
+
 describe('lookups that fail', () => {
   it('a destination lookup PDF.js cannot do is an answer: asked once, for nothing', async () => {
     const doc = await openDocument(await fixtureBytes('outline'), {
@@ -195,6 +216,9 @@ describe('an engine that stops and cannot be started again', () => {
     await doc.ready
     const openLinks = doc.links(0)
     expect(openLinks.length).toBeGreaterThan(0)
+    // Page 1's text is kept for search before the engine stops.
+    const word = (await doc.pageText(1)).split(/\s+/u).find((w) => w.length > 3)!
+    expect(await doc.search(word, { pages: [1] }).all()).not.toEqual([])
     trap()
     const unavailable = { code: 'EngineUnavailable' }
     // Both asked before the engine is found stopped.
@@ -212,6 +236,12 @@ describe('an engine that stops and cannot be started again', () => {
     // What the document read at open stays.
     expect(doc.links(0)).toBe(openLinks)
     await expect(doc.getData()).resolves.toEqual(bytes)
+    // A search finds nothing in the kept pages alone: it rejects as the reads do.
+    await expect(doc.search(word, { pages: [1] }).all()).rejects.toMatchObject(
+      unavailable
+    )
+    // A save with no changes needs no engine: it gives the file's bytes.
+    await expect(doc.save()).resolves.toEqual(bytes)
     const added = doc.annotations.add({
       type: 'square',
       page: 0,

@@ -551,6 +551,11 @@ describe('opening', () => {
       code: 'PasswordRequired',
       details: { passwordSupplied: true, incorrect: true },
     })
+    // An empty password is no password, as with PDF.js: the file still asks for one.
+    expect(await refusedWith(engineError('password-incorrect'), '')).toMatchObject({
+      code: 'PasswordRequired',
+      details: { passwordSupplied: true, incorrect: false },
+    })
   })
 
   it('rejects with EngineUnavailable when the document cannot render, and frees it once', async () => {
@@ -1700,6 +1705,22 @@ describe('an engine that cannot start', () => {
       code: 'DocumentDestroyed',
     })
     await expect(reader.outline()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+  })
+
+  it('a call waiting on a replacement still starting at destroy rejects with DocumentDestroyed', async () => {
+    const t = setup({ pageCount: 2 })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const starting = deferred<never>()
+    t.createEngine.mockImplementation(() => starting.promise)
+    // The first engine stops, and page 1's facts wait on its replacement.
+    t.states[0]!.stopped = true
+    const asking = reader.pageInfo(1)
+    await vi.waitFor(() => expect(t.createEngine).toHaveBeenCalledTimes(2))
+    void reader.destroy()
+    starting.reject(new Error('no wasm'))
+    await expect(asking).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    expect(reader.unavailable()).toBeUndefined()
   })
 
   it('drops the text it kept', async () => {

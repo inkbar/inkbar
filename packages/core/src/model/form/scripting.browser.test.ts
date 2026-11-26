@@ -14,7 +14,7 @@ import { createFormScripting } from './scripting'
 
 import type { ViewerAction, FormField, FormFieldType } from './types'
 import type { PdfjsDocument } from '../../pdfjs/types'
-import type { InkDocument } from '../document'
+import type { EngineLoader, InkDocument } from '../document'
 import type { InkError } from '../errors'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
@@ -690,8 +690,42 @@ describe('fix round', () => {
           )
         : undefined
     const load = vi.spyOn(sandboxLoader, 'load')
-    await open('text-simple')
+    // The engine's script and form reads, when the engine reads the file.
+    const asked: string[] = []
+    const noting: EngineLoader = async () => {
+      const real = await import('@inkbar/engine')
+      return {
+        createEngine: async () => {
+          const engine = await real.createEngine()
+          const opening = engine.open.bind(engine)
+          engine.open = async (...args) => {
+            const doc = await opening(...args)
+            const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
+            for (const name of ['scripts', 'formFields']) {
+              const read = methods[name]!.bind(doc)
+              methods[name] = (...a) => {
+                asked.push(name)
+                return read(...a)
+              }
+            }
+            return doc
+          }
+          return engine
+        },
+      }
+    }
+    const plain = await openFixtureInBrowser('text-simple', { engine: noting })
+    cleanup.push(() => plain.destroy())
     if (getFieldObjects) expect(getFieldObjects).not.toHaveBeenCalled()
+    if (readerKind() === 'engine') {
+      expect(plain._reader.kind).toBe('engine')
+      expect(asked).toEqual([])
+      // Control: the same loader notes the reads of a file with fields and scripts.
+      const scripted = await openFixtureInBrowser('form-scripted', { engine: noting })
+      cleanup.push(() => scripted.destroy())
+      expect(asked).toContain('scripts')
+      load.mockClear()
+    }
     await open('form-fields')
     expect(load).not.toHaveBeenCalled()
   })

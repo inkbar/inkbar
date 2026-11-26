@@ -109,6 +109,12 @@ describe('opening with the engine', () => {
           isEncrypted: true,
           incorrect: true,
         })
+        // An empty password is no password: the file still asks for one.
+        expect(await outcome(kind, bytes, ''), kind).toEqual({
+          code: 'PasswordRequired',
+          isEncrypted: true,
+          incorrect: false,
+        })
       }
     }
   )
