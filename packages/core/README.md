@@ -155,6 +155,7 @@ Options:
 - `onBuild(viewport, tools)` fires after every build, the first one included, before `mountViewer` returns. Subscribe to the new viewport and tool controller here.
 - `onPageMount(page, mount, host)` and `onPageUnmount(page)` fire as pages enter and leave the mounted range.
 - `onPageError(page, error)` reports a page whose canvas or text layer failed, and `onPageError(page, null)` once every failed layer renders again. Unmounting a failed page emits no `null`, so clear any per-page error in `onPageUnmount`.
+- `onError(error)` hears `EngineUnavailable` once each time the document stops (see [When the engine stops](#when-the-engine-stops)).
 
 To open your own card next to an annotation, use `createPopover`: it anchors a panel to the annotation's element, follows it as pages mount and unmount, and calls your `onDismiss` on Escape or a press outside. `placePanel` positions a panel against any other rectangle.
 

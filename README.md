@@ -223,7 +223,7 @@ pnpm test:browser                                        # component and end-to-
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
 
-PDF.js is imported only under `packages/core/src/pdfjs/`, which holds the sandbox that runs a form's scripts and a second reader that tests use to check the files Inkbar writes. The engine's tests also read the files it writes with PDF.js. PDFium is used only in `packages/engine`. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
+PDF.js is imported only under `packages/core/src/pdfjs/`, which holds the sandbox that runs a form's scripts and a second reader that tests use to check the files Inkbar writes. The engine's tests and the fixtures' tests also read files with PDF.js. PDFium is used only in `packages/engine`. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
 
 ### Contributing
 
