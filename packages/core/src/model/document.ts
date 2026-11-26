@@ -405,7 +405,10 @@ export async function openDocument(
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
   let preserved: ForeignAnnotation[] = []
-  /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
+  /**
+   * Embedded annotations whose data from the reader lacks fields the file holds; read after
+   * `ready`.
+   */
   const targets: EmbeddedTarget[] = []
   /** The file's form fields and what was read for them from its objects, filled before `ready`. */
   const formData: {
@@ -638,10 +641,10 @@ export async function openDocument(
   // Signature fields and the annotations that sign them change together from here.
   form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 
-  // Fills in fields PDF.js leaves out, and lifts the annotations Inkbar saved and other
-  // programs' redaction marks, read from the file's own bytes. It runs after `ready` so it
-  // never delays it, and a failure leaves the annotations as PDF.js imported them. Both read
-  // one copy of the file's objects.
+  // Fills in fields the reader leaves out of the file's annotations, and lifts the annotations
+  // Inkbar saved and other programs' redaction marks, read from the file's own bytes. It runs
+  // after `ready` so it never delays it, and a failure leaves the annotations as the open
+  // imported them. Both read one copy of the file's objects.
   const liftSettled = ready.then(
     async () => {
       if (destroyed || !reader) return
@@ -993,7 +996,10 @@ export async function openDocument(
     }
   }
 
-  /** The engine reader, once the document it read is ready. */
+  /**
+   * The engine reader, once the document it read is ready. A document whose open failed has
+   * none: it is never stopped, and `restartEngine` does nothing for it.
+   */
   const readsWithEngine = status.get().state === 'ready' ? reader : undefined
   const engineStopped: Readable<boolean> =
     readsWithEngine?.engineStopped ?? readonly(writable(false))

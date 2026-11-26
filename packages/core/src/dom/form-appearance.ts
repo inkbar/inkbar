@@ -2,11 +2,11 @@
 // own.
 //
 // The page canvas leaves form widgets out, and this layer draws their appearances apart from
-// it, on the page canvas's pixel grid, so together they look as PDF.js draws the whole page.
+// it, on the page canvas's pixel grid, so together they look as the engine draws the whole page.
 // The widgets are drawn in batched passes: one render per look (the widgets' own appearances, a
 // toggle's checked ones, its unchecked ones) into a scratch canvas over their rects, which is
 // then cut into one canvas per widget. Widgets whose rects overlap go in a pass of their own,
-// so none picks up another's pixels; touching ones share a pass, as PDF.js clips each
+// so none picks up another's pixels; touching ones share a pass, as the engine clips each
 // appearance to its rect. Each widget's canvas has the parts of its neighbours' rects that its
 // padding reaches cleared, except the one pixel row or column that two touching rects share:
 // that row holds both widgets' edges, so it stays in both canvases, drawn twice, and a sliver
@@ -39,8 +39,8 @@ export interface AppearanceWidget {
   /** A checkbox or radio, with an on and an off appearance. */
   toggle: boolean
   /**
-   * The looks PDF.js should have a run for, by the file's appearance states: shown in the file
-   * and with an appearance stream for the look. A pass that finds none of the widgets that
+   * The looks the engine should draw a pass for, by the file's appearance states: shown in the
+   * file and with an appearance stream for the look. A pass that finds none of the widgets that
    * expect its look reports an error.
    */
   expects: ReadonlySet<FieldLook>

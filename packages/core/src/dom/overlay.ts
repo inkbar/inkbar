@@ -423,7 +423,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       a,
       canvas ? 'could not get a hit area' : 'was left undrawn',
       () => {
-        // Annotations PDF.js already painted on the canvas get only an invisible hit area.
+        // Annotations the page canvas already shows (the file's own, which the engine draws)
+        // get only an invisible hit area.
         if (canvas) renderHitArea(node, a, transform)
         else renderAnnotationContent(node, a, transform)
         // A loupe the canvas still paints renders its lens out of sight meanwhile, so that

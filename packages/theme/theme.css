@@ -255,9 +255,9 @@
 
   /*
    * Text layer: the .textLayer rules from pdfjs-dist 6.4.299 web/pdf_viewer.css, renamed to
-   * .ink-text-layer. PDF.js sizes the layer from --total-scale-factor (set on the page) and
-   * --scale-round-x/y, writes --font-height, --scale-x and --rotate on each span and
-   * data-main-rotation on the layer. These rules turn those into the final layout.
+   * .ink-text-layer. Core sets the variables those rules read: the viewport puts
+   * --total-scale-factor on the page, and the text layer gives each span --font-height, --scale-x
+   * and --rotate. These rules turn those into the final layout.
    */
   :where(.ink-text-layer) {
     --scale-round-x: 1px;

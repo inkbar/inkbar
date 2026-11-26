@@ -30,10 +30,10 @@ export function safeAddress(address: string): string | undefined {
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i
 
 /**
- * Why an address from a link or outline item that `safeUrl` refused is not followed, told as core told
- * it with PDF.js. PDF.js reads a GoToR's file and destination into `file#dest`, and a
- * Launch's file as a bare name, so those two are told apart by the `#`; a scheme `safeUrl`
- * refuses (`javascript:`, `file:`, `data:`) is unsafe whatever follows it.
+ * Why an address from a link or outline item that `safeUrl` refused is not followed, told as core
+ * told it with PDF.js. PDF.js reads a GoToR's file and destination into `file#dest`, and a Launch's
+ * file as a bare name, so those two are told apart by the `#`; a scheme `safeUrl` refuses
+ * (`javascript:`, `file:`, `data:`) is unsafe whatever follows it.
  */
 export function unsafeUrlReason(unsafeUrl: string): 'remote' | 'launch' | 'unsafe-url' {
   if (HAS_SCHEME.test(unsafeUrl)) return 'unsafe-url'

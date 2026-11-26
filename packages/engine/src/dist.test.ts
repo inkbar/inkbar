@@ -169,7 +169,7 @@ test('the package is published with the wasm, the worker, the types and the noti
       'dist/engine-HASH.mjs',
       'dist/index.d.mts',
       'dist/public-HASH.d.mts',
-      // The PDFium glue is bundled into both entry points.
+      // The index and bare entries share engine-HASH.mjs, which holds the PDFium glue.
       'dist/index.mjs',
       'dist/inkbar-pdfium.wasm',
       'dist/worker.d.mts',

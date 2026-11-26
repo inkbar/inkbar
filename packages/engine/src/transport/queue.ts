@@ -12,11 +12,13 @@ interface Job {
 
 /**
  * Runs jobs one at a time, in the order they were queued, except that a job queued as
- * `background` waits for every other waiting job: the next job starts only once the
- * running one has settled, even when that one waits on the event loop between steps, as a sliced
- * render does. A running job is never interrupted, background or not. A queued job can be aborted and never runs. The queue stops listening to a job's
- * signal when the job starts; stopping a running job is the transport's part. Shared by every
- * transport so they all queue and abort the same way.
+ * `background` waits behind every other waiting job. The next job starts only once the running
+ * one has settled, even when that one waits on the event loop between steps, as a sliced render
+ * does. A running job is never interrupted, background or not.
+ *
+ * A queued job can be aborted and then never runs. The queue stops listening to a job's signal
+ * when the job starts; stopping a running job is the transport's part. Shared by every transport,
+ * so they all queue and abort the same way.
  */
 export class CallQueue {
   readonly #jobs: Job[] = []
