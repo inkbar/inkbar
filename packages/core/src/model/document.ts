@@ -623,6 +623,9 @@ export async function openDocument(
       )
       return undefined
     })
+    // What the scripts read of the form to start is not held after the open either. With
+    // PDF.js, whose scripts read nothing the reader keeps, there is nothing left to let go.
+    opening.forgetAnnotations()
     if (scripting) form._attachScripting(scripting)
   })()
 
@@ -743,8 +746,8 @@ export async function openDocument(
   const saver: Saver | undefined = options.engine
     ? createSaver({
         loader: options.engine,
-        // The engine copies the bytes it is given: core's own copy is handed over as it is.
-        bytes: () => (fileBytes ? Promise.resolve(fileBytes) : fileData()),
+        // A copy each time: core goes on reading its own bytes, whatever an engine does with these.
+        bytes: fileData,
         password: options.password,
       })
     : undefined
@@ -1125,8 +1128,9 @@ export async function openDocument(
       if (!reader || !baseline) throw statusError(status.get())
       const now = snapshot()
       if (!hasChanges(now, baseline)) return fileData()
-      // An engine reader whose engine stopped and could not be started again: a save needs an
-      // engine, and fails as every read does.
+      // An engine reader whose engine stopped and could not be started again. A save fails only
+      // when there are bytes to write: with no changes it has already returned the opened bytes
+      // above, which needs no engine. With changes it needs one, and fails as every read does.
       const gone = engineOpened?.unavailable()
       if (gone) throw gone
       if (!saver)

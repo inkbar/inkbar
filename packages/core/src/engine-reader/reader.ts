@@ -89,7 +89,11 @@ export interface EngineDocumentReader extends DocumentReader {
    * `p1`, in points, as `textFamilies` gives families: `NaN` for a vertical item.
    */
   textBaselines(page: number, signal?: AbortSignal): Promise<readonly number[]>
-  /** Stops keeping each page's annotations: the open has read every page. Later reads ask again. */
+  /**
+   * Stops keeping each page's annotations, the form's facts and the scripts worked out from them:
+   * the open has read what it needs. Later reads ask again. The open calls it once it has read
+   * every page and again once the form's scripts have started.
+   */
   forgetAnnotations(): void
   /**
    * The `EngineUnavailable` error every call rejects with once an engine started to replace one
@@ -210,7 +214,10 @@ export async function createEngineReader(
 
   const first = await start()
   const pageCount = first.doc.pageCount
-  /** The session in use, or starting; undefined once a stopped one is dropped or one failed to start. */
+  /**
+   * The session in use, or starting; undefined once a stopped one is dropped or one failed to
+   * start.
+   */
   let current: Promise<Session> | undefined = Promise.resolve(first)
   /**
    * Set when an engine started to replace a stopped one fails to start. The reader then starts
@@ -362,7 +369,14 @@ export async function createEngineReader(
   const pageInfo = async (index: number): Promise<PageInfo> => {
     if (destroyed) throw destroyedError()
     checkPage(index)
-    return onEngine(() => enginePageInfo(index))
+    let info: PageInfo
+    try {
+      info = await onEngine(() => enginePageInfo(index))
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+    if (destroyed) throw destroyedError()
+    return info
   }
   const enginePageInfo = async (index: number): Promise<PageInfo> => {
     let asked = facts.get(index)
@@ -403,7 +417,8 @@ export async function createEngineReader(
     if (cutPages.has(page)) return
     cutPages.add(page)
     warn(
-      `Inkbar: page ${page + 1} has more text than can be read; its text is read up to the first 1,000,000 characters.`
+      `Inkbar: page ${page + 1} has more text than can be read; ` +
+        'its text is read up to the first 1,000,000 characters.'
     )
   }
 
@@ -848,9 +863,9 @@ export async function createEngineReader(
   }
 
   /**
-   * The form's facts, read once and kept: each page's annotations and the fields take what the
-   * form says about widgets, and the file does not change under the reader. A failed read is not
-   * kept.
+   * The form's facts, read once and kept until `forgetAnnotations`: each page's annotations and
+   * the fields take what the form says about widgets, and the file does not change under the
+   * reader. A failed read is not kept.
    */
   let formRead: Promise<FormFactsShape> | undefined
   /** What the form tells each page's widgets, worked out once from the kept facts. */
@@ -945,16 +960,20 @@ export async function createEngineReader(
    */
   const pageReads = new Map<number, Promise<FileAnnotation[]>>()
   /**
-   * A page's annotations from the engine. A page whose annotations a working engine cannot read
-   * has none, as a page whose annotations PDF.js cannot parse has none with the PDF.js reader.
+   * A page's annotations from the engine, not kept. A page whose annotations a working engine
+   * cannot read has none, as a page whose annotations PDF.js cannot parse has none with the
+   * PDF.js reader.
    */
+  const readPage = (page: number): Promise<FileAnnotation[]> =>
+    orElse(
+      (onGone) => engineAnnotations(page, onGone),
+      (): FileAnnotation[] => []
+    )
+  /** A page's annotations from the engine, kept until `forgetAnnotations`. */
   const pageAnnotations = (page: number): Promise<FileAnnotation[]> => {
     let read = pageReads.get(page)
     if (!read) {
-      const made = orElse(
-        (onGone) => engineAnnotations(page, onGone),
-        (): FileAnnotation[] => []
-      )
+      const made = readPage(page)
       pageReads.set(page, made)
       made.catch(() => {
         if (pageReads.get(page) === made) pageReads.delete(page)
@@ -982,20 +1001,23 @@ export async function createEngineReader(
    * The form's fields. A form refused for its size has none; PDF.js would read its fields. When
    * a working engine cannot read the form there are none, as when PDF.js cannot read a page's
    * annotations; a page whose annotations it cannot read lists none, so its widgets are left out.
+   * `listed` gives each page's annotations.
    */
-  const engineForm = (): Promise<FileField[]> =>
+  const engineForm = (
+    listed: (page: number) => Promise<FileAnnotation[]>
+  ): Promise<FileField[]> =>
     orElse(
       async (onGone) => {
         const facts = await formFacts(onGone)
         if (facts.tooLarge) return []
-        return fileFieldsFromEngine(facts, pageAnnotations)
+        return fileFieldsFromEngine(facts, listed)
       },
       (): FileField[] => []
     )
   const form = async (): Promise<FileField[]> => {
     if (destroyed) throw destroyedError()
     try {
-      const fields = await onEngine(engineForm)
+      const fields = await onEngine(() => engineForm(pageAnnotations))
       if (destroyed) throw destroyedError()
       return fields
     } catch (error) {
@@ -1091,6 +1113,22 @@ export async function createEngineReader(
     return fileScriptsFromEngine(facts, form?.tooLarge ? undefined : form)
   }
 
+  /**
+   * `engineScripts`, worked out once for `scripts` and `sandboxFields`, which the open's scripts
+   * ask for one after the other, and kept until `forgetAnnotations`. A failed read is not kept.
+   */
+  let scriptsShare: ReturnType<typeof engineScripts> | undefined
+  const sharedScripts = (): ReturnType<typeof engineScripts> => {
+    if (!scriptsShare) {
+      const made = engineScripts()
+      scriptsShare = made
+      made.catch(() => {
+        if (scriptsShare === made) scriptsShare = undefined
+      })
+    }
+    return scriptsShare
+  }
+
   /** `work` on the engine, as the reader's own call. */
   const ownCall = async <T>(work: () => Promise<T>): Promise<T> => {
     if (destroyed) throw destroyedError()
@@ -1110,7 +1148,7 @@ export async function createEngineReader(
    */
   const scripts = (): Promise<FileScripts | undefined> =>
     ownCall(async () => {
-      const { scripts: found, hasScripts } = await engineScripts()
+      const { scripts: found, hasScripts } = await sharedScripts()
       return hasScripts ? structuredClone(found) : undefined
     })
 
@@ -1121,12 +1159,15 @@ export async function createEngineReader(
       return pageScriptsFromEngine(await scriptFacts(), page)
     })
 
-  /** The sandbox's field objects, built from the engine's form and the fields `/Fields` reaches. */
+  /**
+   * The sandbox's field objects, built from the engine's form and the fields `/Fields` reaches.
+   * The page reads it makes are not kept: the open has let its own go before the scripts start.
+   */
   const sandboxFields = (): Promise<Map<string, unknown[]> | null> =>
     ownCall(async () => {
       const [{ scripts: found }, fields] = await Promise.all([
-        engineScripts(),
-        engineForm(),
+        sharedScripts(),
+        engineForm((page) => pageReads.get(page) ?? readPage(page)),
       ])
       return sandboxFieldObjects(fields, found)
     })
@@ -1160,7 +1201,12 @@ export async function createEngineReader(
     annotations,
     form,
     tabOrder,
-    forgetAnnotations: () => pageReads.clear(),
+    forgetAnnotations() {
+      pageReads.clear()
+      formRead = undefined
+      contexts = undefined
+      scriptsShare = undefined
+    },
     scripts,
     pageScripts,
     sandboxFields,
@@ -1175,6 +1221,7 @@ export async function createEngineReader(
       named.clear()
       formRead = undefined
       scriptRead = undefined
+      scriptsShare = undefined
       contexts = undefined
       pageReads.clear()
       fieldReads.clear()

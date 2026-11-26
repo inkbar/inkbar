@@ -295,7 +295,10 @@ export interface DocumentFacts {
  * character per byte of the name, U+0000 to U+00FF.
  */
 export interface AppearanceFacts {
-  /** `/Rect`'s first four entries as written, corners not put in order. `null` when it is not a list. */
+  /**
+   * `/Rect`'s first four entries as written, corners not put in order. `null` when it is not a
+   * list.
+   */
   rect: (number | null)[] | null
   /** Whether `/Rect` is exactly four finite numbers. */
   rectOk: boolean
@@ -308,7 +311,10 @@ export interface AppearanceFacts {
   hasAppearance: boolean
   /** How `/AP /N` is written: one stream, or a dictionary of states. Absent when it is neither. */
   appearance?: 'stream' | 'states'
-  /** The names of the states of `/AP /N`, in byte order; empty unless it is a dictionary of states. */
+  /**
+   * The names of the states of `/AP /N`, in byte order; empty unless it is a dictionary of
+   * states.
+   */
   appearanceStates: string[]
   /** `/AS`, when it is a name. */
   appearanceState?: string
@@ -441,7 +447,10 @@ export interface WidgetFacts extends AppearanceFacts {
   generation?: number
   /** A checkbox's or radio's on-state: the first state of `/AP /N` that is not `Off`. */
   onState?: string
-  /** A checkbox's or radio's export value: its `/Opt` entry when the field has `/Opt`, else `onState`. */
+  /**
+   * A checkbox's or radio's export value: its `/Opt` entry when the field has `/Opt`, else
+   * `onState`.
+   */
   exportValue?: string
   /** `/MK /BC`, any number of components. */
   borderColor?: (number | null)[]
@@ -479,7 +488,10 @@ export interface WidgetFacts extends AppearanceFacts {
    */
   scripts: Record<string, string[]>
   action?: FieldAction
-  /** Present, and true, when this entry was cut: a string or script past its cap, or the report spent. */
+  /**
+   * Present, and true, when this entry was cut: a string or script past its cap, or the report
+   * spent.
+   */
   truncated?: true
 }
 
@@ -804,7 +816,10 @@ export interface ScriptFacts {
   document: DocumentScript[]
   /** The catalog's `/OpenAction`, when it holds JavaScript, and `/AA`, by key. */
   documentActions: Record<string, string[]>
-  /** Each page whose `/AA` holds JavaScript, in page order, with its sources by key. */
+  /**
+   * Each page whose `/AA` holds JavaScript, with its sources by key. Pages are in ascending order,
+   * each listed once.
+   */
   pageActions: { page: number; scripts: Record<string, string[]> }[]
   /**
    * The report was cut short: a source past 4 MB, a name tree past 1,000 levels or 50,000 names,

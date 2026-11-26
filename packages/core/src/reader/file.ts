@@ -51,7 +51,10 @@ export interface FileAnnotation {
 
 /** @internal What a widget's actions hold, as the file says it. */
 export interface FileWidgetActions {
-  /** JavaScript sources by event name (`Action`, `Keystroke`, `Format`, `Validate`, `Calculate`, …). */
+  /**
+   * JavaScript sources by event name (`Action`, `Keystroke`, `Format`, `Validate`, `Calculate`,
+   * …).
+   */
   scripts?: Record<string, string[]>
   /**
    * Present, and true, when the widget's one date or time Keystroke script is given after its one
@@ -149,7 +152,10 @@ export interface FileScripts {
   calculationOrderIds: string[]
   /** Document-level scripts (the `/Names /JavaScript` tree) in name order. */
   document: { name: string; source: string }[]
-  /** Document actions by event: `OpenAction`, `WillClose`, `WillSave`, `DidSave`, `WillPrint`, `DidPrint`. */
+  /**
+   * Document actions by event: `OpenAction`, `WillClose`, `WillSave`, `DidSave`, `WillPrint`,
+   * `DidPrint`.
+   */
   documentActions: Record<string, string[]>
   /**
    * The dictionaries a walk of `/AcroForm /Fields` reaches that PDF.js gives the sandbox an object

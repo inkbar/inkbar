@@ -255,12 +255,12 @@ export interface Engine {
     options?: CheckRedactionOptions
   ): Promise<RedactionFindings>
   /**
-   * Rejects queued calls with `aborted`, stops a running render, and a `pageText`, `write` or
-   * `redact` waiting on a fallback font, each of which rejects with `aborted`, then closes every
-   * document and frees the engine. Any other running call is waited for: in a worker for up to
-   * two seconds, then the worker is terminated and the call rejects with `aborted`; in the calling
-   * thread until it finishes. Later calls reject with `engine-failure`; a later `destroy()` or
-   * document `close()` resolves.
+   * Rejects queued calls with `aborted`, stops a running page render or annotation render, and a
+   * `pageText`, `write` or `redact` waiting on a fallback font, each of which rejects with
+   * `aborted`, then closes every document and frees the engine. Any other running call is
+   * waited for: in a worker for up to two seconds, then the worker is terminated and the call
+   * rejects with `aborted`; in the calling thread until it finishes. Later calls reject with
+   * `engine-failure`; a later `destroy()` or document `close()` resolves.
    */
   destroy(): Promise<void>
 }

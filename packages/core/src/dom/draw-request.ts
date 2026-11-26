@@ -8,7 +8,10 @@ import type { Rect } from '../model/geometry'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { HiddenAppearance } from '../reader/types'
 
-/** An id the engine reader gives an annotation written as a direct object: page, place in `/Annots`. */
+/**
+ * An id the engine reader gives an annotation written as a direct object: page, place in
+ * `/Annots`.
+ */
 const DIRECT_ID = /^p(\d+)i(\d+)$/
 
 /**

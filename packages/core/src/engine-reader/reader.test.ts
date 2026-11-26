@@ -922,6 +922,28 @@ describe('destroy', () => {
     expect([raw.width, raw.height]).toEqual([300, 150])
   })
 
+  it('rejects a page-facts read running at destroy with DocumentDestroyed', async () => {
+    const t = setup({ pageCount: 2 })
+    const reader = await t.open()
+    const first = t.engines[0]!
+    const held = deferred<void>()
+    const original = first.doc.pageInfo.getMockImplementation()!
+    // Page 1's facts are held until the engine is destroyed, then rejected as the engine does.
+    first.doc.pageInfo.mockImplementation((index: number) =>
+      index === 1
+        ? held.promise.then(() => Promise.reject(engineError('aborted')))
+        : original(index)
+    )
+    first.destroy.mockImplementation(() => {
+      held.resolve()
+      return Promise.resolve()
+    })
+    const asking = reader.pageInfo(1)
+    await vi.waitFor(() => expect(first.doc.pageInfo).toHaveBeenCalledWith(1))
+    await reader.destroy()
+    await expect(asking).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+  })
+
   it('a draw after destroy rejects at once', async () => {
     const t = setup()
     const reader = await t.open()
@@ -2102,6 +2124,65 @@ describe("the file's facts, annotations, form and Tab order", () => {
     })
   })
 
+  it("keeps nothing the sandbox's fields read after forgetAnnotations, and shares one read of the scripts and form with them", async () => {
+    const field = textField(1)
+    const { t, reader } = await opened({
+      formFields: () =>
+        Promise.resolve({
+          ...formWithText(),
+          fields: [
+            {
+              ...field,
+              objectNumber: 20,
+              generation: 0,
+              widgets: [{ ...field.widgets[0]!, scripts: { K: ['event.rc = true'] } }],
+            },
+          ],
+          fieldsRoot: [
+            {
+              ref: { objectNumber: 20, generation: 0 },
+              dictionary: true,
+              hasKids: false,
+              partialName: 'name',
+            },
+          ],
+        }),
+      scripts: () =>
+        Promise.resolve({
+          document: [{ name: 'init', source: 'var ready = true' }],
+          documentActions: {},
+          pageActions: [],
+          truncated: false,
+        }),
+    })
+    const doc = t.engines[0]!.doc
+    // As the open reads them, then lets them go.
+    await reader.annotations(0)
+    await reader.annotations(1)
+    await reader.form()
+    reader.forgetAnnotations()
+    expect(doc.pageAnnotations).toHaveBeenCalledTimes(2)
+    expect(doc.formFields).toHaveBeenCalledTimes(1)
+    // As the scripts start: the form is read once for both, the scripts once.
+    await expect(reader.scripts()).resolves.toMatchObject({ fields: [{ name: 'name' }] })
+    await expect(reader.sandboxFields()).resolves.toBeInstanceOf(Map)
+    expect(doc.scripts).toHaveBeenCalledTimes(1)
+    expect(doc.formFields).toHaveBeenCalledTimes(2)
+    expect(doc.pageAnnotations).toHaveBeenCalledTimes(3)
+    expect(doc.pageAnnotations).toHaveBeenLastCalledWith(0)
+    // The sandbox's page read is not kept: a later read asks the engine again.
+    await reader.annotations(0)
+    expect(doc.pageAnnotations).toHaveBeenCalledTimes(4)
+    // Nor are the form and scripts read for it, once the open lets them go.
+    reader.forgetAnnotations()
+    await reader.sandboxFields()
+    expect(doc.formFields).toHaveBeenCalledTimes(3)
+    expect(doc.pageAnnotations).toHaveBeenCalledTimes(5)
+    // The scripts' own facts are kept: the pages' actions read them.
+    expect(doc.scripts).toHaveBeenCalledTimes(1)
+    await reader.destroy()
+  })
+
   it('reads a file whose scripts a working engine cannot read as having none', async () => {
     const { reader } = await opened({
       scripts: () => Promise.reject(engineError('bad-argument')),
@@ -2173,7 +2254,10 @@ describe('field appearances', () => {
     appearanceStates: ['Off', 'Yes'],
     appearanceState: 'Off',
   }
-  /** Page 0: the Square (object 9) at 0, the checkbox at 1 and the text field's widget (object 20) at 2. */
+  /**
+   * Page 0: the Square (object 9) at 0, the checkbox at 1 and the text field's widget (object
+   * 20) at 2.
+   */
   const page: AnnotationsResult = {
     annotations: [
       squareAndWidget.annotations[0]!,

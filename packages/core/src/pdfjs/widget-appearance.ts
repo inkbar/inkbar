@@ -117,10 +117,10 @@ export class AppearanceLayoutError extends Error {
 /**
  * Draws the appearances of `ids` (their `look`), as the page canvas would draw them at the same
  * zoom, rotation and pixel ratio, into `canvas` (sized by the caller), whose top-left corner sits
- * at device pixel (`x`, `y`) of the page. Nothing else on the page is drawn: the canvas stays transparent
- * around the appearances. The widgets' own appearances come from the ENABLE operator list the
- * page canvas and the loupe use; a toggle's two come from the ENABLE_FORMS list, which PDF.js
- * builds and keeps apart, parsing the page a second time for it.
+ * at device pixel (`x`, `y`) of the page. Nothing else on the page is drawn: the canvas stays
+ * transparent around the appearances. The widgets' own appearances come from the ENABLE operator
+ * list the page canvas and the loupe use; a toggle's two come from the ENABLE_FORMS list, which
+ * PDF.js builds and keeps apart, parsing the page a second time for it.
  *
  * Resolves with the ids it found a run for. Rejects with `signal.reason` once `signal` aborts,
  * and with an `AppearanceLayoutError` when the list's runs are not laid out as expected.

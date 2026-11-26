@@ -1,7 +1,7 @@
 // With the engine reading the file, PDF.js is never loaded: `loadPdfjs` is never called, PDF.js's
 // module is never evaluated, and no request for its module, worker or assets is made. Only a
-// document with scripts loads the kept scripting sandbox. Runs in the `browser-engine` project, whose setup file turns the switch on
-// and passes every document the engine.
+// document with scripts loads the kept scripting sandbox. Runs in the `browser-engine` project,
+// whose setup file turns the switch on and passes every document the engine.
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

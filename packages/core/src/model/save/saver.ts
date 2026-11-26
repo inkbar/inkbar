@@ -117,6 +117,10 @@ export interface SaveEngineDocument {
 
 /** What core asks of an engine when it saves: see `SaveEngineDocument`. */
 export interface SaveEngine {
+  /**
+   * Opens `bytes` for a save. The engine copies them: it must not transfer them (to a worker,
+   * say) or change them, as the caller may still be reading them.
+   */
   open(bytes: Uint8Array, options?: { password?: string }): Promise<SaveEngineDocument>
   /** Checks what is left under each region of a file the engine just redacted. */
   checkRedaction(

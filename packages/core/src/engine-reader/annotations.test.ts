@@ -5,7 +5,10 @@ import { borderOf, parseDefaultAppearance, textOf } from './file-values'
 
 import type { AnnotationFactsShape, PageAnnotationsShape } from './types'
 
-/** An annotation's facts: a printable Square over 10 10 50 50, object 10 + index, unless told otherwise. */
+/**
+ * An annotation's facts: a printable Square over 10 10 50 50, object 10 + index, unless told
+ * otherwise.
+ */
 const annot = (
   index: number,
   over: Omit<Partial<AnnotationFactsShape>, 'objectNumber'> & {

@@ -781,7 +781,10 @@ describe("the engine reader's links and outline", () => {
   })
 })
 
-/** What a reader tells the document about the file: its facts, each page's annotations and Tab order, and the form. */
+/**
+ * What a reader tells the document about the file: its facts, each page's annotations and Tab
+ * order, and the form.
+ */
 interface FileRead {
   facts: unknown
   pages: { annotations: unknown[]; tabOrder: string[] }[]
@@ -1043,4 +1046,50 @@ describe("the engine reader's file facts, annotations and form", () => {
       expect(apply(near)).toStrictEqual(apply(pdfjs))
     }
   )
+})
+
+describe('the engine reader at the open of a scripted form', () => {
+  it("asks each page's annotations and the scripts a bounded number of times, and holds none after", async () => {
+    /** The engine reads asked, by name and page. */
+    const asked: string[] = []
+    const noting: EngineLoader = async () => {
+      const real = await import('@inkbar/engine')
+      return {
+        createEngine: async () => {
+          const engine = await real.createEngine()
+          const opening = engine.open.bind(engine)
+          engine.open = async (...args) => {
+            const doc = await opening(...args)
+            const methods = doc as unknown as Record<string, (...a: unknown[]) => unknown>
+            for (const name of ['pageAnnotations', 'formFields', 'scripts']) {
+              const read = methods[name]!.bind(doc)
+              methods[name] = (...a) => {
+                asked.push(a.length > 0 ? `${name} ${String(a[0])}` : name)
+                return read(...a)
+              }
+            }
+            return doc
+          }
+          return engine
+        },
+      }
+    }
+    const count = (read: string) => asked.filter((a) => a === read).length
+    const doc = await open('form-scripted', { engine: noting })
+    expect(doc._reader.kind).toBe('engine')
+    // The scripts started: a calculation runs.
+    doc.form.set({ qty: '3' })
+    doc.form.set({ price: '2.5' })
+    expect(doc.form.get('total')).toBe('7.5')
+    // The open reads the page, then the sandbox's fields read it once more; the form is read
+    // by the open and once for the scripts and the sandbox; the scripts once.
+    expect(count('pageAnnotations 0')).toBe(2)
+    expect(count('formFields')).toBe(2)
+    expect(count('scripts')).toBe(1)
+    // Nothing read at the open is held: each read asks the engine again.
+    await doc._reader.annotations(0)
+    expect(count('pageAnnotations 0')).toBe(3)
+    await doc._reader.form()
+    expect(count('formFields')).toBe(3)
+  })
 })
