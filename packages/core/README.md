@@ -960,7 +960,7 @@ Copy these files to a path your server exposes. Take each from the package `@ink
 | `files/NotoSans-Regular.ttf`, `files/NotoSansJP-Regular.otf`, `files/NotoSansKR-Regular.otf`, `files/NotoSansSC-Regular.otf`, `files/NotoSansTC-Regular.otf` | `@inkbar/fonts`  | `fonts/`   |
 | `wasm/quickjs-eval.js`, `wasm/quickjs-eval.wasm`                                                                                                             | `pdfjs-dist`     | `sandbox/` |
 
-Put them under a directory named for the installed `@inkbar/core` version, as the plugin does, so a cached file is never stale after an upgrade. Then pass their URLs:
+Put them under a directory named for the installed `@inkbar/core` version, as the plugin does, so a cached file is never stale after an upgrade. `import { version } from '@inkbar/core'` gives that version, and so does the `version` field of the installed package's `package.json`. Serve `worker.mjs` with a JavaScript MIME type, such as `text/javascript`: a browser refuses to start a module worker from a script served as anything else. Then pass their URLs:
 
 ```ts
 const base = '/inkbar/<version>/' // the installed @inkbar/core version
@@ -981,6 +981,14 @@ const assets = {
 A key that is missing or of the wrong type fails the open with `AssetConfigMissing`, and `details.key` names it. When the engine's binary or worker cannot be fetched or started, the open fails with `AssetLoadFailed`. A font that cannot be fetched is reported with `console.warn`, and its text draws with a substitute. When the sandbox cannot be loaded, the form stays fillable and its scripts do not run: the viewer's `onError` hears a `FormScriptError`.
 
 The files may be on another origin than the page, such as a CDN, when that origin sends CORS headers (`Access-Control-Allow-Origin`) for them. A browser does not start a worker from another origin's script, so the engine then starts it from a small `blob:` module of the page's own that imports `worker.mjs`.
+
+Under a content security policy, opening a file needs these directives:
+
+- `script-src 'wasm-unsafe-eval'`: the engine compiles its binary with WebAssembly, and so does the sandbox that runs a form's scripts, on the page. `script-src` also allows the origin of the `sandbox` directory, since the page imports `quickjs-eval.js` from it.
+- `worker-src` allowing the URL of `worker.mjs`: `'self'` when it is on the page's origin. When it is on another origin, `worker-src` needs `blob:`, and the worker then runs under the page's policy, so `script-src` also allows that origin.
+- `connect-src` allowing the origin the files are on, when it is not the page's: the engine fetches its binary and fonts, and the sandbox its binary.
+
+A worker started from its own URL runs under the policy its server sends with `worker.mjs`, so that response needs `script-src 'wasm-unsafe-eval'` and the `connect-src` as well.
 
 In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
 
