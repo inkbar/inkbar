@@ -1,7 +1,7 @@
 import { resolveLabel } from '../../messages'
 import { InkError, isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
-import { redactionBusy } from '../redaction-actions'
+import { editingPaused } from '../engine-notice'
 
 import type { Command, CommandSpec } from './define'
 import type { InkDocument } from '../../model/document'
@@ -87,20 +87,21 @@ function computed(
 }
 
 /**
- * True while `document` holds a document whose redaction marks are being applied: a command
- * may edit it, and an edit made then would not reach the redacted file.
+ * True while `document` holds a document that takes no edits (`editingPaused`): its redaction
+ * marks are being applied, and an edit made then would not reach the redacted file, or it has
+ * stopped reading. A command may edit it.
  */
-function documentApplying(document: Readable<InkDocument | null>): Readable<boolean> {
+function documentPaused(document: Readable<InkDocument | null>): Readable<boolean> {
   return computed(
     () => {
       const doc = document.get()
-      return doc !== null && redactionBusy(doc).get()
+      return doc !== null && editingPaused(doc).get()
     },
     (changed) => {
       let stopBusy: (() => void) | undefined
       const follow = (doc: InkDocument | null) => {
         stopBusy?.()
-        stopBusy = doc ? redactionBusy(doc).subscribe(changed) : undefined
+        stopBusy = doc ? editingPaused(doc).subscribe(changed) : undefined
         changed()
       }
       const stopDocument = document.subscribe(follow)
@@ -143,7 +144,7 @@ export function createCommandRegistry(opts: {
 }): CommandRegistry {
   const commands = new Map<string, Command>()
   const ready = documentReady(opts.document)
-  const applying = documentApplying(opts.document)
+  const paused = documentPaused(opts.document)
 
   return {
     commands,
@@ -158,14 +159,14 @@ export function createCommandRegistry(opts: {
         throw new InkError('InvalidCommandLabel', `Command ${id} needs a label`, { id })
       const busy = writable(false)
       const allowed = spec.enabled ?? ready
-      // Disabled while the document's redaction marks are applied, as Undo and Download are.
+      // Disabled while the document takes no edits, as Undo is.
       const enabled = computed(
-        () => allowed.get() && !busy.get() && !applying.get(),
+        () => allowed.get() && !busy.get() && !paused.get(),
         (changed) => {
           const stops = [
             allowed.subscribe(changed),
             busy.subscribe(changed),
-            applying.subscribe(changed),
+            paused.subscribe(changed),
           ]
           return () => {
             for (const stop of stops) stop()
@@ -180,7 +181,7 @@ export function createCommandRegistry(opts: {
         busy: readonly(busy),
         status: spec.status ?? EMPTY,
         async run() {
-          // Disabled too while the document's redaction marks are applied: nothing runs.
+          // Disabled too while the document takes no edits: nothing runs.
           if (!enabled.get()) return
           busy.set(true)
           try {

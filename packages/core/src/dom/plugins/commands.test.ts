@@ -13,7 +13,11 @@ function fakeDocument(state: DocumentStatus['state'] = 'ready') {
     state === 'error' ? { state, error: new InkError('InvalidPdf', 'bad') } : { state }
   )
   const annotations = {}
-  return { doc: { key: 'doc', status, annotations } as unknown as InkDocument, status }
+  const engineStopped = writable(false)
+  return {
+    doc: { key: 'doc', status, annotations, engineStopped } as unknown as InkDocument,
+    status,
+  }
 }
 
 function deferred() {

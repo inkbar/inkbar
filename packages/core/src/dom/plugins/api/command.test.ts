@@ -18,6 +18,7 @@ function fakeDocument(key: string): InkDocument {
     key,
     status: writable<DocumentStatus>({ state: 'ready' }),
     annotations: {},
+    engineStopped: writable(false),
   } as unknown as InkDocument
 }
 

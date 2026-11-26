@@ -7,9 +7,9 @@
 import { derived, type Readable } from '../../model/readable'
 import { CONTEXT_CHARS, type SearchHit } from '../../model/search'
 import { isBlankQuery } from '../../model/search-text'
+import { editingPaused } from '../engine-notice'
 import { ENGLISH, type MessageState } from '../messages-state'
 import { readingOrder } from '../plugins/registry'
-import { redactionBusy } from '../redaction-actions'
 
 import type { Rect } from '../../model/geometry'
 import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
@@ -36,7 +36,7 @@ export interface RecordListSource<I extends ListItem = ListItem> {
   select(id: string | null): void
   /** Scrolls the viewport to the item; for records, to its mark's rect. */
   reveal(item: I): void
-  /** Runs an action as one undo step; nothing while the document's redaction marks are applied. */
+  /** Runs an action as one undo step; nothing while the document takes no edits (`editingPaused`). */
   run(item: I, fn: () => void): void
   /**
    * Whether the change to `items` being emitted came from undo or redo, or from another
@@ -199,9 +199,9 @@ export function recordsSource<T extends RecordBase & { page: number }>(
       else viewport.scrollToPage(record.page, { behavior })
     },
     run(record, fn) {
-      // An action may edit the document, whose redaction marks are being applied: nothing runs.
+      // An action may edit the document, which takes no edits now: nothing runs.
       const doc = pluginHost.document.get()
-      if (doc && redactionBusy(doc).get()) return
+      if (doc && editingPaused(doc).get()) return
       const reg = resolve(record)
       if (reg) reg.batch(fn)
       else records.batch(fn)

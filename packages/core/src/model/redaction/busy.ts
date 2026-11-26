@@ -1,6 +1,6 @@
 // Whether a document's redaction marks are being applied, kept by its annotation store so the
 // model can read it too: nothing may edit the session meanwhile.
-import { writable, type Writable } from '../readable'
+import { writable, type Readable, type Writable } from '../readable'
 
 import type { AnnotationStore } from '../annotations/store'
 
@@ -18,4 +18,26 @@ export function redactionApplying(store: AnnotationStore): Writable<boolean> {
     byStore.set(store, found)
   }
   return found
+}
+
+const stoppedByStore = new WeakMap<AnnotationStore, Readable<boolean>>()
+
+/**
+ * @internal Records the `engineStopped` of the document whose annotations `store` holds, so the
+ * model can read it beside the redaction flag.
+ */
+export function followEngineStopped(
+  store: AnnotationStore,
+  stopped: Readable<boolean>
+): void {
+  stoppedByStore.set(store, stopped)
+}
+
+/**
+ * @internal Whether the session takes no edits from the viewer's controls: its redaction marks
+ * are being applied, or its document has stopped reading. The DOM layer reads the same as
+ * `editingPaused(doc)`.
+ */
+export function sessionPaused(store: AnnotationStore): boolean {
+  return redactionApplying(store).get() || (stoppedByStore.get(store)?.get() ?? false)
 }

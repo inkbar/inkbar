@@ -4914,6 +4914,70 @@ describe.skipIf(readerKind() !== 'engine')('a document whose engine has stopped'
     expect(doc.annotations.list.get()).toHaveLength(list.length - 1)
   })
 
+  it('keeps Apply redactions on, and says redaction is not available when it is pressed', async () => {
+    const stop = engines()
+    const errors: InkError[] = []
+    const { viewer } = make('text-simple', {
+      onError: (e) => errors.push(e),
+      redactionConfirm: false,
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 72, y: 600, width: 200, height: 40 },
+      interiorColor: '#000000',
+    })
+    await stop.stop(doc)
+    expect(control.disabled).toBe(false)
+    await expect(viewer.applyRedactions()).resolves.toBeNull()
+    await until(() => document.querySelector('[data-ink-form-alert]') !== null)
+    expect(document.querySelector('[data-ink-form-alert-message]')!.textContent).toBe(
+      'Redaction is not available right now. Check your connection and try again.'
+    )
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
+  })
+
+  it('a plugin command that edits annotations, and the style controls, do nothing meanwhile', async () => {
+    const stop = engines()
+    const made: { viewer?: Viewer } = {}
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({
+          id: 'add',
+          label: 'Add a square',
+          run: () => {
+            const doc = made.viewer?.document.get()
+            if (doc) square(doc)
+          },
+        })
+      },
+    })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    made.viewer = viewer
+    const { doc, engine } = await ready(viewer)
+    const command = viewer.commands.get('sandbox.add')!
+    const selected = square(doc)
+    doc.annotations.select([selected.id])
+    await until(() => command.enabled.get())
+    const list = doc.annotations.list.get()
+
+    await stop.stop(doc)
+    expect(command.enabled.get()).toBe(false)
+    await command.run()
+    engine.toolStyle.set({ border: '#00FF00', width: 3 })
+    expect(doc.annotations.list.get()).toBe(list)
+
+    stop.allow()
+    await doc.restartEngine()
+    expect(command.enabled.get()).toBe(true)
+    await command.run()
+    expect(doc.annotations.list.get()).toHaveLength(list.length + 1)
+  })
+
   it('keeps the file buttons on: without changes they hand over the file, with changes they say saving is not available', async () => {
     const clicked = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')

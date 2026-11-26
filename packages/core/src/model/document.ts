@@ -42,6 +42,7 @@ import {
   type AppliedRedactions,
   type RedactionState,
 } from './redaction/apply'
+import { followEngineStopped } from './redaction/busy'
 import {
   canonical,
   canonicalAnnotation,
@@ -1086,6 +1087,8 @@ export async function openDocument(
   const readsWithEngine = status.get().state === 'ready' ? engineOpened : undefined
   const engineStopped: Readable<boolean> =
     readsWithEngine?.engineStopped ?? readonly(writable(false))
+  // The tool style's edits to the selection pause while stopped, as they do for a redaction.
+  followEngineStopped(store, engineStopped)
 
   const doc: InkDocument = {
     key: resolved.key,
