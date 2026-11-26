@@ -128,6 +128,49 @@ describe('the built package', () => {
     }
   )
 
+  // PDF.js is not core's reader: of PDF.js, core loads its scripting sandbox only, through
+  // `#pdfjs-sandbox`, and its Vite plugin finds the sandbox's QuickJS files in pdfjs-dist to copy
+  // them. No PDF.js code is bundled in, and the private switch that once chose a reader is gone.
+  it.skipIf(!existsSync(dist) && !process.env.CI)(
+    'holds no PDF.js code but the import of its scripting sandbox, and no reader switch',
+    async () => {
+      const files = (await readdir(dist, { recursive: true, withFileTypes: true }))
+        .filter((f) => f.isFile())
+        .map((f) => join(f.parentPath, f.name))
+      const found: string[] = []
+      let sandboxImports = 0
+      let sandboxFiles = 0
+      for (const file of files) {
+        const name = file.slice(dist.length + 1)
+        let text = await readFile(file, 'utf8')
+        if (text.includes('__INKBAR_READER__')) found.push(`${name}: __INKBAR_READER__`)
+        // A source map carries the sources' comments; the code it maps is checked below.
+        if (file.endsWith('.map')) continue
+        if (/\.d\.m?ts$/.test(name))
+          text = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+        text = text.replace(/\bimport\(\s*["']#pdfjs-sandbox["']\s*\)/g, () => {
+          sandboxImports++
+          return ''
+        })
+        if (name === 'vite.mjs')
+          text = text.replace(
+            /\brequire\.resolve\(\s*["']pdfjs-dist\/package\.json["']\s*\)/g,
+            () => {
+              sandboxFiles++
+              return ''
+            }
+          )
+        for (const [match] of text.matchAll(
+          /pdfjs-dist[\w./-]*|#pdfjs[\w-]*|GlobalWorkerOptions|pdfjsVersion/g
+        ))
+          found.push(`${name}: ${match}`)
+      }
+      expect(found).toEqual([])
+      expect(sandboxImports).toBe(1)
+      expect(sandboxFiles).toBe(1)
+    }
+  )
+
   // Types name the engine only through the entry core loads it from.
   it.skipIf(!existsSync(dist) && !process.env.CI)(
     'declares types from @inkbar/engine only through its bare entry, here or in the bindings',
