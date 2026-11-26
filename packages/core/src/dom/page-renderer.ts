@@ -29,6 +29,8 @@ export interface PageRendererOptions {
    * widgets of its fields on the page out, and the form layer draws each one's appearance.
    */
   drawWidgets?: boolean
+  /** Mark every draw as background, so it queues behind the draws people are waiting on. */
+  background?: boolean
   onRendered?(): void
   /** Called for any render failure other than a superseded render's cancellation. */
   onError?(error: unknown): void
@@ -154,6 +156,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
           pixelRatio: dpr,
           ...pageCanvasSize(transform, dpr),
           hide: hiddenFromIds(hidden, page),
+          ...(opts.background && { background: true }),
         },
         canvas,
         ownController.signal

@@ -123,6 +123,22 @@ describe('createThumbnail', () => {
     }
   })
 
+  it('marks its draws as background', async () => {
+    const doc = await openDoc()
+    const reader = doc._reader
+    const draw = reader.draw.bind(reader)
+    const requests: boolean[] = []
+    reader.draw = (request, ...rest) => {
+      requests.push(request.background === true)
+      return draw(request, ...rest)
+    }
+    const el = place(document.createElement('div'))
+    const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+    cleanup.push(() => painter.destroy())
+    await painted(el)
+    expect(requests).toEqual([true])
+  })
+
   it('does not render until visible', async () => {
     const doc = await openDoc()
     const scroller = place(document.createElement('div'))

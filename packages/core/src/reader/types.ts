@@ -60,6 +60,11 @@ export interface DrawRequest {
   /** Part of the page to draw, in user space. Absent: the whole page. */
   region?: Rect
   hide: readonly HiddenAppearance[]
+  /**
+   * Nobody waits on this draw (a thumbnail): the engine reader runs it after every other
+   * waiting call. The PDF.js reader ignores it.
+   */
+  background?: boolean
 }
 
 /**
