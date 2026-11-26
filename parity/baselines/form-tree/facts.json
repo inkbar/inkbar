@@ -1,1 +1,12 @@
-{ "encrypted": false, "title": "Form edge fixture" }
+{
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 842, "width": 595, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    }
+  ],
+  "title": "Form edge fixture"
+}

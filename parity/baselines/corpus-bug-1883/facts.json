@@ -1,1 +1,23 @@
-{ "encrypted": false }
+{
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 792, "width": 612, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    },
+    {
+      "box": { "height": 612, "width": 792, "x": 0, "y": 0 },
+      "page": 2,
+      "rotate": 90,
+      "userUnit": 1
+    },
+    {
+      "box": { "height": 792, "width": 612, "x": 0, "y": 0 },
+      "page": 3,
+      "rotate": 180,
+      "userUnit": 1
+    }
+  ]
+}

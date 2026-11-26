@@ -1,1 +1,17 @@
-{ "encrypted": false }
+{
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 300, "width": 400, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    },
+    {
+      "box": { "height": 300, "width": 400, "x": 0, "y": 0 },
+      "page": 2,
+      "rotate": 0,
+      "userUnit": 1
+    }
+  ]
+}
