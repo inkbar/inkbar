@@ -26,6 +26,7 @@ import {
   type StoreMode,
 } from './annotations/store'
 import { isThreadRoot } from './annotations/threads'
+import { effectiveLoader } from './engine-factory'
 import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
@@ -455,6 +456,8 @@ export async function openDocument(
    * fields. PDF.js is not loaded. With it off, PDF.js opens and reads the file.
    */
   const withEngine = readerKind() === 'engine'
+  /** The host's loader, or while tests set a factory, one that makes its engines. */
+  const engineLoader = effectiveLoader(options.engine)
 
   /** Opens the file in a new engine reader, from core's own copy of its bytes. */
   const openWithEngine = async (): Promise<EngineDocumentReader> => {
@@ -472,7 +475,7 @@ export async function openDocument(
     )
     // The engine copies the bytes it is given, so it is given core's copy each time.
     const opened = await createEngineReader({
-      loader: options.engine!,
+      loader: engineLoader!,
       bytes: () => Promise.resolve(bytes),
       password: options.password,
     })
@@ -511,7 +514,7 @@ export async function openDocument(
     )
 
   const load = (async () => {
-    if (withEngine && !options.engine)
+    if (withEngine && !engineLoader)
       throw new InkError(
         'EngineUnavailable',
         'Drawing pages with the engine needs the engine option'
@@ -743,9 +746,9 @@ export async function openDocument(
   const _liftSettled = Promise.race([liftSettled, destroyedSignal]).catch(() => undefined)
 
   // Saving. The engine is loaded through the host's loader, on the first save with changes.
-  const saver: Saver | undefined = options.engine
+  const saver: Saver | undefined = engineLoader
     ? createSaver({
-        loader: options.engine,
+        loader: engineLoader,
         // A copy each time: core goes on reading its own bytes, whatever an engine does with these.
         bytes: fileData,
         password: options.password,
