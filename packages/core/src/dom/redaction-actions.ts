@@ -170,7 +170,8 @@ const refusedMarks = (error: InkError): string[] => {
 /**
  * The error a run of `runRedaction` failed with, as one to report, with the words to tell the
  * reader: `viewer.redactUnremovable` when marks lie over content the apply cannot remove,
- * `viewer.redactUnavailable` when the engine could not be loaded or started,
+ * `viewer.redactUnavailable` when the engine could not be loaded or started, or the document
+ * has stopped reading (`EngineUnavailable`),
  * `viewer.redactUnverified` when the check found content left under a mark or the engine could
  * not look under the marks, and `viewer.redactFailed` otherwise. An error that is not an `InkError` is wrapped in a
  * `RedactionFailed`. Undefined when the document was closed meanwhile: there is nothing to say.
@@ -199,7 +200,7 @@ export function redactionFailure(
         ? v.redactUnremovable({ count: Math.max(refusedMarks(ink).length, 1) })
         : reason === 'could-not-inspect' || stage === 'verify'
           ? v.redactUnverified
-          : stage === 'engine'
+          : stage === 'engine' || ink.code === 'EngineUnavailable'
             ? v.redactUnavailable
             : v.redactFailed,
   }
