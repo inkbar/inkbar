@@ -52,11 +52,15 @@ const PDFJS_FENCED = [
   'apps/**/*.{ts,mts,tsx,vue,svelte}',
   'parity/**/*.ts',
 ]
-/** Tests and the code only tests import, the Svelte tests' harness components among it. */
+/**
+ * Tests and the code only tests import, the bindings' test harness components among it (the
+ * Svelte tests' and the component tests' under `playwright/`).
+ */
 const TEST_FILES = [
   '**/*.{test,spec}.{ts,mts,tsx}',
   'packages/core/src/test-support/**',
   'packages/svelte/src/test/**',
+  'packages/*/playwright/**',
 ]
 /**
  * Where PDF.js may be imported: core's pdfjs/, which holds the form script sandbox and the
