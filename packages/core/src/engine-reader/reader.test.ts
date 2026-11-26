@@ -1317,25 +1317,20 @@ describe('links, the outline and destinations', () => {
 
   it('reads every other page of a file in which one page stops the engine, 8 at a time', async () => {
     const { t, found } = await linksAtOpen(40, (page) => page === 3)
-    // Pages 0 to 2 are read before page 3 stops the engine. Pages 3 to 10 have none: page 3,
-    // and the seven read at the same time, queued behind it when it stops the first engine and
-    // again on the second, which its retry stops. Pages from 11 on find the second engine
-    // stopped, drop it and read on a third.
-    expect(found).toEqual([
-      1,
-      1,
-      1,
-      ...Array<number>(8).fill(0),
-      ...Array<number>(29).fill(1),
-    ])
+    // Pages 0 to 2 are read before page 3 stops the engine. Only page 3 has none: the seven
+    // read at the same time, queued behind it when it stopped the first engine and again on the
+    // second, which its retry stopped, had the engine stop under them, and read on a third.
+    expect(found).toEqual([1, 1, 1, 0, ...Array<number>(36).fill(1)])
     expect(t.createEngine).toHaveBeenCalledTimes(3)
   })
 
   it('stops asking for links once link reads have stopped three engines in a row', async () => {
     const { t, reader, found } = await linksAtOpen(40, () => true)
     expect(found).toEqual(Array<number>(40).fill(0))
-    // The engine the file opened in, then one for each of the three it dropped; then no more.
-    expect(t.createEngine).toHaveBeenCalledTimes(4)
+    // The engine the file opened in and the two that replaced the first two the reads stopped.
+    // The third is not replaced: once three are stopped no link read asks again, those waiting
+    // to try again included.
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
     // Link reads' stops count towards neither stopping the reader nor blocking a page: every
     // page still draws and reads.
     expect(reader.engineStopped.get()).toBe(false)
@@ -1622,12 +1617,12 @@ describe('links, the outline and destinations', () => {
   it('resolves every other name of an outline in which one name stops the engine', async () => {
     const { t, reader } = await namedOutline((i) => i === 3)
     const outline = await reader.outline()
-    // As for links read 8 at a time: names 3 to 10 resolve to nothing, name 3 and the seven
-    // looked up with it on the engine it stopped and on the one its retry stopped.
+    // As for links read 8 at a time: only name 3 resolves to nothing. The seven looked up with
+    // it had the engine stop under them, and are looked up again on a third.
     expect(outline.map((o) => o.target.kind)).toEqual([
       ...Array<string>(3).fill('resolved'),
-      ...Array<string>(8).fill('unsupported'),
-      ...Array<string>(29).fill('resolved'),
+      'unsupported',
+      ...Array<string>(36).fill('resolved'),
     ])
     expect(t.createEngine).toHaveBeenCalledTimes(3)
   })
@@ -1637,9 +1632,10 @@ describe('links, the outline and destinations', () => {
     const outline = await reader.outline()
     expect(outline).toHaveLength(40)
     expect(outline.every((o) => o.target.kind === 'unsupported')).toBe(true)
-    // The engine the file opened in, then one for each of the three the lookups dropped.
-    // Asking every name would start a new engine for each batch of lookups that run at once.
-    expect(t.createEngine).toHaveBeenCalledTimes(4)
+    // The engine the file opened in and the two that replaced the first two the lookups
+    // stopped; once three are stopped no lookup asks again. Asking every name would start a new
+    // engine for each batch of lookups that run at once.
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
     // A later read asks again.
     const asked = t.createEngine.mock.calls.length
     await reader.outline()
@@ -2640,6 +2636,93 @@ describe('the stopped state', () => {
     expect(engineCalls(t.engines)).toBe(calls)
     expect(t.createEngine).toHaveBeenCalledTimes(3)
     await expect(read(reader, 4)).resolves.toMatchObject({ page: 4 })
+  })
+
+  /**
+   * A file whose pages in `bad` stop every engine they are drawn on, drawn through one queue on
+   * each engine as the engine's own: calls wait their turn, and every call still waiting fails
+   * once the engine stops.
+   */
+  const queued = async (pageCount: number, bad: number[]) => {
+    const queue = oneQueue(
+      ({ index }: { index: number; options: RenderOptions }) => bad.includes(index),
+      ({ options }) => Promise.resolve(bitmap(options))
+    )
+    const t = setup({
+      pageCount,
+      render: (_, index, options, engine) => queue({ index, options }, engine),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    const canvases = Array.from({ length: pageCount }, () => fakeCanvas())
+    const drawn = await Promise.allSettled(
+      canvases.map((c, page) => reader.draw(request({ page }), c.canvas))
+    )
+    return { t, reader, canvases, drawn }
+  }
+
+  it('blocks a page that stops the engine twice, and draws the pages queued beside it', async () => {
+    const { t, reader, canvases, drawn } = await queued(5, [2])
+    expect(drawn[2]).toMatchObject({
+      status: 'rejected',
+      reason: { ...unavailable, details: { page: 2 } },
+    })
+    for (const page of [0, 1, 3, 4]) {
+      expect(drawn[page], `page ${page}`).toEqual({
+        status: 'fulfilled',
+        value: undefined,
+      })
+      expect(canvases[page]!.context.putImageData).toHaveBeenCalledTimes(1)
+    }
+    // The engine the file opened in, the one page 2's retry stopped, and one for its neighbours.
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    expect(reader.engineStopped.get()).toBe(false)
+  })
+
+  it('blocks each of two such pages in turn, and the rest still draw', async () => {
+    const { t, reader, drawn } = await queued(6, [1, 3])
+    expect(drawn.map((d) => d.status)).toEqual([
+      'fulfilled',
+      'rejected',
+      'fulfilled',
+      'rejected',
+      'fulfilled',
+      'fulfilled',
+    ])
+    // Each bad page stopped two engines; the calls queued behind them stopped none.
+    expect(t.createEngine).toHaveBeenCalledTimes(5)
+    expect(reader.engineStopped.get()).toBe(false)
+  })
+
+  it('takes a write the borrower reports, not a draw queued behind it, for what stopped the engine', async () => {
+    let gate = deferred<void>()
+    const t = setup({
+      pageCount: 2,
+      // A draw of page 1 waits behind the write; it then finds the engine as the write left it.
+      render: async (_, index, options, engine) => {
+        if (index === 1) await gate.promise
+        if (engine.stopped) throw engineError('engine-failure')
+        return bitmap(options)
+      },
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    // Twice: were the draw taken for the stops, page 1 would be blocked by the second.
+    for (let i = 0; i < 2; i++) {
+      gate = deferred<void>()
+      const lent = await reader.borrowEngine()
+      const drawing = reader.draw(request({ page: 1 }), fakeCanvas().canvas)
+      await vi.waitFor(() =>
+        expect(t.renders.filter((r) => r.engine === i)).toHaveLength(1)
+      )
+      t.states[i]!.stopped = true
+      const told = lent.stopped()
+      gate.resolve()
+      await told
+      await expect(drawing).resolves.toBeUndefined()
+    }
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    expect(reader.engineStopped.get()).toBe(false)
   })
 
   it("counts a page's first stop but not the stop that blocks it", async () => {

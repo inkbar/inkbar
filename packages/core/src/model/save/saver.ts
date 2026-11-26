@@ -356,28 +356,30 @@ export function createSaver(options: SaverOptions): Saver {
 
   /**
    * `work` on a document opened for this write in the borrowed engine, and that engine. The
-   * document is closed after it, whatever happens, and a call that stopped the engine is told to
-   * its holder before the write rejects, so the next write is not lent a stopped engine.
+   * document is closed after it, whatever happens. A call that stopped the engine is told to its
+   * holder at once, before the close joins the engine's queue behind reads that would find the
+   * engine stopped first, and the write rejects only once the holder knows, so the next write is
+   * not lent a stopped engine.
    */
   const withDocument = async <T>(
     work: (doc: SaveEngineDocument, engine: SaveEngine) => Promise<T>
   ): Promise<T> => {
     const lent = await options.borrow()
     if (destroyed) throw destroyedError()
+    let told: Promise<void> | undefined
+    let doc: SaveEngineDocument | undefined
     try {
-      let doc: SaveEngineDocument | undefined
-      try {
-        const bytes = await options.bytes()
-        if (destroyed) throw destroyedError()
-        doc = await lent.engine.open(bytes, passwordOption)
-        return await work(doc, lent.engine)
-      } finally {
-        const opened = doc
-        if (opened) await (async () => opened.close())().catch(() => undefined)
-      }
+      const bytes = await options.bytes()
+      if (destroyed) throw destroyedError()
+      doc = await lent.engine.open(bytes, passwordOption)
+      return await work(doc, lent.engine)
     } catch (error) {
-      if (stoppedBy(error)) await lent.stopped()
+      if (stoppedBy(error)) told = lent.stopped()
       throw error
+    } finally {
+      const opened = doc
+      if (opened) await (async () => opened.close())().catch(() => undefined)
+      await told
     }
   }
 

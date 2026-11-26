@@ -132,9 +132,11 @@ export interface EngineDocumentReader extends DocumentReader {
 export interface LentEngine {
   engine: CoreEngine
   /**
-   * Tells the reader a call failed in a way that may have stopped the engine. The reader checks,
-   * and drops an engine that has stopped, so its next call, and the next loan, start another.
-   * Resolves once it knows.
+   * Tells the reader a call failed in a way that may have stopped the engine. Call it as soon as
+   * the call fails, before asking the engine anything else: the reader then takes the call for
+   * the one that stopped the engine, not a read queued behind it. The reader checks, and drops
+   * an engine that has stopped, so its next call, and the next loan, start another. Resolves once
+   * it knows.
    */
   stopped(): Promise<void>
 }
@@ -151,7 +153,20 @@ interface Session {
   stopped?: boolean
   /** The check on whether the engine still works, while one is running. */
   probing?: Promise<boolean> | undefined
+  /**
+   * The call whose `engine-failure` the reader saw first on this engine: a token of `run`'s, or
+   * `LENT` for a call on the lent engine. The engine runs one call at a time and fails the calls
+   * waiting behind the one running only after it, so when the engine has stopped, this is the
+   * call that stopped it; every other call that failed with it had the engine stop under it.
+   * Cleared by its owner when the engine turns out still to work.
+   */
+  first?: object | undefined
+  /** Set once a stop the borrower reported has been counted. */
+  counted?: boolean
 }
+
+/** `Session.first` for a call on the lent engine: a write the borrower reports. */
+const LENT: object = Object.freeze({})
 
 type EnginePageInfo = Awaited<ReturnType<ReaderEngineDocument['pageInfo']>>
 type Bitmap = Awaited<ReturnType<ReaderEngineDocument['renderPage']>>
@@ -309,15 +324,15 @@ export async function createEngineReader(
   }
 
   /**
-   * Frees a session whose engine stopped. The next call starts another, unless one has already.
-   * True for the one call that dropped it; calls that failed with it at the same time get false.
+   * Frees a session whose engine stopped, so the next call starts another, unless one has
+   * already. Any call that finds the engine stopped drops it; only the one that stopped it
+   * (`Session.first`) counts the stop.
    */
-  const drop = (dead: Promise<Session>, s: Session): boolean => {
-    if (current !== dead) return false
+  const drop = (dead: Promise<Session>, s: Session): void => {
+    if (current !== dead) return
     current = undefined
     s.dropped = true
     void free(s)
-    return true
   }
 
   /** A page whose facts the engine has given: asking for them again is a cheap, sure call. */
@@ -385,28 +400,43 @@ export async function createEngineReader(
      * of its own. Default true.
      */
     counts?: boolean | undefined
-    onDrop?: (() => void) | undefined
+    /** Told each time this call stops the engine. */
+    onStop?: (() => void) | undefined
     onGone?: (() => void) | undefined
+    /**
+     * A call's own limit: asked before it tries again on a new engine, whether it stopped the
+     * last one or the last one stopped under it. True gives up, as when no engine could answer.
+     */
+    giveUp?: (() => boolean) | undefined
   }
 
   /**
    * `work` on the session's document. When it fails with `engine-failure` and the engine has
-   * really stopped, the engine is replaced and `work` runs once more on the new one. When the
-   * engine still works the error is the call's own and goes to the caller. A call the engine
-   * rejected with `aborted` because the reader dropped its session runs once more too. Never
-   * for a call that was aborted or a reader that was destroyed. The call that dropped a stopped
-   * engine counts the stop, towards `page` when it reads one: a stop that blocks the page, or
-   * stops the reader, rejects the call at once. `onDrop` is called when this call is the one that
-   * dropped the engine, so each drop is told to one caller only. `onGone` is called when the call
-   * fails because no engine could answer it: the engine could not be started, the one that
-   * replaced a stopped engine stopped as well, the page is blocked or the reader stopped. Any
-   * other failure is the call's own.
+   * really stopped, the engine is replaced. When the engine still works the error is the call's
+   * own and goes to the caller. Never tried again for a call that was aborted or a reader that
+   * was destroyed.
+   *
+   * A call that stopped the engine (`Session.first`) counts the stop, towards `page` when it
+   * reads one, is told of it by `onStop`, and runs once more on the new engine: a stop that
+   * blocks the page, or stops the reader, rejects it at once, and so does a second stop on its
+   * retry. A call whose engine stopped under it, from another call's work, or was dropped under
+   * it, counts nothing, spends no retry, and tries again on the next engine. That cannot go on
+   * without end: each engine that stops has one call that stopped it, which stops at most two;
+   * a page is blocked at its second stop, 3 counted stops within 60 seconds stop the reader, and
+   * a call that does not count has `giveUp`.
+   *
+   * `onGone` is called when the call fails because no engine could answer it: the engine could
+   * not be started, the one that replaced a stopped engine was stopped by the call again, the
+   * page is blocked, the reader stopped, or `giveUp` said so. Any other failure is the call's own.
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
-    { signal, page, counts = true, onDrop, onGone }: RunOptions = {}
+    { signal, page, counts = true, onStop, onGone, giveUp }: RunOptions = {}
   ): Promise<T> => {
     let retried = false
+    /** Why the last engine this call ran on could not answer it, once there was one. */
+    let lost: unknown
+    let again = false
     for (;;) {
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
@@ -415,6 +445,10 @@ export async function createEngineReader(
       if (refused) {
         onGone?.()
         throw refused
+      }
+      if (again && giveUp?.()) {
+        onGone?.()
+        throw unavailable(lost)
       }
       const used = session()
       let s: Session
@@ -427,29 +461,44 @@ export async function createEngineReader(
       }
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
+      const me = {}
+      let call: Promise<T>
       try {
-        return await work(s.doc)
+        call = work(s.doc)
+      } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- passed on as thrown
+        call = Promise.reject(error)
+      }
+      // Marked as the failure arrives, before any other call's can: see `Session.first`.
+      call.catch((error: unknown) => {
+        if (codeOf(error) === 'engine-failure') s.first ??= me
+      })
+      try {
+        return await call
       } catch (error) {
         if (destroyed || signal?.aborted) throw error
         const code = codeOf(error)
         if (code === 'aborted' && s.dropped) {
           // Dropped under the call by another that found it stopped.
-          if (!retried) {
-            retried = true
-            continue
-          }
-          onGone?.()
-          throw unavailable(error)
+          lost = error
+          again = true
+          continue
         }
         if (code !== 'engine-failure') throw error
-        if (await stillWorks(s)) throw error
-        if (drop(used, s)) {
-          onDrop?.()
-          const refusal = counted(page, counts && !retried, error)
-          if (refusal) {
-            onGone?.()
-            throw refusal
-          }
+        if (await stillWorks(s)) {
+          if (s.first === me) s.first = undefined
+          throw error
+        }
+        drop(used, s)
+        lost = error
+        again = true
+        // The engine stopped under this call.
+        if (s.first !== me) continue
+        onStop?.()
+        const refusal = counted(page, counts && !retried, error)
+        if (refusal) {
+          onGone?.()
+          throw refusal
         }
         if (retried) {
           // The engine that replaced a stopped one stopped too.
@@ -778,9 +827,10 @@ export async function createEngineReader(
         // No `page`: a link read's stops block no page.
         const facts = await run((doc) => doc.pageLinks(page), {
           counts: false,
-          onDrop: () => {
+          onStop: () => {
             linkStops++
           },
+          giveUp: () => linkStops >= STOPS_IN_A_ROW,
         })
         linkStops = 0
         return linksFromFacts(page, facts, refPages)
@@ -800,10 +850,13 @@ export async function createEngineReader(
 
   /** Named destinations looked up, by name. A failed lookup is not kept. */
   const named = new Map<string, Promise<Destination | undefined>>()
-  /** `onDrop` is told when the lookup this call starts drops the engine. */
+  /**
+   * `limit`, for the lookup this call starts: `onStop` is told when it stops the engine, and
+   * `giveUp` is asked before it tries again on a new engine (see `run`).
+   */
   const lookUp = (
     name: string,
-    onDrop?: () => void
+    limit?: { onStop: () => void; giveUp: () => boolean }
   ): Promise<Destination | undefined> => {
     let found = named.get(name)
     if (!found) {
@@ -812,7 +865,8 @@ export async function createEngineReader(
         let dest: FileDestinationShape | undefined
         try {
           dest = await run((doc) => doc.namedDestination(nameBytes(name)), {
-            onDrop,
+            onStop: limit?.onStop,
+            giveUp: limit?.giveUp,
             onGone: () => {
               gone = true
             },
@@ -900,8 +954,11 @@ export async function createEngineReader(
       if (typeof raw !== 'string') return resolveDestination(raw)
       if (destroyed) throw destroyedError()
       if (stops >= STOPS_IN_A_ROW) return undefined
-      const dest = await lookUp(raw, () => {
-        stops++
+      const dest = await lookUp(raw, {
+        onStop: () => {
+          stops++
+        },
+        giveUp: () => stops >= STOPS_IN_A_ROW,
       }).then(
         (found) => {
           stops = 0
@@ -1293,9 +1350,21 @@ export async function createEngineReader(
     if (destroyed) throw destroyedError()
     return {
       engine: s.engine,
-      // A stop the borrower found counts as any other, towards no page.
+      // A stop a write caused counts as any other, towards no page. The write is marked as the
+      // call that stopped the engine as soon as the borrower says so, before the reads queued
+      // behind it fail, so none of them is taken for it (see `Session.first`).
       stopped: async () => {
-        if (!(await stillWorks(s)) && drop(used, s)) counted(undefined, true, undefined)
+        s.first ??= LENT
+        if (await stillWorks(s)) {
+          if (s.first === LENT) s.first = undefined
+          return
+        }
+        drop(used, s)
+        // Told once per engine, however many of the borrower's calls failed with it.
+        if (s.first === LENT && !s.counted) {
+          s.counted = true
+          counted(undefined, true, undefined)
+        }
       },
     }
   }

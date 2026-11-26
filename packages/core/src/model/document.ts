@@ -502,7 +502,12 @@ export async function openDocument(
     const opened = opening
     const read = (async () => {
       const perPage = await mapInOrder(pageCount, EMBEDDED_CONCURRENCY, async (i) => {
-        const annotations = await opened.annotations(i)
+        // A page whose reads stopped the engine twice gives no annotations, as it gives no
+        // links: the file opens without them rather than not at all.
+        const annotations = await opened.annotations(i).catch((error: unknown) => {
+          if (blockedPage(error, i) && opened.unavailable() === undefined) return []
+          throw error
+        })
         const hasWidgets = annotations.some((d) => d.subtype === 'Widget')
         const links = await opened.links(i)
         // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
@@ -1204,4 +1209,13 @@ function statusError(s: DocumentStatus): InkError {
 function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message
   return String(cause)
+}
+
+/** Whether `error` is the one a page's reads reject with once they stopped the engine twice. */
+function blockedPage(error: unknown, page: number): boolean {
+  return (
+    isInkError(error) &&
+    error.code === 'EngineUnavailable' &&
+    (error.details as { page?: unknown } | undefined)?.page === page
+  )
 }
