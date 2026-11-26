@@ -23,5 +23,5 @@ export default defineConfig({
   copy: [{ from: 'src/vite/client.d.ts', to: 'dist/vite' }],
   // `version` in src/index.ts.
   define: { __INKBAR_VERSION__: JSON.stringify(version) },
-  deps: { neverBundle: ['pdfjs-dist', '#pdfjs', '#pdfjs-sandbox', 'vite', /^node:/] },
+  deps: { neverBundle: ['pdfjs-dist', '#pdfjs-sandbox', 'vite', /^node:/] },
 })

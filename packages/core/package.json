@@ -40,10 +40,6 @@
     "./package.json": "./package.json"
   },
   "imports": {
-    "#pdfjs": {
-      "node": "pdfjs-dist/legacy/build/pdf.mjs",
-      "default": "pdfjs-dist"
-    },
     "#pdfjs-sandbox": "pdfjs-dist/build/pdf.sandbox.mjs"
   },
   "scripts": {
@@ -60,7 +56,7 @@
     "@inkbar/fonts": "^1.0.0",
     "@inkbar/icons": "workspace:^",
     "gloss-format": "^1.2.0",
-    "pdfjs-dist": "^6.4.299",
+    "pdfjs-dist": "6.4.299",
     "perfect-freehand": "1.2.3",
     "uuid": "^14.0.3",
     "zod": "^4.6.6"

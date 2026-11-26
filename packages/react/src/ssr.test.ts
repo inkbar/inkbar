@@ -6,19 +6,20 @@ import type * as Entry from './index'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false, engine: false }))
 
-// `#pdfjs` belongs to @inkbar/core's package imports and resolves to the legacy build in Node,
-// so mock that file by its resolved path from core's directory.
+// The one part of PDF.js core loads is its scripting sandbox, through `#pdfjs-sandbox`, one of
+// @inkbar/core's package imports, so mock the file that resolves to by its path from core's
+// directory.
 const pdfjsPath = await vi.hoisted(async () => {
   const { createRequire } = await import('node:module')
   const path = await import('node:path')
   const fromReact = createRequire(import.meta.url)
   const core = path.dirname(fromReact.resolve('@inkbar/core/package.json'))
-  return createRequire(`${core}/`).resolve('pdfjs-dist/legacy/build/pdf.mjs')
+  return createRequire(`${core}/`).resolve('pdfjs-dist/build/pdf.sandbox.mjs')
 })
 
 vi.mock(pdfjsPath, () => {
   evaluated.pdfjs = true
-  return { GlobalWorkerOptions: {} }
+  return { QuickJSSandbox: () => undefined }
 })
 
 // Core imports the engine through `@inkbar/engine/bare` at the first open. Mocked by its resolved

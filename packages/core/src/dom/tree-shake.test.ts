@@ -25,7 +25,7 @@ async function bundle(code: string): Promise<string> {
       write: false,
       minify: false,
       lib: { entry: ENTRY, formats: ['es'], fileName: 'out' },
-      rollupOptions: { external: [/^pdfjs-dist/, '#pdfjs', 'uuid', 'zod'] },
+      rollupOptions: { external: [/^pdfjs-dist/, '#pdfjs-sandbox', 'uuid', 'zod'] },
     },
   })
   const outputs = (Array.isArray(result) ? result : [result]) as Rolldown.RolldownOutput[]
