@@ -10,6 +10,7 @@ import {
   type RawDestination,
 } from '../model/destination'
 import { InkError, isInkError } from '../model/errors'
+import { readonly, writable, type Readable } from '../model/readable'
 import { sandboxFieldObjects } from '../pdfjs/sandbox-fields'
 
 import { fileAnnotationsFromEngine } from './annotations'
@@ -24,6 +25,7 @@ import { fileFieldsFromEngine, widgetContexts } from './form'
 import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
 import { fileScriptsFromEngine, pageScriptsFromEngine } from './scripts'
+import { createStopCount } from './stops'
 import { nameBytes, rawDestination, refKey, type RefPages } from './targets'
 
 import type {
@@ -52,11 +54,11 @@ export const MAX_PIXELS = 268_435_456
 const TEXT_PAGES = 8
 
 /**
- * How many engines link reads, or the name lookups of one outline read, may stop in a row, with
- * none of them succeeding in between, before the reader stops asking: each stop costs a new
- * engine, which reads the whole file again. One item that stops the engine stops at most two:
- * the one it was read on, and the one its retry stops, which the next read then finds stopped.
- * So three in a row take more than one bad item.
+ * How many engines the name lookups of one outline read may stop in a row, with none of them
+ * succeeding in between, before the read stops asking: each stop costs a new engine, which reads
+ * the whole file again. One name that stops the engine stops at most two: the one it was looked
+ * up on, and the one its retry stops. So three in a row take more than one bad name. Reads that
+ * name a page are held by the page rule instead (see `./stops`).
  */
 const STOPS_IN_A_ROW = 3
 
@@ -96,10 +98,25 @@ export interface EngineDocumentReader extends DocumentReader {
    */
   forgetAnnotations(): void
   /**
-   * The `EngineUnavailable` error every call rejects with once an engine started to replace one
-   * that stopped could not start; `undefined` until then.
+   * The `EngineUnavailable` error every call rejects with while the reader is stopped;
+   * `undefined` while it reads.
    */
   unavailable(): InkError | undefined
+  /**
+   * True while the reader is stopped: an engine started to replace a stopped one could not
+   * start, or the engine stopped 3 times within 60 seconds. Every call then rejects with
+   * `unavailable()` and no engine runs, until `restart`.
+   */
+  readonly engineStopped: Readable<boolean>
+  /**
+   * Starts an engine for a stopped reader, opens the file in it again with the same bytes and
+   * password, and resolves once a read works there. Every page is read again and the stops
+   * counted so far are forgotten. Rejects with `EngineUnavailable` when that fails, and the
+   * reader stays stopped; with `DocumentDestroyed` when the reader is destroyed first or under
+   * it, and any engine it started is destroyed. Calls made while one runs share it. On a reader
+   * that is not stopped it resolves at once and does nothing.
+   */
+  restart(): Promise<void>
   /**
    * The engine the file is open in, lent for writes, so a document runs one engine. The
    * reader keeps it: the borrower opens and closes documents of its own in it and never destroys
@@ -179,8 +196,10 @@ const free = (s: Session): Promise<void> =>
  *
  * An engine that stops is replaced, and the call that found it stopped runs once more on the new
  * one. A call whose replacement stops too, or cannot start, rejects with `EngineUnavailable`.
- * Once a replacement cannot start, no other is started: every call from then on, and every call
- * still waiting, rejects with `EngineUnavailable`.
+ * A page whose reads stopped the engine twice is blocked: its reads reject at once with the
+ * error the second stop gave. When a replacement cannot start, or the engine has stopped 3 times
+ * within 60 seconds, the reader is stopped: no engine runs, and every call from then on, and
+ * every call still waiting, rejects with `EngineUnavailable` until `restart`.
  *
  * @internal
  */
@@ -234,46 +253,62 @@ export async function createEngineReader(
   const first = await start()
   const pageCount = first.doc.pageCount
   /**
-   * The session in use, or starting; undefined once a stopped one is dropped or one failed to
-   * start.
+   * The session in use, or starting; undefined once a stopped one is dropped, one failed to
+   * start, or the reader is stopped.
    */
   let current: Promise<Session> | undefined = Promise.resolve(first)
   /**
-   * Set when an engine started to replace a stopped one fails to start. The reader then starts
-   * no other: every call rejects with `error`.
+   * Set while the reader is stopped: an engine started to replace a stopped one failed to start,
+   * or the engine stopped too often. No engine runs and every call rejects with `error`.
    */
-  let cannotStart: { error: InkError; start: Promise<Session> } | undefined
+  let stoppedWith: InkError | undefined
+  const engineStopped = writable(false)
+  /** The stops found, the pages they blocked, and when they stop the reader. */
+  const stops = createStopCount()
+
+  /** Stops the reader with `error`: the engine running is destroyed and none is started. */
+  const stopReader = (error: InkError): void => {
+    if (stoppedWith || destroyed) return
+    stoppedWith = error
+    const last = current
+    current = undefined
+    if (last) void last.then(free, () => undefined)
+    // Nothing kept is given from here on.
+    texts.clear()
+    engineStopped.set(true)
+  }
 
   const session = (): Promise<Session> => {
     if (current) return current
-    if (cannotStart) return cannotStart.start
+    if (stoppedWith) return Promise.reject(stoppedWith)
     const made = start()
     current = made
-    // One attempt: an engine that cannot start is not started again for this document. This
-    // handler runs before the callers waiting on `made` see it fail, so they find it set.
+    // An engine that cannot start stops the reader. This handler runs before the callers
+    // waiting on `made` see it fail, so they find it stopped.
     made.catch((error: unknown) => {
       if (current !== made) return
       current = undefined
-      if (destroyed) return
-      cannotStart = { error: unavailable(error), start: made }
-      // Nothing kept is given from here on.
-      texts.clear()
+      if (!destroyed) stopReader(unavailable(error))
     })
     return made
   }
 
   /**
-   * `work` on the engine. Once an engine cannot start it rejects with `EngineUnavailable`
-   * without asking, kept answers included; a call made on a destroyed reader, or with a signal
-   * already aborted, rejects as it would on a working engine.
+   * `work` on the engine. While the reader is stopped it rejects with `EngineUnavailable`
+   * without asking, kept answers included, and for a blocked `page` with the error that blocked
+   * it; a call made on a destroyed reader, or with a signal already aborted, rejects as it would
+   * on a working engine.
    */
   const onEngine = async <T>(
     work: () => Promise<T>,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    page?: number
   ): Promise<T> => {
     if (destroyed) throw destroyedError()
     signal?.throwIfAborted()
-    if (cannotStart) throw cannotStart.error
+    if (stoppedWith) throw stoppedWith
+    const blocked = page === undefined ? undefined : stops.blocked(page)
+    if (blocked) throw blocked
     return work()
   }
 
@@ -320,26 +355,66 @@ export async function createEngineReader(
   }
 
   /**
+   * Counts a stop the call that dropped the engine found, and gives the error the call rejects
+   * with when the stop blocked its page or stopped the reader.
+   */
+  const counted = (
+    page: number | undefined,
+    retry: boolean,
+    cause: unknown
+  ): InkError | undefined => {
+    const next = stops.found(page, retry, cause)
+    if (next.kind === 'blocked') return next.error
+    if (next.kind === 'stop') {
+      stopReader(
+        new InkError(
+          'EngineUnavailable',
+          'The engine stopped 3 times within 60 seconds and is not started again',
+          { cause },
+          cause
+        )
+      )
+      return stoppedWith
+    }
+    return undefined
+  }
+
+  /** How a call on the engine is made: see `run`. */
+  interface RunOptions {
+    signal?: AbortSignal | undefined
+    /** The page the call reads, which its stops count towards. */
+    page?: number | undefined
+    onDrop?: (() => void) | undefined
+    onGone?: (() => void) | undefined
+  }
+
+  /**
    * `work` on the session's document. When it fails with `engine-failure` and the engine has
    * really stopped, the engine is replaced and `work` runs once more on the new one. When the
    * engine still works the error is the call's own and goes to the caller. A call the engine
    * rejected with `aborted` because the reader dropped its session runs once more too. Never
-   * for a call that was aborted or a reader that was destroyed. `onDrop` is called when this
-   * call is the one that dropped the engine, so each drop is told to one caller only. `onGone`
-   * is called when the call fails because no engine could answer it: the engine could not be
-   * started, or the one that replaced a stopped engine stopped as well. Any other failure is the
-   * call's own.
+   * for a call that was aborted or a reader that was destroyed. The call that dropped a stopped
+   * engine counts the stop, towards `page` when it reads one: a stop that blocks the page, or
+   * stops the reader, rejects the call at once. `onDrop` is called when this call is the one that
+   * dropped the engine, so each drop is told to one caller only. `onGone` is called when the call
+   * fails because no engine could answer it: the engine could not be started, the one that
+   * replaced a stopped engine stopped as well, the page is blocked or the reader stopped. Any
+   * other failure is the call's own.
    */
   const run = async <T>(
     work: (doc: ReaderEngineDocument) => Promise<T>,
-    signal?: AbortSignal,
-    onDrop?: () => void,
-    onGone?: () => void
+    { signal, page, onDrop, onGone }: RunOptions = {}
   ): Promise<T> => {
     let retried = false
     for (;;) {
       if (destroyed) throw destroyedError()
       signal?.throwIfAborted()
+      const refused =
+        stoppedWith ?? (page === undefined ? undefined : stops.blocked(page))
+      if (refused) {
+        onGone?.()
+        throw refused
+      }
       const used = session()
       let s: Session
       try {
@@ -355,22 +430,32 @@ export async function createEngineReader(
         return await work(s.doc)
       } catch (error) {
         if (destroyed || signal?.aborted) throw error
-        if (retried) {
-          // The engine that replaced a stopped one stopped too, or was dropped under the call.
-          const code = codeOf(error)
-          if (code !== 'engine-failure' && code !== 'aborted') throw error
+        const code = codeOf(error)
+        if (code === 'aborted' && s.dropped) {
+          // Dropped under the call by another that found it stopped.
+          if (!retried) {
+            retried = true
+            continue
+          }
           onGone?.()
           throw unavailable(error)
         }
-        const code = codeOf(error)
-        if (code === 'aborted' && s.dropped) {
-          retried = true
-          continue
-        }
         if (code !== 'engine-failure') throw error
         if (await stillWorks(s)) throw error
+        if (drop(used, s)) {
+          onDrop?.()
+          const refusal = counted(page, retried, error)
+          if (refusal) {
+            onGone?.()
+            throw refusal
+          }
+        }
+        if (retried) {
+          // The engine that replaced a stopped one stopped too.
+          onGone?.()
+          throw unavailable(error)
+        }
         retried = true
-        if (drop(used, s)) onDrop?.()
       }
     }
   }
@@ -390,7 +475,7 @@ export async function createEngineReader(
     checkPage(index)
     let info: PageInfo
     try {
-      info = await onEngine(() => enginePageInfo(index))
+      info = await onEngine(() => enginePageInfo(index), undefined, index)
     } catch (error) {
       throw destroyed ? destroyedError() : error
     }
@@ -400,7 +485,7 @@ export async function createEngineReader(
   const enginePageInfo = async (index: number): Promise<PageInfo> => {
     let asked = facts.get(index)
     if (!asked) {
-      const made = run((doc) => doc.pageInfo(index))
+      const made = run((doc) => doc.pageInfo(index), { page: index })
       facts.set(index, made)
       made.then(
         () => {
@@ -445,7 +530,8 @@ export async function createEngineReader(
     request: DrawRequest,
     canvas: HTMLCanvasElement,
     signal?: AbortSignal
-  ): Promise<void> => onEngine(() => engineDraw(request, canvas, signal), signal)
+  ): Promise<void> =>
+    onEngine(() => engineDraw(request, canvas, signal), signal, request.page)
 
   const engineDraw = async (
     request: DrawRequest,
@@ -482,7 +568,7 @@ export async function createEngineReader(
               ...(request.background && { background: true }),
               signal: render.signal,
             }),
-          signal
+          { signal, page }
         )
       }
       // Finished just as the caller moved on or the document went: the canvas is not touched.
@@ -509,7 +595,7 @@ export async function createEngineReader(
     canvas: HTMLCanvasElement,
     signal?: AbortSignal
   ): Promise<Set<string>> =>
-    onEngine(() => engineDrawFields(request, canvas, signal), signal)
+    onEngine(() => engineDrawFields(request, canvas, signal), signal, request.page)
 
   /**
    * Draws the pass's widgets with the engine in one call over the part of the page the canvas
@@ -551,7 +637,7 @@ export async function createEngineReader(
               rotation: normaliseRotation(request.rotation - info.rotate),
               signal: render.signal,
             }),
-          signal
+          { signal, page }
         ))
       // Finished just as the caller moved on or the document went: the canvas is not touched.
       if (destroyed) throw destroyedError()
@@ -594,10 +680,10 @@ export async function createEngineReader(
     }
     const cancel = new AbortController()
     const made: TextRead = {
-      runs: run(
-        (doc) => doc.pageText(page, { signal: cancel.signal }),
-        cancel.signal
-      ).then((chars) => {
+      runs: run((doc) => doc.pageText(page, { signal: cancel.signal }), {
+        signal: cancel.signal,
+        page,
+      }).then((chars) => {
         if (chars.truncated) reportTruncated(page)
         return runsFromChars(page, chars)
       }),
@@ -663,34 +749,22 @@ export async function createEngineReader(
   }
 
   /**
-   * Engines that link reads dropped since a link read last succeeded. Each drop counts once,
-   * however many reads failed with it: reads run several at a time on the engine's one queue,
-   * and every read queued behind the one that stopped it fails too.
-   */
-  let linkStops = 0
-  /**
    * A page's links. A page whose links the engine cannot read has none, as a page whose
-   * annotations PDF.js cannot parse has none with the PDF.js reader. Once link reads have
-   * dropped `STOPS_IN_A_ROW` engines with none succeeding in between, the rest of the pages have
-   * none without asking: a file whose link reads stop the engine would otherwise start a new
-   * engine for every page. Once an engine cannot start, the read rejects as every call does.
+   * annotations PDF.js cannot parse has none with the PDF.js reader; so does a blocked page,
+   * without asking. While the reader is stopped the read rejects as every call does.
    */
   const links = async (page: number): Promise<PageLink[]> => {
     if (destroyed) throw destroyedError()
     checkPage(page)
-    const found = await onEngine(async () => {
-      if (linkStops >= STOPS_IN_A_ROW) return []
-      const facts = await run(
-        (doc) => doc.pageLinks(page),
-        undefined,
-        () => {
-          linkStops++
-        }
-      )
-      linkStops = 0
-      return linksFromFacts(page, facts, refPages)
-    }).catch((): PageLink[] => {
-      if (cannotStart && !destroyed) throw cannotStart.error
+    const found = await onEngine(
+      async () => {
+        const facts = await run((doc) => doc.pageLinks(page), { page })
+        return linksFromFacts(page, facts, refPages)
+      },
+      undefined,
+      page
+    ).catch((): PageLink[] => {
+      if (stoppedWith && !destroyed) throw stoppedWith
       return []
     })
     if (destroyed) throw destroyedError()
@@ -713,14 +787,12 @@ export async function createEngineReader(
         let gone = false
         let dest: FileDestinationShape | undefined
         try {
-          dest = await run(
-            (doc) => doc.namedDestination(nameBytes(name)),
-            undefined,
+          dest = await run((doc) => doc.namedDestination(nameBytes(name)), {
             onDrop,
-            () => {
+            onGone: () => {
               gone = true
-            }
-          )
+            },
+          })
         } catch (error) {
           // A working engine that cannot look the name up gives the same answer every time.
           if (gone || destroyed) throw error
@@ -836,7 +908,7 @@ export async function createEngineReader(
         gone = true
       })
     } catch (error) {
-      if (gone || isUnavailable(error) || destroyed || cannotStart) throw error
+      if (gone || isUnavailable(error) || destroyed || stoppedWith) throw error
       return instead()
     }
   }
@@ -859,12 +931,7 @@ export async function createEngineReader(
             // engine fails on its own: the open asks for the facts before any page.
             if (knownPage === undefined && pageCount > 0)
               await enginePageInfo(0).catch(() => undefined)
-            const facts = await run(
-              (doc) => doc.documentFacts(),
-              undefined,
-              undefined,
-              onGone
-            )
+            const facts = await run((doc) => doc.documentFacts(), { onGone })
             knownEncrypted = facts.encrypted
             const title = facts.title === undefined ? '' : textOf(facts.title)
             const author = facts.author === undefined ? '' : textOf(facts.author)
@@ -892,7 +959,7 @@ export async function createEngineReader(
   let contexts: ReturnType<typeof widgetContexts> | undefined
   const formFacts = (onGone?: () => void): Promise<FormFactsShape> => {
     if (!formRead) {
-      const made = run((doc) => doc.formFields(), undefined, undefined, onGone)
+      const made = run((doc) => doc.formFields(), { onGone })
       formRead = made
       contexts = undefined
       made.catch(() => {
@@ -951,12 +1018,7 @@ export async function createEngineReader(
     page: number,
     onGone?: () => void
   ): Promise<{ facts: PageAnnotationsShape; form: FormFactsShape | undefined }> => {
-    const facts = await run(
-      (doc) => doc.pageAnnotations(page),
-      undefined,
-      undefined,
-      onGone
-    )
+    const facts = await run((doc) => doc.pageAnnotations(page), { page, onGone })
     const needsForm = facts.annotations.some(
       (a) => a.subtype === 'Widget' || a.subtype === 'FreeText'
     )
@@ -1009,7 +1071,11 @@ export async function createEngineReader(
     let found: FileAnnotation[]
     try {
       // Each caller gets annotations of its own, as the PDF.js reader gives.
-      found = await onEngine(async () => structuredClone(await pageAnnotations(page)))
+      found = await onEngine(
+        async () => structuredClone(await pageAnnotations(page)),
+        undefined,
+        page
+      )
     } catch (error) {
       throw destroyed ? destroyedError() : error
     }
@@ -1054,37 +1120,36 @@ export async function createEngineReader(
     checkPage(page)
     let found: string[]
     try {
-      found = await onEngine(() =>
-        orElse(
-          async (onGone) => {
-            const { order } = await run(
-              (doc) => doc.structureOrder(page),
-              undefined,
-              undefined,
-              onGone
-            )
-            if (order.length === 0) return []
-            // The engine names each by object number; its id needs the generation too.
-            const { annotations: entries } = await run(
-              (doc) => doc.pageAnnotations(page),
-              undefined,
-              undefined,
-              onGone
-            )
-            const generations = new Map<number, number>()
-            for (const a of entries)
-              if (a.objectNumber !== undefined && !generations.has(a.objectNumber))
-                generations.set(a.objectNumber, a.generation ?? 0)
-            return order.map((objectNumber) =>
-              annotationId(page, {
-                index: -1,
-                objectNumber,
-                generation: generations.get(objectNumber) ?? 0,
+      found = await onEngine(
+        () =>
+          orElse(
+            async (onGone) => {
+              const { order } = await run((doc) => doc.structureOrder(page), {
+                page,
+                onGone,
               })
-            )
-          },
-          (): string[] => []
-        )
+              if (order.length === 0) return []
+              // The engine names each by object number; its id needs the generation too.
+              const { annotations: entries } = await run(
+                (doc) => doc.pageAnnotations(page),
+                { page, onGone }
+              )
+              const generations = new Map<number, number>()
+              for (const a of entries)
+                if (a.objectNumber !== undefined && !generations.has(a.objectNumber))
+                  generations.set(a.objectNumber, a.generation ?? 0)
+              return order.map((objectNumber) =>
+                annotationId(page, {
+                  index: -1,
+                  objectNumber,
+                  generation: generations.get(objectNumber) ?? 0,
+                })
+              )
+            },
+            (): string[] => []
+          ),
+        undefined,
+        page
       )
     } catch (error) {
       throw destroyed ? destroyedError() : error
@@ -1096,13 +1161,13 @@ export async function createEngineReader(
   /**
    * The engine's script facts, read once and kept, as the form's are. A read a working engine
    * cannot make gives none, as PDF.js gives none for JavaScript it cannot read. A failed read is
-   * not kept.
+   * not kept. A read a page's actions start counts its stops towards that page.
    */
   let scriptRead: Promise<ScriptFactsShape> | undefined
-  const scriptFacts = (): Promise<ScriptFactsShape> => {
+  const scriptFacts = (page?: number): Promise<ScriptFactsShape> => {
     if (!scriptRead) {
       const made = orElse(
-        (onGone) => run((doc) => doc.scripts(), undefined, undefined, onGone),
+        (onGone) => run((doc) => doc.scripts(), { page, onGone }),
         (): ScriptFactsShape => ({
           document: [],
           documentActions: {},
@@ -1149,12 +1214,12 @@ export async function createEngineReader(
     return scriptsShare
   }
 
-  /** `work` on the engine, as the reader's own call. */
-  const ownCall = async <T>(work: () => Promise<T>): Promise<T> => {
+  /** `work` on the engine, as the reader's own call, for `page` when it reads one. */
+  const ownCall = async <T>(work: () => Promise<T>, page?: number): Promise<T> => {
     if (destroyed) throw destroyedError()
     let found: T
     try {
-      found = await onEngine(work)
+      found = await onEngine(work, undefined, page)
     } catch (error) {
       throw destroyed ? destroyedError() : error
     }
@@ -1176,8 +1241,8 @@ export async function createEngineReader(
   const pageScripts = (page: number): Promise<Record<string, string[]>> =>
     ownCall(async () => {
       checkPage(page)
-      return pageScriptsFromEngine(await scriptFacts(), page)
-    })
+      return pageScriptsFromEngine(await scriptFacts(page), page)
+    }, page)
 
   /**
    * The sandbox's field objects, built from the engine's form and the fields `/Fields` reaches.
@@ -1194,7 +1259,7 @@ export async function createEngineReader(
 
   const borrowEngine = async (): Promise<LentEngine> => {
     if (destroyed) throw destroyedError()
-    if (cannotStart) throw cannotStart.error
+    if (stoppedWith) throw stoppedWith
     const used = session()
     let s: Session
     try {
@@ -1205,10 +1270,48 @@ export async function createEngineReader(
     if (destroyed) throw destroyedError()
     return {
       engine: s.engine,
+      // A stop the borrower found counts as any other, towards no page.
       stopped: async () => {
-        if (!(await stillWorks(s))) drop(used, s)
+        if (!(await stillWorks(s)) && drop(used, s)) counted(undefined, false, undefined)
       },
     }
+  }
+
+  /** The restart running, which a second call shares. */
+  let restarting: Promise<void> | undefined
+  const restart = (): Promise<void> => {
+    if (destroyed) return Promise.reject(destroyedError())
+    if (restarting) return restarting
+    if (!stoppedWith) return Promise.resolve()
+    const attempt = (async () => {
+      stops.clear()
+      let s: Session
+      try {
+        s = await start()
+      } catch (error) {
+        throw destroyed ? destroyedError() : unavailable(error)
+      }
+      try {
+        // A read on the new engine: a page it is sure to have.
+        if (pageCount > 0) await s.doc.pageInfo(knownPage ?? 0)
+      } catch (error) {
+        void free(s)
+        throw destroyed ? destroyedError() : unavailable(error)
+      }
+      if (destroyed) {
+        void free(s)
+        throw destroyedError()
+      }
+      current = Promise.resolve(s)
+      stoppedWith = undefined
+      engineStopped.set(false)
+    })()
+    restarting = attempt
+    const settle = (): void => {
+      if (restarting === attempt) restarting = undefined
+    }
+    attempt.then(settle, settle)
+    return attempt
   }
 
   let destroying: Promise<void> | undefined
@@ -1230,12 +1333,13 @@ export async function createEngineReader(
             ({ content }) => ({ page: content.page, items: [...content.items] }),
             options?.signal
           ),
-        options?.signal
+        options?.signal,
+        page
       ),
     textFamilies: (page, signal) =>
-      onEngine(() => readText(page, (runs) => runs.families, signal), signal),
+      onEngine(() => readText(page, (runs) => runs.families, signal), signal, page),
     textBaselines: (page, signal) =>
-      onEngine(() => readText(page, (runs) => runs.baselines, signal), signal),
+      onEngine(() => readText(page, (runs) => runs.baselines, signal), signal, page),
     links,
     annotations,
     form,
@@ -1251,7 +1355,9 @@ export async function createEngineReader(
     sandboxFields,
     outline,
     resolveDestination,
-    unavailable: () => cannotStart?.error,
+    unavailable: () => stoppedWith,
+    engineStopped: readonly(engineStopped),
+    restart,
     borrowEngine,
     destroy() {
       if (destroying) return destroying

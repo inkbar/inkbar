@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { expectSameLinks, linksAsSeen } from '../engine-reader/test-utils'
 import { nodeAssets } from '../pdfjs/node-assets'
+import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 
-import { openDocument } from './document'
+import { openDocument, type InkDocument } from './document'
+import { setEngineFactory } from './engine-factory'
 
 import type { EngineLoader } from './save/saver'
 
@@ -265,5 +267,194 @@ describe('an engine that stops and cannot be started again', () => {
       state: 'error',
       error: { code: 'EngineUnavailable' },
     })
+  })
+})
+
+describe('a document whose engine is stopped', () => {
+  afterEach(() => {
+    setEngineFactory(undefined)
+    vi.unstubAllGlobals()
+  })
+
+  const unavailable = { name: 'InkError', code: 'EngineUnavailable' }
+
+  /**
+   * text-simple, read by real engines that `held` counts. While `refuse()` returns true no new
+   * engine starts.
+   */
+  const openHeld = async (refuse: () => boolean = () => false) => {
+    flag.__INKBAR_READER__ = 'engine'
+    vi.stubGlobal('ImageData', FakeImageData)
+    const held = heldEngines()
+    setEngineFactory(() =>
+      refuse() ? Promise.reject(new Error('no engine')) : held.factory()
+    )
+    const bytes = await fixtureBytes('text-simple')
+    const doc = await openDocument(bytes.slice(), {
+      assets: nodeAssets(),
+      engine: () => import('@inkbar/engine'),
+    })
+    await doc.ready
+    return { held, doc, bytes }
+  }
+
+  /** Stops the engine under a draw, with no engine able to start again. */
+  const stopEngine = async (held: ReturnType<typeof heldEngines>, doc: InkDocument) => {
+    held.stopOnNext('renderPage')
+    await expect(drawn(doc)).rejects.toMatchObject(unavailable)
+  }
+
+  const square = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 1, y: 1, width: 9, height: 9 },
+    })
+  const mark = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 72, y: 600, width: 200, height: 40 },
+      interiorColor: '#000000',
+    })
+
+  it('with the switch off: never stopped, and a restart does nothing', async () => {
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    expect(doc._reader.kind).toBe('pdfjs')
+    expect(doc.engineStopped.get()).toBe(false)
+    await expect(doc.restartEngine()).resolves.toBeUndefined()
+    expect(doc.engineStopped.get()).toBe(false)
+    doc.destroy()
+  })
+
+  it('is stopped, saves only what needs no engine, and reads again once restarted, its session untouched', async () => {
+    let refuse = false
+    const { held, doc, bytes } = await openHeld(() => refuse)
+    const seen: boolean[] = []
+    doc.engineStopped.subscribe((stopped) => seen.push(stopped))
+    const added = square(doc)
+    // A save with changes, then none: the file's bytes, which need no engine.
+    doc.history.undo()
+    refuse = true
+    await stopEngine(held, doc)
+    expect(doc.engineStopped.get()).toBe(true)
+    expect(seen).toEqual([true])
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    await expect(doc.save()).resolves.toEqual(bytes)
+    doc.history.redo()
+    for (let i = 0; i < 2; i++)
+      await expect(doc.save()).rejects.toMatchObject(unavailable)
+    mark(doc)
+    await expect(doc.applyRedactions()).rejects.toMatchObject(unavailable)
+    const list = doc.annotations.list.get()
+    expect(doc.history.canUndo.get()).toBe(true)
+    // Started again: it reads, and the session is as it was.
+    refuse = false
+    const engines = held.engines.length
+    await expect(doc.restartEngine()).resolves.toBeUndefined()
+    expect(held.engines).toHaveLength(engines + 1)
+    expect(doc.engineStopped.get()).toBe(false)
+    expect(seen).toEqual([true, false])
+    await expect(drawn(doc)).resolves.toBe(true)
+    expect(doc.annotations.list.get()).toBe(list)
+    expect(list.map((a) => a.id)).toContain(added.id)
+    expect(doc.history.canUndo.get()).toBe(true)
+    await expect(doc.save()).resolves.toBeInstanceOf(Uint8Array)
+    doc.destroy()
+  })
+
+  it('stays stopped when the restart cannot start an engine', async () => {
+    let refuse = false
+    const { held, doc } = await openHeld(() => refuse)
+    refuse = true
+    await stopEngine(held, doc)
+    await expect(doc.restartEngine()).rejects.toMatchObject(unavailable)
+    expect(doc.engineStopped.get()).toBe(true)
+    await expect(doc.text(0)).rejects.toMatchObject(unavailable)
+    doc.destroy()
+  })
+
+  it('starts one engine for two restarts asked at once', async () => {
+    let refuse = false
+    const { held, doc } = await openHeld(() => refuse)
+    refuse = true
+    await stopEngine(held, doc)
+    refuse = false
+    const engines = held.engines.length
+    await Promise.all([doc.restartEngine(), doc.restartEngine()])
+    expect(held.engines).toHaveLength(engines + 1)
+    doc.destroy()
+  })
+
+  it('rejects a restart the document is destroyed under, and destroys the engine it started', async () => {
+    let refuse = false
+    const { held, doc } = await openHeld(() => refuse)
+    refuse = true
+    await stopEngine(held, doc)
+    refuse = false
+    const engines = held.engines.length
+    const restarting = doc.restartEngine()
+    doc.destroy()
+    await expect(restarting).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await vi.waitFor(() => expect(held.engines).toHaveLength(engines + 1))
+    await vi.waitFor(() => expect(held.engines.at(-1)!.destroyed).toBe(true))
+    expect(held.engines.every((e) => e.destroyed)).toBe(true)
+    await expect(doc.restartEngine()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+  })
+
+  it('rejects the save that finds the engine cannot start with EngineUnavailable, and every save after', async () => {
+    let refuse = false
+    const { held, doc } = await openHeld(() => refuse)
+    square(doc)
+    held.stopOnNext('write')
+    await expect(doc.save()).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write' },
+    })
+    refuse = true
+    await expect(doc.save()).rejects.toMatchObject(unavailable)
+    expect(doc.engineStopped.get()).toBe(true)
+    await expect(doc.save()).rejects.toMatchObject(unavailable)
+    doc.destroy()
+  })
+
+  it('rejects the write that stops the engine a third time within 60 seconds with EngineUnavailable', async () => {
+    const { held, doc } = await openHeld()
+    square(doc)
+    for (let i = 0; i < 2; i++) {
+      held.stopOnNext('write')
+      await expect(doc.save()).rejects.toMatchObject({ code: 'SaveFailed' })
+      expect(doc.engineStopped.get()).toBe(false)
+    }
+    held.stopOnNext('write')
+    await expect(doc.save()).rejects.toMatchObject(unavailable)
+    expect(doc.engineStopped.get()).toBe(true)
+    mark(doc)
+    await expect(doc.applyRedactions()).rejects.toMatchObject(unavailable)
+    doc.destroy()
+  })
+
+  it('opens the redacted file with no page blocked', async () => {
+    const { held, doc } = await openHeld()
+    held.stopOnEvery('pageText')
+    const blocked = { ...unavailable, details: { page: 0 } }
+    await expect(doc.text(0)).rejects.toMatchObject(blocked)
+    held.stopOnEvery(undefined)
+    await expect(doc.text(0)).rejects.toMatchObject(blocked)
+    expect(doc.engineStopped.get()).toBe(false)
+    mark(doc)
+    const { bytes } = await doc.applyRedactions()
+    const next = await openDocument(bytes, {
+      assets: nodeAssets(),
+      engine: () => import('@inkbar/engine'),
+    })
+    await next.ready
+    await expect(next.text(0)).resolves.toMatchObject({ page: 0 })
+    expect(next.engineStopped.get()).toBe(false)
+    doc.destroy()
+    next.destroy()
   })
 })
