@@ -162,6 +162,6 @@ test('an engine that stops and cannot start again says saving is unavailable', a
   await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
     'Saving is not available right now. Check your connection and try again.'
   )
-  await expect(page.getByTestId('errors')).toContainText('SaveFailed')
-  await expect(page.getByTestId('errors')).toContainText('EngineUnavailable')
+  // The write's failure, then the stop, heard once: the save that found it reports no second.
+  await expect(page.getByTestId('errors')).toHaveText('SaveFailed EngineUnavailable')
 })

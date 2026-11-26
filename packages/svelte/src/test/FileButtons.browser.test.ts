@@ -172,7 +172,7 @@ describe('with changes to write', () => {
     await expect
       .poll(alertText)
       .toBe('Saving is not available right now. Check your connection and try again.')
-    expect(errors.map((e) => e.code)).toContain('SaveFailed')
-    expect(errors.map((e) => e.code)).toContain('EngineUnavailable')
+    // The write's failure, then the stop, heard once: the save that found it reports no second.
+    expect(errors.map((e) => e.code)).toEqual(['SaveFailed', 'EngineUnavailable'])
   })
 })

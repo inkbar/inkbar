@@ -317,7 +317,7 @@
     const failure = fileActionFailure(error, messageState.get().messages)
     if (!failure) return
     showMessage(failure.message)
-    onError?.(failure.error)
+    if (!failure.heard) onError?.(failure.error)
   }
   const lang = $derived(
     isValidLocale(words.current.locale) ? words.current.locale : undefined

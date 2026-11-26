@@ -604,7 +604,7 @@ function reportFileError(error: unknown): void {
   const failure = fileActionFailure(error, messageState.get().messages)
   if (!failure) return
   showMessage(failure.message)
-  emit('error', failure.error)
+  if (!failure.heard) emit('error', failure.error)
 }
 
 /**

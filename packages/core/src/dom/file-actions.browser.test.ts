@@ -316,12 +316,17 @@ describe('while a copy is written', () => {
     expect(fileActionFailure(saveFailed(), en)?.message).toBe(
       'Your changes could not be written into this file.'
     )
-    expect(fileActionFailure(saveFailed(), en)?.error.code).toBe('SaveFailed')
-    // A document that has stopped reading cannot write its changes either.
+    expect(fileActionFailure(saveFailed(), en)).toMatchObject({
+      error: { code: 'SaveFailed' },
+      heard: false,
+    })
+    // A document that has stopped reading cannot write its changes either. The host heard of
+    // the stop as it happened, so the failure is not reported again.
     const stopped = new InkError('EngineUnavailable', 'stopped')
     expect(fileActionFailure(stopped, en)).toEqual({
       error: stopped,
       message: 'Saving is not available right now. Check your connection and try again.',
+      heard: true,
     })
     // Anything else is not the reader's to see.
     expect(
