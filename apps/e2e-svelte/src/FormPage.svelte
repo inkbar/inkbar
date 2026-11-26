@@ -2,11 +2,14 @@
   /*
    * A form fixture, opened with Inkbar keeping both annotations and field values, so its own
    * history undoes a field commit and the calculation it caused in one step. Form actions are
-   * listed, newest first, because Inkbar never acts on them itself.
+   * listed, newest first, because Inkbar never acts on them itself. Download writes the filled
+   * values into the file. The status names the reader, for the tests.
    */
+  import { readerOf } from '@inkbar/e2e-shared/engine-reader'
   import { describeAction } from '@inkbar/e2e-shared/form-actions'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
+    InkDownloadButton,
     InkNextPage,
     InkPageCount,
     InkPageInput,
@@ -20,13 +23,21 @@
   } from '@inkbar/svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import type { ViewerAction } from '@inkbar/core'
+  import type { InkDocument, ViewerAction } from '@inkbar/core'
 
   let { fixture }: { fixture: string } = $props()
+
+  const engine = () => import('@inkbar/engine')
 
   const src = $derived({ url: fixtureUrl(fixture as FixtureName), key: fixture })
   let status = $state('loading')
   let actions = $state<string[]>([])
+  let reader = $state('')
+
+  function onReady(doc: InkDocument): void {
+    reader = readerOf(doc)
+    status = 'ready'
+  }
 
   function onaction(a: ViewerAction): void {
     actions = [describeAction(a), ...actions]
@@ -36,8 +47,9 @@
 <InkRoot
   {src}
   {assets}
+  {engine}
   class="sandbox-root"
-  onReady={() => (status = 'ready')}
+  {onReady}
   onError={() => (status = 'error')}
   {onaction}
 >
@@ -46,6 +58,7 @@
     <InkToolButton tool="select" />
     <InkUndo />
     <InkRedo />
+    <InkDownloadButton />
   </InkToolbar>
   <div class="sandbox-editor">
     <InkViewport />
@@ -61,5 +74,7 @@
       <li>{line}</li>
     {/each}
   </ol>
-  <p class="sandbox-status" role="status" data-testid="status">{status}</p>
+  <p class="sandbox-status" role="status" data-testid="status" data-reader={reader}>
+    {status}
+  </p>
 </InkRoot>

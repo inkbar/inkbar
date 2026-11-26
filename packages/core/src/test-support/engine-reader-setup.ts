@@ -1,7 +1,7 @@
 // Test support only, never production code: the setup file of the `browser-engine` Vitest
-// project, which runs the text, search, link, outline, form and scripting browser tests a second
-// time with the engine reading the file. No build entry reaches this directory, and the package
-// publishes only `dist`.
+// project, which runs the text, search, link, outline, form, scripting, page, viewer, save and
+// redaction browser tests a second time with the engine reading the file. No build entry reaches
+// this directory, and the package publishes only `dist`.
 import { beforeEach, vi } from 'vitest'
 
 import type { EngineLoader } from '../model/document'

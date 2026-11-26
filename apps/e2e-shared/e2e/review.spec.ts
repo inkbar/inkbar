@@ -3,11 +3,14 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { guardConsole } from './console-guard'
 import {
+  expectReader,
   metrics,
+  READERS,
   readyCount,
   recordFirstPaint,
   report,
   waitForFirstPage,
+  withReader,
 } from './helpers'
 
 const consoleGuard = guardConsole(test)
@@ -40,16 +43,19 @@ async function addNote(page: Page, text: string): Promise<void> {
 }
 
 test.describe('accessibility', () => {
-  test('the review page with its toolbar has no WCAG 2.2 AA violations', async ({
-    page,
-  }) => {
-    await page.goto('/?doc=annotated-notes-threaded')
-    await waitForFirstPage(page)
-    const banner = page.getByTestId('embedded-banner')
-    await expect(banner).toContainText('4 annotations')
-    await expect(banner).toContainText('(4 Text)')
-    expect(await axe(page)).toEqual([])
-  })
+  // The banner lists the file's own annotations, as each reader reads them.
+  for (const reader of READERS)
+    test(`the review page with its toolbar has no WCAG 2.2 AA violations, read by ${reader}`, async ({
+      page,
+    }) => {
+      await page.goto(withReader('/?doc=annotated-notes-threaded', reader))
+      await waitForFirstPage(page)
+      await expectReader(page, reader)
+      const banner = page.getByTestId('embedded-banner')
+      await expect(banner).toContainText('4 annotations')
+      await expect(banner).toContainText('(4 Text)')
+      expect(await axe(page)).toEqual([])
+    })
 
   test('an open note popover has no WCAG 2.2 AA violations', async ({ page }) => {
     await page.goto('/?doc=text-simple')
@@ -199,21 +205,23 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await expect(page.locator('[data-annotation][data-type="text"]')).toHaveCount(0)
 })
 
-test("another program's redaction marks open as marks, and the banner leaves them out", async ({
-  page,
-}) => {
-  await page.goto('/?doc=annotated-redact')
-  // PDF.js draws Redact annotations itself but logs that it has no dedicated renderer for them.
-  const pdfjsRedact = /^Warning: Unimplemented annotation type "Redact"/
-  await waitForFirstPage(page)
-  const marks = page.locator(
-    '[data-annotation][data-type="redact"][data-source="session"]'
-  )
-  await expect(marks).toHaveCount(2)
-  // The file holds nothing else, so there is no banner.
-  await expect(page.getByTestId('embedded-banner')).toHaveCount(0)
-  expect(consoleGuard.take(pdfjsRedact)).toHaveLength(2)
-})
+for (const reader of READERS)
+  test(`another program's redaction marks open as marks, and the banner leaves them out, read by ${reader}`, async ({
+    page,
+  }) => {
+    await page.goto(withReader('/?doc=annotated-redact', reader))
+    // PDF.js draws Redact annotations itself but logs that it has no dedicated renderer for them.
+    const pdfjsRedact = /^Warning: Unimplemented annotation type "Redact"/
+    await waitForFirstPage(page)
+    await expectReader(page, reader)
+    const marks = page.locator(
+      '[data-annotation][data-type="redact"][data-source="session"]'
+    )
+    await expect(marks).toHaveCount(2)
+    // The file holds nothing else, so there is no banner.
+    await expect(page.getByTestId('embedded-banner')).toHaveCount(0)
+    expect(consoleGuard.take(pdfjsRedact)).toHaveLength(reader === 'pdfjs' ? 2 : 0)
+  })
 
 test('a broken file shows its error code and the page stays usable', async ({ page }) => {
   await page.goto('/?doc=malformed-truncated')

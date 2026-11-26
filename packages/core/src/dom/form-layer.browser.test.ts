@@ -1592,6 +1592,8 @@ describe('checkboxes, radios, choices and buttons', () => {
     await userEvent.click(controlOf(p.host, agree!))
     controlOf(p.host, agree!).blur()
     await settled(p)
+    // PDF.js draws the on state from its annotation storage; the engine has none, and draws the
+    // state a saved file holds.
     const checked =
       readerKind() === 'pdfjs'
         ? await storedReference(await open('form-fields'), t, [[agree!.id, true]])

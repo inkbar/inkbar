@@ -88,9 +88,11 @@ export default defineConfig({
         // Its subject is the engine reading the file: it runs in `browser-engine` alone.
         exclude: ['src/dom/no-pdfjs.browser.test.ts'],
       }),
-      // The tests that read text, search, links, the outline, the form and its scripts, with the
-      // engine reading the file: the setup file switches the reader and passes every document
-      // the engine.
+      // The tests that read text, search, links, the outline, the form and its scripts, and draw
+      // pages, thumbnails and the viewer with the file's annotations, with the engine reading the
+      // file, and save, download and apply redactions from it: the setup file switches the reader
+      // and passes every document the engine. The saved-file comparison is left out; its reason
+      // is at the top of that file.
       browserProject('browser-engine', {
         include: [
           'src/dom/no-pdfjs.browser.test.ts',
@@ -107,6 +109,20 @@ export default defineConfig({
           'src/dom/form-layer.browser.test.ts',
           'src/dom/viewer/create-viewer.browser.test.ts',
           'src/model/form/scripting.browser.test.ts',
+          'src/dom/page-renderer.browser.test.ts',
+          'src/dom/loupe-layer.browser.test.ts',
+          'src/dom/lifted.browser.test.ts',
+          'src/dom/thumbnails/*.browser.test.ts',
+          'src/dom/viewer-engine.browser.test.ts',
+          'src/dom/viewer/create-viewer-messages.browser.test.ts',
+          'src/dom/viewer/form-alert.browser.test.ts',
+          'src/dom/viewer/messages-live.browser.test.ts',
+          'src/dom/viewer/password-dialog.browser.test.ts',
+          'src/dom/viewer/popover.browser.test.ts',
+          'src/dom/viewer/redaction-dialog.browser.test.ts',
+          'src/dom/viewer/file-buttons.browser.test.ts',
+          'src/dom/file-actions.browser.test.ts',
+          'src/dom/redaction-actions.browser.test.ts',
         ],
         setupFiles: ['src/test-support/engine-reader-setup.ts'],
       }),

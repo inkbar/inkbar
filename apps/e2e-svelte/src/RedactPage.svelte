@@ -7,6 +7,7 @@
    * shared suite.
    */
   import { allTools } from '@inkbar/core/dom'
+  import { readerOf } from '@inkbar/e2e-shared/engine-reader'
   import { keepRedacted } from '@inkbar/e2e-shared/redaction-page'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
@@ -23,7 +24,12 @@
   } from '@inkbar/svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import type { Annotation, DocumentSource, RedactionResult } from '@inkbar/core'
+  import type {
+    Annotation,
+    DocumentSource,
+    InkDocument,
+    RedactionResult,
+  } from '@inkbar/core'
 
   let {
     fixture,
@@ -34,6 +40,13 @@
   const engine = () => import('@inkbar/engine')
   const tools = allTools()
   let status = $state('loading')
+  /** Which reader opened the document, for the tests. */
+  let reader = $state('')
+
+  function onReady(doc: InkDocument): void {
+    reader = readerOf(doc)
+    status = 'ready'
+  }
   let annotations = $state.raw<Annotation[]>([])
   // The route picks the first document; "Open the redacted file" replaces it.
   // svelte-ignore state_referenced_locally
@@ -86,6 +99,7 @@
     role="status"
     data-testid="status"
     data-applied={applied?.marks ?? ''}
+    data-reader={reader}
   >
     {status}
   </p>
@@ -106,7 +120,7 @@
     {engine}
     {redactionConfirm}
     class="sandbox-root"
-    onReady={() => (status = 'ready')}
+    {onReady}
     onError={() => (status = 'error')}
     {onRedacted}
   >
@@ -120,7 +134,7 @@
     {engine}
     {redactionConfirm}
     class="sandbox-root"
-    onReady={() => (status = 'ready')}
+    {onReady}
     onError={() => (status = 'error')}
     {onRedacted}
   >

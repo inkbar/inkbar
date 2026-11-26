@@ -11,6 +11,7 @@ import {
 } from '../model/document'
 import { InkError } from '../model/errors'
 import { writable } from '../model/readable'
+import { readerKind } from '../reader/select'
 
 import {
   attachFileKeys,
@@ -77,7 +78,9 @@ async function openReal(withEngine: boolean) {
   })
   opened.push(doc)
   await doc.ready
-  return { doc, loader }
+  // The engine reader loads the engine once to open the file; only later loads are the save's.
+  const opening = loader.mock.calls.length
+  return { doc, loader, saveLoads: () => loader.mock.calls.length - opening }
 }
 
 const addSquare = (doc: InkDocument) =>
@@ -191,11 +194,11 @@ describe('printDocument', () => {
 describe('with an engine', () => {
   it('downloads the written copy, holding the added annotation', async () => {
     const clicked = catchDownloads()
-    const { doc, loader } = await openReal(true)
+    const { doc, saveLoads } = await openReal(true)
     addSquare(doc)
     await downloadDocument(doc)
     expect(clicked).toHaveLength(1)
-    expect(loader).toHaveBeenCalledTimes(1)
+    expect(saveLoads()).toBe(1)
     const bytes = await bytesAt(clicked[0]!.href)
     expect(holdsGloss(bytes)).toBe(true)
     expect(bytes).not.toEqual(await doc.getData())
@@ -203,19 +206,24 @@ describe('with an engine', () => {
 
   it('downloads the opened file, loading no engine, when nothing changed', async () => {
     const clicked = catchDownloads()
-    const { doc, loader } = await openReal(true)
+    const { doc, saveLoads } = await openReal(true)
     await downloadDocument(doc)
     expect(await bytesAt(clicked[0]!.href)).toEqual(await doc.getData())
-    expect(loader).not.toHaveBeenCalled()
+    expect(saveLoads()).toBe(0)
   })
 
-  it('without an engine downloads the opened file, changes or not', async () => {
-    const clicked = catchDownloads()
-    const { doc } = await openReal(false)
-    addSquare(doc)
-    await downloadDocument(doc)
-    expect(await bytesAt(clicked[0]!.href)).toEqual(await doc.getData())
-  })
+  // The engine reader cannot open a file without an engine, so there is no such document to
+  // download with it.
+  it.skipIf(readerKind() === 'engine')(
+    'without an engine downloads the opened file, changes or not',
+    async () => {
+      const clicked = catchDownloads()
+      const { doc } = await openReal(false)
+      addSquare(doc)
+      await downloadDocument(doc)
+      expect(await bytesAt(clicked[0]!.href)).toEqual(await doc.getData())
+    }
+  )
 
   it('prints the written copy', async () => {
     const { doc } = await openReal(true)

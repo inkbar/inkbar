@@ -1,6 +1,8 @@
+import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { describeAction } from '@inkbar/e2e-shared/form-actions'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkDownloadButton,
   InkNextPage,
   InkPageCount,
   InkPageInput,
@@ -15,12 +17,15 @@ import {
 import { useCallback, useMemo, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import type { ViewerAction } from '@inkbar/core'
+import type { InkDocument, ViewerAction } from '@inkbar/core'
+
+const engine = () => import('@inkbar/engine')
 
 /*
  * A form fixture, opened with Inkbar keeping both annotations and field values, so its own
  * history undoes a field commit and the calculation it caused in one step. Form actions are
- * listed, newest first, because Inkbar never acts on them itself.
+ * listed, newest first, because Inkbar never acts on them itself. Download writes the filled
+ * values into the file. The status names the reader, for the tests.
  */
 export function FormPage({ fixture }: { fixture: string }) {
   const src = useMemo(
@@ -29,6 +34,11 @@ export function FormPage({ fixture }: { fixture: string }) {
   )
   const [status, setStatus] = useState('loading')
   const [actions, setActions] = useState<string[]>([])
+  const [reader, setReader] = useState('')
+  const onReady = useCallback((doc: InkDocument) => {
+    setReader(readerOf(doc))
+    setStatus('ready')
+  }, [])
   const onAction = useCallback(
     (a: ViewerAction) => setActions((list) => [describeAction(a), ...list]),
     []
@@ -37,8 +47,9 @@ export function FormPage({ fixture }: { fixture: string }) {
     <InkRoot
       src={src}
       assets={assets}
+      engine={engine}
       className="sandbox-root"
-      onReady={() => setStatus('ready')}
+      onReady={onReady}
       onError={() => setStatus('error')}
       onAction={onAction}
     >
@@ -47,6 +58,7 @@ export function FormPage({ fixture }: { fixture: string }) {
         <InkToolButton tool="select" />
         <InkUndo />
         <InkRedo />
+        <InkDownloadButton />
       </InkToolbar>
       <div className="sandbox-editor">
         <InkViewport />
@@ -66,7 +78,12 @@ export function FormPage({ fixture }: { fixture: string }) {
           <li key={actions.length - i}>{line}</li>
         ))}
       </ol>
-      <p className="sandbox-status" role="status" data-testid="status">
+      <p
+        className="sandbox-status"
+        role="status"
+        data-testid="status"
+        data-reader={reader}
+      >
         {status}
       </p>
     </InkRoot>

@@ -628,6 +628,15 @@ describe('createThumbnail', () => {
     window.addEventListener('unhandledrejection', onRejection)
     cleanup.push(() => window.removeEventListener('unhandledrejection', onRejection))
     const doc = await openDoc()
+    // The draw is held until the painter is gone, so the unmount lands mid-render.
+    let release = (): void => undefined
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const reader = doc._reader
+    const draw = reader.draw.bind(reader)
+    reader.draw = async (...args) => {
+      await draw(...args)
+      await held
+    }
     const docs = writable<InkDocument | null>(doc)
     const el = place(document.createElement('div'))
     const painter = createThumbnailPainter(el, { document: docs }, { page: 0 })
@@ -636,6 +645,7 @@ describe('createThumbnail', () => {
     expect(el.querySelector('canvas')).toBeNull()
     painter.destroy()
     docs.set(null)
+    release()
     await settle(300)
     expect(el.children).toHaveLength(0)
     expect(errors).not.toHaveBeenCalled()

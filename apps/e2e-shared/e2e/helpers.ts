@@ -15,6 +15,19 @@ export async function waitForFirstPage(page: Page, timeout = 15_000): Promise<vo
   await expect(page.getByTestId('status')).toContainText(/ready|saved/)
 }
 
+/** The readers a scenario runs with: PDF.js, and the engine through the engine-reader route. */
+export const READERS = ['pdfjs', 'engine'] as const
+export type Reader = (typeof READERS)[number]
+
+/** `path`, a URL with a query, asking for the engine-reader route when `reader` is the engine. */
+export const withReader = (path: string, reader: Reader): string =>
+  reader === 'engine' ? `${path}&reader=engine` : path
+
+/** Fails unless `reader` opened the document, so a scenario cannot pass on the other reader. */
+export async function expectReader(page: Page, reader: Reader): Promise<void> {
+  await expect(page.getByTestId('status')).toHaveAttribute('data-reader', reader)
+}
+
 export async function readyCount(page: Page): Promise<number> {
   return page.evaluate(() => window.__inkbarMetrics?.ready.length ?? 0)
 }
