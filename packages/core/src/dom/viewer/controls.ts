@@ -290,8 +290,7 @@ function fileButton(
 /**
  * Applies the redaction marks (`viewer.applyRedactions()`): asks first, removes the content
  * under them and reopens the viewer on the redacted file. It shows its name as text. Disabled
- * while no document is ready, without the `engine` option and while there is no mark
- * (`canRedact`). While the marks are applied (`redactionBusy`) it says `viewer.redacting` and is
+ * while no document is ready and while there is no mark (`canRedact`). While the marks are applied (`redactionBusy`) it says `viewer.redacting` and is
  * `aria-busy` and `aria-disabled`, keeping focus, and a press does nothing.
  */
 export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {

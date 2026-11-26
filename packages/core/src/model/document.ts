@@ -180,8 +180,8 @@ export interface InkDocument {
   /**
    * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
    * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
-   * mode they never reach `onChange`. Fields PDF.js leaves out (a FreeText's callout, fringe,
-   * head and font, a note's icon) are read from the file after `ready` and fill in later, as a
+   * mode they never reach `onChange`. Fields that first read leaves out (a FreeText's callout,
+   * fringe, head and font, a note's icon) are read from the file after `ready` and fill in later, as a
    * `{ kind: 'replace', reason: 'embedded', fields }` change.
    *
    * Annotations Inkbar saved into the file, and that nothing has changed since, are read back
