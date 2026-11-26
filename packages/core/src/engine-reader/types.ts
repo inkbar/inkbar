@@ -22,7 +22,8 @@ export interface ReaderEngineDocument {
       region?: Rect
       size?: { width: number; height: number }
       rotation?: 0 | 90 | 180 | 270
-      hide?: readonly number[]
+      /** By object number, or by place in `/Annots` for one written as a direct object. */
+      hide?: readonly (number | { index: number })[]
       signal?: AbortSignal
     }
   ): Promise<{
@@ -30,6 +31,29 @@ export interface ReaderEngineDocument {
     height: number
     data: Uint8ClampedArray
     missingFonts: readonly string[]
+  }>
+  /**
+   * The annotations listed, by place in `/Annots`, each alone in its normal appearance (the
+   * `state` of `/AP /N` named, else the one `/AS` selects), in the order given, onto one
+   * transparent bitmap of `size` showing `region`, on the pixels `renderPage` gives them with
+   * the same region, size and rotation. `data` is straight RGBA. `drawn` lists the places drawn:
+   * one hidden, a popup, one with nothing to draw or without the state named is left out. One
+   * flagged NoView is drawn, though the page leaves it out.
+   */
+  renderAnnotations(
+    index: number,
+    options: {
+      annotations: readonly { index: number; state?: string }[]
+      region: Rect
+      size: { width: number; height: number }
+      rotation?: 0 | 90 | 180 | 270
+      signal?: AbortSignal
+    }
+  ): Promise<{
+    width: number
+    height: number
+    data: Uint8ClampedArray
+    drawn: number[]
   }>
   /**
    * The page's characters in the order the engine reads them. `signal` cancels the read while it

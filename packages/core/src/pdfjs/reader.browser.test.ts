@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { hiddenFromPdfjsIds, regionCanvasSize } from '../dom/draw-request'
+import { hiddenFromIds, regionCanvasSize } from '../dom/draw-request'
 import { openFixtureInBrowser } from '../dom/test-utils'
 import {
   createPageTransform,
@@ -50,7 +50,7 @@ function drawRegion(
       pixelRatio: 1,
       ...regionCanvasSize(page, region, scale, turn),
       region,
-      hide: hiddenFromPdfjsIds(hiddenAppearances(doc)),
+      hide: hiddenFromIds(hiddenAppearances(doc), 0),
     },
     canvas,
     signal

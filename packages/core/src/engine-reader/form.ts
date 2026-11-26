@@ -181,6 +181,30 @@ export async function fileFieldsFromEngine(
   return fields
 }
 
+/**
+ * @internal The checkbox and radio widgets of page `page` by id, each with the on-state PDF.js
+ * draws for it: a checkbox's picked from its states and its field's value as `checkboxOn` picks
+ * it, a radio's the first state of `/AP /N` that is not `Off`, as the engine reports it (absent
+ * when it has none).
+ */
+export function toggleOnStates(
+  form: FormFactsShape,
+  page: number
+): Map<string, string | undefined> {
+  const toggles = new Map<string, string | undefined>()
+  for (const field of form.fields) {
+    if (field.kind !== 'checkbox' && field.kind !== 'radio') continue
+    const raw = field.kind === 'checkbox' ? rawValue(field) : null
+    for (const w of field.widgets) {
+      if (w.page !== page) continue
+      const id = annotationId(page, w)
+      if (toggles.has(id)) continue
+      toggles.set(id, field.kind === 'checkbox' ? checkboxOn(w, raw).onState : w.onState)
+    }
+  }
+  return toggles
+}
+
 /** A checkbox widget's on-state and export value as PDF.js picks them, with the field's value `value`. */
 function checkboxOn(
   w: WidgetFactsShape,

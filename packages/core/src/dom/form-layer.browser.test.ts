@@ -1,8 +1,10 @@
+import { browserAssets } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 
 import { template } from '../messages'
+import { openDocument } from '../model/document'
 import { readerKind } from '../reader/select'
 
 import { SCRATCH_BUDGET } from './form-appearance'
@@ -25,19 +27,6 @@ afterEach(() => {
   cleanup.splice(0).forEach((f) => f())
   vi.restoreAllMocks()
 })
-
-/**
- * Whether the page and the form layer's widget appearances are drawn by the same renderer, so a
- * widget over the page can be held to the page drawn with its appearance pixel for pixel. With
- * the engine reader PDFium draws the page and PDF.js still draws the widgets' appearances.
- * Measured on the `name` field at zoom 1: the page leaves out the widgets it is asked to hide (the
- * page without them differs from the page with them on 23% of the field's pixels), and the 12%
- * left between the widget over the page and the page with its appearance is the field's border,
- * which PDFium sets on two whole pixels and PDF.js spreads over one and a half, and the edges of
- * its text, which PDF.js sets about a pixel lower. No filled area differs. That the checkbox and
- * radios differ for the same reasons is not established.
- */
-const sameRenderer = readerKind() === 'pdfjs'
 
 function addTheme() {
   const style = document.createElement('style')
@@ -408,14 +397,11 @@ describe('form layer', () => {
 
   it('renders a form page once, into one canvas, and each widget’s appearance apart', async () => {
     const doc = await open('form-fields')
-    const renders = await watchRenders(doc)
-    const draws = vi.spyOn(doc._reader, 'draw')
+    const renders = watchRenders(doc)
     const p = mountPage(doc)
     await settled(p)
     expect(p.host.querySelectorAll('[data-ink-canvas]')).toHaveLength(1)
-    // The engine reader draws the page without PDF.js's render: its draws are counted instead.
-    if (readerKind() === 'pdfjs') expect(renders.page()).toBe(1)
-    else expect(draws).toHaveBeenCalledTimes(1)
+    expect(renders.page()).toBe(1)
     // Every shown widget has its own appearance, drawn over its rect only.
     const shown = widgetsOf(doc, 'name')[0]!
     const canvas = shownCanvas(p.host, shown.id)!
@@ -427,7 +413,7 @@ describe('form layer', () => {
 
   it('draws a page’s widget appearances in a few batched renders, whatever their number', async () => {
     const doc = await open('form-fields')
-    const renders = await watchRenders(doc)
+    const renders = watchRenders(doc)
     const p = mountPage(doc)
     await settled(p)
     // The page canvas, then one pass each for the widgets' own appearances and a toggle's
@@ -528,21 +514,13 @@ describe('form layer', () => {
 
   it('keeps each scratch canvas under its budget, one at a time, at high zoom', async () => {
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
     const areas: number[] = []
     let live = 0
     let most = 0
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
-      areas.push(params.canvas!.width * params.canvas!.height)
+    hookFieldDraws(doc, (draw, request, canvas, signal) => {
+      areas.push(canvas.width * canvas.height)
       most = Math.max(most, ++live)
-      task.promise.then(
-        () => live--,
-        () => live--
-      )
-      return task
+      return draw(request, canvas, signal).finally(() => live--)
     })
     // At zoom 6 the page is 3672 by 4752 device px, 17M: its widgets span more than 4M.
     const p = mountPage(doc, { zoom: 6 })
@@ -575,19 +553,12 @@ describe('form layer', () => {
       return idle.length
     })
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
     let release!: () => void
     const hold = new Promise<void>((resolve) => (release = resolve))
     const gate = { holding: false }
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      if (!gate.holding) return task
-      return {
-        ...task,
-        promise: hold.then(() => task.promise),
-        cancel: () => task.cancel(),
-      } as typeof task
+    hookFieldDraws(doc, (draw, request, canvas, signal) => {
+      const drawing = draw(request, canvas, signal)
+      return gate.holding ? hold.then(() => drawing) : drawing
     })
     // No toggle is on, so every checked look waits for the browser to go idle.
     doc.form.set({ plan: 'Off' })
@@ -623,19 +594,13 @@ describe('form layer', () => {
       return idle.length
     })
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
-    // Once gated, each appearance render waits until the test lets it go.
+    // Once gated, each appearance pass waits until the test lets it go.
     const gate = { on: false, waiting: [] as (() => void)[] }
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      if (!gate.on || params.canvas?.hasAttribute('data-ink-canvas')) return task
+    hookFieldDraws(doc, (draw, request, canvas, signal) => {
+      const drawing = draw(request, canvas, signal)
+      if (!gate.on) return drawing
       const go = new Promise<void>((resolve) => gate.waiting.push(resolve))
-      return {
-        ...task,
-        promise: go.then(() => task.promise),
-        cancel: () => task.cancel(),
-      } as typeof task
+      return go.then(() => drawing)
     })
     doc.form.set({ plan: 'Off' })
     const p = mountPage(doc)
@@ -692,7 +657,7 @@ describe('form layer', () => {
         : f
     )
     doc.form._load(moved, doc.form._tabs)
-    const renders = await watchRenders(doc)
+    const renders = watchRenders(doc)
     const p = mountPage(doc)
     await settled(p)
     expect(renders.all()).toBeLessThanOrEqual(4)
@@ -743,19 +708,11 @@ describe('form layer', () => {
 
   it('draws a look again after its pass fails', async () => {
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
     let failures = 0
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      if (params.canvas?.hasAttribute('data-ink-canvas') || failures > 0) return task
+    hookFieldDraws(doc, (draw, request, canvas, signal) => {
+      if (failures > 0) return draw(request, canvas, signal)
       failures++
-      task.promise.catch(() => undefined)
-      task.cancel()
-      return {
-        promise: Promise.reject(new Error('broken')),
-        cancel: () => undefined,
-      } as unknown as typeof task
+      return Promise.reject(new Error('broken'))
     })
     const p = mountPage(doc)
     await until(() => shownCanvas(p.host, p.widgetOf('name').id) !== undefined, 5_000)
@@ -764,13 +721,8 @@ describe('form layer', () => {
 
   it('reports a page whose widget appearances it cannot find', async () => {
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
-    // Every widget pass finds nothing, as if PDF.js laid out its operator list differently.
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      if (params.canvas?.hasAttribute('data-ink-canvas')) return render(params)
-      return render({ ...params, operationsFilter: () => false })
-    })
+    // Every widget pass finds nothing, as if the reader could not find their appearances.
+    hookFieldDraws(doc, () => Promise.resolve(new Set()))
     const t = createPageTransform(doc.pages[0]!, 1, 0)
     const host = mountContainer(t.cssWidth, t.cssHeight)
     const onError = vi.fn()
@@ -792,7 +744,7 @@ describe('form layer', () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
     await settled(p)
-    const renders = await watchRenders(doc)
+    const renders = watchRenders(doc)
     const agree = controlOf(p.host, widgetsOf(doc, 'agree')[0]!)
     await userEvent.click(agree)
     await userEvent.click(controlOf(p.host, widgetsOf(doc, 'plan')[1]!))
@@ -988,19 +940,8 @@ describe('form layer', () => {
 
   it('reports an appearance canvas that fails to render as a form layer error', async () => {
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      // Only the widget appearances fail, not the page canvas.
-      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
-      task.promise.catch(() => undefined)
-      task.cancel()
-      return {
-        promise: Promise.reject(new Error('broken')),
-        cancel: () => undefined,
-      } as unknown as typeof task
-    })
+    // Only the widget appearances fail, not the page canvas.
+    hookFieldDraws(doc, () => Promise.reject(new Error('broken')))
     const t = createPageTransform(doc.pages[0]!, 1, 0)
     const host = mountContainer(t.cssWidth, t.cssHeight)
     const onError = vi.fn()
@@ -1021,19 +962,10 @@ describe('form layer', () => {
 
   it('reports a pass that keeps failing once per geometry, after its retry', async () => {
     const doc = await open('form-fields')
-    const page = await doc._pdfjs.getPage(0)
-    const render = page.render.bind(page)
     let attempts = 0
-    vi.spyOn(page, 'render').mockImplementation((params) => {
-      const task = render(params)
-      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
+    hookFieldDraws(doc, () => {
       attempts++
-      task.promise.catch(() => undefined)
-      task.cancel()
-      return {
-        promise: Promise.reject(new Error('broken')),
-        cancel: () => undefined,
-      } as unknown as typeof task
+      return Promise.reject(new Error('broken'))
     })
     const t = createPageTransform(doc.pages[0]!, 1, 0)
     const host = mountContainer(t.cssWidth, t.cssHeight)
@@ -1261,7 +1193,7 @@ describe('form layer', () => {
     await settled(p)
     const rect = p.transform.toCssRect(p.widgetOf('name').rect)
 
-    // The same page drawn by PDF.js with every widget's appearance, and with none.
+    // The same page drawn by the page canvas with every widget's appearance, and with none.
     const reference = (drawWidgets: boolean) => {
       const host = mountContainer(p.transform.cssWidth, p.transform.cssHeight)
       const r = createPageRenderer({
@@ -1303,7 +1235,7 @@ describe('form layer', () => {
     const expected = await shot(pdf.host)
     const layered = await shot(p.host)
     const without = await shot(bare.host)
-    if (sameRenderer) expect(differing(layered, expected)).toBeLessThanOrEqual(0.02)
+    expect(differing(layered, expected)).toBeLessThanOrEqual(0.02)
     // The check can fail: the page without the widget's appearance differs.
     expect(differing(without, expected)).toBeGreaterThan(0.02)
     // And the widget's appearance is drawn over the page without it.
@@ -1331,8 +1263,7 @@ describe('form layer', () => {
       for (const name of ['name', 'agree']) {
         const rect = p.widgetOf(name).rect
         const layered = await shot(p.host, t, rect)
-        if (sameRenderer)
-          expect(differing(layered, await shot(pdf, t, rect))).toBeLessThanOrEqual(0.02)
+        expect(differing(layered, await shot(pdf, t, rect))).toBeLessThanOrEqual(0.02)
         // The widget's appearance is drawn over the page, which leaves it out.
         expect(differing(layered, await shot(bare, t, rect))).toBeGreaterThan(0.02)
       }
@@ -1401,18 +1332,46 @@ function controlOf<T extends HTMLElement = HTMLElement>(
   return root.querySelector<T>(`[data-ink-widget="${w.id}"] .ink-form-control`)!
 }
 
-/** Counts `page`'s renders from now on: all of them, and those of the whole page canvas. */
-async function watchRenders(doc: InkDocument, page = 0) {
-  const pdfPage = await doc._pdfjs.getPage(page)
+/**
+ * Counts the reader's draws of `page` from now on: all of them, the page canvas's and the field
+ * passes, and those of the whole page canvas.
+ */
+function watchRenders(doc: InkDocument, page = 0) {
   let all = 0
   let whole = 0
-  const render = pdfPage.render.bind(pdfPage)
-  vi.spyOn(pdfPage, 'render').mockImplementation((params) => {
-    all++
-    if (params.canvas?.hasAttribute('data-ink-canvas')) whole++
-    return render(params)
+  const reader = doc._reader
+  const draw = reader.draw.bind(reader)
+  const drawFields = reader.drawFields.bind(reader)
+  vi.spyOn(reader, 'draw').mockImplementation((request, canvas, signal) => {
+    if (request.page === page) {
+      all++
+      if (canvas.hasAttribute('data-ink-canvas')) whole++
+    }
+    return draw(request, canvas, signal)
+  })
+  vi.spyOn(reader, 'drawFields').mockImplementation((request, canvas, signal) => {
+    if (request.page === page) all++
+    return drawFields(request, canvas, signal)
   })
   return { all: () => all, page: () => whole }
+}
+
+/**
+ * Answers the reader's field passes with `answer`, which is handed the reader's own draw. The
+ * page canvas draws as it would.
+ */
+function hookFieldDraws(
+  doc: InkDocument,
+  answer: (
+    draw: InkDocument['_reader']['drawFields'],
+    ...args: Parameters<InkDocument['_reader']['drawFields']>
+  ) => Promise<Set<string>>
+) {
+  const reader = doc._reader
+  const draw = reader.drawFields.bind(reader)
+  vi.spyOn(reader, 'drawFields').mockImplementation((request, canvas, signal) =>
+    answer(draw, request, canvas, signal)
+  )
 }
 
 /** Waits for a mounted page's canvas and widget appearances to paint. */
@@ -1429,7 +1388,7 @@ function shownCanvas(host: HTMLElement, id: string): HTMLCanvasElement | undefin
   ].find((c) => c.style.display !== 'none')
 }
 
-/** A page of `doc` drawn by PDF.js alone, to compare the layer with. */
+/** A page of `doc` drawn by the page canvas alone, to compare the layer with. */
 async function reference(
   doc: InkDocument,
   transform: PageTransform,
@@ -1478,6 +1437,17 @@ async function storedReference(
   }).promise
   host.append(canvas)
   return host
+}
+
+/**
+ * A page of `doc` saved and opened again, drawn by the page canvas alone: each checkbox and radio
+ * in the state the saved file holds, as the engine draws a file's states.
+ */
+async function savedReference(doc: InkDocument, transform: PageTransform) {
+  const saved = await openDocument(await doc.save(), { assets: browserAssets() })
+  cleanup.push(() => void saved.destroy())
+  await saved.ready
+  return reference(saved, transform, true)
 }
 
 /** A screenshot of `rect` (user space) of the page in `host`. */
@@ -1561,10 +1531,9 @@ describe('checkboxes, radios, choices and buttons', () => {
     const pdf = await reference(doc, t, true)
     const [agree] = widgetsOf(doc, 'agree')
     const [monthly, yearly] = widgetsOf(doc, 'plan')
-    if (sameRenderer)
-      expect(
-        differing(await shot(p.host, t, agree!.rect), await shot(pdf, t, agree!.rect))
-      ).toBeLessThanOrEqual(0.02)
+    expect(
+      differing(await shot(p.host, t, agree!.rect), await shot(pdf, t, agree!.rect))
+    ).toBeLessThanOrEqual(0.02)
 
     // The radios swap: yearly now shows the file's on look, and monthly its off look. The
     // file draws its two radios alike, so each is compared with the other as the file has it.
@@ -1572,25 +1541,23 @@ describe('checkboxes, radios, choices and buttons', () => {
     controlOf(p.host, yearly!).blur()
     await settled(p)
     const yearlyOn = await shot(p.host, t, yearly!.rect)
-    if (sameRenderer) {
-      expect(differing(yearlyOn, await shot(pdf, t, monthly!.rect))).toBeLessThanOrEqual(
-        0.02
-      )
-      expect(
-        differing(await shot(p.host, t, monthly!.rect), await shot(pdf, t, yearly!.rect))
-      ).toBeLessThanOrEqual(0.02)
-    }
+    expect(differing(yearlyOn, await shot(pdf, t, monthly!.rect))).toBeLessThanOrEqual(
+      0.02
+    )
+    expect(
+      differing(await shot(p.host, t, monthly!.rect), await shot(pdf, t, yearly!.rect))
+    ).toBeLessThanOrEqual(0.02)
     // The check can fail: yearly no longer looks as the file draws it.
     expect(differing(yearlyOn, await shot(pdf, t, yearly!.rect))).toBeGreaterThan(0.02)
 
-    // The checkbox's on look is its own /AP /N /Yes, as PDF.js draws it in that state.
+    // The checkbox's on look is its own /AP /N /Yes, as the reader draws it in that state.
     await userEvent.click(controlOf(p.host, agree!))
     controlOf(p.host, agree!).blur()
     await settled(p)
-    const copy = await open('form-fields')
-    const checked = await storedReference(copy, createPageTransform(copy.pages[0]!, 1), [
-      [agree!.id, true],
-    ])
+    const checked =
+      readerKind() === 'pdfjs'
+        ? await storedReference(await open('form-fields'), t, [[agree!.id, true]])
+        : await savedReference(doc, t)
     const agreeOn = await shot(p.host, t, agree!.rect)
     expect(differing(agreeOn, await shot(checked, t, agree!.rect))).toBeLessThanOrEqual(
       0.02
@@ -1602,10 +1569,7 @@ describe('checkboxes, radios, choices and buttons', () => {
     controlOf(p.host, agree!).blur()
     await settled(p)
     const agreeOff = await shot(p.host, t, agree!.rect)
-    if (sameRenderer)
-      expect(differing(agreeOff, await shot(pdf, t, agree!.rect))).toBeLessThanOrEqual(
-        0.02
-      )
+    expect(differing(agreeOff, await shot(pdf, t, agree!.rect))).toBeLessThanOrEqual(0.02)
     expect(differing(agreeOff, agreeOn)).toBeGreaterThan(0.02)
   })
 
