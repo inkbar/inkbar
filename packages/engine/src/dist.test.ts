@@ -1,12 +1,16 @@
 import { execFileSync } from 'node:child_process'
 import { access, readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, test } from 'vitest'
 
 import type { createEngine as CreateBareEngine } from './bare.ts'
 import type { createEngine as CreateEngine } from './index.ts'
+
+// The worker gzips to about 30,700 bytes minified, and to about 51,800 bytes unminified.
+const WORKER_GZIP_LIMIT = 34_000
 
 // Runs against the built package; turbo builds it before `test`.
 test('the built package finds its own wasm and opens a document', async () => {
@@ -73,6 +77,11 @@ test('the built worker stands alone, so a host can serve it beside the wasm only
     ...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g),
   ].map((m) => m[1])
   expect(specifiers).toEqual([])
+})
+
+test('the built worker is minified, since a host serves it as it is and loads it at every open', async () => {
+  const source = await readFile(new URL('../dist/worker.mjs', import.meta.url))
+  expect(gzipSync(source).byteLength).toBeLessThan(WORKER_GZIP_LIMIT)
 })
 
 test("the built files leave the glue's Node import invisible to a browser bundler", async () => {

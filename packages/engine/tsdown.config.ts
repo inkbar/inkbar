@@ -51,7 +51,8 @@ const shared: UserConfig = {
 
 // Two builds. The index and bare entries share a chunk, which holds the engine and the PDFium
 // glue; the worker is built apart, with nothing shared, so a host can serve `worker.mjs` on its
-// own, beside the wasm, without the rest of `dist`. tsdown cleans once before both.
+// own, beside the wasm, without the rest of `dist`. tsdown cleans once before both. Only the
+// worker is minified: a host serves it as built, while it bundles the index and bare entries again.
 export default defineConfig([
   {
     ...shared,
@@ -67,5 +68,5 @@ export default defineConfig([
       },
     },
   },
-  { ...shared, entry: { worker: 'src/worker.ts' } },
+  { ...shared, entry: { worker: 'src/worker.ts' }, minify: true },
 ])
