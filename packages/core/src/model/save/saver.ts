@@ -7,14 +7,20 @@ import { AnnotationUnwritable } from './write-input'
 
 import type { Quad, Rect } from '../geometry'
 
-/** What a save writes, as far as the saver looks into it: the engine's `WriteInput` fits. */
+/**
+ * @internal What a save writes, as far as the saver looks into it: the engine's `WriteInput`
+ * fits.
+ */
 export interface SaveInput {
   remove?: readonly { page: number; objectNumber: number }[]
   annotations?: readonly object[]
   fields?: Readonly<Record<string, { value: string | readonly string[]; text?: string }>>
 }
 
-/** What applying redactions writes, as far as the saver looks into it: the engine's `RedactInput` fits. */
+/**
+ * @internal What applying redactions writes, as far as the saver looks into it: the engine's
+ * `RedactInput` fits.
+ */
 export interface RedactSaveInput extends SaveInput {
   /** The marks, each with the overlay left in its place as its appearance. */
   marks: readonly object[]
@@ -34,7 +40,7 @@ export interface RedactionSanitised {
   privateData: boolean
 }
 
-/** What the engine says an apply did: the engine's `RedactResult`, by shape. */
+/** @internal What the engine says an apply did: the engine's `RedactResult`, by shape. */
 export interface RedactEngineResult {
   /** Per page with marks applied: the marks, and the file annotations removed, pop-ups included. */
   pages: readonly { page: number; marks: number; annotationsRemoved: number }[]
