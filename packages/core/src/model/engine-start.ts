@@ -4,10 +4,10 @@
 // its files.
 import { fontUrls } from '@inkbar/fonts'
 
+import { fromPage, type PdfAssets } from './assets'
 import { engineFactory } from './engine-factory'
 import { InkError } from './errors'
 
-import type { PdfAssets } from './assets'
 import type { CoreEngine } from '../engine-reader/types'
 import type * as Bare from '@inkbar/engine/bare'
 
@@ -29,15 +29,6 @@ const importEngine = (): Promise<EngineModule> => {
 /** Whether this is Node, where the engine runs in the calling thread and reads files from disk. */
 const isNode = (): boolean =>
   typeof process !== 'undefined' && typeof process.versions?.node === 'string'
-
-/**
- * `url` resolved against the page, so a relative URL means the same in the engine's worker,
- * whose own URL is the worker script's. Unchanged where there is no page (Node).
- */
-function fromPage(url: string): string {
-  const base = (globalThis as { document?: { baseURI?: string } }).document?.baseURI
-  return base ? new URL(url, base).href : url
-}
 
 /** The fallback fonts `fonts` names, each URL resolved against the page. */
 function fallbackFonts(

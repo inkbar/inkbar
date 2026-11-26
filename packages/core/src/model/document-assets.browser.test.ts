@@ -105,3 +105,25 @@ describe('assets that cannot be fetched', () => {
     expect(doc.form.get('total')).not.toBe('7.5')
   })
 })
+
+/** `/pdfjs/wasm/`, where the test server serves the sandbox, written relative to this page. */
+const relativeSandbox = (): string => {
+  const depth = new URL(document.baseURI).pathname.split('/').length - 2
+  return `./${'../'.repeat(depth)}pdfjs/wasm/`
+}
+
+describe('the sandbox directory', () => {
+  it.each([
+    ['without its trailing slash', () => '/pdfjs/wasm'],
+    ['relative to the page', relativeSandbox],
+  ])('runs the form scripts from a directory given %s', async (_, sandbox) => {
+    const doc = await open('form-scripted', { sandbox: sandbox() })
+    await doc.ready
+    const heard: InkError[] = []
+    doc.form.on('error', (e) => heard.push(e))
+    doc.form.set({ qty: '3' })
+    doc.form.set({ price: '2.5' })
+    expect(doc.form.get('total')).toBe('7.5')
+    expect(heard).toEqual([])
+  })
+})

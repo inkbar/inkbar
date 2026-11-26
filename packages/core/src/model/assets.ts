@@ -67,3 +67,22 @@ export function assertAssets(value: unknown): asserts value is PdfAssets {
     { key }
   )
 }
+
+/**
+ * `url` resolved against the page, so a relative URL means the same wherever it is used: in the
+ * engine's worker, whose own URL is the worker script's, or in a dynamic import, which resolves
+ * against the importing chunk. Unchanged where there is no page (Node).
+ */
+export function fromPage(url: string): string {
+  const base = (globalThis as { document?: { baseURI?: string } }).document?.baseURI
+  return base ? new URL(url, base).href : url
+}
+
+/**
+ * The sandbox's directory as its loader takes it: resolved against the page, ending in `/`. The
+ * loader names its files by adding their names to it.
+ */
+export function sandboxDirectory(assets: Pick<PdfAssets, 'sandbox'>): string {
+  const dir = assets.sandbox.endsWith('/') ? assets.sandbox : `${assets.sandbox}/`
+  return fromPage(dir)
+}

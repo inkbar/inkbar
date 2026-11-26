@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertAssets, type PdfAssets } from './assets'
+import { assertAssets, sandboxDirectory, type PdfAssets } from './assets'
 
 const good: PdfAssets = {
   engine: '/inkbar/inkbar-pdfium.wasm',
@@ -62,5 +62,12 @@ describe('assertAssets', () => {
 
   it('names the key in its message', () => {
     expect(() => assertAssets({ ...good, sandbox: '' })).toThrow(/`sandbox`/)
+  })
+})
+
+describe('sandboxDirectory', () => {
+  it('ends the directory in a slash, whether or not it was given one', () => {
+    expect(sandboxDirectory({ sandbox: '/x/sandbox' })).toBe('/x/sandbox/')
+    expect(sandboxDirectory({ sandbox: '/x/sandbox/' })).toBe('/x/sandbox/')
   })
 })
