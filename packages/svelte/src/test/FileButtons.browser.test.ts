@@ -7,8 +7,9 @@ import { render } from 'vitest-browser-svelte'
 import { guardConsole } from './console-guard.js'
 import { q } from './dom.js'
 import FileHarness from './harness/FileHarness.svelte'
+import { heldEngine } from './harness/held-engine.js'
 
-import type { EngineLoader, InkError, SaveEngine } from '@inkbar/core'
+import type { InkError } from '@inkbar/core'
 
 const assets = browserAssets()
 guardConsole()
@@ -70,48 +71,6 @@ describe('download and print', () => {
   })
 })
 
-/**
- * A stand-in engine whose every write waits for the test: `finish()` lets it save, `fail()`
- * makes it reject. `unavailable` makes the loader itself fail, as offline.
- */
-function heldEngine(unavailable = false) {
-  let settle: { finish: () => void; fail: () => void } | undefined
-  const doc = {
-    pageCount: 1,
-    write: () =>
-      new Promise<void>((resolve, reject) => {
-        settle = {
-          finish: () => {
-            settle = undefined
-            resolve()
-          },
-          fail: () => {
-            settle = undefined
-            reject(new Error('write failed'))
-          },
-        }
-      }),
-    save: () => Promise.resolve(new TextEncoder().encode('%PDF-1.7 written')),
-    close: () => Promise.resolve(),
-  }
-  const engine = { open: () => Promise.resolve(doc), destroy: () => Promise.resolve() }
-  // A held engine is the factory every engine comes from; an unavailable one is the host's
-  // loader failing, as offline.
-  const factory = vi.fn(() => Promise.resolve(engine as unknown as SaveEngine))
-  const loader = vi.fn(() =>
-    Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
-  )
-  if (!unavailable) _setEngineFactory(factory)
-  return {
-    factory,
-    // Passed to the root only for an unavailable engine.
-    loader: loader as unknown as EngineLoader,
-    writing: () => settle !== undefined,
-    finish: () => settle!.finish(),
-    fail: () => settle!.fail(),
-  }
-}
-
 /** Adds a square on page 1 of the open document: a change to write. */
 async function addSquare(): Promise<void> {
   const root = await q<HTMLElement & { __inkDocument?: unknown }>('[data-ink-root]')
@@ -126,7 +85,7 @@ async function addSquare(): Promise<void> {
 const alertText = () =>
   document.querySelector('[data-ink-form-alert-message]')?.textContent ?? null
 
-describe('with an engine', () => {
+describe('with changes to write', () => {
   it('the buttons are busy while the copy is written, then download it', async () => {
     const clicked = catchDownloads()
     const held = heldEngine()
@@ -154,8 +113,8 @@ describe('with an engine', () => {
     await expect.poll(() => download.getAttribute('aria-busy')).toBe('false')
     expect(download.hasAttribute('aria-disabled')).toBe(false)
     expect(print.disabled).toBe(false)
-    // The document made one engine, from the factory.
-    expect(held.factory).toHaveBeenCalledTimes(1)
+    // The document runs one engine: the one it reads with wrote the copy.
+    expect(held.loads).toBe(1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
   })
 
@@ -192,23 +151,28 @@ describe('with an engine', () => {
     await expect.poll(alertText).toBe('Your changes could not be written into this file.')
   })
 
-  it('an engine that cannot be loaded says saving is unavailable', async () => {
-    const held = heldEngine(true)
+  it('an engine that stops and cannot start again says saving is unavailable', async () => {
+    heldEngine(true)
     const errors: InkError[] = []
     await render(FileHarness, {
       src,
       assets,
-      engine: held.loader,
       onError: (e) => errors.push(e),
     })
     await q('[data-ink-scroll] .ink-page canvas')
     const download = await q<HTMLButtonElement>('[data-ink-download]')
     await expect.poll(() => download.disabled).toBe(false)
     await addSquare()
+    // The write the engine stops in fails; the next finds no engine can start.
+    download.click()
+    await expect.poll(alertText).toBe('Your changes could not be written into this file.')
+    document.querySelector<HTMLElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(() => download.getAttribute('aria-busy')).toBe('false')
     download.click()
     await expect
       .poll(alertText)
       .toBe('Saving is not available right now. Check your connection and try again.')
-    expect(errors.map((e) => e.code)).toEqual(['SaveFailed'])
+    expect(errors.map((e) => e.code)).toContain('SaveFailed')
+    expect(errors.map((e) => e.code)).toContain('EngineUnavailable')
   })
 })

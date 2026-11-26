@@ -1,7 +1,7 @@
 /*
- * The apply redactions control in a toolbar over a document. `engine: 'held'` gives the root a
- * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`,
- * and `own: 'div'` a `div` in its place. The toolbar holds Download and Print too, and the root
+ * The apply redactions control in a toolbar over a document. `engine: 'held'` makes the held
+ * engine (`held-engine.ts`) the one the root's document uses; `own` renders the host's own
+ * button through `asChild`, and `own: 'div'` a `div` in its place. The toolbar holds Download and Print too, and the root
  * a thread popover, with `window.__inkActivate` to open it.
  * `confirm` passes `redactionConfirm` as a function answering yes or no, recording the marks
  * of each preview in `previews`; `confirm: 'dialog'` leaves the built-in dialog; without it the

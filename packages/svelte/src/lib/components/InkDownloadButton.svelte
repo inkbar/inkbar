@@ -16,8 +16,8 @@
   /*
    * Saves the open document's file through the browser's download, under its `fileName`
    * or `filename`. Disabled until the document is ready, and while its redaction marks are
-   * applied. With InkRoot's `engine` and changes, that is a copy with them written in; otherwise
-   * the file as it was opened. While a download or print writes its copy the button is
+   * applied. With changes, that is a copy with them written in; otherwise the file as it was
+   * opened. While a download or print writes its copy the button is
    * `aria-busy` and `aria-disabled`, keeping focus, and a press does nothing. A copy that cannot
    * be written reaches InkRoot's `onError`, and the reader is told in InkViewport's message box.
    */

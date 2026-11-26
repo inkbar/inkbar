@@ -17,7 +17,7 @@
   /*
    * Applies the open document's redaction marks, as `useRedaction().apply` does: asks first
    * (InkRoot's `redactionConfirm`), removes the content under them and shows the redacted file.
-   * Disabled until the document is ready, was opened with InkRoot's `engine` and holds a mark.
+   * Disabled until the document is ready and holds a mark.
    * While the marks are applied the button says so and is `aria-busy` and `aria-disabled`,
    * keeping focus, and a press does nothing. `disabled` turns it off whatever the state, and
    * whatever element `child` renders. The `children` snippet receives

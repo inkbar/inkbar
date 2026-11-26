@@ -60,7 +60,6 @@ import type {
   AnnotationChange,
   AnnotationDefaults,
   DocumentSource,
-  EngineLoader,
   FieldsChange,
   FieldValues,
   ViewerAction,
@@ -177,15 +176,6 @@ const props = withDefaults(
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
     /**
-     * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
-     * over the file with this session's annotations and changed form values written into it:
-     * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
-     * before. Without it they hand over the file as it was opened, the redaction marks cannot
-     * be applied (InkApplyRedactions stays disabled), and the engine is not bundled. Read when
-     * a document opens: a change applies from the next open.
-     */
-    engine?: EngineLoader | undefined
-    /**
      * How applying redactions (InkApplyRedactions, `useRedaction`) asks before it applies.
      * Default: the built-in dialog (`createRedactionDialog`). A function asks your own way with
      * what the apply will do: resolve true to apply. `false` applies without asking, for a
@@ -215,7 +205,6 @@ const props = withDefaults(
     messages: undefined,
     locale: undefined,
     history: undefined,
-    engine: undefined,
     redactionConfirm: undefined,
     asChild: false,
   }
@@ -404,7 +393,6 @@ async function open(retryPassword?: string): Promise<void> {
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
       pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
-      engine: props.engine,
       // Controlled hosts get the ref history below; core's own stack stays off.
       history: controlled.value ? false : (props.history ?? true),
       annotations: controlled.value

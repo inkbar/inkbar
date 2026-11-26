@@ -214,10 +214,10 @@ test('a sandbox that fails while the document opens reaches onError', async ({
 }) => {
   // The error crosses to the test as a plain `Error`, so its message stands for its code.
   const errors: string[] = []
-  // Without the sandbox's engine, the scripts cannot start.
+  // Without the sandbox's files, the scripts cannot start.
   await mount(
     <FormHarness
-      assets={{ ...assets, wasm: '/missing/' }}
+      assets={{ ...assets, sandbox: '/missing/' }}
       src={fixtureUrl('form-scripted')}
       onError={(e) => errors.push(e.message)}
     />
@@ -238,7 +238,7 @@ test('an error from while the document opened reaches onError after onReady', as
 }) => {
   await mount(
     <FormHarness
-      assets={{ ...assets, wasm: '/missing/' }}
+      assets={{ ...assets, sandbox: '/missing/' }}
       src={fixtureUrl('form-scripted')}
     />
   )
@@ -252,7 +252,7 @@ test('an onReady that throws does not strand the form errors', async ({
 }) => {
   await mount(
     <FormHarness
-      assets={{ ...assets, wasm: '/missing/' }}
+      assets={{ ...assets, sandbox: '/missing/' }}
       src={fixtureUrl('form-scripted')}
       throwOnReady
     />

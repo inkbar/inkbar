@@ -158,9 +158,12 @@ test('a sandbox that fails while the document opens reaches error', async ({
 }) => {
   // The error crosses to the test as a plain `Error`, so its message stands for its code.
   const errors: string[] = []
-  // Without the sandbox's engine, the scripts cannot start.
+  // Without the sandbox's files, the scripts cannot start.
   await mount(FormHarness, {
-    props: { src: fixtureUrl('form-scripted'), assets: { ...assets, wasm: '/missing/' } },
+    props: {
+      src: fixtureUrl('form-scripted'),
+      assets: { ...assets, sandbox: '/missing/' },
+    },
     on: { error: (e: Error) => errors.push(e.message) },
   })
   await expect(widget(page, 'hello')).toBeVisible()
@@ -178,7 +181,10 @@ test('an error from while the document opened comes after ready', async ({
   page,
 }) => {
   await mount(FormHarness, {
-    props: { src: fixtureUrl('form-scripted'), assets: { ...assets, wasm: '/missing/' } },
+    props: {
+      src: fixtureUrl('form-scripted'),
+      assets: { ...assets, sandbox: '/missing/' },
+    },
   })
   await expect.poll(() => heardInPage(page)).toEqual(['ready', 'FormScriptError'])
   guard.clear()
@@ -191,7 +197,7 @@ test('a host listening from ready does not take the open-time errors from error'
   await mount(FormHarness, {
     props: {
       src: fixtureUrl('form-scripted'),
-      assets: { ...assets, wasm: '/missing/' },
+      assets: { ...assets, sandbox: '/missing/' },
       listenOnReady: true,
     },
   })

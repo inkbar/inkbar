@@ -1,20 +1,21 @@
 /*
- * A stand-in for @inkbar/engine whose every write, and every apply of redaction marks, waits for
- * the test, reached from the page as `window.__heldEngine`: `writing()` says whether one is
- * waiting, `finish()` lets it through and `fail()` makes it reject. A finished apply hands back
- * the file as it was opened, which its check finds clean under every mark. `loads` counts the
- * loader's calls. `unavailable` makes the loader itself fail, as it would offline.
- * `holdEngine()` is the held engine as core's engine factory, which it sets until the function it returns is called.
+ * The real engine as the one every document in the page starts, with its every write, and every
+ * apply of redaction marks, waiting for the test, reached from the page as `window.__heldEngine`:
+ * `writing()` says whether one is waiting, `finish()` lets it through and `fail()` makes it
+ * reject. A finished apply hands back the file as it was opened, which its check finds clean
+ * under every mark. `loads` counts the engines made. It reads the file as the real engine does.
  */
-import { _setEngineFactory, type EngineLoader } from '@inkbar/core'
+import { _setEngineFactory } from '@inkbar/core'
+import { browserAssets } from '@inkbar/fixtures/urls'
 
 export interface HeldEngine {
+  /** Engines made. */
   loads: number
-  writing(): boolean
+  writing: () => boolean
   /** The types of the annotations the last apply wrote after its marks. */
-  written(): string[]
-  finish(): void
-  fail(): void
+  written: () => string[]
+  finish: () => void
+  fail: () => void
 }
 
 declare global {
@@ -23,7 +24,19 @@ declare global {
   }
 }
 
-export function heldEngine(unavailable = false): EngineLoader {
+/** What a stopped engine rejects every call with, as the engine does once it traps. */
+const stoppedError = (): Error =>
+  Object.assign(new Error('The engine stopped'), {
+    name: 'EngineError',
+    code: 'engine-failure',
+  })
+
+/**
+ * Makes the held engine the one every document in the page starts, as core's engine factory.
+ * The returned function clears the factory. With `unavailable`, the first engine's first write
+ * stops it, and no engine starts after it, as when the engine cannot be fetched again.
+ */
+export function holdEngine(unavailable = false): () => void {
   let settle: { finish: () => void; fail: () => void } | undefined
   let written: string[] = []
   const held: HeldEngine = {
@@ -47,89 +60,104 @@ export function heldEngine(unavailable = false): EngineLoader {
         },
       }
     })
-  /** The bytes the engine last opened: a finished apply saves them unchanged. */
-  let opened = new Uint8Array()
-  /** Whether the open document has had marks applied since it opened. */
-  let redacted = false
-  const doc = {
-    pageCount: 1,
-    write: hold,
-    // A PDF header is enough for a download to carry; after an apply, the file opened.
-    save: () =>
-      Promise.resolve(redacted ? opened : new TextEncoder().encode('%PDF-1.7 written')),
-    redact: (input: {
-      marks: readonly object[]
-      annotations?: readonly { annotation: { type: string } }[]
-    }) => {
-      written = (input.annotations ?? []).map((a) => a.annotation.type)
-      return hold().then(() => {
-        redacted = true
-        return {
-          pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
-          ownLockedMarks: 0,
-          ownLockedRegions: [],
-          foreignMarks: 0,
-          fieldsSkipped: [],
-          sanitised: {
-            metadata: false,
-            attachments: 0,
-            scripts: false,
-            thumbnails: false,
-            privateData: false,
-          },
-          hiddenLayers: false,
-          signed: false,
-        }
-      })
-    },
-    close: () => Promise.resolve(),
-  }
-  const engine = {
-    open: (bytes: Uint8Array) => {
-      opened = bytes.slice()
-      redacted = false
-      return Promise.resolve(doc)
-    },
-    checkRedaction: (
-      _bytes: Uint8Array,
-      options?: { regions?: readonly { page: number }[] }
-    ) =>
-      Promise.resolve({
-        candidates: (options?.regions ?? []).map((r, region) => ({
-          page: r.page,
-          region,
-          rect: { x: 0, y: 0, width: 1, height: 1 },
-          kind: 'region' as const,
-          text: 'none' as const,
-          image: 'none' as const,
-          drawing: 'none' as const,
-          verdict: 'clean' as const,
-        })),
-        file: {
-          earlierVersions: 0,
-          metadata: false,
-          attachments: 0,
-          scripts: false,
-          hiddenLayers: false,
-          signed: false,
-        },
-      }),
-    destroy: () => Promise.resolve(),
-  }
-  return () => {
-    held.loads++
-    return unavailable
-      ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
-      : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
-  }
-}
 
-/**
- * Makes the held engine the one every document in the page starts, as core's engine factory, so
- * a root with no `engine` option still has it. The returned function clears the factory.
- */
-export function holdEngine(): () => void {
-  const loader = heldEngine()
-  _setEngineFactory(() => loader().then((m) => m.createEngine()))
+  _setEngineFactory(async () => {
+    if (unavailable && held.loads > 0) throw new TypeError('Failed to fetch')
+    held.loads++
+    const { createEngine } = await import('@inkbar/engine/bare')
+    const assets = browserAssets()
+    const real = await createEngine({ wasm: assets.engine, worker: assets.worker })
+    let stopped = false
+    /** `call` on an engine that has not stopped. */
+    const live =
+      <A extends unknown[], R>(call: (...args: A) => Promise<R>) =>
+      (...args: A): Promise<R> =>
+        stopped ? Promise.reject(stoppedError()) : call(...args)
+    return {
+      open: live(async (bytes: Uint8Array, options?: { password?: string }) => {
+        const doc = await real.open(bytes, options)
+        /** The bytes this document opened: a finished apply saves them unchanged. */
+        const opened = bytes.slice()
+        /** Whether marks have been applied to this document. */
+        let redacted = false
+        const standIns = {
+          write: () => {
+            if (!unavailable) return hold()
+            stopped = true
+            return Promise.reject(stoppedError())
+          },
+          // A PDF header is enough for a download to carry; after an apply, the file opened.
+          save: () =>
+            Promise.resolve(
+              redacted ? opened : new TextEncoder().encode('%PDF-1.7 written')
+            ),
+          redact: (input: {
+            marks: readonly object[]
+            annotations?: readonly { annotation: { type: string } }[]
+          }) => {
+            written = (input.annotations ?? []).map((a) => a.annotation.type)
+            return hold().then(() => {
+              redacted = true
+              return {
+                pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
+                ownLockedMarks: 0,
+                ownLockedRegions: [],
+                foreignMarks: 0,
+                fieldsSkipped: [],
+                sanitised: {
+                  metadata: false,
+                  attachments: 0,
+                  scripts: false,
+                  thumbnails: false,
+                  privateData: false,
+                },
+                hiddenLayers: false,
+                signed: false,
+              }
+            })
+          },
+        }
+        return new Proxy(doc, {
+          get(target, key, receiver) {
+            if (key in standIns)
+              return live(
+                standIns[key as keyof typeof standIns] as (
+                  ...a: unknown[]
+                ) => Promise<unknown>
+              )
+            const value = Reflect.get(target, key, receiver) as unknown
+            if (typeof value !== 'function') return value
+            const call = (value as (...a: unknown[]) => Promise<unknown>).bind(target)
+            return key === 'close' ? call : live(call)
+          },
+        })
+      }),
+      // A finished apply's file is the one opened, which the check finds clean under every mark.
+      checkRedaction: live(
+        (_bytes: Uint8Array, options?: { regions?: readonly { page: number }[] }) =>
+          Promise.resolve({
+            candidates: (options?.regions ?? []).map((r, region) => ({
+              page: r.page,
+              region,
+              rect: { x: 0, y: 0, width: 1, height: 1 },
+              kind: 'region' as const,
+              text: 'none' as const,
+              image: 'none' as const,
+              drawing: 'none' as const,
+              verdict: 'clean' as const,
+            })),
+            file: {
+              earlierVersions: 0,
+              metadata: false,
+              attachments: 0,
+              scripts: false,
+              hiddenLayers: false,
+              signed: false,
+            },
+          })
+      ),
+      destroy: () => real.destroy(),
+    }
+  })
   return () => _setEngineFactory(undefined)
 }

@@ -6,7 +6,12 @@ import { InkRoot } from '../components/InkRoot'
 
 import { useCommand } from './useCommand'
 
-const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
+const assets = {
+  engine: 'e.wasm',
+  worker: 'w.mjs',
+  fonts: false as const,
+  sandbox: 's/',
+}
 
 describe('useCommand', () => {
   it('renders a disabled, unnamed command on the server, before any plugin is set up', () => {

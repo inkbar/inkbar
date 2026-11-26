@@ -74,7 +74,7 @@ async function addSquare(page: Page): Promise<void> {
 
 const writing = (page: Page) => page.evaluate(() => window.__heldEngine!.writing())
 
-test('with an engine, the buttons are busy while the copy is written, then download it', async ({
+test('the buttons are busy while the copy is written, then download it', async ({
   mount,
   page,
 }) => {
@@ -104,7 +104,7 @@ test('with an engine, the buttons are busy while the copy is written, then downl
   await expect(download).toHaveAttribute('aria-busy', 'false')
   await expect(download).not.toHaveAttribute('aria-disabled')
   await expect(print).toBeEnabled()
-  // The root passed its loader to the document, which loaded it once.
+  // The document runs one engine: the one it reads with wrote the copy.
   expect(await page.evaluate(() => window.__heldEngine!.loads)).toBe(1)
   await expect(page.locator('[data-ink-print-frame]')).toHaveCount(0)
 })
@@ -143,7 +143,7 @@ test('a copy that cannot be written prints nothing, calls onError and tells the 
   )
 })
 
-test('an engine that cannot be loaded says saving is unavailable', async ({
+test('an engine that stops and cannot start again says saving is unavailable', async ({
   mount,
   page,
 }) => {
@@ -152,9 +152,16 @@ test('an engine that cannot be loaded says saving is unavailable', async ({
   )
   await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
   await addSquare(page)
+  // The write the engine stops in fails; the next finds no engine can start.
+  await page.getByRole('button', { name: 'Download' }).click()
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    'Your changes could not be written into this file.'
+  )
+  await page.locator('[data-ink-form-alert-ok]').click()
   await page.getByRole('button', { name: 'Download' }).click()
   await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
     'Saving is not available right now. Check your connection and try again.'
   )
-  await expect(page.getByTestId('errors')).toHaveText('SaveFailed')
+  await expect(page.getByTestId('errors')).toContainText('SaveFailed')
+  await expect(page.getByTestId('errors')).toContainText('EngineUnavailable')
 })

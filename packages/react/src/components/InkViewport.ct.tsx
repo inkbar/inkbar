@@ -155,12 +155,8 @@ test('shows the error slot with the code and stays interactive', async ({
   await expect(alert.locator('.ink-error-message')).toHaveCount(0)
   await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'error')
   await expect(cmp.locator('.ink-page')).toHaveCount(0)
-  // The PDF parser reports what it tried on the broken file; nothing else may warn.
-  expect(consoleGuard.problems).toEqual([
-    'Warning: Indexing all PDF objects',
-    'Warning: Unterminated hex string',
-  ])
-  consoleGuard.clear()
+  // The broken file is refused with nothing written to the console.
+  expect(consoleGuard.problems).toEqual([])
 
   // Nothing covers or blocks the page around the viewport.
   const outside = cmp.getByTestId('outside')

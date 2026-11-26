@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@inkbar/core": "workspace:*",
+    "@inkbar/engine": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@sveltejs/package": "^3.0.0",

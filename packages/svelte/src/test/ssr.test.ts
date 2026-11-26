@@ -1,7 +1,7 @@
 import { render } from 'svelte/server'
 import { describe, expect, it, vi } from 'vitest'
 
-const evaluated = vi.hoisted(() => ({ pdfjs: false }))
+const evaluated = vi.hoisted(() => ({ pdfjs: false, engine: false }))
 
 // `#pdfjs` belongs to @inkbar/core's package imports and resolves to the legacy build in Node,
 // so mock that file by its resolved path from core's directory.
@@ -18,10 +18,30 @@ vi.mock(pdfjsPath, () => {
   return { GlobalWorkerOptions: {} }
 })
 
-const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
+// Core imports the engine through `@inkbar/engine/bare` at the first open. Mocked by its resolved
+// path from core's directory, as PDF.js is above, so an import of it from anywhere is seen.
+const enginePath = await vi.hoisted(async () => {
+  const { createRequire } = await import('node:module')
+  const path = await import('node:path')
+  const fromHere = createRequire(import.meta.url)
+  const core = path.dirname(fromHere.resolve('@inkbar/core/package.json'))
+  return createRequire(`${core}/`).resolve('@inkbar/engine/bare')
+})
+
+vi.mock(enginePath, () => {
+  evaluated.engine = true
+  return { createEngine: () => Promise.reject(new Error('No engine on the server')) }
+})
+
+const assets = {
+  engine: '/inkbar/inkbar-pdfium.wasm',
+  worker: '/inkbar/worker.mjs',
+  fonts: '/inkbar/fonts/',
+  sandbox: '/inkbar/sandbox/',
+}
 
 describe('@inkbar/svelte on the server', () => {
-  it('imports without a DOM or PDF.js, and InkRoot renders its children without opening', async () => {
+  it('imports without a DOM, PDF.js or the engine, and InkRoot renders its children without opening', async () => {
     expect(typeof window).toBe('undefined')
     expect(typeof document).toBe('undefined')
     const entry = await import('../lib/index.js')
@@ -77,6 +97,7 @@ describe('@inkbar/svelte on the server', () => {
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
+    expect(evaluated.engine).toBe(false)
 
     const { default: SsrHost } = await import('./harness/SsrHost.svelte')
     // Plugins are set up only once mounted in the browser: on the server a command button
@@ -111,11 +132,15 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).not.toContain('data-page=')
     expect(body).not.toMatch(/class="ink-page[ "]/)
     expect(evaluated.pdfjs).toBe(false)
+    expect(evaluated.engine).toBe(false)
 
-    // Control: the same mock fires once a document actually opens, so the falses above mean something.
+    // Control: the engine's mock fires once a document actually opens, so the falses above mean
+    // something. PDF.js is loaded by no open: only a browser's form scripts load its sandbox.
     const { openDocument } = await import('@inkbar/core')
-    await openDocument(new Uint8Array([1]), { assets })
-    expect(evaluated.pdfjs).toBe(true)
+    const doc = await openDocument(new Uint8Array([1]), { assets })
+    await expect(doc.ready).rejects.toMatchObject({ code: 'AssetLoadFailed' })
+    expect(evaluated.engine).toBe(true)
+    expect(evaluated.pdfjs).toBe(false)
     // The import of the library is the slow part, and only on a cold transform cache, as in CI:
     // about 2.3 s of the 2.6 s is the import of Bits UI's single entry, where the Svelte compiler
     // goes through some 230 components, measured alone on a fast machine. Warm, the whole test
@@ -123,8 +148,7 @@ describe('@inkbar/svelte on the server', () => {
   }, 30_000)
   it('InkApplyRedactions renders disabled on the server', async () => {
     const { default: Host } = await import('./harness/RedactionSsrHost.svelte')
-    const engine = vi.fn()
-    const { body } = render(Host, { props: { assets, engine } })
+    const { body } = render(Host, { props: { assets } })
     const button = /<button[^>]*data-ink-apply-redactions[^>]*>/.exec(body)?.[0] ?? ''
     expect(button).toMatch(/\sdisabled/)
     expect(button).toContain('aria-busy="false"')
@@ -132,7 +156,6 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toMatch(/data-ink-apply-redactions[^>]*>(<!--[^>]*-->)*Apply redactions/)
     expect(body).toMatch(/data-testid="probe" data-can-redact="false" data-busy="false"/)
     expect(body).not.toContain('data-ink-redaction-dialog')
-    expect(engine).not.toHaveBeenCalled()
   }, 30_000)
   it('InkOutline renders an empty tree on the server', async () => {
     const { default: Host } = await import('./harness/OutlineSsrHost.svelte')

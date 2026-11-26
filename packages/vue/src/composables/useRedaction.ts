@@ -9,7 +9,7 @@ import type { Ref } from 'vue'
 
 export interface RedactionHandle {
   /**
-   * True while the document is ready, was opened with InkRoot's `engine` and holds a redaction
+   * True while the document is ready and holds a redaction
    * mark (or, in an encrypted file, a locked one Inkbar may have saved earlier).
    */
   canRedact: Readonly<Ref<boolean>>

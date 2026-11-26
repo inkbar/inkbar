@@ -125,7 +125,12 @@ describe('useToolStyle', () => {
 
 describe('useCommand', () => {
   it('renders without throwing on the server, before any plugin is set up', () => {
-    const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
+    const assets = {
+      engine: 'e.wasm',
+      worker: 'w.mjs',
+      fonts: false as const,
+      sandbox: 's/',
+    }
     // The render runs when its output is read.
     expect(
       () => void render(PendingCommandHost, { props: { assets } }).body

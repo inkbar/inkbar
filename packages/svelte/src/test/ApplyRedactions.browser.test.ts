@@ -73,17 +73,9 @@ describe('InkApplyRedactions', () => {
     currentDoc()!.annotations.remove(id)
     await expect.poll(disabledOf(APPLY)).toBe(true)
     await expect.poll(attr('[data-testid="probe"]', 'data-can-redact')).toBe('false')
-    expect(held.loads).toBe(0)
-  })
-
-  it('is disabled without the engine prop', async () => {
-    await render(RedactionHarness, { src, assets })
-    await firstPage()
-    mark()
-    // The mark is in the document, and still there is nothing to apply it with.
-    await expect.poll(count(MARKS)).toBe(1)
-    await expect.poll(disabledOf(APPLY)).toBe(true)
-    await expect.poll(attr('[data-testid="probe"]', 'data-can-redact')).toBe('false')
+    // Nothing was applied.
+    expect(held.written()).toEqual([])
+    expect(held.writing()).toBe(false)
   })
 
   it('shows busy while applying', async () => {

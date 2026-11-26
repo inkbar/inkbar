@@ -257,7 +257,7 @@ describe('form filling', () => {
   it('an error from while the document opened reaches onError after onReady', async () => {
     const heard: string[] = []
     await render(FormHarness, {
-      assets: { ...assets, wasm: '/missing/' },
+      assets: { ...assets, sandbox: '/missing/' },
       src: fixtureUrl('form-scripted'),
       onReady: () => heard.push('ready'),
       onError: (e) => heard.push(e.code),
@@ -269,7 +269,7 @@ describe('form filling', () => {
   it('an onReady that throws does not strand the form errors', async () => {
     const heard: string[] = []
     await render(FormHarness, {
-      assets: { ...assets, wasm: '/missing/' },
+      assets: { ...assets, sandbox: '/missing/' },
       src: fixtureUrl('form-scripted'),
       onReady: () => {
         throw new Error('host onReady failed')
@@ -287,9 +287,9 @@ describe('form filling', () => {
 
   it('a sandbox that fails while the document opens reaches onError', async () => {
     const errors: { code: string }[] = []
-    // Without the sandbox's engine, the scripts cannot start.
+    // Without the sandbox's files, the scripts cannot start.
     await render(FormHarness, {
-      assets: { ...assets, wasm: '/missing/' },
+      assets: { ...assets, sandbox: '/missing/' },
       src: fixtureUrl('form-scripted'),
       onError: (e) => errors.push(e),
     })

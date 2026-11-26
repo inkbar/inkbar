@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /*
- * The apply redactions control in a toolbar over a document. `engine: 'held'` gives the root a
- * stand-in engine (`held-engine.ts`); `own` renders the host's own button through `asChild`,
- * and `own: 'div'` a `div` in its place.
+ * The apply redactions control in a toolbar over a document. `engine: 'held'` makes the held
+ * engine (`held-engine.ts`) the one the root's document uses; `own` renders the host's own
+ * button through `asChild`, and `own: 'div'` a `div` in its place.
  * `confirm` passes `redactionConfirm` as a function answering yes or no, recording the marks
  * of each preview in `previews`; without it the root applies without asking. `throwing` makes
  * the `redacted` listener throw, and `shown: false` unmounts the root. `controlled` keeps the

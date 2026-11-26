@@ -38,7 +38,6 @@
   import type {
     Annotation,
     DocumentSource,
-    EngineLoader,
     InkError,
     InkMessagesInput,
     PdfAssets,
@@ -48,7 +47,6 @@
   let {
     src,
     assets,
-    engine,
     own,
     confirm,
     throwing = false,
@@ -62,7 +60,6 @@
   }: {
     src: DocumentSource
     assets: PdfAssets
-    engine?: EngineLoader | undefined
     own?: 'child' | 'div' | 'children' | undefined
     confirm?: 'yes' | 'no' | 'dialog' | undefined
     throwing?: boolean
@@ -180,7 +177,6 @@
       {assets}
       zoom={1}
       {tools}
-      {engine}
       {redactionConfirm}
       {onError}
       {onRedacted}
@@ -196,7 +192,6 @@
       {assets}
       zoom={1}
       {tools}
-      {engine}
       {redactionConfirm}
       {onError}
       {onRedacted}
@@ -209,7 +204,6 @@
       {assets}
       zoom={1}
       {tools}
-      {engine}
       {redactionConfirm}
       {messages}
       {onReady}

@@ -661,6 +661,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -716,6 +719,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -780,6 +786,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
