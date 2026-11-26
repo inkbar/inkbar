@@ -22,6 +22,12 @@ export interface InkMessages {
     saveUnavailable: string
     /** Shown in the tab a print opens on iOS while its copy is written. */
     preparingFile: string
+    /** The notice over the pages once the viewer has stopped reading the document. */
+    engineStopped: string
+    /** The notice's button, which starts the viewer again. */
+    engineRetry: string
+    /** The notice's words while the viewer starts again. */
+    engineRestarting: string
     /** The control that applies the redaction marks, removing the content under them. */
     applyRedactions: string
     /** The confirmation's title. */

@@ -17,6 +17,10 @@ export const fr: InkMessages = {
     saveUnavailable:
       'L’enregistrement n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
     preparingFile: 'Préparation de votre fichier…',
+    engineStopped:
+      'La visionneuse a cessé de fonctionner. Vos modifications sont conservées.',
+    engineRetry: 'Réessayer',
+    engineRestarting: 'Redémarrage…',
     applyRedactions: 'Appliquer les caviardages',
     redactTitle: 'Appliquer les caviardages ?',
     redactSummary: plurals('fr', 'Le contenu sous {marks} sur {pages} sera supprimé.', {

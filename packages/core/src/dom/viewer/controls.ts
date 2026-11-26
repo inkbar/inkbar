@@ -27,6 +27,7 @@ import {
 } from '@inkbar/icons'
 
 import { resolveLabel, type InkMessages, type Label } from '../../messages'
+import { editingPaused } from '../engine-notice'
 import { fileBusy } from '../file-actions'
 import { keepHistoryFocus } from '../history-keys'
 import { ENGLISH, type MessageState } from '../messages-state'
@@ -352,8 +353,8 @@ export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {
 }
 
 /**
- * Undoes the last change to the document's annotations; disabled when there is none, and while
- * its redaction marks are applied.
+ * Undoes the last change to the document's annotations; disabled when there is none, while its
+ * redaction marks are applied and while it has stopped reading (`editingPaused`).
  */
 export function createUndo(viewer: Viewer): HTMLButtonElement {
   return historyButton(viewer, 'undo')
@@ -373,7 +374,7 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
   )
   b.addEventListener('click', () => {
     const doc = viewer.document.get()
-    if (doc && !redactionBusy(doc).get()) doc.history[action]()
+    if (doc && !editingPaused(doc).get()) doc.history[action]()
   })
   // Undoing the last step disables the focused button: focus goes back to the document.
   keepHistoryFocus(b, () =>
@@ -381,17 +382,18 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
   )
   follow<InkDocument>(viewer.document, b, (doc, watch) => {
     let can = false
-    let applying = false
-    // While the marks are applied the history stays still: the redacted file replaces it.
+    let paused = false
+    // While the marks are applied the history stays still: the redacted file replaces it. While
+    // the document has stopped reading it stays still too, as the pages do.
     const sync = (): void => {
-      b.disabled = !can || applying
+      b.disabled = !can || paused
     }
     watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (on) => {
       can = on
       sync()
     })
-    watch(redactionBusy(doc), (on) => {
-      applying = on
+    watch(editingPaused(doc), (on) => {
+      paused = on
       sync()
     })
   })

@@ -193,6 +193,11 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
   const stopLifted = doc._lifted.subscribe(() => {
     if (!destroyed) void render(latest)
   })
+  // A document that has stopped reading and starts again draws the page again: a draw made
+  // meanwhile failed, leaving the bitmap from before or none.
+  const stopRestart = doc.engineStopped.subscribe((stopped) => {
+    if (!stopped && !destroyed) void render(latest)
+  })
 
   void render(opts.transform)
 
@@ -210,6 +215,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       if (destroyed) return
       destroyed = true
       stopLifted()
+      stopRestart()
       dprWatch?.destroy()
       controller?.abort()
       controller = undefined

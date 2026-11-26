@@ -114,6 +114,7 @@ export default defineConfig({
           'src/dom/lifted.browser.test.ts',
           'src/dom/thumbnails/*.browser.test.ts',
           'src/dom/viewer-engine.browser.test.ts',
+          'src/dom/engine-notice.browser.test.ts',
           'src/dom/viewer/create-viewer-messages.browser.test.ts',
           'src/dom/viewer/form-alert.browser.test.ts',
           'src/dom/viewer/messages-live.browser.test.ts',

@@ -22,6 +22,7 @@ import {
   createStorageSignatureStore,
 } from '../../model/signatures'
 import { createMemoryStorage } from '../../model/storage'
+import { editingPaused } from '../engine-notice'
 import {
   attachFileKeys,
   downloadDocument,
@@ -36,7 +37,6 @@ import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/
 import { createFocusReturn } from '../popover-focus'
 import {
   applyRedactionsFlow,
-  redactionBusy,
   redactionDoneMessage,
   type RedactionView,
 } from '../redaction-actions'
@@ -158,7 +158,9 @@ export interface CreateViewerOptions extends Omit<
    * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`). For the last two the viewer
    * also tells the reader in its message box. An `onRedacted` that throws is reported here as
    * a `RedactionFailed` with `details.callback: 'onRedacted'` and the thrown value as its
-   * `cause`; the redacted file still opens.
+   * `cause`; the redacted file still opens. The document stopped reading
+   * (`document.engineStopped`): `EngineUnavailable`, once per stop, while the viewer shows a
+   * notice that offers to start it again.
    */
   onError?(this: void, error: InkError): void
 }
@@ -188,7 +190,8 @@ export interface Viewer {
    * Activates annotation `id`, or clears the activation with `null` (closing the thread
    * popover). Unlike a click, it does not select the annotation or call `onActivate`. An id
    * not in the open document's annotations is ignored, as is any id while the document's
-   * redaction marks are applied: applying closes the thread popover, and none opens meanwhile.
+   * redaction marks are applied or it has stopped reading (`editingPaused`): either closes the
+   * thread popover, and none opens meanwhile.
    */
   setActivated(id: string | null): void
   /**
@@ -254,9 +257,10 @@ export interface Viewer {
    * `opts.filename`. With the `engine` option and changes, that is a copy with them written in
    * (`document.save()`); otherwise the file as it was opened. Does nothing while no document is
    * open, while a download or print is writing its copy (`fileBusy`), or while the document's
-   * redaction marks are applied (`redactionBusy`). When the copy cannot
-   * be written it downloads nothing, reports the `SaveFailed` to `onError`, shows the reader
-   * why in the viewer's message box, and rejects with it.
+   * redaction marks are applied (`redactionBusy`). When the copy cannot be written it downloads
+   * nothing, reports the `SaveFailed` (or, while the document has stopped reading, the
+   * `EngineUnavailable`) to `onError`, shows the reader why in the viewer's message box, and
+   * rejects with it.
    */
   download(opts?: DownloadOptions): Promise<void>
   /**
@@ -388,14 +392,17 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   )
   root.append(viewportRoot)
   el.append(root)
-  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
-  const applying = (): boolean => {
+  /**
+   * Whether the open document takes no edits: its redaction marks are being applied, or it has
+   * stopped reading (`editingPaused`).
+   */
+  const paused = (): boolean => {
     const doc = current.get()
-    return doc !== null && redactionBusy(doc).get()
+    return doc !== null && editingPaused(doc).get()
   }
   // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
   const stopHistoryKeys = attachHistoryKeys(root, () =>
-    applying() ? null : current.get()?.history
+    paused() ? null : current.get()?.history
   )
   rootEl.set(scroll)
 
@@ -422,7 +429,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     history: () => current.get()?.history ?? passThrough,
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+      if (id === null || (!paused() && current.get()?.annotations.get(id)))
         activated.set(id)
     },
     root: readonly(rootEl),
@@ -566,9 +573,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       const id = activated.get()
       if (id !== null && !store.get(id)) activated.set(null)
     })
-    // While the marks are applied no thread or signature menu is open: what they wrote then
-    // would be lost.
-    const stopApplying = redactionBusy(doc).subscribe((on) => {
+    // While the marks are applied, or the document has stopped reading, no thread or signature
+    // menu is open: what they wrote then would be lost, or could not be drawn.
+    const stopPaused = editingPaused(doc).subscribe((on) => {
       if (!on) return
       activated.set(null)
       signFieldMenu?.close()
@@ -607,6 +614,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       signatureLibrary: signatures,
       storage,
       onFormAlert: (message) => formAlert.show(message),
+      onError: (error) => onError?.(error),
       // Pressed after `createViewer` returned, so `viewer` exists by then.
       onSignField: (req) => {
         signFieldMenu ??= createSignFieldMenu(viewer, {
@@ -616,7 +624,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         signFieldMenu.open(req)
       },
       onActivate: (id) => {
-        if (redactionBusy(doc).get()) return
+        if (editingPaused(doc).get()) return
         activated.set(id)
         onActivate?.(id)
       },
@@ -676,7 +684,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       signFieldMenu?.close()
       formAlert.close()
       stopList()
-      stopApplying()
+      stopPaused()
       threads?.destroy()
       activated.set(null)
       engine.set(null)
@@ -922,7 +930,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     tools: readonly(tools),
     activated: readonly(activated),
     setActivated: (id) => {
-      if (id === null || (!applying() && current.get()?.annotations.get(id)))
+      if (id === null || (!paused() && current.get()?.annotations.get(id)))
         activated.set(id)
     },
     setFormHighlight(on) {

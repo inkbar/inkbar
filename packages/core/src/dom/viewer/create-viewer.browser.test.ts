@@ -13,6 +13,7 @@ import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/sandbox'
 import { readerKind } from '../../reader/select'
 import { oneOfEach } from '../../test-support/annotations'
+import { stoppableEngines } from '../../test-support/stoppable-engines'
 import { definePlugin } from '../plugins/define'
 import { redactionBusy } from '../redaction-actions'
 import { createSidebar } from '../sidebar/sidebar'
@@ -4822,5 +4823,126 @@ describe('applying redactions', () => {
     await reopened(viewer, doc)
     expect(control.getAttribute('aria-busy')).toBe('false')
     expect(control.textContent).toBe('Apply redactions')
+  })
+})
+
+// With PDF.js reading the file nothing can stop: these run where the engine reads it.
+describe.skipIf(readerKind() !== 'engine')('a document whose engine has stopped', () => {
+  /** Engines the test can stop, as the document's, until the test ends. */
+  function engines() {
+    const made = stoppableEngines()
+    cleanup.push(() => made.restore())
+    return made
+  }
+
+  const square = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 50 },
+    })
+
+  const retry = (viewer: Viewer) =>
+    viewer.element.querySelector<HTMLButtonElement>('[data-ink-engine-retry]')
+
+  it('tells the host once per stop, and again when it stops after starting again', async () => {
+    const stop = engines()
+    const errors: InkError[] = []
+    const { viewer } = make('text-simple', { onError: (e) => errors.push(e) })
+    const { doc } = await ready(viewer)
+    expect(errors).toEqual([])
+
+    await stop.stop(doc)
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
+    // More reads fail while stopped: the host has heard already.
+    await doc.text(1).catch(() => undefined)
+    viewer.viewport.get()!.setZoom(1.5)
+    await settle(200)
+    expect(errors).toHaveLength(1)
+
+    stop.allow()
+    await doc.restartEngine()
+    await stop.stop(doc)
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
+  })
+
+  it('pauses annotating: no annotation activates, a tool makes nothing, the history keys and buttons do nothing', async () => {
+    const stop = engines()
+    const { viewer } = make('text-simple', { tools: [noteTool()] })
+    const undo = createUndo(viewer)
+    const redo = createRedo(viewer)
+    viewer.element.prepend(undo, redo)
+    const { doc, engine } = await ready(viewer)
+    const added = square(doc)
+    square(doc)
+    doc.history.undo()
+    const list = doc.annotations.list.get()
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    const page = () => scroll.querySelector<HTMLElement>('[data-page="0"]')!
+    const press = (shiftKey: boolean) =>
+      viewer.element.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'z',
+          ctrlKey: true,
+          shiftKey,
+          bubbles: true,
+          cancelable: true,
+        })
+      )
+
+    await stop.stop(doc)
+    expect(undo.disabled).toBe(true)
+    expect(redo.disabled).toBe(true)
+    press(false)
+    press(true)
+    expect(doc.annotations.list.get()).toBe(list)
+    viewer.setActivated(added.id)
+    expect(viewer.activated.get()).toBeNull()
+    engine.tools.set('note')
+    await userEvent.click(page(), { force: true, position: { x: 200, y: 300 } })
+    await settle()
+    expect(doc.annotations.list.get()).toBe(list)
+
+    stop.allow()
+    retry(viewer)!.click()
+    await until(() => !doc.engineStopped.get())
+    expect(undo.disabled).toBe(false)
+    expect(redo.disabled).toBe(false)
+    viewer.setActivated(added.id)
+    expect(viewer.activated.get()).toBe(added.id)
+    press(false)
+    expect(doc.annotations.list.get()).toHaveLength(list.length - 1)
+  })
+
+  it('keeps the file buttons on: without changes they hand over the file, with changes they say saving is not available', async () => {
+    const clicked = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    const stop = engines()
+    const errors: InkError[] = []
+    const { viewer } = make('text-simple', { onError: (e) => errors.push(e) })
+    const download = createDownloadButton(viewer)
+    const print = createPrintButton(viewer)
+    viewer.element.prepend(download, print)
+    const { doc } = await ready(viewer)
+    await stop.stop(doc)
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
+    expect(download.disabled).toBe(false)
+    expect(print.disabled).toBe(false)
+
+    await viewer.download()
+    expect(clicked).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-ink-form-alert]')).toBeNull()
+
+    square(doc)
+    await expect(viewer.download()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    expect(clicked).toHaveBeenCalledTimes(1)
+    await until(() => document.querySelector('[data-ink-form-alert]') !== null)
+    expect(document.querySelector('[data-ink-form-alert-message]')!.textContent).toBe(
+      'Saving is not available right now. Check your connection and try again.'
+    )
+    // The press reports its own failure, as a failed download does.
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
+    expect(download.disabled).toBe(false)
   })
 })

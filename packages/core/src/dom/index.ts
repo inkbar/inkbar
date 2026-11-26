@@ -48,6 +48,7 @@ export type {
   RedactionView,
   RunRedactionOptions,
 } from './redaction-actions'
+export { editingPaused } from './engine-notice'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'
 export { createPageRenderer } from './page-renderer'

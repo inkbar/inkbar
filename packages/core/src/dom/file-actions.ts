@@ -197,14 +197,18 @@ function sayInTab(tab: Window, text: string): void {
 /**
  * The error a download or print failed with, when it is one to tell the reader about (the copy
  * could not be written), with the words to tell them: `viewer.saveUnavailable` when the engine
- * could not be loaded or started, `viewer.saveFailed` otherwise. Undefined for any other
- * failure, such as the document closing meanwhile.
+ * could not be loaded or started, or the document has stopped reading (`EngineUnavailable`),
+ * `viewer.saveFailed` otherwise. Undefined for any other failure, such as the document closing
+ * meanwhile.
  */
 export function fileActionFailure(
   error: unknown,
   messages: InkMessages
 ): { error: InkError; message: string } | undefined {
-  if (!isInkError(error) || error.code !== 'SaveFailed') return undefined
+  if (!isInkError(error)) return undefined
+  if (error.code === 'EngineUnavailable')
+    return { error, message: messages.viewer.saveUnavailable }
+  if (error.code !== 'SaveFailed') return undefined
   return {
     error,
     message:
