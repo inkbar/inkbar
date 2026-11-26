@@ -9,14 +9,12 @@
 // widget-appearance.browser.test.ts pins that layout.
 import type { PdfjsPage } from './types'
 import type { InkDocument } from '../model/document'
+import type { FieldDrawRequest } from '../reader/types'
 
 type RenderParameters = Parameters<PdfjsPage['render']>[0]
 type OperationsFilter = NonNullable<RenderParameters['operationsFilter']>
 type OperatorList = Parameters<OperationsFilter>[1]
 type Ops = InkDocument['_pdfjs']['module']['OPS']
-
-/** Which appearance a pass draws: each widget's own, or one of a toggle's two. */
-export type AppearanceLook = 'own' | 'checked' | 'unchecked'
 
 const isCancellation = (error: unknown): boolean =>
   (error as { name?: unknown } | null)?.name === 'RenderingCancelledException'
@@ -110,25 +108,6 @@ export function hiddenAppearances(
   return new Set([...ids, ...doc._lifted.get()])
 }
 
-/** One pass of appearances, drawn alone into one canvas over part of the page. */
-export interface AppearancePass {
-  /** Zero-based page index. */
-  page: number
-  look: AppearanceLook
-  /** Annotation ids whose appearances (of `look`) the pass draws. */
-  ids: ReadonlySet<string>
-  /** Sized by the caller; drawn transparent except for the appearances. */
-  canvas: HTMLCanvasElement
-  /** The page canvas's zoom and total rotation, so the appearances land on its pixel grid. */
-  zoom: number
-  rotation: number
-  /** Device pixels per CSS px. */
-  devicePixelRatio: number
-  /** The canvas's top-left corner on the page canvas, in device pixels. */
-  x: number
-  y: number
-}
-
 /** The operator list does not hold annotation runs as PDF.js 6.4 lays them out. */
 export class AppearanceLayoutError extends Error {
   override name = 'AppearanceLayoutError'
@@ -136,8 +115,8 @@ export class AppearanceLayoutError extends Error {
 
 /**
  * Draws the appearances of `ids` (their `look`), as the page canvas would draw them at the same
- * zoom, rotation and pixel ratio, into `canvas`, whose top-left corner sits at device pixel
- * (`x`, `y`) of the page. Nothing else on the page is drawn: the canvas stays transparent
+ * zoom, rotation and pixel ratio, into `canvas` (sized by the caller), whose top-left corner sits
+ * at device pixel (`x`, `y`) of the page. Nothing else on the page is drawn: the canvas stays transparent
  * around the appearances. The widgets' own appearances come from the ENABLE operator list the
  * page canvas and the loupe use; a toggle's two come from the ENABLE_FORMS list, which PDF.js
  * builds and keeps apart, parsing the page a second time for it.
@@ -148,15 +127,16 @@ export class AppearanceLayoutError extends Error {
  * @internal
  */
 export async function renderAppearances(
-  doc: InkDocument,
-  pass: AppearancePass,
+  handles: Pick<InkDocument['_pdfjs'], 'getPage' | 'module'>,
+  pass: FieldDrawRequest,
+  canvas: HTMLCanvasElement,
   signal?: AbortSignal
 ): Promise<Set<string>> {
   signal?.throwIfAborted()
-  const pdfPage = await doc._pdfjs.getPage(pass.page)
+  const pdfPage = await handles.getPage(pass.page)
   signal?.throwIfAborted()
-  const { AnnotationMode, OPS } = doc._pdfjs.module
-  const dpr = pass.devicePixelRatio
+  const { AnnotationMode, OPS } = handles.module
+  const dpr = pass.pixelRatio
   const found = new Set<string>()
   let broken = false
   const { ids, look } = pass
@@ -181,10 +161,10 @@ export async function renderAppearances(
   }
   // PDF.js would open the canvas without an alpha channel, as for a page; this one stays
   // see-through around the appearances.
-  const context = pass.canvas.getContext('2d')
+  const context = canvas.getContext('2d')
   if (!context) throw new Error('No 2D context for widget appearances')
   const task = pdfPage.render({
-    canvas: pass.canvas,
+    canvas: canvas,
     canvasContext: context,
     viewport: pdfPage.getViewport({ scale: pass.zoom, rotation: pass.rotation }),
     background: 'rgba(0,0,0,0)',

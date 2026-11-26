@@ -20,6 +20,25 @@ export interface HiddenAppearance {
 }
 
 /** @internal */
+export type FieldLook = 'own' | 'checked' | 'unchecked'
+
+/** @internal One pass of field appearances, drawn alone into one see-through canvas. */
+export interface FieldDrawRequest {
+  /** Zero-based page index. */
+  page: number
+  look: FieldLook
+  /** Annotation ids whose appearances (of `look`) the pass draws. */
+  ids: ReadonlySet<string>
+  /** The page canvas's zoom, total rotation and pixel ratio. */
+  zoom: number
+  rotation: PageRotation
+  pixelRatio: number
+  /** The canvas's top-left corner on the page canvas, in device pixels. */
+  x: number
+  y: number
+}
+
+/** @internal */
 export interface DrawRequest {
   /** Zero-based page index. */
   page: number
@@ -57,6 +76,16 @@ export interface DocumentReader {
     canvas: HTMLCanvasElement,
     signal?: AbortSignal
   ): Promise<void>
+  /**
+   * Draws the appearances of `request.ids` (their `look`) alone into `canvas`, which stays
+   * see-through around them, as the page canvas would draw them at the same zoom, rotation and
+   * pixel ratio. Resolves with the ids it drew. Rejects with `signal.reason` once `signal` aborts.
+   */
+  drawFields(
+    request: FieldDrawRequest,
+    canvas: HTMLCanvasElement,
+    signal?: AbortSignal
+  ): Promise<Set<string>>
   /**
    * The page's text. With `glyphs`, character boundaries are exact where the reader can make them
    * so. Once `signal` aborts the read rejects with `signal.reason`.

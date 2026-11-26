@@ -1527,6 +1527,7 @@ const fallback = () => ({
   tabOrder: vi.fn((_: number) => Promise.resolve(['9R'])),
   pageInfo: vi.fn((_: number) => Promise.resolve(fallbackFacts)),
   draw: vi.fn(() => Promise.resolve()),
+  drawFields: vi.fn((..._: unknown[]) => Promise.resolve(new Set(['9R']))),
   text: vi.fn(() => Promise.resolve(fallbackText)),
   links: vi.fn(() => Promise.resolve([fallbackLink])),
   outline: vi.fn(() => Promise.resolve(fallbackOutline)),
@@ -1729,6 +1730,17 @@ describe('an engine that cannot start', () => {
   })
 })
 
+const fieldRequest = {
+  page: 0,
+  look: 'own' as const,
+  ids: new Set(['9R']),
+  zoom: 1,
+  rotation: 0 as const,
+  pixelRatio: 1,
+  x: 0,
+  y: 0,
+}
+
 describe("the file's facts, annotations and form", () => {
   it("reads the file's facts, annotations, form and Tab order from the fallback while the engine works", async () => {
     const t = setup({ pageCount: 2 })
@@ -1746,6 +1758,13 @@ describe("the file's facts, annotations and form", () => {
     await expect(reader.form()).resolves.toEqual([fileField])
     await expect(reader.tabOrder(1)).resolves.toEqual(['9R'])
     expect(instead.tabOrder).toHaveBeenCalledWith(1)
+    const fields = { ...fieldRequest }
+    const { canvas } = fakeCanvas()
+    const controller = new AbortController()
+    await expect(reader.drawFields(fields, canvas, controller.signal)).resolves.toEqual(
+      new Set(['9R'])
+    )
+    expect(instead.drawFields).toHaveBeenCalledWith(fields, canvas, controller.signal)
     await reader.destroy()
     await expect(reader.facts()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.annotations(0)).rejects.toMatchObject({
@@ -1753,10 +1772,14 @@ describe("the file's facts, annotations and form", () => {
     })
     await expect(reader.form()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
     await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    await expect(reader.drawFields(fields, canvas)).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
     expect(instead.facts).toHaveBeenCalledTimes(1)
     expect(instead.annotations).toHaveBeenCalledTimes(1)
     expect(instead.form).toHaveBeenCalledTimes(1)
     expect(instead.tabOrder).toHaveBeenCalledTimes(1)
+    expect(instead.drawFields).toHaveBeenCalledTimes(1)
   })
 
   it("without a fallback, the file's facts, annotations and form reject with EngineUnavailable", async () => {
@@ -1773,6 +1796,11 @@ describe("the file's facts, annotations and form", () => {
     })
     await expect(reader.form()).rejects.toMatchObject({ code: 'EngineUnavailable' })
     await expect(reader.tabOrder(0)).rejects.toMatchObject({ code: 'EngineUnavailable' })
+    await expect(
+      reader.drawFields(fieldRequest, fakeCanvas().canvas)
+    ).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
     await reader.destroy()
   })
 })
