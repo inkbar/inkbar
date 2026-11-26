@@ -2204,7 +2204,7 @@
     "file": "form-scripted-parents.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate(\"SUM\", new Array(\"total\")); count (/V 0) calculates this.getField(\"total\").getArray().length. /CO is [sum count total], naming the parent last. choice is a radio parent (/V x) over widgets with on-states x and y",
+    "describes": "A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate(\"SUM\", new Array(\"total\")); count (/V 0) calculates this.getField(\"total\").getArray().length. /CO is [sum total count], naming the parent before count. choice is a radio parent (/V x) over widgets with on-states x and y",
     "annotations": {
       "Widget": 7
     }

@@ -64,14 +64,9 @@ describe('form scripts', () => {
     expect(form.get('count')).toBe('3')
     form.set({ 'total.more.c': '4' })
     expect(form.get('sum')).toBe('16')
-    // /CO ends with total. PDF.js's sandbox gives a name with no widget object no way to send,
-    // so calculating total throws, as it does with PDF.js, and each calculation reports it.
-    expect(heard.map((e) => e.code)).toEqual(['FormScriptError', 'FormScriptError'])
-    // The sandbox calls total's missing `_send`.
-    for (const { message } of heard) {
-      expect(message).toMatch(/^TypeError: not a function\n/)
-      expect(message).toContain('at runCalculate (')
-    }
+    // /CO names total, a parent with no widget, before count. The sandbox has no way to send a
+    // result for such a field; the calculation goes on to count and reports no error.
+    expect(heard).toEqual([])
   })
 
   it('formats a percent field and runs a hand-written calculation after the total', async () => {

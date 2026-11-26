@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACTION_COMMAND,
+  countCalculateSends,
   countStubs,
   patchSandboxSource,
   patchScriptingSource,
@@ -57,10 +58,24 @@ describe('the scripting source patch', () => {
       )
   })
 
+  it('guards the one send in the calculation loop of the installed PDF.js', async () => {
+    const source = await scriptingSource()
+    expect(countCalculateSends(source)).toBe(1)
+    const at = source.indexOf('target.obj._send({')
+    expect(source.lastIndexOf('runCalculate(source, event) {', at)).toBeGreaterThan(-1)
+    // No other method starts between the loop's method and the send.
+    expect(
+      source.slice(source.lastIndexOf('runCalculate(source, event) {', at), at)
+    ).not.toMatch(/\n {2}\w+\([^)]*\) \{\n/)
+    const patched = patchScriptingSource(source)
+    expect(countCalculateSends(patched)).toBe(0)
+    expect(patched).toContain('target.obj._send?.({')
+  })
+
   it('refuses a source where a method is missing or repeated', async () => {
     const source = await scriptingSource()
     expect(() => patchScriptingSource('class Doc {}')).toThrow(
-      /submitForm, mailDoc, mailForm, launchURL/
+      /submitForm, mailDoc, mailForm, launchURL, runCalculate/
     )
     expect(() => patchScriptingSource(source + source)).toThrow(/does not match/)
   })
@@ -75,10 +90,12 @@ describe('the scripting source patch', () => {
     }
     const patch = patchSandboxSource(engine)
     const stubs =
-      '\n  submitForm() {}\n\n  mailDoc() {}\n\n  mailForm() {}\n\n  launchURL() {}\n'
+      '\n  submitForm() {}\n\n  mailDoc() {}\n\n  mailForm() {}\n\n  launchURL() {}\n' +
+      '      target.obj._send({ id });\n'
     engine.stringToNewUTF8(stubs)
     engine.stringToNewUTF8('later')
     expect(seen[0]).not.toContain('submitForm() {}')
+    expect(seen[0]).toContain('target.obj._send?.({ id });')
     expect(seen[1]).toBe('later')
     expect(patch.failure()).toBeUndefined()
   })
