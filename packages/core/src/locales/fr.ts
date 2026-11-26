@@ -15,7 +15,7 @@ export const fr: InkMessages = {
     pageFailed: template('fr', 'Impossible d’afficher la page {page}.'),
     saveFailed: 'Vos modifications n’ont pas pu être enregistrées dans ce fichier.',
     saveUnavailable:
-      'L’enregistrement n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
+      'L’enregistrement n’est pas disponible tant que la visionneuse est arrêtée.',
     preparingFile: 'Préparation de votre fichier…',
     engineStopped:
       'La visionneuse a cessé de fonctionner. Vos modifications sont conservées.',
@@ -57,7 +57,7 @@ export const fr: InkMessages = {
     redactUnverified:
       'Certains contenus n’ont pas pu être supprimés : rien n’a été modifié.',
     redactUnavailable:
-      'Le caviardage n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
+      'Le caviardage n’est pas disponible tant que la visionneuse est arrêtée.',
     redactDone: plural('fr', 'marks', {
       one: '{marks} caviardage appliqué.',
       many: '{marks} de caviardages appliqués.',

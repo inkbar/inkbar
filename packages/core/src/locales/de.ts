@@ -14,7 +14,7 @@ export const de: InkMessages = {
     pageFailed: template('de', 'Seite {page} konnte nicht angezeigt werden.'),
     saveFailed: 'Ihre Änderungen konnten nicht in diese Datei geschrieben werden.',
     saveUnavailable:
-      'Speichern ist gerade nicht möglich. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+      'Speichern ist nicht möglich, solange die Dokumentanzeige angehalten ist.',
     preparingFile: 'Ihre Datei wird vorbereitet…',
     engineStopped:
       'Die Dokumentanzeige funktioniert nicht mehr. Ihre Änderungen bleiben erhalten.',
@@ -56,7 +56,7 @@ export const de: InkMessages = {
     redactUnverified:
       'Einige Inhalte konnten nicht entfernt werden, daher wurde nichts geändert.',
     redactUnavailable:
-      'Schwärzen ist gerade nicht verfügbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+      'Schwärzen ist nicht möglich, solange die Dokumentanzeige angehalten ist.',
     redactDone: plural('de', 'marks', {
       one: '{marks} Schwärzung angewendet.',
       other: '{marks} Schwärzungen angewendet.',

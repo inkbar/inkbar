@@ -4902,7 +4902,7 @@ describe('a document whose engine has stopped', () => {
     await expect(viewer.applyRedactions()).resolves.toBeNull()
     await until(() => document.querySelector('[data-ink-form-alert]') !== null)
     expect(document.querySelector('[data-ink-form-alert-message]')!.textContent).toBe(
-      'Redaction is not available right now. Check your connection and try again.'
+      'Redaction is not available while the viewer is stopped.'
     )
     expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
   })
@@ -4970,7 +4970,7 @@ describe('a document whose engine has stopped', () => {
     expect(clicked).toHaveBeenCalledTimes(1)
     await until(() => document.querySelector('[data-ink-form-alert]') !== null)
     expect(document.querySelector('[data-ink-form-alert-message]')!.textContent).toBe(
-      'Saving is not available right now. Check your connection and try again.'
+      'Saving is not available while the viewer is stopped.'
     )
     // The press reports its own failure, as a failed download does.
     expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])

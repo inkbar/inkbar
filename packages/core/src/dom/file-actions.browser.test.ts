@@ -321,7 +321,7 @@ describe('while a copy is written', () => {
     const stopped = new InkError('EngineUnavailable', 'stopped')
     expect(fileActionFailure(stopped, en)).toEqual({
       error: stopped,
-      message: 'Saving is not available right now. Check your connection and try again.',
+      message: 'Saving is not available while the viewer is stopped.',
     })
     // Anything else is not the reader's to see.
     expect(

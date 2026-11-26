@@ -11,8 +11,7 @@ export const en: InkMessages = {
     openFailed: 'This document could not be opened.',
     pageFailed: template('en', 'Page {page} could not be shown.'),
     saveFailed: 'Your changes could not be written into this file.',
-    saveUnavailable:
-      'Saving is not available right now. Check your connection and try again.',
+    saveUnavailable: 'Saving is not available while the viewer is stopped.',
     preparingFile: 'Preparing your file…',
     engineStopped: 'The viewer stopped working. Your changes are kept.',
     engineRetry: 'Try again',
@@ -44,8 +43,7 @@ export const en: InkMessages = {
         '{count} marks cover content that cannot be removed. Move or delete them and try again.',
     }),
     redactUnverified: 'Some content could not be removed, so nothing was changed.',
-    redactUnavailable:
-      'Redaction is not available right now. Check your connection and try again.',
+    redactUnavailable: 'Redaction is not available while the viewer is stopped.',
     redactDone: plural('en', 'marks', {
       one: '{marks} redaction applied.',
       other: '{marks} redactions applied.',

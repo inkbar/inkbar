@@ -317,6 +317,12 @@ function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
 /** The tools under which form fields take input: the pointer tools, which make nothing. */
 const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'])
 
+/**
+ * Mounts a viewer of `opts.document` in `opts.container`, the element the pages scroll in. While
+ * the document is stopped a notice shows over the pages: it goes just before the container and
+ * is placed against the nearest positioned ancestor, so give the container a positioned parent
+ * (`position: relative`, say). `createViewer` does.
+ */
 export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
   let highlight = opts.formHighlight ?? true

@@ -171,7 +171,7 @@ describe('with changes to write', () => {
     download.click()
     await expect
       .poll(alertText)
-      .toBe('Saving is not available right now. Check your connection and try again.')
+      .toBe('Saving is not available while the viewer is stopped.')
     // The write's failure; the stop, as it happens; then the press that found it stopped
     // reports its own failure, as a failed download does.
     expect(errors.map((e) => e.code)).toEqual([
