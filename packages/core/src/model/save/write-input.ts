@@ -19,7 +19,7 @@ import type {
   WriteAnnotation,
   WriteField,
   WriteInput,
-} from '@inkbar/engine'
+} from '@inkbar/engine/bare'
 
 /**
  * One annotation could not be made ready for writing: its drawing needs a helper the save was

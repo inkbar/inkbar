@@ -75,7 +75,7 @@ import type { RedactionPreview, RedactionResult } from './redaction/types'
 import type { TextContent } from './text'
 import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { DocumentReader } from '../reader/types'
-import type { AnnotationRef } from '@inkbar/engine'
+import type { AnnotationRef } from '@inkbar/engine/bare'
 
 export type DocumentStatus =
   { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: InkError }
