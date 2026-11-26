@@ -712,6 +712,46 @@ describe('an engine that stops', () => {
     expect(t.engines[1]!.destroy).not.toHaveBeenCalled()
   })
 
+  it('a call aborted as it fails leaves no mark that hides the next stop', async () => {
+    const c = new AbortController()
+    // The draw's own failure on a working engine; the reader reads its code as it arrives, and
+    // the caller aborts just then, so the draw leaves on its abort.
+    const own = engineError('engine-failure')
+    Object.defineProperty(own, 'code', {
+      get: () => {
+        c.abort()
+        return 'engine-failure'
+      },
+    })
+    const t = setup({
+      pageCount: 2,
+      traps: false,
+      render: (call, _, options) =>
+        call === 1 ? Promise.reject(own) : Promise.resolve(bitmap(options)),
+      // Page 1's text stops the first two engines it is read on.
+      pageText: (index, engine) => {
+        if (index === 1 && engine.index < 2) {
+          engine.stopped = true
+          return Promise.reject(engineError('engine-failure'))
+        }
+        return Promise.resolve(hiText())
+      },
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    await expect(
+      reader.draw(request(), fakeCanvas().canvas, c.signal)
+    ).rejects.toBeDefined()
+    expect(c.signal.aborted).toBe(true)
+    expect(t.createEngine).toHaveBeenCalledTimes(1)
+    // Both stops are the text read's own, so the page is blocked at the second.
+    await expect(reader.text(1)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+      details: { page: 1 },
+    })
+    await reader.destroy()
+  })
+
   it('a plain { code } rejection counts as well', async () => {
     const t = setup({
       render: (call, _, options) =>

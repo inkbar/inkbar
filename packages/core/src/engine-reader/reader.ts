@@ -476,7 +476,11 @@ export async function createEngineReader(
       try {
         return await call
       } catch (error) {
-        if (destroyed || signal?.aborted) throw error
+        if (destroyed || signal?.aborted) {
+          // A mark left behind on an engine that still works would hide the call that stops it.
+          if (s.first === me) s.first = undefined
+          throw error
+        }
         const code = codeOf(error)
         if (code === 'aborted' && s.dropped) {
           // Dropped under the call by another that found it stopped.
