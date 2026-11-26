@@ -1,1 +1,0 @@
-import{r as e}from"./reader-2ibm8xDz.js";var t=`/pr-preview/pr-513/fonts/`,n=async()=>{let[n,{fontUrls:r}]=await Promise.all([e(()=>import(`./dist-C_MLi3jG.js`),[]),e(()=>import(`./fonts-BneXjObo.js`),[])]);return{...n,createEngine:()=>n.createEngine({fallbackFonts:r(t)})}};export{n,t};
