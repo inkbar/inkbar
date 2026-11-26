@@ -29,26 +29,91 @@ const none = {
   calculationOrderIds: [],
   document: [],
   documentActions: {},
+  fields: [],
 }
 
 describe("the PDF.js reader's scripts", () => {
   it('names the calculation order and lists the document-level script', async () => {
-    expect(await scriptsOf('form-scripted')).toStrictEqual({
+    const { fields, ...rest } = (await scriptsOf('form-scripted'))!
+    expect(rest).toStrictEqual({
       calculationOrder: ['total', 'due'],
       calculationOrderIds: ['15R', '72R'],
       document: [{ name: 'init', source: 'var formReady = true;' }],
       documentActions: {},
     })
+    // Each field's own dictionary is the parent of its one widget.
+    expect(fields).toHaveLength(18)
+    expect(fields[2]).toStrictEqual({
+      name: 'total',
+      id: '15R',
+      widgets: ['16R'],
+      container: {
+        fullName: 'total',
+        kids: ['16R'],
+        // The field's own scripts, which its widget also takes.
+        scripts: {
+          Calculate: ['AFSimple_Calculate("PRD", new Array("qty", "price"))'],
+          Format: ['AFNumber_Format(2, 0, 0, 0, "£", true)'],
+        },
+        page: -1,
+        rotation: 0,
+      },
+    })
   })
 
   it("reads a file whose only scripts are its fields' as having scripts", async () => {
-    expect(await scriptsOf('form-format')).toStrictEqual(none)
-    expect(await scriptsOf('form-shared-scripted')).toStrictEqual(none)
+    expect(await scriptsOf('form-format')).toStrictEqual({
+      ...none,
+      fields: [
+        {
+          name: 'amount',
+          id: '8R',
+          widgets: ['9R'],
+          container: {
+            fullName: 'amount',
+            kids: ['9R'],
+            scripts: {
+              Format: ['AFNumber_Format(2, 0, 0, 0, "$", true)'],
+              Keystroke: ['AFNumber_Keystroke(2, 0, 0, 0, "$", true)'],
+            },
+            page: -1,
+            rotation: 0,
+          },
+        },
+      ],
+    })
+    const shared = await scriptsOf('form-shared-scripted')
+    expect({ ...shared, fields: [] }).toStrictEqual(none)
+    expect(shared?.fields.map((f) => f.name)).toEqual(['shared'])
+  })
+
+  it("lists a field's widgets in the order its /Kids gives them", async () => {
+    const scripts = await scriptsOf('form-scripted-kinds')
+    expect(scripts?.fields.find((f) => f.name === 'pick')).toStrictEqual({
+      name: 'pick',
+      id: '15R',
+      widgets: ['17R', '16R'],
+      container: { fullName: 'pick', kids: ['17R', '16R'], page: -1, rotation: 0 },
+    })
   })
 
   it('keeps a document-level script whole', async () => {
     expect(await scriptsOf('form-timer')).toStrictEqual({
       ...none,
+      fields: [
+        {
+          name: 'ticker',
+          id: '8R',
+          widgets: ['9R'],
+          container: { fullName: 'ticker', kids: ['9R'], page: -1, rotation: 0 },
+        },
+        {
+          name: 'note',
+          id: '12R',
+          widgets: ['13R'],
+          container: { fullName: 'note', kids: ['13R'], page: -1, rotation: 0 },
+        },
+      ],
       document: [
         {
           name: 'tick',
@@ -91,7 +156,17 @@ describe("the PDF.js reader's scripts", () => {
             [
               'total',
               [
-                { id: '15R', type: '' },
+                {
+                  id: '15R',
+                  type: '',
+                  name: 'total',
+                  kidIds: ['16R'],
+                  actions: new Map([['Calculate', ['sum()']]]),
+                  page: 0,
+                  strokeColor: new Uint8ClampedArray([255, 0, 0]),
+                  fillColor: null,
+                  rotation: 90,
+                },
                 { id: '16R', type: 'text' },
               ],
             ],
@@ -121,6 +196,23 @@ describe("the PDF.js reader's scripts", () => {
         DidPrint: ['printed()'],
         OpenAction: ['open()'],
       },
+      // A container's id is kept apart from its widgets'.
+      fields: [
+        {
+          name: 'total',
+          id: '15R',
+          widgets: ['16R'],
+          container: {
+            fullName: 'total',
+            kids: ['16R'],
+            scripts: { Calculate: ['sum()'] },
+            page: 0,
+            borderColor: [255, 0, 0],
+            rotation: 90,
+          },
+        },
+        { name: 'twin', widgets: ['20R', '21R'] },
+      ],
     })
     const back = sandboxDocumentActions(scripts!)
     expect(back).toStrictEqual(actions)

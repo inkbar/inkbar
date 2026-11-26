@@ -1,7 +1,7 @@
 // The document reader over @inkbar/engine: page facts, pixels, text, links, the outline,
-// destinations, and the file's facts, annotations, form fields and Tab order from an engine of
-// its own, loaded through the host's loader, with the file open in it; the rest from the
-// fallback reader.
+// destinations, the file's facts, annotations, form fields, Tab order and JavaScript, and the
+// sandbox's field objects, from an engine of its own, loaded through the host's loader, with the
+// file open in it.
 // Nothing here imports the engine: its shapes are declared in ./types and checked when the file
 // is opened.
 import {
@@ -10,6 +10,7 @@ import {
   type RawDestination,
 } from '../model/destination'
 import { InkError, isInkError } from '../model/errors'
+import { sandboxFieldObjects } from '../pdfjs/sandbox-fields'
 
 import { fileAnnotationsFromEngine } from './annotations'
 import {
@@ -22,6 +23,7 @@ import { annotationId, textOf } from './file-values'
 import { fileFieldsFromEngine, widgetContexts } from './form'
 import { linksFromFacts, outlineFromFacts } from './links'
 import { runsFromChars, type GenericFamily } from './runs'
+import { fileScriptsFromEngine, pageScriptsFromEngine } from './scripts'
 import { nameBytes, rawDestination, refKey, type RefPages } from './targets'
 
 import type {
@@ -30,13 +32,14 @@ import type {
   PageAnnotationsShape,
   ReaderEngine,
   ReaderEngineDocument,
+  ScriptFactsShape,
 } from './types'
 import type { PageLink } from '../model/links'
 import type { OutlineItem } from '../model/outline'
 import type { PageInfo, PageRotation } from '../model/pages'
 import type { EngineLoader } from '../model/save/saver'
 import type { TextContent } from '../model/text'
-import type { FileAnnotation, FileFacts, FileField } from '../reader/file'
+import type { FileAnnotation, FileFacts, FileField, FileScripts } from '../reader/file'
 import type { DocumentReader, DrawRequest, FieldDrawRequest } from '../reader/types'
 
 /**
@@ -76,9 +79,8 @@ export interface EngineReaderOptions {
    * with. A host can see the switch: text read again for a page has the fallback's item
    * boundaries (the text the reader kept is dropped when it happens), and where the two readers
    * differ, pages read after it differ from pages read before. The page facts the engine gave
-   * are kept, and links keep their ids, which both readers give alike. Its fields' appearances
-   * come from it then too. The file's scripts and the sandbox's fields always come from it;
-   * without it they reject with EngineUnavailable.
+   * are kept, and links keep their ids, which both readers give alike. Its fields' appearances,
+   * the file's scripts and the sandbox's fields come from it then too.
    */
   fallback?: DocumentReader
   /** Called once, when the reader turns to `fallback`. */
@@ -1051,21 +1053,19 @@ export async function createEngineReader(
    * a working engine cannot read the form there are none, as when PDF.js cannot read a page's
    * annotations; a page whose annotations it cannot read lists none, so its widgets are left out.
    */
+  const engineForm = (): Promise<FileField[]> =>
+    orElse(
+      async (onGone) => {
+        const facts = await formFacts(onGone)
+        if (facts.tooLarge) return []
+        return fileFieldsFromEngine(facts, pageAnnotations)
+      },
+      (): FileField[] => []
+    )
   const form = async (): Promise<FileField[]> => {
     if (destroyed) throw destroyedError()
     try {
-      const fields = await orFallback(
-        () =>
-          orElse(
-            async (onGone) => {
-              const facts = await formFacts(onGone)
-              if (facts.tooLarge) return []
-              return fileFieldsFromEngine(facts, pageAnnotations)
-            },
-            (): FileField[] => []
-          ),
-        (reader) => reader.form()
-      )
+      const fields = await orFallback(engineForm, (reader) => reader.form())
       if (destroyed) throw destroyedError()
       return fields
     } catch (error) {
@@ -1123,18 +1123,97 @@ export async function createEngineReader(
     return found
   }
 
-  /** `call` on the fallback, as the reader's own. */
-  const fromFallback = <T>(call: (reader: DocumentReader) => Promise<T>): Promise<T> => {
-    if (destroyed) return Promise.reject(destroyedError())
-    if (!options.fallback)
-      return Promise.reject(
-        new InkError(
-          'EngineUnavailable',
-          "Reading the file's scripts and the sandbox's fields needs the fallback reader"
-        )
+  /**
+   * The engine's script facts, read once and kept, as the form's are. A read a working engine
+   * cannot make gives none, as PDF.js gives none for JavaScript it cannot read. A failed read is
+   * not kept.
+   */
+  let scriptRead: Promise<ScriptFactsShape> | undefined
+  const scriptFacts = (): Promise<ScriptFactsShape> => {
+    if (!scriptRead) {
+      const made = orElse(
+        (onGone) => run((doc) => doc.scripts(), undefined, undefined, onGone),
+        (): ScriptFactsShape => ({
+          document: [],
+          documentActions: {},
+          pageActions: [],
+          truncated: false,
+        })
       )
-    return untilDestroyed(call(options.fallback))
+      scriptRead = made
+      made.catch(() => {
+        if (scriptRead === made) scriptRead = undefined
+      })
+    }
+    return scriptRead
   }
+
+  /**
+   * The file's JavaScript from the engine, and whether it has any. A form a working engine cannot
+   * read, or refuses for its size, has no fields and no field scripts.
+   */
+  const engineScripts = async (): Promise<{
+    scripts: FileScripts
+    hasScripts: boolean
+  }> => {
+    const [facts, form] = await Promise.all([
+      scriptFacts(),
+      orElse<FormFactsShape | undefined>(formFacts, () => undefined),
+    ])
+    return fileScriptsFromEngine(facts, form?.tooLarge ? undefined : form)
+  }
+
+  /** `work` on the engine, or `instead` on the fallback, as the reader's own call. */
+  const ownCall = async <T>(
+    work: () => Promise<T>,
+    instead: (reader: DocumentReader) => Promise<T>
+  ): Promise<T> => {
+    if (destroyed) throw destroyedError()
+    let found: T
+    try {
+      found = await orFallback(work, instead)
+    } catch (error) {
+      throw destroyed ? destroyedError() : error
+    }
+    if (destroyed) throw destroyedError()
+    return found
+  }
+
+  /**
+   * The file's JavaScript: `undefined` when, by PDF.js's rule, it has none. Each caller gets
+   * objects of its own, as the PDF.js reader gives.
+   */
+  const scripts = (): Promise<FileScripts | undefined> =>
+    ownCall(
+      async () => {
+        const { scripts: found, hasScripts } = await engineScripts()
+        return hasScripts ? structuredClone(found) : undefined
+      },
+      (reader) => reader.scripts()
+    )
+
+  /** The page's actions by event, `{}` when it has none. */
+  const pageScripts = (page: number): Promise<Record<string, string[]>> =>
+    ownCall(
+      async () => {
+        checkPage(page)
+        return pageScriptsFromEngine(await scriptFacts(), page)
+      },
+      (reader) => reader.pageScripts(page)
+    )
+
+  /** The sandbox's field objects, built from the engine's form and the fields `/Fields` reaches. */
+  const sandboxFields = (): Promise<Map<string, unknown[]> | null> =>
+    ownCall(
+      async () => {
+        const [{ scripts: found }, fields] = await Promise.all([
+          engineScripts(),
+          engineForm(),
+        ])
+        return sandboxFieldObjects(fields, found)
+      },
+      (reader) => reader.sandboxFields()
+    )
 
   let destroying: Promise<void> | undefined
   return {
@@ -1176,9 +1255,9 @@ export async function createEngineReader(
     form,
     tabOrder,
     forgetAnnotations: () => pageReads.clear(),
-    scripts: () => fromFallback((reader) => reader.scripts()),
-    pageScripts: (page) => fromFallback((reader) => reader.pageScripts(page)),
-    sandboxFields: () => fromFallback((reader) => reader.sandboxFields()),
+    scripts,
+    pageScripts,
+    sandboxFields,
     outline,
     resolveDestination,
     destroy() {
@@ -1188,6 +1267,7 @@ export async function createEngineReader(
       texts.clear()
       named.clear()
       formRead = undefined
+      scriptRead = undefined
       contexts = undefined
       pageReads.clear()
       fieldReads.clear()

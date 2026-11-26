@@ -2190,5 +2190,23 @@
       "Square": 4,
       "Widget": 3
     }
+  },
+  "form-scripted-kinds": {
+    "file": "form-scripted-kinds.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Form fields of every kind with JavaScript, and scripts in every place a file holds them; every widget has a normal appearance stream. amount is a comb text field (/MaxLen 6) with keystroke, format, validate (written with white space around it) and calculate scripts; start a time field with AFTime_Keystroke(2) and AFTime_Format(2); due a date field with only AFDate_FormatEx(\"mmm d, yyyy\"). size is a combo (/Opt S M L, /V M) with keystroke and validate scripts; colours a multi-select list with export and display values, /V [r g] and a focus script. note is a multiline text field with a blur script on the field and two widgets, the second with a focus script of its own. pick is a radio group (/V b) whose /Kids lists its b widget before its a widget, the other way round from /Annots, with a mouse-up script on b; extras a checkbox field (/V x) with widgets of on-states x and y, a mouse-down script on y. sig is a signature field. person is a non-terminal field over person.first, a text field with a keystroke script. go is a push button whose JavaScript action has a JavaScript /Next and whose widget has a page-open script. The document has scripts alpha (its action with a JavaScript /Next) and beta (written with white space around it), an open action with a JavaScript /Next, will-close, will-save and did-print actions, and /CO [amount person note]. The page has open and close scripts. twin is two fields of that one name, each a dictionary over one widget, the first with a keystroke script and the second with a format script. flags is a checkbox field (/V q) whose /Kids lists its unchecked widget (on-state r) before its checked one (q), the other way round from /Annots, with a mouse-up script on q. stamp is a date field whose one Format action has a date /Next and which has no keystroke script",
+    "annotations": {
+      "Widget": 19
+    }
+  },
+  "form-scripted-parents": {
+    "file": "form-scripted-parents.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate(\"SUM\", new Array(\"total\")); count (/V 0) calculates this.getField(\"total\").getArray().length. /CO is [sum count total], naming the parent last. choice is a radio parent (/V x) over widgets with on-states x and y",
+    "annotations": {
+      "Widget": 7
+    }
   }
 }

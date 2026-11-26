@@ -52,6 +52,27 @@ describe('form scripts', () => {
     expect(form.formatted.get().total).toBe('£7.50')
   })
 
+  it('sums the fields under a parent a calculation names, and lists them with getArray', async () => {
+    const { form } = await open('form-scripted-parents')
+    const heard: InkError[] = []
+    form.on('error', (e) => heard.push(e))
+    expect(form.set({ 'total.a': '10' }).applied).toEqual(['total.a'])
+    // AFSimple_Calculate("SUM", new Array("total")) over total.a, total.b and total.more.c.
+    expect(form.get('sum')).toBe('15')
+    // this.getField("total").getArray().length
+    expect(form.get('count')).toBe('3')
+    form.set({ 'total.more.c': '4' })
+    expect(form.get('sum')).toBe('16')
+    // /CO ends with total. PDF.js's sandbox gives a name with no widget object no way to send,
+    // so calculating total throws, as it does with PDF.js, and each calculation reports it.
+    expect(heard.map((e) => e.code)).toEqual(['FormScriptError', 'FormScriptError'])
+    // The sandbox calls total's missing `_send`.
+    for (const { message } of heard) {
+      expect(message).toMatch(/^TypeError: not a function\n/)
+      expect(message).toContain('at runCalculate (')
+    }
+  })
+
   it('formats a percent field and runs a hand-written calculation after the total', async () => {
     const { form } = await open('form-scripted')
     form.set({ qty: '4', price: '12.5' })
@@ -203,6 +224,12 @@ describe('form scripts', () => {
     const load = vi.spyOn(sandboxLoader, 'load')
     const doc = await open('form-fields')
     expect(doc.form.fields.get().length).toBeGreaterThan(0)
+    expect(load).not.toHaveBeenCalled()
+    // A page's own actions do not count: PDF.js runs no scripts for a file with only those.
+    const pageOnly = await open('script-page-only')
+    expect(await pageOnly._reader.pageScripts(0)).toStrictEqual({
+      PageOpen: ["app.alert('page opened')"],
+    })
     expect(load).not.toHaveBeenCalled()
     await open('form-scripted')
     expect(load).toHaveBeenCalledTimes(1)

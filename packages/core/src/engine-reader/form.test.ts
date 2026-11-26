@@ -29,6 +29,7 @@ const field = (
   over: Partial<FieldFactsShape> = {}
 ): FieldFactsShape => ({
   name,
+  origin: 'acroform',
   kind: 'text',
   flags: 0,
   valueKind: 'none',
@@ -44,6 +45,9 @@ const form = (
   kind: 'acroform',
   needAppearances: false,
   fields,
+  groups: [],
+  fieldsRoot: [],
+  calculationOrderRefs: [],
   tooLarge: false,
   truncated: false,
   ...over,
@@ -102,53 +106,125 @@ describe('fileFieldsFromEngine', () => {
     ])
   })
 
-  it("gives a checkbox's on value from its export value, else its on-state", async () => {
-    const fields = await fileFieldsFromEngine(
-      form([
-        field(
-          'agree',
-          [
-            widget(0, {
-              appearanceStates: ['Off', 'Yes'],
-              onState: 'Yes',
-              exportValue: 'I agree',
-              appearanceState: 'Yes',
-            }),
-            widget(1, { appearanceStates: ['Off', 'On'], onState: 'On' }),
-          ],
-          { kind: 'checkbox', valueKind: 'name', value: 'Yes' }
-        ),
-      ]),
-      listedAs({ 0: ['20R', '21R'] })
-    )
-    expect(fields[0]).toMatchObject({ value: 'I agree', defaultValue: 'Off' })
-    expect(fields[0]!.widgets.map((w) => w.onValue)).toEqual(['I agree', 'On'])
+  /** A field dictionary, object 30, over widgets 20 on. */
+  const parentOf = (count: number) => ({
+    groups: [
+      {
+        name: 'f',
+        objectNumber: 30,
+        generation: 0,
+        kids: Array.from({ length: count }, (_, i) => ({
+          ref: { objectNumber: 20 + i, generation: 0 },
+          dictionary: true,
+          hasKids: false,
+        })),
+        scripts: {},
+      },
+    ],
   })
 
-  it("maps a radio's value through the widget whose on-state it names", async () => {
+  it("gives a checkbox's on value from /Opt at its place among its parent's kids, else its on-state", async () => {
     const fields = await fileFieldsFromEngine(
-      form([
-        field(
-          'size',
-          [
-            widget(0, {
-              appearanceStates: ['Off', 'S'],
-              onState: 'S',
-              exportValue: 'Small',
-            }),
-            widget(1, {
-              appearanceStates: ['L', 'Off'],
-              onState: 'L',
-              exportValue: 'Large',
-            }),
-          ],
-          { kind: 'radio', flags: 1 << 15, valueKind: 'name', value: 'L' }
-        ),
-      ]),
+      form(
+        [
+          field(
+            'agree',
+            [
+              widget(0, { appearanceStates: ['Off', 'Yes'], appearanceState: 'Yes' }),
+              widget(1, { appearanceStates: ['Off', 'On'] }),
+            ],
+            {
+              objectNumber: 30,
+              kind: 'checkbox',
+              valueKind: 'name',
+              value: 'Yes',
+              // A whole number that names no on-state reads as the /Opt entry at that index.
+              defaultValueKind: 'string',
+              defaultValue: '1',
+              toggleOptions: ['I agree', { name: 'Second' }],
+            }
+          ),
+          field('plain', [widget(2, { appearanceStates: ['Off', 'On'] })], {
+            kind: 'checkbox',
+          }),
+        ],
+        parentOf(2)
+      ),
+      listedAs({ 0: ['20R', '21R', '22R'] })
+    )
+    expect(fields[0]).toMatchObject({ value: 'I agree', defaultValue: 'Second' })
+    expect(fields[0]!.widgets.map((w) => w.onValue)).toEqual(['I agree', 'Second'])
+    expect(fields[1]).toMatchObject({ value: 'Off', defaultValue: 'Off' })
+    expect(fields[1]!.widgets.map((w) => w.onValue)).toEqual(['On'])
+  })
+
+  it("takes a widget's own /Opt before its field's, and one entry for a lone widget", async () => {
+    const [own, lone] = await fileFieldsFromEngine(
+      form(
+        [
+          field(
+            'own',
+            [widget(0, { appearanceStates: ['Off', 'Yes'], toggleOptions: ['Mine'] })],
+            { objectNumber: 30, kind: 'checkbox', toggleOptions: ['Field'] }
+          ),
+          // Its own dictionary is its widget, with no parent: one /Opt entry is its on value.
+          field('lone', [widget(1, { appearanceStates: ['Off', 'Yes'] })], {
+            objectNumber: 21,
+            kind: 'checkbox',
+            toggleOptions: ['Alone'],
+          }),
+        ],
+        parentOf(1)
+      ),
+      listedAs({ 0: ['20R', '21R'] })
+    )
+    expect(own!.widgets[0]!.onValue).toBe('Mine')
+    expect(lone!.widgets[0]!.onValue).toBe('Alone')
+  })
+
+  it("maps a radio's value through the /Opt entry of the kid whose on-state it names", async () => {
+    const fields = await fileFieldsFromEngine(
+      form(
+        [
+          field(
+            'size',
+            [
+              widget(0, { appearance: 'states', appearanceStates: ['Off', 'S'] }),
+              widget(1, { appearance: 'states', appearanceStates: ['L', 'Off'] }),
+            ],
+            {
+              objectNumber: 30,
+              kind: 'radio',
+              flags: 1 << 15,
+              valueKind: 'name',
+              value: 'L',
+              toggleOptions: ['Small', 'Large'],
+            }
+          ),
+        ],
+        parentOf(2)
+      ),
       listedAs({ 0: ['20R', '21R'] })
     )
     expect(fields[0]).toMatchObject({ value: 'Large', defaultValue: 'Off' })
     expect(fields[0]!.widgets.map((w) => w.onValue)).toEqual(['Small', 'Large'])
+  })
+
+  it('gives a radio widget with no dictionary of states no on value, and its values as read', async () => {
+    const [radio] = await fileFieldsFromEngine(
+      form([
+        field('r', [widget(0, { appearance: 'stream' })], {
+          kind: 'radio',
+          valueKind: 'name',
+          value: 'a',
+          toggleOptions: ['A'],
+        }),
+      ]),
+      listedAs({ 0: ['20R'] })
+    )
+    expect(radio).toMatchObject({ value: 'a' })
+    expect(radio).not.toHaveProperty('defaultValue')
+    expect(radio!.widgets[0]).not.toHaveProperty('onValue')
   })
 
   it('reads a text field as PDF.js does: empty value, maximum length 0, /DV when /V is absent', async () => {
@@ -210,6 +286,7 @@ describe('fileFieldsFromEngine', () => {
           valueKind: 'string',
           value: 'a',
           selectedIndices: [2, null, 1.5, 3, -1, 1],
+          selectedIndicesOwn: true,
           options,
         }),
         field('empty', [widget(1)], {
@@ -219,6 +296,7 @@ describe('fileFieldsFromEngine', () => {
           valueKind: 'string',
           value: 'a',
           selectedIndices: [],
+          selectedIndicesOwn: true,
           options,
         }),
         field('none', [widget(2)], {
@@ -228,6 +306,7 @@ describe('fileFieldsFromEngine', () => {
           valueKind: 'string',
           value: 'b',
           selectedIndices: null,
+          selectedIndicesOwn: true,
           options,
         }),
       ]),
@@ -238,23 +317,43 @@ describe('fileFieldsFromEngine', () => {
     expect(none!.value).toEqual(['b'])
   })
 
-  it("reads no /I for a field whose widget is a separate kid, as PDF.js reads only the widget's own", async () => {
-    const options = ['a', 'b'].map((v) => ({ exportValue: v, displayValue: v }))
-    const [kid] = await fileFieldsFromEngine(
+  it("reads /I from the widget's own dictionary only, as PDF.js does", async () => {
+    const options = ['a', 'b', 'c'].map((v) => ({ exportValue: v, displayValue: v }))
+    const list = {
+      kind: 'list' as const,
+      valueKind: 'string' as const,
+      value: 'a',
+      options,
+    }
+    const [kid, ownKid, inherited] = await fileFieldsFromEngine(
       form([
+        // The field's /I does not reach a separate widget; the widget's own does.
         field('kid', [widget(0)], {
+          ...list,
           objectNumber: 9,
-          generation: 0,
-          kind: 'list',
-          valueKind: 'string',
-          value: 'a',
           selectedIndices: [1],
-          options,
+          selectedIndicesOwn: true,
+        }),
+        field('ownKid', [widget(1, { selectedIndices: [2] })], {
+          ...list,
+          objectNumber: 10,
+          selectedIndices: [1],
+          selectedIndicesOwn: true,
+        }),
+        // A field-widget whose /I comes from up /Parent.
+        field('inherited', [widget(2)], {
+          ...list,
+          objectNumber: 22,
+          generation: 0,
+          selectedIndices: [1],
+          selectedIndicesOwn: false,
         }),
       ]),
-      listedAs({ 0: ['20R'] })
+      listedAs({ 0: ['20R', '21R', '22R'] })
     )
     expect(kid!.value).toEqual(['a'])
+    expect(ownKid!.value).toEqual(['c'])
+    expect(inherited!.value).toEqual(['a'])
   })
 
   it("gives a push button's Launch or GoToR file as its address when PDF.js would", async () => {

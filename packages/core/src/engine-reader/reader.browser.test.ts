@@ -817,15 +817,6 @@ const eachAnnotation = (
   })),
 })
 
-/** `read` with `change` applied to each field of the form. */
-const eachField = (
-  read: FileRead,
-  change: (f: Record<string, unknown>) => Record<string, unknown>
-): FileRead => ({
-  ...read,
-  form: read.form.map((f) => change(f as Record<string, unknown>)),
-})
-
 /** A PDF of the numbered objects given, object 1 the catalog, with a cross-reference table. */
 function buildPdf(objects: Record<number, string>): Uint8Array {
   const numbers = Object.keys(objects).map(Number)
@@ -925,17 +916,6 @@ const EXCEPTIONS: Record<
     fixtures: ['popups-and-widgets'],
     apply: (read) =>
       eachAnnotation(read, (a) => (a.id === '6R' ? withoutParentText(a) : a)),
-  },
-  "a toggle's value naming an /Opt index": {
-    cause:
-      "PDF.js reads a checkbox's or radio's value that is a whole number written as text or a name, and matches no on-state, as the /Opt entry at that index; the engine does not report a toggle's /Opt, so the engine reader keeps the number.",
-    fixtures: ['form-values'],
-    apply: (read) =>
-      eachField(read, (f) => {
-        if (f.name !== 'consent') return f
-        const { defaultValue: _defaultValue, ...rest } = f
-        return rest
-      }),
   },
   'group replies': {
     cause:

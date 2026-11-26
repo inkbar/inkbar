@@ -105,6 +105,41 @@ const FORMS = {
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },
   'form-range': { widgets: 3, fields: ['clear', 'note', 'score'] },
   'form-structure': { widgets: 3, fields: ['first', 'second', 'third'] },
+  'form-scripted-kinds': {
+    widgets: 19,
+    fields: [
+      'amount',
+      'colours',
+      'due',
+      'extras',
+      'flags',
+      'go',
+      'note',
+      // PDF.js also reports the non-terminal parent of person.first.
+      'person',
+      'person.first',
+      'pick',
+      'sig',
+      'size',
+      'stamp',
+      'start',
+      'twin',
+    ],
+  },
+  'form-scripted-parents': {
+    widgets: 7,
+    // PDF.js also reports the parents total and total.more, and the radio parent under choice.
+    fields: [
+      'choice',
+      'count',
+      'sum',
+      'total',
+      'total.a',
+      'total.b',
+      'total.more',
+      'total.more.c',
+    ],
+  },
   'form-goto': {
     widgets: 7,
     fields: [

@@ -10,8 +10,10 @@
  * attributes from a non-terminal ancestor, `form-rollover` has appearances with no normal state,
  * `script-page-only` runs JavaScript from a page's /AA and nowhere else, `form-values` holds
  * field values written in ways readers disagree on (/I beside /V, /V null, names in a value list,
- * Launch and GoToR files, an /Opt index as a value), and `border-dashes` holds dash arrays a
- * reader may take or refuse.
+ * Launch and GoToR files, an /Opt index as a value), `border-dashes` holds dash arrays a
+ * reader may take or refuse, and `form-scripted-kinds` holds JavaScript on fields of every kind
+ * and in every place a file holds it, and `form-scripted-parents` has scripts that name a parent
+ * field.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -295,6 +297,155 @@ function writeFormValues() {
   )
 }
 
+function writeScriptedKinds() {
+  /** A JavaScript action, `rest` its other entries. */
+  const js = (source: string, rest = '') => `<< /S /JavaScript /JS (${source}) ${rest}>>`
+  const row = (i: number, width = 200) =>
+    `[72 ${700 - i * 45} ${72 + width} ${725 - i * 45}]`
+  // Objects 7 on are the fields and widgets in this order; the looks of the toggles are 28 and 29,
+  // and every other widget shows the box at 30.
+  const at = (rect: string, look = '/AP << /N 30 0 R >>') =>
+    `/P 4 0 R /Rect ${rect} /F 4 ${look}`
+  const on = (state: string) => `/AP << /N << /${state} 28 0 R /Off 29 0 R >> >>`
+  write(
+    'form-scripted-kinds',
+    buildPdf([
+      // 1: the catalog, with document scripts (alpha's action has a /Next), an open action with a
+      // /Next, and document actions.
+      `<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 15 0 R 18 0 R 21 0 R 22 0 R 24 0 R 31 0 R 33 0 R 35 0 R 38 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [7 0 R 22 0 R 12 0 R] >> /Names << /JavaScript << /Names [(alpha) 25 0 R (beta) 26 0 R] >> >> /OpenAction 27 0 R /AA << /WC ${js('var closing = true;')} /WS ${js('var saving = true;')} /DP ${js('var printed = true;')} >> >>`,
+      INFO,
+      PAGES,
+      page(
+        `/Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 13 0 R 14 0 R 16 0 R 17 0 R 19 0 R 20 0 R 21 0 R 23 0 R 24 0 R 32 0 R 34 0 R 36 0 R 37 0 R 38 0 R] /AA << /O ${js("var pageOpened = 'yes';")} /C ${js('var pageClosed = true;')} >>`
+      ),
+      stream(label(['Fields of every kind with scripts, and scripts of every place'])),
+      HELVETICA,
+      // 7: a comb text field with keystroke, format, validate (with white space around it) and
+      // calculate scripts.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (amount) /Ff 16777216 /MaxLen 6 ${at(row(0))} /AA << /K ${js('AFNumber_Keystroke(0, 0, 0, 0, "", true)')} /F ${js('AFNumber_Format(0, 0, 0, 0, "", true)')} /V ${js('  event.rc = event.value < 1000000;  ')} /C ${js('event.value = 7')} >> >>`,
+      // 8: a time field, by the number of a standard format.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (start) ${at(row(1))} /AA << /K ${js('AFTime_Keystroke(2);')} /F ${js('AFTime_Format(2);')} >> >>`,
+      // 9: a date field with a format script and no keystroke script.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (due) ${at(row(2))} /AA << /F ${js('AFDate_FormatEx("mmm d, yyyy");')} >> >>`,
+      // 10: a combo box with keystroke and validate scripts.
+      `<< /Type /Annot /Subtype /Widget /FT /Ch /T (size) /Ff 131072 /Opt [(S) (M) (L)] /V (M) ${at(row(3))} /AA << /K ${js('event.rc = true')} /V ${js("event.rc = event.value != 'L'")} >> >>`,
+      // 11: a multi-select list with export and display values and a focus script.
+      `<< /Type /Annot /Subtype /Widget /FT /Ch /T (colours) /Ff 2097152 /Opt [[(r) (Red)] [(g) (Green)] [(b) (Blue)]] /V [(r) (g)] ${at(row(4))} /AA << /Fo ${js('var focused = true')} >> >>`,
+      // 12 to 14: a multiline text field with a blur script and two widgets, the second with a
+      // focus script of its own.
+      `<< /FT /Tx /T (note) /Ff 4096 /V (two places) /Kids [13 0 R 14 0 R] /AA << /Bl ${js('var blurred = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 12 0 R ${at(row(5))} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 12 0 R ${at('[300 475 400 500]')} /AA << /Fo ${js('var noteFocused = true')} >> >>`,
+      // 15 to 17: a radio group whose /Kids lists the b widget before the a widget, which /Annots
+      // lists first; b has a mouse-up script.
+      `<< /FT /Btn /T (pick) /Ff 49152 /V /b /Kids [17 0 R 16 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 15 0 R ${at('[72 430 92 450]', '')} /AS /Off ${on('a')} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 15 0 R ${at('[102 430 122 450]', '')} /AS /b ${on('b')} /AA << /U ${js('var pickedB = true')} >> >>`,
+      // 18 to 20: a checkbox field with two widgets of different on-states, y with a mouse-down
+      // script.
+      `<< /FT /Btn /T (extras) /V /x /Kids [19 0 R 20 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 18 0 R ${at('[72 385 92 405]', '')} /AS /x ${on('x')} >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 18 0 R ${at('[102 385 122 405]', '')} /AS /Off ${on('y')} /AA << /D ${js('var pressedY = true')} >> >>`,
+      // 21: a signature field.
+      `<< /Type /Annot /Subtype /Widget /FT /Sig /T (sig) ${at(row(7))} >>`,
+      // 22 and 23: a non-terminal field over a text field with a keystroke script.
+      `<< /T (person) /Kids [23 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (first) /Parent 22 0 R ${at(row(8))} /AA << /K ${js('event.change = event.change.toUpperCase()')} >> >>`,
+      // 24: a push button whose JavaScript action has a /Next, and a page-open script.
+      `<< /Type /Annot /Subtype /Widget /FT /Btn /Ff 65536 /T (go) ${at(row(9, 100))} /A ${js("app.alert('go')", `/Next ${js('var went = true')}`)} /AA << /PO ${js('var shown = true')} >> >>`,
+      // 25 and 26: the document scripts; alpha's action has a /Next, beta has white space.
+      js('var alpha = 1;', `/Next ${js('var alphaNext = 1;')}`),
+      js('  var beta = 2;  '),
+      // 27: the open action, with a /Next.
+      js('var started = true;', `/Next ${js('var startedNext = true;')}`),
+      look(20, 20, '0 g 4 4 12 12 re f'),
+      look(20, 20, '0 G 0.5 0.5 19 19 re S'),
+      boxLook(200, 25),
+      // 31 to 34: two fields both named twin, each a dictionary over one widget, with a keystroke
+      // and a format script.
+      `<< /FT /Tx /T (twin) /Kids [32 0 R] /AA << /K ${js('var firstTwin = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 31 0 R ${at('[300 655 400 680]')} >>`,
+      `<< /FT /Tx /T (twin) /Kids [34 0 R] /AA << /F ${js('var secondTwin = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 33 0 R ${at('[300 610 400 635]')} >>`,
+      // 35 to 37: a checkbox field (/V q) whose /Kids lists its unchecked widget r before its
+      // checked widget q, the other way round from /Annots.
+      `<< /FT /Btn /T (flags) /V /q /Kids [37 0 R 36 0 R] >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 35 0 R ${at('[300 385 320 405]', '')} /AS /q ${on('q')} /AA << /U ${js('var flagged = true')} >> >>`,
+      `<< /Type /Annot /Subtype /Widget /Parent 35 0 R ${at('[330 385 350 405]', '')} /AS /Off ${on('r')} >>`,
+      // 38: a date field whose one Format action has a date /Next, and no keystroke script.
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (stamp) ${at('[300 565 400 590]')} /AA << /F ${js('AFDate_FormatEx("dd/mm/yyyy");', `/Next ${js('AFDate_FormatEx("mm/dd/yyyy");')}`)} >> >>`,
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Form fields of every kind with JavaScript, and scripts in every place a file holds them; every widget has a normal appearance stream. amount is a comb text field (/MaxLen 6) with keystroke, format, validate (written with white space around it) and calculate scripts; start a time field with AFTime_Keystroke(2) and AFTime_Format(2); due a date field with only AFDate_FormatEx("mmm d, yyyy"). size is a combo (/Opt S M L, /V M) with keystroke and validate scripts; colours a multi-select list with export and display values, /V [r g] and a focus script. note is a multiline text field with a blur script on the field and two widgets, the second with a focus script of its own. pick is a radio group (/V b) whose /Kids lists its b widget before its a widget, the other way round from /Annots, with a mouse-up script on b; extras a checkbox field (/V x) with widgets of on-states x and y, a mouse-down script on y. sig is a signature field. person is a non-terminal field over person.first, a text field with a keystroke script. go is a push button whose JavaScript action has a JavaScript /Next and whose widget has a page-open script. The document has scripts alpha (its action with a JavaScript /Next) and beta (written with white space around it), an open action with a JavaScript /Next, will-close, will-save and did-print actions, and /CO [amount person note]. The page has open and close scripts. twin is two fields of that one name, each a dictionary over one widget, the first with a keystroke script and the second with a format script. flags is a checkbox field (/V q) whose /Kids lists its unchecked widget (on-state r) before its checked one (q), the other way round from /Annots, with a mouse-up script on q. stamp is a date field whose one Format action has a date /Next and which has no keystroke script',
+      annotations: { Widget: 19 },
+    }
+  )
+}
+
+function writeScriptedParents() {
+  /** A JavaScript action. */
+  const js = (source: string) => `<< /S /JavaScript /JS (${source}) >>`
+  /** A widget with `keys` in row `i`, its look at object `ap`. */
+  const widget = (keys: string, i: number, ap: number) =>
+    `<< /Type /Annot /Subtype /Widget ${keys} /P 4 0 R /Rect [72 ${700 - i * 45} 272 ${725 - i * 45}] /F 4 /AP << /N ${ap} 0 R >> >>`
+  const radio = (x: number, state: string, as: string) =>
+    `<< /Type /Annot /Subtype /Widget /Parent 14 0 R /P 4 0 R /Rect [${x} 430 ${x + 20} 450] /F 4 /AS /${as} /AP << /N << /${state} 22 0 R /Off 23 0 R >> >> >>`
+  write(
+    'form-scripted-parents',
+    buildPdf([
+      // 1: the catalog. /CO names the parent last. PDF.js's sandbox gives a name with no widget
+      // object no `send`, so calculating total throws in `runCalculate`, which ends the loop over
+      // /CO: an entry after it would never be calculated.
+      '<< /Type /Catalog /Pages 3 0 R /AcroForm << /Fields [7 0 R 12 0 R 13 0 R 14 0 R] /DR << /Font << /Helv 6 0 R >> >> /DA (/Helv 10 Tf 0 g) /CO [12 0 R 13 0 R 7 0 R] >> >>',
+      INFO,
+      PAGES,
+      page('/Annots [8 0 R 9 0 R 11 0 R 12 0 R 13 0 R 15 0 R 16 0 R]'),
+      stream(label(['A parent field over three text fields, summed by name'])),
+      HELVETICA,
+      // 7: total, a parent with its own /P, /MK and focus script over a, b and the parent more.
+      `<< /T (total) /Kids [8 0 R 9 0 R 10 0 R] /P 4 0 R /MK << /BC [1 0 0] /BG [0 0 1] >> /AA << /Fo ${js('var totalFocused = true;')} >> >>`,
+      widget('/FT /Tx /T (a) /Parent 7 0 R /V (1)', 0, 17),
+      widget('/FT /Tx /T (b) /Parent 7 0 R /V (2)', 1, 18),
+      // 10 and 11: more, a parent inside total, over c.
+      '<< /T (more) /Parent 7 0 R /Kids [11 0 R] >>',
+      widget('/FT /Tx /T (c) /Parent 10 0 R /V (3)', 2, 19),
+      // 12: sum adds up the fields under total, by the parent's name.
+      widget(
+        `/FT /Tx /T (sum) /V (6) /AA << /C ${js('AFSimple_Calculate("SUM", new Array("total"));')} >>`,
+        3,
+        20
+      ),
+      // 13: count gives the number of fields under total.
+      widget(
+        `/FT /Tx /T (count) /V (0) /AA << /C ${js('event.value = this.getField("total").getArray().length;')} >>`,
+        4,
+        21
+      ),
+      // 14 to 16: choice, a radio parent over its x and y widgets.
+      '<< /FT /Btn /Ff 49152 /T (choice) /V /x /Kids [15 0 R 16 0 R] >>',
+      radio(72, 'x', 'x'),
+      radio(102, 'y', 'Off'),
+      boxLook(200, 25, '1'),
+      boxLook(200, 25, '2'),
+      boxLook(200, 25, '3'),
+      boxLook(200, 25, '6'),
+      boxLook(200, 25, '0'),
+      look(20, 20, '0 g 4 4 12 12 re f'),
+      look(20, 20, '0 G 0.5 0.5 19 19 re S'),
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A parent field and the scripts that name it; every widget has a normal appearance stream. total is a non-terminal field with its own /P, /MK (/BC red, /BG blue) and a focus script, over the text fields total.a (/V 1) and total.b (/V 2) and the non-terminal total.more over total.more.c (/V 3). sum (/V 6) calculates AFSimple_Calculate("SUM", new Array("total")); count (/V 0) calculates this.getField("total").getArray().length. /CO is [sum count total], naming the parent last. choice is a radio parent (/V x) over widgets with on-states x and y',
+      annotations: { Widget: 7 },
+    }
+  )
+}
+
 function writeBorderDashes() {
   const square = (y: number, ap: number, keys: string) =>
     `<< /Type /Annot /Subtype /Square /Rect [72 ${y} 172 ${y + 50}] /C [0 0 1] /F 4 /AP << /N ${ap} 0 R >> ${keys} >>`
@@ -345,6 +496,8 @@ writeFormRollover()
 writeScriptPageOnly()
 writeFormValues()
 writeBorderDashes()
+writeScriptedKinds()
+writeScriptedParents()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,

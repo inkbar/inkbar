@@ -73,6 +73,9 @@ export interface PdfjsAnnotationData {
   alternativeText?: string
   /** `/MK /R`. */
   rotation?: number
+  /** A text widget's own date or time input, which PDF.js gives it for one date or time
+   * Keystroke script beside one Format script, both then under Format. */
+  datetimeType?: string
   /** JavaScript actions by event name; null when there are none. */
   actions?: Map<string, string[]> | Record<string, string[]> | null
   resetForm?: { fields: string[]; refs: string[]; include: boolean }

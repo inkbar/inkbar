@@ -71,6 +71,8 @@ export interface ReaderEngineDocument {
   pageAnnotations(index: number): Promise<PageAnnotationsShape>
   /** The form's fields with their widgets. */
   formFields(): Promise<FormFactsShape>
+  /** The file's JavaScript outside its form fields, as source text. */
+  scripts(): Promise<ScriptFactsShape>
   /** The object numbers of the page's annotations in the order its structure tree reaches them. */
   structureOrder(index: number): Promise<StructureOrderShape>
   close(): Promise<void>
@@ -108,6 +110,8 @@ export interface AppearanceFactsShape {
   /** `/F`, 0 when absent. */
   flags: number
   hasAppearance: boolean
+  /** How `/AP /N` is written: one stream, or a dictionary of states. Absent when it is neither. */
+  appearance?: 'stream' | 'states'
   /** The names of `/AP /N`'s states, in byte order. */
   appearanceStates: string[]
   /** `/AS`, when it is a name. */
@@ -190,6 +194,14 @@ export interface WidgetFactsShape extends AppearanceFactsShape {
   borderColor?: (number | null)[]
   backgroundColor?: (number | null)[]
   rotation?: number | null
+  /** `/MK /CA`. */
+  caption?: FileTextShape
+  /** The widget's own `/Rotate`; `null` when it is no number. */
+  rotate?: number | null
+  /** A toggle widget's own `/Opt`, when its dictionary is not the field's. */
+  toggleOptions?: ToggleOptionsShape
+  /** A choice widget's own `/I`, when its dictionary is not the field's. */
+  selectedIndices?: (number | null)[] | null
   /** `/Q`, inherited. */
   alignment?: number | null
   tooltip?: FileTextShape
@@ -214,6 +226,8 @@ export interface FieldFactsShape {
   name: string
   objectNumber?: number
   generation?: number
+  /** `'acroform'` when `/Fields` reaches it, `'recovered'` when only a page's widget does. */
+  origin: 'acroform' | 'recovered'
   kind:
     'text' | 'checkbox' | 'radio' | 'button' | 'combo' | 'list' | 'signature' | 'unknown'
   /** `/Ff`, inherited. */
@@ -228,11 +242,63 @@ export interface FieldFactsShape {
   defaultValueNull?: true
   /** `/I`, inherited as `/V` is; `null` when it is not a list. */
   selectedIndices?: (number | null)[] | null
+  /** Beside `selectedIndices`: whether the field's own dictionary holds `/I`. */
+  selectedIndicesOwn?: boolean
   options?: { exportValue: string; displayValue: string }[]
+  /** A checkbox's or radio's `/Opt`, inherited as `/V` is. */
+  toggleOptions?: ToggleOptionsShape
   /** `/MaxLen`, when it is not 0. */
   maxLength?: number
   widgets: WidgetFactsShape[]
   truncated?: true
+}
+
+/**
+ * @internal A checkbox's or radio's `/Opt`: text, names as `{ name }`, `null` for any other entry;
+ * `null` when it is not a list.
+ */
+export type ToggleOptionsShape = (FileTextShape | { name: string } | null)[] | null
+
+/**
+ * @internal An entry of `/Kids` or `/Fields` as written. The keys after `dictionary` are present
+ * only for one that resolves to a dictionary.
+ */
+export interface FieldTreeEntryShape {
+  /** `null` for an entry written as a direct object. */
+  ref: ObjectRefShape | null
+  dictionary: boolean
+  /** Whether it has the key `/Kids`. */
+  hasKids?: boolean
+  /** Its own `/T`, present whenever it has the key: `null` when that is no string. */
+  partialName?: FileTextShape | null
+  /** Its `/Parent` is not the dictionary whose `/Kids` lists it (for `/Fields`: it has one). */
+  otherParent?: true
+}
+
+/** @internal A dictionary of the field tree that has a `/Kids` list. */
+export interface FieldGroupFactsShape {
+  /** The full name along `/Parent`, empty `/T`s left out. */
+  name: string
+  objectNumber?: number
+  generation?: number
+  /** `/Subtype`, when it is a name. */
+  subtype?: string
+  /** `/Kids` in the file's order. */
+  kids: FieldTreeEntryShape[]
+  /** Its own `/MK /BC`. */
+  borderColor?: (number | null)[]
+  /** Its own `/MK /BG`. */
+  backgroundColor?: (number | null)[]
+  /** Its own `/MK /R`. */
+  rotation?: number | null
+  /** Its own `/MK /CA`. */
+  caption?: FileTextShape
+  /** Its own `/Rotate`. */
+  rotate?: number | null
+  /** The page `/P` names, -1 when no page; absent without `/P`. */
+  page?: number
+  /** JavaScript by additional-action key, merged along `/Parent`, and `A` for its own `/A`. */
+  scripts: Record<string, string[]>
 }
 
 /** @internal The file's form. */
@@ -244,8 +310,29 @@ export interface FormFactsShape {
   /** `/AcroForm /Q`. */
   alignment?: number | null
   fields: FieldFactsShape[]
+  /** Every dictionary of the field tree that has a `/Kids` list. */
+  groups: FieldGroupFactsShape[]
+  /** `/AcroForm /Fields` in the file's order. */
+  fieldsRoot: FieldTreeEntryShape[]
+  /** Each entry of `/AcroForm /CO` as a reference; `null` for one that is not a reference. */
+  calculationOrderRefs: (ObjectRefShape | null)[]
   /** The form was refused for its size: `fields` is empty. */
   tooLarge: boolean
+  truncated: boolean
+}
+
+/**
+ * @internal The file's JavaScript outside its form fields, as source text that nothing runs. Keys
+ * are the file's own: `OpenAction` for the catalog's open action, and each additional-action key
+ * as written. Each list holds every source of the action's chain: the action's own, then its
+ * `/Next`.
+ */
+export interface ScriptFactsShape {
+  /** The `/Names /JavaScript` tree in its order, one entry for each source of each name's chain. */
+  document: { name: FileTextShape | null; source: string }[]
+  documentActions: Record<string, string[]>
+  /** Each page whose `/AA` holds JavaScript, with its sources by key. */
+  pageActions: { page: number; scripts: Record<string, string[]> }[]
   truncated: boolean
 }
 

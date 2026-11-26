@@ -52,6 +52,8 @@ export const FIXTURE_NAMES = [
   'script-page-only',
   'form-values',
   'border-dashes',
+  'form-scripted-kinds',
+  'form-scripted-parents',
   'incremental-saved',
   'object-streams',
   'encrypted-aes',
