@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  The page scripts/measure-open.ts builds and loads: a host that opens a file in the viewer, as
+  any host would, and reports how long the first page took to appear. With `?reader=engine` it
+  turns core's internal reader switch on first.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Measure open</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      #viewer {
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <script type="module">
+      import '@inkbar/theme/theme.css'
+      import { createViewer } from '@inkbar/core/dom'
+      import { assets } from 'virtual:inkbar-assets'
+
+      if (new URLSearchParams(location.search).get('reader') === 'engine')
+        globalThis.__INKBAR_READER__ = 'engine'
+
+      const firstPage = (root) =>
+        new Promise((resolve) => {
+          const drawn = () => {
+            const canvas = root.querySelector(
+              '.ink-page[data-page="0"] canvas[data-ink-canvas]'
+            )
+            return !!canvas && canvas.width > 0
+          }
+          if (drawn()) return resolve()
+          const observer = new MutationObserver(() => {
+            if (!drawn()) return
+            observer.disconnect()
+            resolve()
+          })
+          observer.observe(root, { childList: true, subtree: true, attributes: true })
+        })
+
+      /** Opens `url`'s bytes and resolves with the milliseconds until page 1 is drawn. */
+      window.measureOpen = async (url) => {
+        const data = new Uint8Array(await (await fetch(url)).arrayBuffer())
+        const container = document.getElementById('viewer')
+        const start = performance.now()
+        const viewer = createViewer(container, {
+          source: { data, key: url },
+          assets,
+          engine: () => import('@inkbar/engine'),
+        })
+        await firstPage(container)
+        const elapsed = performance.now() - start
+        const doc = viewer.document.get()
+        return { elapsed, reader: doc?._reader.kind ?? 'none' }
+      }
+      window.measureReady = true
+    </script>
+  </body>
+</html>

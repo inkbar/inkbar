@@ -51,6 +51,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
     "lint": "eslint src",
     "generate:metrics": "node scripts/generate-font-metrics.ts",
+    "measure:open": "node scripts/measure-open.ts",
     "test": "vitest run --project node",
     "test:browser": "vitest run --project browser",
     "test:browser:engine": "vitest run --project browser-engine"
