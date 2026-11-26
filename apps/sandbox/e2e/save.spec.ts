@@ -22,9 +22,8 @@ const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
 const root = (page: Page) => viewer(page).locator('[data-ink-root]')
 const highlights = (page: Page) =>
   viewer(page).locator('[data-annotation][data-type="highlight"]')
-/** PDF.js's own decoders live under inkbar/wasm/; any other request here is the engine's. */
-const isEngineRequest = (url: string) =>
-  /inkbar-pdfium|engine/.test(url) && !url.includes('/inkbar/wasm/')
+/** A request for the engine's binary. */
+const isEngineBinary = (url: string) => /\/inkbar-pdfium[^/]*\.wasm(\?|$)/.test(url)
 
 async function waitForViewer(page: Page): Promise<void> {
   await expect(root(page)).toHaveAttribute('data-state', 'ready', { timeout: 20_000 })
@@ -73,13 +72,11 @@ for (const framework of FRAMEWORK_ORDER) {
     const bytes = await readFile(path)
     expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
 
-    // The engine ran in a worker the bundler built, with the one wasm the build carries.
-    const engineWorkers = workers.filter((url) => !url.includes('pdf.worker'))
-    expect(engineWorkers).toHaveLength(1)
-    expect(responses.get(engineWorkers[0]!)).toBe(200)
-    const wasm = [...responses].filter(
-      ([url]) => url.endsWith('.wasm') && !url.includes('/inkbar/wasm/')
-    )
+    // The engine ran in one worker, the one the plugin copies, with the one wasm it copies.
+    expect(workers).toHaveLength(1)
+    expect(workers[0]).toMatch(/\/inkbar\/[^/]+\/worker\.mjs$/)
+    expect(responses.get(workers[0]!)).toBe(200)
+    const wasm = [...responses].filter(([url]) => isEngineBinary(url))
     expect(wasm.map(([, status]) => status)).toEqual([200])
 
     // Open the downloaded file in the same scenario, as the Open button would.
@@ -122,18 +119,20 @@ test('the other scenarios write the session into the file too', async ({ page })
   expect(bytes.toString('latin1')).toContain('/INKB_Gloss')
 })
 
-test('an ordinary visit that changes nothing requests no engine file', async ({
+test('an ordinary visit fetches the engine once, and a download with no changes hands over the file as opened', async ({
   page,
 }) => {
   const requested: string[] = []
   page.on('request', (request) => requested.push(request.url()))
   await page.goto('./#/react/save')
   await waitForViewer(page)
-  // Download with no changes hands over the file as it was opened, without the engine.
   const saving = page.waitForEvent('download')
   await viewer(page).getByRole('button', { name: 'Download' }).click()
-  await saving
-  expect(requested.filter(isEngineRequest)).toEqual([])
+  const path = test.info().outputPath('unchanged.pdf')
+  await (await saving).saveAs(path)
+  const opened = await (await page.request.get('./documents/letter.pdf')).body()
+  expect(sha(await readFile(path))).toBe(sha(opened))
+  expect(requested.filter(isEngineBinary)).toHaveLength(1)
 })
 
 /** Files in the build that are byte-for-byte copies of the engine's `name`. */
@@ -149,10 +148,13 @@ async function copiesOf(name: string): Promise<string[]> {
   return copies
 }
 
-test('the build carries the engine wasm once, and no unbundled worker', async () => {
-  expect(await copiesOf('inkbar-pdfium.wasm')).toHaveLength(1)
-  // The bundler builds its own worker from the engine's `new Worker(...)` call.
-  expect(await copiesOf('worker.mjs')).toEqual([])
+test("the build carries the engine's wasm and worker once each, where the plugin copies them", async () => {
+  expect(await copiesOf('inkbar-pdfium.wasm')).toEqual([
+    expect.stringMatching(/^inkbar\/[^/]+\/inkbar-pdfium\.wasm$/),
+  ])
+  expect(await copiesOf('worker.mjs')).toEqual([
+    expect.stringMatching(/^inkbar\/[^/]+\/worker\.mjs$/),
+  ])
   // Vite stands an empty chunk in for each Node module it externalizes, and warns.
   const files = await readdir(built, { recursive: true })
   expect(files.filter((file) => file.includes('__vite-browser-external'))).toEqual([])

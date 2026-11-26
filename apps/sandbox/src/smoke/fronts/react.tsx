@@ -25,13 +25,7 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { assets } from 'virtual:inkbar-assets'
 
-import {
-  engine,
-  redactionConfirm,
-  tools,
-  type FrontProps,
-  type MountFront,
-} from '../front.ts'
+import { redactionConfirm, tools, type FrontProps, type MountFront } from '../front.ts'
 
 function Apply({ onApply }: Pick<FrontProps, 'onApply'>) {
   const { apply } = useRedaction()
@@ -47,7 +41,6 @@ function Smoke(props: FrontProps) {
       messages={props.messages}
       assets={assets}
       tools={toolList}
-      engine={engine}
       redactionConfirm={redactionConfirm}
       onReady={props.onReady}
       onRedacted={({ bytes }) => props.onRedacted(bytes)}

@@ -12,7 +12,6 @@ import {
   type InkDocument,
 } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
-import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -46,9 +45,6 @@ import type { ToolId } from '@inkbar/core/dom'
 const SAVE_DEBOUNCE_MS = 150
 
 const tools = allTools()
-/** Download and Print write the session's annotations into the file. */
-const engine = () => import('@inkbar/engine')
-
 /** One generated file per page count, shared across StrictMode's double-invoked effects. */
 const largeFiles = new Map<number, Promise<Uint8Array>>()
 function largeFile(pages: number): Promise<Uint8Array> {
@@ -89,8 +85,6 @@ export function ReviewPage({
     largePages > 0 ? `generating ${largePages} pages` : 'loading'
   )
   const [readyCount, setReadyCount] = useState(0)
-  /** Which reader opened the document, for the tests. */
-  const [reader, setReader] = useState('')
   const documentRef = useRef<InkDocument | null>(null)
   const root = useRef<InkRootHandle>(null)
   const [largeBytes, setLargeBytes] = useState<Uint8Array | null>(null)
@@ -128,7 +122,6 @@ export function ReviewPage({
     const count = import.meta.env.DEV ? recordReady() : latest.current.readyCount + 1
     setReadyCount(count)
     documentRef.current = doc
-    setReader(readerOf(doc))
     const forKey = doc.key
     const saved = await server.load(forKey)
     if (documentRef.current !== doc) return
@@ -228,7 +221,6 @@ export function ReviewPage({
       tools={tools}
       src={src}
       assets={assets}
-      engine={engine}
       className="sandbox-root"
       onReady={(doc) => void onReady(doc)}
       onError={onError}
@@ -279,7 +271,6 @@ export function ReviewPage({
         data-ready-count={readyCount}
         data-version={version}
         data-signature={signature}
-        data-reader={reader}
       >
         {status} · {annotations.length} annotation{annotations.length === 1 ? '' : 's'}
       </p>

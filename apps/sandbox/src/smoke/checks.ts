@@ -8,14 +8,13 @@
 import { fr } from '@inkbar/core/locales/fr'
 import { assets } from 'virtual:inkbar-assets'
 
-import { readerOf, setEngineReader } from '../shared/reader.ts'
 import { watchRequests, type RequestWatch } from '../shared/requests.ts'
 
 import { SLACK_MS, SkipCheck, type SmokeCheck } from './run.ts'
 
 import type { Front, MountFront } from './front.ts'
 import type { InkDocument, Quad, RedactionResult } from '@inkbar/core'
-import type { Engine } from '@inkbar/engine'
+import type { Engine } from '@inkbar/engine/bare'
 
 const BASE = import.meta.env.BASE_URL
 /** One page of three made-up customer records. */
@@ -49,8 +48,8 @@ const JAPANESE = `${BASE}fixtures/unembedded-japanese.pdf`
 const JAPANESE_FONT = /\/fonts\/NotoSansJP-Regular\.otf$/
 /** The engine's WebAssembly binary, under its built name or its own. */
 const ENGINE_BINARY = /\/inkbar-pdfium[^/]*\.wasm$/
-/** Where PDF.js's worker and files are served (`inkbar()` from `@inkbar/core/vite`). */
-const PDFJS_FILES = `${BASE}inkbar/`
+/** Where Inkbar's own files are served (`inkbar()` from `@inkbar/core/vite`). */
+const INKBAR_FILES = `${BASE}inkbar/`
 
 /** Text the first record holds once, which the redaction removes. */
 const SECRET = '07700 900123'
@@ -266,23 +265,20 @@ export function smokeChecks(
     host.querySelector(`[data-annotation="${HIGHLIGHT_ID}"]`) !== null
 
   /**
-   * Opens `url` in a viewer of its own, with core's switch for drawing pages with the engine on
-   * or off, and runs `test` on the document and its first page canvas, once drawn. The canvas
-   * joins the page only once drawn; read its pixels once, as a browser warns of repeated reads.
-   * The viewer goes and the switch is off again however `test` ends, so the checks after see
-   * the page as it was.
+   * Opens `url` in a viewer of its own and runs `test` on the document and its first page
+   * canvas, once drawn. The canvas joins the page only once drawn; read its pixels once, as a
+   * browser warns of repeated reads. The viewer goes however `test` ends, so the checks after
+   * see the page as it was.
    */
   async function drawnWith<T>(
     url: string,
-    engineOn: boolean,
     test: (doc: InkDocument, canvas: HTMLCanvasElement) => T | Promise<T>
   ): Promise<T> {
     let opened: InkDocument | undefined
     let viewer: Front | undefined
-    setEngineReader(engineOn)
     try {
       viewer = mountFront(host, {
-        source: { url, key: `smoke-${engineOn ? 'engine' : 'pdfjs'}-${url}` },
+        source: { url, key: `smoke-${url}` },
         messages: undefined,
         onReady: (doc) => (opened ??= doc),
         onRedacted: () => undefined,
@@ -298,7 +294,6 @@ export function smokeChecks(
     } finally {
       viewer?.unmount()
       host.replaceChildren()
-      setEngineReader(false)
     }
   }
 
@@ -310,9 +305,9 @@ export function smokeChecks(
         const response = await fetch(RECORDS)
         assert(response.ok, `fetching the file gave HTTP ${response.status}`)
         original = new Uint8Array(await response.arrayBuffer())
-        const { createEngine } = await import('@inkbar/engine')
-        // In a browser the engine runs PDFium in a Web Worker unless told otherwise.
-        engine = await createEngine()
+        const { createEngine } = await import('@inkbar/engine/bare')
+        // In a browser the engine runs PDFium in a Web Worker, from the files the plugin copies.
+        engine = await createEngine({ wasm: assets.engine, worker: assets.worker })
         const doc = await engine.open(original.slice())
         try {
           assert(doc.pageCount === 1, `expected 1 page, the engine read ${doc.pageCount}`)
@@ -322,12 +317,10 @@ export function smokeChecks(
       },
     },
     {
-      name: 'with the switch on, the engine draws the page',
+      name: 'the engine draws the page',
       timeout: 30_000,
       async run() {
-        await drawnWith(TEXT_SIMPLE, true, (doc, canvas) => {
-          const reader = readerOf(doc)
-          assert(reader === 'engine', `the page was drawn by ${reader}`)
+        await drawnWith(TEXT_SIMPLE, (_, canvas) => {
           const dark = inked(canvas)
           assert(dark > 50, `the page canvas is blank (${dark} dark samples)`)
         })
@@ -348,9 +341,7 @@ export function smokeChecks(
         const fontRequests = (w: RequestWatch) =>
           w.list().filter((r) => JAPANESE_FONT.test(new URL(r.name).pathname))
         try {
-          await drawnWith(JAPANESE, true, async (doc, canvas) => {
-            const reader = readerOf(doc)
-            assert(reader === 'engine', `the page was drawn by ${reader}`)
+          await drawnWith(JAPANESE, async (_, canvas) => {
             // Both Japanese lines, and none of the Latin line under them.
             const dark = inkedIn(canvas, { left: 72, top: 50, right: 280, bottom: 150 })
             assert(dark > 100, `the Japanese lines are blank (${dark} dark samples)`)
@@ -375,12 +366,10 @@ export function smokeChecks(
       },
     },
     {
-      name: 'with the switch on, a selection of the first line made by script reads it back',
+      name: 'a selection of the first line made by script reads it back',
       timeout: 30_000,
       async run() {
-        await drawnWith(TEXT_SIMPLE, true, async (doc) => {
-          const reader = readerOf(doc)
-          assert(reader === 'engine', `the text was read by ${reader}`)
+        await drawnWith(TEXT_SIMPLE, async () => {
           const layer = await until(
             'the text layer spans',
             () => {
@@ -408,12 +397,10 @@ export function smokeChecks(
       },
     },
     {
-      name: `with the switch on, search finds ${TEXT_SEARCH_QUERY} ${TEXT_SEARCH_HITS} time in the search cases`,
+      name: `search finds ${TEXT_SEARCH_QUERY} ${TEXT_SEARCH_HITS} time in the search cases`,
       timeout: 30_000,
       async run() {
-        await drawnWith(TEXT_SEARCH, true, async (doc) => {
-          const reader = readerOf(doc)
-          assert(reader === 'engine', `the text was read by ${reader}`)
+        await drawnWith(TEXT_SEARCH, async (doc) => {
           const hits = await doc.search(TEXT_SEARCH_QUERY).all()
           assert(
             hits.length === TEXT_SEARCH_HITS,
@@ -423,12 +410,10 @@ export function smokeChecks(
       },
     },
     {
-      name: 'with the switch on, an internal link, activated by script, changes the page',
+      name: 'an internal link in the links fixture, activated by script, changes the page',
       timeout: 30_000,
       async run() {
-        await drawnWith(LINKS, true, async (doc) => {
-          const reader = readerOf(doc)
-          assert(reader === 'engine', `the links were read by ${reader}`)
+        await drawnWith(LINKS, async () => {
           const link = await until(
             'the first internal link',
             () => page(0)?.querySelector<HTMLElement>('[data-ink-link][role="link"]'),
@@ -442,12 +427,10 @@ export function smokeChecks(
       },
     },
     {
-      name: 'with the switch on, the outline panel lists Cover',
+      name: 'the outline panel lists Cover',
       timeout: 30_000,
       async run() {
-        await drawnWith(OUTLINE, true, async (doc) => {
-          const reader = readerOf(doc)
-          assert(reader === 'engine', `the outline was read by ${reader}`)
+        await drawnWith(OUTLINE, async () => {
           await until(
             'the Cover entry',
             () =>
@@ -462,14 +445,12 @@ export function smokeChecks(
       },
     },
     {
-      name: 'with the switch off, opening a file fetches no engine binary',
+      name: "opening a file fetches the engine's binary and starts only its worker",
       timeout: 30_000,
       async run() {
         const watch = watchRequests()
         try {
-          await drawnWith(TEXT_SIMPLE, false, async (doc, canvas) => {
-            const reader = readerOf(doc)
-            assert(reader === 'pdfjs', `the page was drawn by ${reader}`)
+          await drawnWith(TEXT_SIMPLE, async (_, canvas) => {
             const dark = inked(canvas)
             assert(dark > 50, `the page canvas is blank (${dark} dark samples)`)
             await settle()
@@ -480,14 +461,14 @@ export function smokeChecks(
         const binary = watch
           .list()
           .filter((r) => ENGINE_BINARY.test(new URL(r.name).pathname))
-        assert(
-          binary.length === 0,
-          `the engine binary was fetched from ${binary[0]?.from}`
-        )
+        assert(binary.length > 0, 'the engine binary was not fetched')
         const others = watch
           .workers()
-          .filter((w) => !new URL(w).pathname.startsWith(PDFJS_FILES))
-        assert(others.length === 0, `a worker other than PDF.js's started: ${others[0]}`)
+          .filter((w) => !new URL(w).pathname.startsWith(INKBAR_FILES))
+        assert(
+          others.length === 0,
+          `a worker other than the engine's started: ${others[0]}`
+        )
       },
     },
     {

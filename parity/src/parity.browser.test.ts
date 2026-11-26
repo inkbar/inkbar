@@ -176,7 +176,9 @@ const describeNumbers = (c: Comparison) =>
   `longest unmatched run ${c.unmatchedRun} px, flat ${(c.flatShare * 100).toFixed(3)}% ` +
   `(worst block ${(c.flatBlock * 100).toFixed(0)}%)`
 
-describe.each(opening)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(opening)('%s', (name) => {
   const verdict = verdicts[name]
 
   it('draws as parity.json records', async () => {

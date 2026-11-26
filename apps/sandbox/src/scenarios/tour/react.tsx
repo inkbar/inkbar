@@ -35,7 +35,6 @@ import '@inkbar/theme/theme.css'
 import { useEffect, useRef } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -74,7 +73,6 @@ export default function AnnotationTour({
       assets={assets}
       tools={tools}
       storage={storage}
-      engine={engine}
       signatureFonts={signatureFonts}
       onReady={onReady}
       onToolChange={(tool) => log('onToolChange', tool)}

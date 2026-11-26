@@ -4,14 +4,13 @@ import { test } from 'node:test'
 import { SCENARIOS } from '../scenarios/registry.ts'
 
 import { FRAMEWORK_ORDER } from './frameworks.ts'
-import { formatRoute, formatSearch, parseRoute, withEngine, withLang } from './route.ts'
+import { formatRoute, formatSearch, parseRoute, withLang } from './route.ts'
 
 void test('parses a route', () => {
   assert.deepEqual(parseRoute('#/vue/forms'), {
     framework: 'vue',
     scenario: 'forms',
     lang: 'en',
-    engine: false,
   })
 })
 
@@ -19,7 +18,7 @@ void test('falls back to react tour', () => {
   for (const hash of ['', '#/', '#/elm/forms', '#/vue/nope']) {
     assert.deepEqual(
       parseRoute(hash),
-      { framework: 'react', scenario: 'tour', lang: 'en', engine: false },
+      { framework: 'react', scenario: 'tour', lang: 'en' },
       hash
     )
   }
@@ -33,7 +32,6 @@ void test('formats and round-trips', () => {
         framework,
         scenario,
         lang: 'en',
-        engine: false,
       })
     }
   }
@@ -57,30 +55,14 @@ void test('changing the language keeps the framework and scenario', () => {
     framework: 'svelte',
     scenario: 'search',
     lang: 'de',
-    engine: false,
   })
   assert.equal(formatRoute(next), '#/svelte/search')
 })
 
-void test('the engine draws the pages only with reader=engine', () => {
-  assert.equal(parseRoute('#/vue/forms', '?reader=engine').engine, true)
-  assert.equal(parseRoute('#/vue/forms', '?lang=fr&reader=engine').engine, true)
-  for (const search of ['', '?reader=', '?reader=pdfjs', '?reader=ENGINE', '?debug']) {
-    assert.equal(parseRoute('#/vue/forms', search).engine, false, search)
-  }
-})
-
-void test('the reader parameter round-trips through the query string', () => {
+void test('the language round-trips through the query string, other parameters kept', () => {
   const route = parseRoute('#/react/tour', '?debug&lang=de')
-  const on = formatSearch(withEngine(route, true), '?debug&lang=de')
-  assert.equal(on, '?debug=&lang=de&reader=engine')
-  assert.deepEqual(parseRoute('#/react/tour', on), { ...route, engine: true })
-  const off = formatSearch(withEngine(route, false), on)
-  assert.equal(off, '?debug=&lang=de')
-  assert.deepEqual(parseRoute('#/react/tour', off), route)
-})
-
-void test('changing the reader keeps the framework, scenario and language', () => {
-  const route = parseRoute('#/svelte/search', '?lang=fr')
-  assert.deepEqual(withEngine(route, true), { ...route, engine: true })
+  const search = formatSearch(route, '?debug&lang=de')
+  assert.equal(search, '?debug=&lang=de')
+  assert.deepEqual(parseRoute('#/react/tour', search), route)
+  assert.equal(formatSearch(withLang(route, 'en'), search), '?debug=')
 })

@@ -18,14 +18,13 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
-import { engine, redactionConfirm, tools, type MountFront } from '../front.ts'
+import { redactionConfirm, tools, type MountFront } from '../front.ts'
 
 export const mount: MountFront = (el, props) => {
   const viewer = createViewer(el, {
     source: props.source,
     assets,
     tools: tools(),
-    engine,
     redactionConfirm,
     ...(props.messages ? { messages: props.messages } : {}),
     onReady: props.onReady,

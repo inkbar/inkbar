@@ -22,7 +22,9 @@ afterAll(async () => {
 const reports = (lines: string[]) =>
   reportMode === 'all' || (reportMode === 'differences' && lines.length > 0)
 
-describe.each(opening)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(opening)('%s', (name) => {
   it('reads the facts and the form fields as parity.json records', async () => {
     const verdicts = { facts: verdictOn(name, 'facts'), form: verdictOn(name, 'form') }
     const read = await withBoth(name, async (pdfjs, engine) => ({

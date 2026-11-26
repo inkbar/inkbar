@@ -1,11 +1,9 @@
 <script setup lang="ts">
 /*
- * A fixture whose pages, thumbnails and loupes the engine draws, and whose text, links and
- * outline it reads: the route turned core's switch on before this mounted. The status names the
- * reader, for the tests.
+ * A fixture with its thumbnails and outline beside the pages, and the shape tools, which
+ * draw loupes.
  */
 import { allTools } from '@inkbar/core/dom'
-import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
   InkFindBar,
@@ -23,21 +21,16 @@ import {
 import { assets } from 'virtual:inkbar-assets'
 import { computed, ref } from 'vue'
 
-import type { InkDocument } from '@inkbar/core'
-
 const props = defineProps<{ fixture: string }>()
 
-const engine = () => import('@inkbar/engine')
 const tools = allTools()
 const src = computed(() => ({
   url: fixtureUrl(props.fixture as FixtureName),
   key: props.fixture,
 }))
 const status = ref('loading')
-const reader = ref('')
 
-function onReady(doc: InkDocument): void {
-  reader.value = readerOf(doc)
+function onReady(): void {
   status.value = 'ready'
 }
 </script>
@@ -46,7 +39,6 @@ function onReady(doc: InkDocument): void {
   <InkRoot
     :src="src"
     :assets="assets"
-    :engine="engine"
     :tools="tools"
     class="sandbox-root"
     @ready="onReady"
@@ -71,7 +63,7 @@ function onReady(doc: InkDocument): void {
         <InkFindBar />
       </div>
     </div>
-    <p class="sandbox-status" role="status" data-testid="status" :data-reader="reader">
+    <p class="sandbox-status" role="status" data-testid="status">
       {{ status }}
     </p>
   </InkRoot>

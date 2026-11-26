@@ -34,7 +34,6 @@
   import '@inkbar/theme/theme.css'
   import { assets } from 'virtual:inkbar-assets'
 
-  import { engine } from '../../shared/engine'
   import { FileUp } from '../../shared/file-up'
   import { storage } from '../../shared/signatures'
 
@@ -60,7 +59,6 @@
   {locale}
   {assets}
   {storage}
-  {engine}
   {onReady}
   {onaction}
   class="scenario-root"

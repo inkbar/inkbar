@@ -34,23 +34,22 @@ async function addNote(page: Page): Promise<void> {
 test('Download and Print hand over the file with the annotations added in the session', async ({
   page,
 }) => {
-  const engineFiles: string[] = []
+  const engineBinary: string[] = []
   page.on('request', (r) => {
-    if (/inkbar-pdfium|@inkbar\/engine|packages\/engine/.test(r.url()))
-      engineFiles.push(r.url())
+    if (/inkbar-pdfium[^/]*\.wasm(\?|$)/.test(r.url())) engineBinary.push(r.url())
   })
   await page.goto('/?doc=text-simple')
   await waitForFirstPage(page)
 
-  // Nothing changed: the file as it was opened, and the engine never loads.
+  // Nothing changed: the file as it was opened.
   const opened = await download(page)
   expect(holdsGloss(opened)).toBe(false)
-  expect(engineFiles).toEqual([])
 
+  // The engine that reads the file writes the copy: its binary is fetched once, at the open.
   await addNote(page)
   const written = await download(page)
   expect(holdsGloss(written)).toBe(true)
-  expect(engineFiles).not.toEqual([])
+  expect(engineBinary).toHaveLength(1)
   const downloadButton = page.getByRole('button', { name: 'Download' })
   await expect(downloadButton).toHaveAttribute('aria-busy', 'false')
 

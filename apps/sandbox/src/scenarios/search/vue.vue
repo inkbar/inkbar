@@ -30,7 +30,6 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { defineComponent, watch } from 'vue'
 
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -76,7 +75,6 @@ function onReady(doc: InkDocument): void {
     :locale="locale"
     :assets="assets"
     :storage="storage"
-    :engine="engine"
     class="scenario-root"
     @ready="onReady"
   >

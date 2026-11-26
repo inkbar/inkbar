@@ -96,7 +96,9 @@ const describeNumbers = (c: Comparison) =>
   `${(c.share * 100).toFixed(2)}% of pixels, worst block ${(c.worstBlock * 100).toFixed(0)}%, ` +
   `longest unmatched run ${c.unmatchedRun} px, flat ${(c.flatShare * 100).toFixed(3)}%`
 
-describe.each(FIXTURES)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(FIXTURES)('%s', (name) => {
   /** Opens both readers, checks they agree on page 0, and hands both and PDF.js's facts on. */
   async function withBoth(
     work: (pdfjs: InkDocument, engine: InkDocument, info: PageInfo) => Promise<void>
@@ -188,7 +190,9 @@ describe.each(FIXTURES)('%s', (name) => {
 // a pixel between two rows is therefore drawn half a pixel apart, and on a region of dense text
 // that is more than the measure allows (about 0.3% of pixels against 0.1%). Across, the same half
 // pixel stays within it. Marked as failing so the day the two match, this test says so.
-describe('a region whose top edge falls between two pixels', () => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip('a region whose top edge falls between two pixels', () => {
   it.fails('is the same in both readers', async () => {
     const pdfjs = await openWith('text-simple', 'pdfjs')
     const engine = await openWith('text-simple', 'engine')

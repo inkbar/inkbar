@@ -31,7 +31,9 @@ const linksOf = async (doc: InkDocument, page: number) =>
 const reports = (lines: string[]) =>
   reportMode === 'all' || (reportMode === 'differences' && lines.length > 0)
 
-describe.each(opening)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(opening)('%s', (name) => {
   it('reads links and the outline as parity.json records', async () => {
     const links = verdictOn(name, 'links')
     const outline = verdictOn(name, 'outline')

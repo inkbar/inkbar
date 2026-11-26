@@ -67,7 +67,9 @@ async function fontSize(doc: InkDocument, hit: SearchHit): Promise<number> {
   throw new Error(`no text under the hit on page ${hit.page + 1} at ${hit.start}`)
 }
 
-describe.each(QUERIES)('%s', (name, queries) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(QUERIES)('%s', (name, queries) => {
   it.each(queries)(
     'finds the same hits for %j with both readers',
     async (query, opts) => {

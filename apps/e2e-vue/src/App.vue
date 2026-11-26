@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { engineReaderRoute, onEngineReaderPage } from '@inkbar/e2e-shared/engine-reader'
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
 import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
@@ -8,7 +7,7 @@ import {
   redactionPageOptions,
 } from '@inkbar/e2e-shared/redaction-page'
 
-import EngineReaderPage from './EngineReaderPage.vue'
+import DrawingPage from './DrawingPage.vue'
 import FormPage from './FormPage.vue'
 import LinksPage from './LinksPage.vue'
 import RedactPage from './RedactPage.vue'
@@ -18,14 +17,14 @@ const params = new URLSearchParams(location.search)
 const doc = params.get('doc') ?? 'text-simple'
 const large = clampPageCount(params.get('large'))
 const redaction = redactionPageOptions(params)
-// Before any viewer mounts: the switch is read as a document opens.
-const engineReader = engineReaderRoute(params)
+/** `?view=drawing`: the page with the thumbnails and the shape tools. */
+const drawing = params.get('view') === 'drawing'
 </script>
 
 <template>
   <main class="sandbox">
     <h1 class="sandbox-title">Inkbar review app</h1>
-    <EngineReaderPage v-if="engineReader && onEngineReaderPage(doc)" :fixture="doc" />
+    <DrawingPage v-if="drawing" :fixture="doc" />
     <FormPage v-else-if="isFormFixture(doc)" :fixture="doc" />
     <LinksPage v-else-if="isLinksFixture(doc)" :fixture="doc" />
     <RedactPage

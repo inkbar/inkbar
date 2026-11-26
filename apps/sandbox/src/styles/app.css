@@ -370,24 +370,6 @@ body {
   font-size: 15px;
   line-height: 1.5;
 }
-/* The reader switch: a plain checkbox under the blurb, with a target big enough for a finger. */
-.engine-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  min-height: 44px;
-  color: var(--ink);
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-.engine-toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--ballpoint);
-}
-
 /*
  * The sheet: the scenario's title and description, then the Preview and Code tabs on a rule with
  * the file controls at its end (Preview only, since they act on the viewer), then the selected

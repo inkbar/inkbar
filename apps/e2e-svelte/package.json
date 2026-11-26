@@ -15,7 +15,6 @@
     "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/e2e-shared": "workspace:*",
-    "@inkbar/engine": "workspace:*",
     "@inkbar/svelte": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "svelte": "^5.57.2"

@@ -1,6 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, extname, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { extname } from 'node:path'
 
 import { fixtureFileForUrl } from '@inkbar/fixtures/vite-serve'
 
@@ -8,8 +7,6 @@ import type { Plugin } from 'vite'
 
 const TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
-  '.otf': 'font/otf',
-  '.ttf': 'font/ttf',
 }
 
 /**
@@ -27,18 +24,6 @@ export const SANDBOX_FIXTURES = [
   'outline',
 ] as const
 
-/** Every fallback font `@inkbar/fonts` ships, by the path the build serves it at. */
-function fontFiles(): Record<string, string> {
-  const dir = dirname(
-    createRequire(import.meta.url).resolve('@inkbar/fonts/files/NotoSans-Regular.ttf')
-  )
-  return Object.fromEntries(
-    readdirSync(dir)
-      .filter((name) => TYPES[extname(name)])
-      .map((name) => [`fonts/${name}`, join(dir, name)])
-  )
-}
-
 function fixtureFiles(): Record<string, string> {
   return Object.fromEntries(
     SANDBOX_FIXTURES.map((name) => {
@@ -50,13 +35,13 @@ function fixtureFiles(): Record<string, string> {
 }
 
 /**
- * Files served as they are under the base: the engine's fallback fonts at `<base>fonts/` (the
- * names `fontUrls` from `@inkbar/fonts` gives) and a few fixtures at `<base>fixtures/`. The dev
- * server reads them from their packages and the build emits them as assets, which `vite
- * preview` then serves. They are never copied into the source tree.
+ * Files served as they are under the base: a few fixtures at `<base>fixtures/`. The dev server
+ * reads them from the fixtures package and the build emits them as assets, which `vite preview`
+ * then serves. They are never copied into the source tree. The engine's files, its fallback
+ * fonts and the form sandbox come from `inkbar()` in `@inkbar/core/vite`.
  */
 export function staticFiles(): Plugin {
-  const files = { ...fontFiles(), ...fixtureFiles() }
+  const files = fixtureFiles()
   return {
     name: 'inkbar-sandbox:static-files',
     configureServer(server) {
