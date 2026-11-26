@@ -13,8 +13,9 @@ export interface PdfAssets {
   /** URL of `inkbar-pdfium.wasm`, from `@inkbar/engine`. In Node, a file path or `file:` URL. */
   engine: string
   /**
-   * URL of the engine's `worker.mjs`, from `@inkbar/engine`. Same origin as the page. Ignored in
-   * Node, where the engine runs in the calling thread.
+   * URL of the engine's `worker.mjs`, from `@inkbar/engine`. On another origin than the page, that
+   * origin must send CORS headers for it. Ignored in Node, where the engine runs in the calling
+   * thread.
    */
   worker: string
   /**
@@ -52,14 +53,52 @@ function firstBad(value: unknown): keyof PdfAssets | undefined {
   return undefined
 }
 
+/** The first key of `assets` holding a URL that cannot be read against the page, and the URL. */
+function firstUnreadable(
+  assets: PdfAssets
+): { key: keyof PdfAssets; url: string } | undefined {
+  const base = (globalThis as { document?: { baseURI?: string } }).document?.baseURI
+  // With no page (Node) the engine may be a file path: nothing to read it against.
+  if (!base) return undefined
+  const { fonts } = assets
+  const urls: [keyof PdfAssets, string][] = [
+    ['engine', assets.engine],
+    ['worker', assets.worker],
+    ...(typeof fonts === 'string'
+      ? [['fonts', fonts] as [keyof PdfAssets, string]]
+      : fonts === false
+        ? []
+        : Object.values(fonts).flatMap((url): [keyof PdfAssets, string][] =>
+            typeof url === 'string' ? [['fonts', url]] : []
+          )),
+    ['sandbox', assets.sandbox],
+  ]
+  for (const [key, url] of urls) {
+    try {
+      new URL(url, base)
+    } catch {
+      return { key, url }
+    }
+  }
+  return undefined
+}
+
 /**
  * Throws `AssetConfigMissing`, naming the first key that is wrong in `details.key`, unless
  * `value` is a `PdfAssets`: `engine`, `worker` and `sandbox` non-empty strings, and `fonts` a
- * non-empty string, an object or `false`.
+ * non-empty string, an object or `false`, each URL one that can be read against the page.
  */
 export function assertAssets(value: unknown): asserts value is PdfAssets {
   const key = firstBad(value)
-  if (key === undefined) return
+  if (key === undefined) {
+    const unreadable = firstUnreadable(value as PdfAssets)
+    if (!unreadable) return
+    throw new InkError(
+      'AssetConfigMissing',
+      `The \`${unreadable.key}\` URL in the \`assets\` option, ${JSON.stringify(unreadable.url)}, is not a valid URL.`,
+      { key: unreadable.key }
+    )
+  }
   throw new InkError(
     'AssetConfigMissing',
     `openDocument needs an \`assets\` option with \`${key}\` set: \`engine\`, \`worker\` and \`sandbox\` are URLs, and \`fonts\` a URL, a map of URLs or false. ` +

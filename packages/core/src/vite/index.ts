@@ -28,27 +28,81 @@ const TYPES: Record<string, string> = {
   '.wasm': 'application/wasm',
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
+  '.txt': 'text/plain; charset=utf-8',
+  // The licence files, which have no extension.
+  '': 'text/plain; charset=utf-8',
+}
+
+/** A file the plugin ships: the package it comes from, and where it is on disk. */
+interface Shipped {
+  pkg: string
+  from: string
 }
 
 /**
- * Each file the plugin serves and copies, by its path under the versioned directory. Resolved
- * from this package, not the host's root, so the files always match the versions @inkbar/core
- * itself depends on.
+ * @internal `path` inside the package `pkg`, as installed for @inkbar/core, found through
+ * `anchor`, a file the package exports. Throws an error that names both when it cannot be found.
  */
-function files(): Map<string, string> {
-  const require = createRequire(import.meta.url)
-  const engine = join(dirname(require.resolve('@inkbar/engine/package.json')), 'dist')
-  const fonts = dirname(require.resolve('@inkbar/fonts/files/NotoSans-Regular.ttf'))
-  const sandbox = join(dirname(require.resolve('pdfjs-dist/package.json')), 'wasm')
+export function packageFile(
+  pkg: string,
+  path: string,
+  resolve: (id: string) => string = createRequire(import.meta.url).resolve,
+  anchor = 'package.json'
+): string {
+  try {
+    const found = resolve(`${pkg}/${anchor}`)
+    const root = anchor.split('/').reduce((dir) => dirname(dir), found)
+    return join(root, path)
+  } catch (cause) {
+    throw new Error(
+      `Inkbar's Vite plugin could not find ${path} in ${pkg}, which @inkbar/core depends on. ` +
+        'Install your dependencies again.',
+      { cause }
+    )
+  }
+}
+
+/** @internal Copies a shipped file to `to`, with an error that names its package and path. */
+export function copyShipped(file: Shipped, to: string, rel: string): void {
+  try {
+    mkdirSync(dirname(to), { recursive: true })
+    copyFileSync(file.from, to)
+  } catch (cause) {
+    throw new Error(
+      `Inkbar's Vite plugin could not copy ${rel} from ${file.pkg} (${file.from}) into the build.`,
+      { cause }
+    )
+  }
+}
+
+/**
+ * Each file the plugin serves and copies, by its path under the versioned directory, with the
+ * licence of each beside the files it covers. Resolved from this package, not the host's root, so
+ * the files always match the versions @inkbar/core itself depends on.
+ */
+function files(): Map<string, Shipped> {
+  const resolve = createRequire(import.meta.url).resolve
+  const from =
+    (pkg: string, anchor?: string) =>
+    (path: string): Shipped => ({ pkg, from: packageFile(pkg, path, resolve, anchor) })
+  const engine = from('@inkbar/engine')
+  // @inkbar/fonts exports its fonts and not its package.json.
+  const fonts = from('@inkbar/fonts', 'files/NotoSans-Regular.ttf')
+  const pdfjs = from('pdfjs-dist')
   return new Map([
-    ['inkbar-pdfium.wasm', join(engine, 'inkbar-pdfium.wasm')],
-    ['worker.mjs', join(engine, 'worker.mjs')],
-    ...Object.values(fontFiles).map((file): [string, string] => [
+    ['inkbar-pdfium.wasm', engine('dist/inkbar-pdfium.wasm')],
+    ['worker.mjs', engine('dist/worker.mjs')],
+    // PDFium and the libraries linked into the binary.
+    ['THIRD-PARTY-NOTICES', engine('dist/THIRD-PARTY-NOTICES')],
+    ...Object.values(fontFiles).map((file): [string, Shipped] => [
       `fonts/${file}`,
-      join(fonts, file),
+      fonts(`files/${file}`),
     ]),
-    ['sandbox/quickjs-eval.js', join(sandbox, 'quickjs-eval.js')],
-    ['sandbox/quickjs-eval.wasm', join(sandbox, 'quickjs-eval.wasm')],
+    ['fonts/OFL.txt', fonts('OFL.txt')],
+    ['sandbox/quickjs-eval.js', pdfjs('wasm/quickjs-eval.js')],
+    ['sandbox/quickjs-eval.wasm', pdfjs('wasm/quickjs-eval.wasm')],
+    // pdfjs-dist ships the two files under its own licence, and no other for them.
+    ['sandbox/LICENSE', pdfjs('LICENSE')],
   ])
 }
 
@@ -136,7 +190,7 @@ export function inkbar(options: InkbarPluginOptions = {}): Plugin {
         } catch {
           return next()
         }
-        const file = sources.get(rel)
+        const file = sources.get(rel)?.from
         if (!file || !existsSync(file) || statSync(file).isDirectory()) return next()
         res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream')
         res.setHeader('Cache-Control', 'no-store')
@@ -149,11 +203,7 @@ export function inkbar(options: InkbarPluginOptions = {}): Plugin {
       if (config.command !== 'build' || config.build.ssr) return
       if (this.environment && this.environment.config.consumer !== 'client') return
       const out = resolve(config.root, config.build.outDir, versioned)
-      for (const [rel, from] of sources) {
-        const to = join(out, rel)
-        mkdirSync(dirname(to), { recursive: true })
-        copyFileSync(from, to)
-      }
+      for (const [rel, file] of sources) copyShipped(file, join(out, rel), rel)
     },
   }
 }

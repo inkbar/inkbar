@@ -984,7 +984,7 @@ The files may be on another origin than the page, such as a CDN, when that origi
 
 In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
 
-Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come with `pdfjs-dist` under the Apache License 2.0, in its `LICENSE`.
+Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come with `pdfjs-dist` under the Apache License 2.0, in its `LICENSE`. The Vite plugin copies each of these beside the files it covers, as `THIRD-PARTY-NOTICES`, `fonts/OFL.txt` and `sandbox/LICENSE`; copy them the same way when you copy the files by hand.
 
 ## Licence
 

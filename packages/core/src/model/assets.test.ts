@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { assertAssets, sandboxDirectory, type PdfAssets } from './assets'
 
@@ -58,6 +58,21 @@ describe('assertAssets', () => {
   it('names `fonts` for anything else', () => {
     for (const fonts of [3, true, '', null, ['/a.otf']])
       expect(badKey({ ...good, fonts }), JSON.stringify(fonts)).toBe('fonts')
+  })
+
+  it('names a key whose URL cannot be read against the page', () => {
+    vi.stubGlobal('document', { baseURI: 'https://app.example.com/viewer/' })
+    try {
+      for (const key of ['engine', 'worker', 'sandbox'] as const) {
+        expect(badKey({ ...good, [key]: 'http://' }), key).toBe(key)
+        expect(() => assertAssets({ ...good, [key]: 'http://' })).toThrow(/http:\/\//)
+      }
+      expect(badKey({ ...good, fonts: 'https://[nope/' })).toBe('fonts')
+      expect(badKey({ ...good, fonts: { korean: 'http://' } })).toBe('fonts')
+      expect(badKey(good)).toBeUndefined()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('names the key in its message', () => {
