@@ -640,7 +640,7 @@ describe('drawing', () => {
     expect(t.renders[0]!.options.hide).toEqual([12, { index: 3 }])
   })
 
-  it('queues a background draw behind the calls that are not background', async () => {
+  it('passes a background draw to the engine as background, and no other', async () => {
     const t = setup()
     const reader = await t.open()
     await reader.draw(request({ background: true }), fakeCanvas().canvas)

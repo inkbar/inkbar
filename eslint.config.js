@@ -55,17 +55,37 @@ const PDFJS_FENCED = [
 /** Tests and the code only tests import. */
 const TEST_FILES = ['**/*.{test,spec}.{ts,mts,tsx}', 'packages/core/src/test-support/**']
 /**
- * Where PDF.js may be imported: core's pdfjs/, and the engine's save round-trip test, which uses
- * PDF.js as an independent reader of saved files.
+ * Where PDF.js may be imported: core's pdfjs/, which holds the form script sandbox and the
+ * second reader, and the engine's tests. Those import it with `import()` to read the files the
+ * engine writes, fills and redacts with a reader that is not the engine.
  */
-const PDFJS_ALLOWED = [
-  'packages/core/src/pdfjs/**',
-  'packages/engine/src/save.fixtures.test.ts',
-]
+const PDFJS_ALLOWED = ['packages/core/src/pdfjs/**', 'packages/engine/src/**/*.test.ts']
 /** core's test-only second reader, by any relative path. */
 const SECOND_READER = '(^|/)second-reader(\\.[cm]?[jt]s)?$'
 const SECOND_READER_MESSAGE =
   'pdfjs/second-reader opens files with PDF.js for tests only. Import it only from a test.'
+/** core's test support, by any relative path: through it a file could reach the second reader. */
+const TEST_SUPPORT = '(^|/)test-support/'
+const TEST_SUPPORT_MESSAGE =
+  'test-support/ is for tests only. Import it only from a test.'
+
+/** The `import()` forms of the fences: `no-restricted-imports` sees only static imports. */
+const dynamicImports = ({ testSupport }) => {
+  const message = 'Import PDF.js only inside packages/core/src/pdfjs/.'
+  return [
+    'error',
+    { selector: 'ImportExpression[source.value=/^pdfjs-dist(\\u002F|$)/]', message },
+    { selector: "ImportExpression[source.value='#pdfjs-sandbox']", message },
+    ...(testSupport
+      ? [
+          {
+            selector: 'ImportExpression[source.value=/(^|\\u002F)test-support\\u002F/]',
+            message: TEST_SUPPORT_MESSAGE,
+          },
+        ]
+      : []),
+  ]
+}
 
 /** PDF.js's own modules refused; with `secondReader`, core's second reader refused too. */
 const pdfjsImports = ({ secondReader }) => {
@@ -81,7 +101,10 @@ const pdfjsImports = ({ secondReader }) => {
       patterns: [
         { group: ['pdfjs-dist/**'], message },
         ...(secondReader
-          ? [{ regex: SECOND_READER, message: SECOND_READER_MESSAGE }]
+          ? [
+              { regex: SECOND_READER, message: SECOND_READER_MESSAGE },
+              { regex: TEST_SUPPORT, message: TEST_SUPPORT_MESSAGE },
+            ]
           : []),
       ],
     },
@@ -192,14 +215,20 @@ export default defineConfig(
     // sandbox; tests open files with it through core's second reader.
     files: PDFJS_FENCED,
     ignores: [...PDFJS_ALLOWED, ...TEST_FILES],
-    rules: { 'no-restricted-imports': pdfjsImports({ secondReader: true }) },
+    rules: {
+      'no-restricted-imports': pdfjsImports({ secondReader: true }),
+      'no-restricted-syntax': dynamicImports({ testSupport: true }),
+    },
   },
   {
     // Tests and their support may use the second reader, and nothing else of PDF.js.
     name: 'inkbar/pdfjs-quarantine-in-tests',
     files: PDFJS_FENCED.flatMap((fenced) => TEST_FILES.map((test) => [fenced, test])),
     ignores: PDFJS_ALLOWED,
-    rules: { 'no-restricted-imports': pdfjsImports({ secondReader: false }) },
+    rules: {
+      'no-restricted-imports': pdfjsImports({ secondReader: false }),
+      'no-restricted-syntax': dynamicImports({ testSupport: false }),
+    },
   },
   {
     // Beside it, under pdfjs/, the second reader is still for tests only.
@@ -209,7 +238,12 @@ export default defineConfig(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [{ regex: SECOND_READER, message: SECOND_READER_MESSAGE }] },
+        {
+          patterns: [
+            { regex: SECOND_READER, message: SECOND_READER_MESSAGE },
+            { regex: TEST_SUPPORT, message: TEST_SUPPORT_MESSAGE },
+          ],
+        },
       ],
     },
   },
