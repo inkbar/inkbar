@@ -135,7 +135,7 @@ Units and orientation:
 - `region` draws part of the page: a rectangle in user space, like `box`. The part of it outside the page box is white. At the same `scale`, with edges that fall on whole pixels, a region's bitmap is the same pixels as that part of the whole-page bitmap.
 - `size` asks for an exact bitmap, `{ width, height }` in whole pixels from 1, in place of `scale`. `renderPage` stretches the region, or the whole page, to fill it, so each side may scale differently. It rounds the page's edges to the nearest pixel, so a region may sit up to half a pixel off a cut from a whole-page bitmap. Passing both `scale` and `size` is a `RangeError`.
 - `rotation` turns the result a further 90, 180 or 270 degrees clockwise on top of /Rotate.
-- `hide` lists the object numbers of annotations on the page to leave out, so annotations you draw yourself appear once. It takes up to 1,000,000 numbers. The document stays as it was, and a later `save` writes the same file.
+- `hide` lists annotations on the page to leave out, so annotations you draw yourself appear once. Name each by its object number, or by its place in the page's `/Annots` as `{ index }`. An annotation stored as a direct object has no number, so you name it by place. It takes up to 1,000,000 entries. The document stays as it was, and a later `save` writes the same file.
 
 ```ts
 // The page's top-left inch as a 256 by 256 tile, turned a quarter with the view,
@@ -147,6 +147,29 @@ const tile = await doc.renderPage(0, {
   rotation: 90,
   hide: [12],
 })
+```
+
+Drawing annotations alone:
+
+- `renderAnnotations(index, { annotations, region, size, rotation })` draws the annotations you list, each by its `index` in the page's `/Annots`, onto a transparent bitmap. It places them as `renderPage` places the page for the same `region`, `size` and `rotation`. Lay the result over a page you rendered with those annotations in `hide` and you get the page as `renderPage` draws it with them, to within one level per channel, unless a flag the page render reads makes it skip one (see `drawn` below). The draw leaves out what falls past the page box, as `renderPage` does.
+- The data is straight RGBA. Pixels you did not draw on are all zero.
+- An entry's `state` picks a state of `/AP /N` to draw, such as `'Off'` or a checkbox's on-state, written one character per byte as `appearanceStates` gives it, up to 65,535 bytes. Without one you get the state `/AS` selects.
+- `drawn` lists the places it drew. It leaves out an entry with nothing to draw: no dictionary at that place, a hidden annotation, a popup, a state `/AP /N` lacks, or a widget with no appearance the engine can make in memory. The call still resolves. The engine reads no other flag: an annotation flagged NoView, or of an unknown type flagged Invisible, draws here though `renderPage` skips it. Leave it out yourself if you lay the draw over the page.
+- The engine writes nothing to the document, so a later `save` writes the same file. The call waits its turn in the queue behind a render of the same page, and `signal` cancels it as it cancels a render.
+
+```ts
+// A checkbox in both looks, to swap without drawing the page again.
+const { box } = await doc.pageInfo(0)
+const place = { region: box, size: { width: 1224, height: 1584 } }
+const off = await doc.renderAnnotations(0, {
+  ...place,
+  annotations: [{ index: 8, state: 'Off' }],
+})
+const on = await doc.renderAnnotations(0, {
+  ...place,
+  annotations: [{ index: 8, state: 'Yes' }],
+})
+const page = await doc.renderPage(0, { ...place, hide: [{ index: 8 }] })
 ```
 
 Reading text:
@@ -205,6 +228,10 @@ File facts, annotations and the form:
 - `tooLarge` is true for a form of more than 50,000 fields. The engine refuses it whole: `fields` is empty, and `/CO` is still read. Loading such a form takes PDFium tens of seconds.
 - `truncated` is true when a cap cut the report short: 50,000 fields, 1,000 levels of tree, the report's share of 16 MB, or the work it may spend reading scripts. A field or widget cut by a cap has `truncated: true` and ends the list.
 
+`scripts()` gives the file's JavaScript outside its fields, as source text the engine never runs. `document` lists each source of the `/Names /JavaScript` tree with its `name` (`null` when the tree's key is no string). `documentActions` holds the catalog's open action under `OpenAction` and its `/AA` by key. `pageActions` lists each page whose `/AA` holds JavaScript, with its sources by key (`O`, `C`). A file with none gives empty lists. To know whether a file has any JavaScript at all, check its fields' `scripts` in `formFields()` too. `truncated` is true when a cap cut the report: 4 MB for one source, 50,000 names, 1,000 levels of name tree or 16 MB in all.
+
+`structureOrder(index)` gives `{ order, truncated }`: the object numbers of a page's annotations in the order the structure tree reaches them, each once. Annotations the tree does not reach are missing, and a file with no structure tree gives an empty list. `truncated` is true past 1,000 levels or 1,000,000 objects.
+
 ```ts
 const facts = await doc.documentFacts()
 const { annotations } = await doc.pageAnnotations(0)
@@ -244,7 +271,7 @@ Errors:
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
 - `redaction-failed` means `redact` refused a mark before changing anything (its `reason` says why; see [Redacting](#redacting)), or could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
 - `check-failed` means `checkRedaction` could not inspect a page or the file. The error's `page` holds the page index when a page was the cause. Treat it as a failed check. The engine keeps working.
-- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, `scale` and `size` together, a size that is not two whole numbers from 1, a region whose width or height is not a finite number above 0, a rotation other than 0, 90, 180 or 270, a `hide` entry that is not a whole number from 1, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
+- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, `scale` and `size` together, a size that is not two whole numbers from 1, a region whose width or height is not a finite number above 0, a rotation other than 0, 90, 180 or 270, a `hide` entry that is neither a whole number from 1 nor `{ index }` with a whole number from 0, an entry of `renderAnnotations` whose index is not a whole number from 0 or whose state is empty or holds a character past U+00FF or a NUL, a `renderAnnotations` call with no region or size, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.

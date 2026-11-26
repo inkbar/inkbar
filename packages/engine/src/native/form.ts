@@ -1,5 +1,5 @@
-// The form and the document's own facts, as the module's `INK_Form` and `INK_Doc_Facts` reports
-// give them.
+// The form, the document's scripts and its own facts, as the module's `INK_Form`, `INK_Scripts`
+// and `INK_Doc_Facts` reports give them.
 import { appearanceFacts, cutName } from './annots.ts'
 import {
   array,
@@ -32,6 +32,7 @@ import type {
   FieldValue,
   FieldValueKind,
   FormFacts,
+  ScriptFacts,
   WidgetFacts,
 } from '../types.ts'
 import type { Heap } from './strings.ts'
@@ -121,6 +122,7 @@ function action(raw: unknown, what: string, cut: boolean): FieldAction {
   return result
 }
 
+/** Sources by key, the report's `Scripts`. */
 function scripts(raw: unknown, what: string): Record<string, string[]> {
   const item = object(raw, what, 'scripts')
   // Own properties only: an assignment to a key named `__proto__` would set the prototype and
@@ -226,6 +228,40 @@ export function parseForm(text: string): FormFacts {
   if (present(root.da)) form.defaultAppearance = fileText(root.da, what, 'da')
   if ('q' in root) form.alignment = numberOrNull(root.q, what, 'q')
   return form
+}
+
+/** The JSON `INK_Scripts` returns, for a document of `pageCount` pages. */
+export function parseScripts(text: string, pageCount: number): ScriptFacts {
+  const what = "The document's scripts"
+  const root = object(parse(text, what), what, 'root')
+  return {
+    document: array(root.document, what, 'document').map((raw) => {
+      const entry = object(raw, what, 'document')
+      return {
+        name: entry.name === null ? null : fileText(entry.name, what, 'name'),
+        source: string(entry.source, what, 'source'),
+      }
+    }),
+    documentActions: scripts(root.documentActions, what),
+    pageActions: array(root.pageActions, what, 'pageActions').map((raw, i, all) => {
+      const entry = object(raw, what, 'pageActions')
+      const page = count(entry.page, what, 'page')
+      if (page >= pageCount) throw bad(what, 'page', 'a page of the document')
+      // The report lists each page once, in page order.
+      const before = i > 0 ? (all[i - 1] as Json).page : -1
+      if (typeof before === 'number' && page <= before)
+        throw bad(what, 'page', 'pages in order, each once')
+      return { page, scripts: scripts(entry.scripts, what) }
+    }),
+    truncated: boolean(root.truncated, what, 'truncated'),
+  }
+}
+
+export function readScripts(heap: Heap, doc: number, pageCount: number): ScriptFacts {
+  return parseScripts(
+    takeJson(heap, heap.fn.INK_Scripts(doc), "The document's scripts"),
+    pageCount
+  )
 }
 
 export function readForm(heap: Heap, doc: number): FormFacts {

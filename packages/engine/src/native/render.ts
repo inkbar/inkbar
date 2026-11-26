@@ -157,21 +157,123 @@ export function renderGeometry(
   return { width, height, startX, startY, sizeX, sizeY, rotate }
 }
 
+/** The largest place in `/Annots` the module takes: it reads places as 32-bit integers. */
+const MAX_PLACE = 2 ** 31 - 1
+
+const isPlace = (n: unknown): n is number =>
+  Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_PLACE
+
+/** What a render leaves out: annotations by object number, and by place in `/Annots`. */
+export interface Hidden {
+  objects: number[]
+  places: number[]
+}
+
 /**
- * The object numbers to leave out, checked. Throws a `RangeError` for a list that is not one of
- * whole numbers from 1 to 4,294,967,295, or that is longer than `MAX_HIDDEN`.
+ * The annotations to leave out, checked and split by how each is named. Throws a `RangeError`
+ * for a list that is not one of object numbers (whole numbers from 1 to 4,294,967,295) and
+ * places (`{ index }`, a whole number from 0 to 2,147,483,647), or that is longer than
+ * `MAX_HIDDEN`.
  */
-export function hiddenObjects(hide: unknown): readonly number[] {
-  if (hide === undefined) return []
+export function hiddenAnnotations(hide: unknown): Hidden {
+  const hidden: Hidden = { objects: [], places: [] }
+  if (hide === undefined) return hidden
   if (Array.isArray(hide) && hide.length > MAX_HIDDEN)
-    throw new ArgumentError('hide may list at most 1,000,000 object numbers')
-  if (
-    !Array.isArray(hide) ||
-    !hide.every(
-      (n: unknown) =>
-        Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_OBJECT_NUMBER
+    throw new ArgumentError('hide may list at most 1,000,000 annotations')
+  if (!Array.isArray(hide))
+    throw new ArgumentError('hide must be a list of object numbers and places')
+  for (const item of hide as unknown[]) {
+    if (
+      Number.isInteger(item) &&
+      (item as number) >= 1 &&
+      (item as number) <= MAX_OBJECT_NUMBER
     )
-  )
-    throw new ArgumentError('hide must be a list of object numbers, whole numbers from 1')
-  return hide as number[]
+      hidden.objects.push(item as number)
+    else if (isRecord(item) && isPlace(item.index)) hidden.places.push(item.index)
+    else
+      throw new ArgumentError(
+        'hide must list object numbers, whole numbers from 1, and places, { index } with a whole number from 0'
+      )
+  }
+  return hidden
+}
+
+/**
+ * The longest state name `renderAnnotations` takes, in bytes. PDF 1.7 (Annex C) limits a name to
+ * 127 bytes; this leaves room for files past that limit while keeping a name a small copy.
+ */
+export const MAX_STATE_BYTES = 65_535
+
+/** One annotation to draw alone, checked. */
+export interface AnnotationDraw {
+  index: number
+  /** The state's name as its bytes, then a NUL; absent for the state `/AS` selects. */
+  state?: Uint8Array
+}
+
+/**
+ * The annotations `renderAnnotations` draws, checked. Throws a `RangeError` for a list that is
+ * not one of `{ index, state? }`, with a place as `hide` takes it and a state of 1 to
+ * `MAX_STATE_BYTES` characters from U+0001 to U+00FF, or that is longer than `MAX_HIDDEN`.
+ */
+export function annotationDraws(annotations: unknown): AnnotationDraw[] {
+  if (!Array.isArray(annotations))
+    throw new ArgumentError('annotations must be a list of { index, state? }')
+  if (annotations.length > MAX_HIDDEN)
+    throw new ArgumentError('annotations may list at most 1,000,000 entries')
+  return (annotations as unknown[]).map((item, i) => {
+    if (!isRecord(item) || !isPlace(item.index))
+      throw new ArgumentError(
+        `annotation ${i}: index must be a whole number from 0 to 2,147,483,647`
+      )
+    const { state } = item
+    if (state === undefined) return { index: item.index }
+    if (typeof state === 'string' && state.length > MAX_STATE_BYTES)
+      throw new ArgumentError(
+        `annotation ${i}: state may be at most ${MAX_STATE_BYTES.toLocaleString('en')} characters`
+      )
+    // A name's bytes, one a character; a NUL would end the name the module reads.
+    // eslint-disable-next-line no-control-regex -- U+0001 is the first byte a name may hold
+    if (typeof state !== 'string' || !/^[\u0001-\u00ff]+$/.test(state))
+      throw new ArgumentError(
+        `annotation ${i}: state must be a name of one or more characters from U+0001 to U+00FF`
+      )
+    // No spread: a long name would overflow the call stack.
+    const bytes = new Uint8Array(state.length + 1)
+    for (let c = 0; c < state.length; c++) bytes[c] = state.charCodeAt(c)
+    return { index: item.index, state: bytes }
+  })
+}
+
+/**
+ * The matrix the module's annotation draw takes, which it applies after the page's display
+ * matrix, for the same placement as a render with `geometry`. The display matrix takes the page
+ * to `width` by `height` points (its size after /Rotate), top left at the origin; a render maps
+ * the page onto the rectangle `startX`, `startY`, `sizeX`, `sizeY` turned `rotate` quarters, as
+ * PDFium's `GetDisplayMatrixForRect` does. The result undoes the first and applies the second.
+ */
+export function annotationMatrix(
+  geometry: RenderGeometry,
+  width: number,
+  height: number
+): [number, number, number, number, number, number] {
+  const left = geometry.startX
+  const right = geometry.startX + geometry.sizeX
+  // PDFium's float rectangle from a device rectangle: its bottom is the device top.
+  const bottom = geometry.startY
+  const top = geometry.startY + geometry.sizeY
+  // As `GetDisplayMatrixForFloatRect`: the base point, that point moved along the page's y, and
+  // along its x.
+  const [x0, y0, x1, y1, x2, y2] = [
+    [left, top, left, bottom, right, top],
+    [left, bottom, right, bottom, left, top],
+    [right, bottom, right, top, left, bottom],
+    [right, top, left, top, right, bottom],
+  ][geometry.rotate] as [number, number, number, number, number, number]
+  const a = (x2 - x0) / width
+  const b = (y2 - y0) / width
+  const c = (x1 - x0) / height
+  const d = (y1 - y0) / height
+  // The display matrix sends the page's (x, y) to (x, height - y); undo that, then place it.
+  return [a, b, -c, -d, height * c + x0, height * d + y0]
 }

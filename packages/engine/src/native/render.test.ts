@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { hiddenObjects, MAX_HIDDEN, renderGeometry } from './render.ts'
+import { hiddenAnnotations, MAX_HIDDEN, renderGeometry } from './render.ts'
 
 import type { PageInfo } from '../types.ts'
 
@@ -192,18 +192,32 @@ test('a placement error names what the caller can change', () => {
   ).toThrow('the region is too small for the size asked')
 })
 
-test('hide may list at most MAX_HIDDEN object numbers', () => {
-  expect(hiddenObjects(Array.from({ length: MAX_HIDDEN }, () => 1))).toHaveLength(
-    MAX_HIDDEN
-  )
-  expect(() => hiddenObjects(Array.from({ length: MAX_HIDDEN + 1 }, () => 1))).toThrow(
-    RangeError
-  )
+test('hide may list at most MAX_HIDDEN annotations', () => {
+  expect(
+    hiddenAnnotations(Array.from({ length: MAX_HIDDEN }, () => 1)).objects
+  ).toHaveLength(MAX_HIDDEN)
+  expect(() =>
+    hiddenAnnotations(Array.from({ length: MAX_HIDDEN + 1 }, () => 1))
+  ).toThrow(RangeError)
 })
 
-test('hide takes whole object numbers from 1', () => {
-  expect(hiddenObjects(undefined)).toEqual([])
-  expect(hiddenObjects([1, 4_294_967_295])).toEqual([1, 4_294_967_295])
-  for (const bad of [[0], [1.5], [-1], [2 ** 32], ['3'], 3, null])
-    expect(() => hiddenObjects(bad)).toThrow(RangeError)
+test('hide takes whole object numbers from 1 and places from 0', () => {
+  expect(hiddenAnnotations(undefined)).toEqual({ objects: [], places: [] })
+  expect(
+    hiddenAnnotations([1, { index: 0 }, 4_294_967_295, { index: 2_147_483_647 }])
+  ).toEqual({ objects: [1, 4_294_967_295], places: [0, 2_147_483_647] })
+  for (const bad of [
+    [0],
+    [1.5],
+    [-1],
+    [2 ** 32],
+    ['3'],
+    3,
+    null,
+    [{ index: -1 }],
+    [{ index: 2 ** 31 }],
+    [{ index: '1' }],
+    [{}],
+  ])
+    expect(() => hiddenAnnotations(bad)).toThrow(RangeError)
 })

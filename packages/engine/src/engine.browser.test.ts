@@ -212,6 +212,45 @@ test("a file's facts, annotations and form cross from the worker", async () => {
   expect(agree).toMatchObject({ appearanceStates: ['Off', 'Yes'], onState: 'Yes' })
 })
 
+test('scripts, structure order and annotations drawn alone cross from the worker', async () => {
+  const engine = await start()
+  const scripted = await engine.open(await fixture('script-page-only'))
+  expect(await scripted.scripts()).toEqual({
+    document: [],
+    documentActions: {},
+    pageActions: [{ page: 0, scripts: { O: ["app.alert('page opened')"] } }],
+    truncated: false,
+  })
+  const structured = await engine.open(await fixture('form-structure'))
+  const { annotations } = await structured.pageAnnotations(0)
+  expect(await structured.structureOrder(0)).toEqual({
+    order: [annotations[2]?.objectNumber, annotations[0]?.objectNumber],
+    truncated: false,
+  })
+  const doc = await engine.open(await fixture('annot-direct'))
+  const { box } = await doc.pageInfo(0)
+  const render = doc.renderPage(0, { hide: [{ index: 1 }] })
+  const alone = await doc.renderAnnotations(0, {
+    annotations: [{ index: 1 }, { index: 2 }],
+    region: box,
+    size: { width: 300, height: 400 },
+    signal: new AbortController().signal,
+  })
+  expect(alone).toMatchObject({ width: 300, height: 400, drawn: [1, 2] })
+  expect(alone.data).toBeInstanceOf(Uint8ClampedArray)
+  expect(alone.data.some((v, i) => i % 4 === 3 && v === 0)).toBe(true)
+  expect(alone.data.some((v, i) => i % 4 === 3 && v === 255)).toBe(true)
+  expect((await render).width).toBe(Math.ceil(box.width))
+  await expect(
+    doc.renderAnnotations(0, {
+      annotations: [{ index: 0 }],
+      region: box,
+      size: { width: 10, height: 10 },
+      signal: AbortSignal.abort(),
+    })
+  ).rejects.toMatchObject({ code: 'aborted' })
+})
+
 test('render options cross to the worker', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))

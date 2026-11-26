@@ -7,8 +7,9 @@ import { CallQueue } from './queue.ts'
 import type { Request, Transport } from '../protocol.ts'
 
 /**
- * Runs a request on the core. A render, text read, write or redact first fetches the fallback
- * fonts of the pages it loads; that fetch, and a render's slices, stop once `signal` aborts.
+ * Runs a request on the core. A render, annotation draw, text read, write or redact first fetches
+ * the fallback fonts of the pages it loads; that fetch, and a render's or draw's slices, stop
+ * once `signal` aborts.
  * Every other call runs to the end. With no font sources a text read, write or redact runs at
  * once, as it did before the engine had fonts.
  */
@@ -33,12 +34,24 @@ export function dispatch(
       return core.pageAnnotations(request.doc, request.index)
     case 'formFields':
       return core.formFields(request.doc)
+    case 'scripts':
+      return core.scripts(request.doc)
+    case 'structureOrder':
+      return core.structureOrder(request.doc, request.index)
     case 'outline':
       return core.outline(request.doc)
     case 'namedDestination':
       return core.namedDestination(request.doc, request.name)
     case 'renderPage':
       return core.renderPageSliced(
+        request.doc,
+        request.index,
+        request.options,
+        () => signal.aborted,
+        signal
+      )
+    case 'renderAnnotations':
+      return core.renderAnnotationsSliced(
         request.doc,
         request.index,
         request.options,
@@ -86,6 +99,7 @@ export class InThreadTransport implements Transport {
       // Only a call that can stop part way listens to the caller's signal once it runs.
       const stoppable =
         request.op === 'renderPage' ||
+        request.op === 'renderAnnotations' ||
         (this.#core.fetchesFonts &&
           (request.op === 'pageText' ||
             request.op === 'write' ||

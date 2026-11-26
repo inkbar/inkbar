@@ -562,11 +562,98 @@ export interface RenderOptions {
   /** A turn clockwise on top of the page's /Rotate. Default 0. */
   rotation?: 0 | 90 | 180 | 270
   /**
-   * Object numbers of annotations on this page whose appearance is not drawn. Each is a whole
-   * number from 1; at most 1,000,000 of them. The document is not changed, so a later `save` is
-   * as it would have been.
+   * Annotations on this page whose appearance is not drawn, each by its object number (a whole
+   * number from 1) or by its place in the page's `/Annots` (`{ index }`, a whole number from 0
+   * below 2,147,483,648), which is the only way to name one stored as a direct object. At most
+   * 1,000,000 of them. The document is not changed, so a later `save` is as it would have been.
    */
-  hide?: readonly number[]
+  hide?: readonly (number | { index: number })[]
+}
+
+/** Options for `EngineDocument.renderAnnotations`. */
+export interface AnnotationRenderOptions {
+  /**
+   * The annotations to draw, in the order given, each by its place in the page's `/Annots`. A
+   * `state` is the name of a state of `/AP /N` to draw, one character per byte of the name
+   * (U+0001 to U+00FF), at most 65,535 of them, as `AnnotationFacts.appearanceStates` gives it;
+   * without one, the state `/AS` selects is drawn. At most 1,000,000 entries.
+   */
+  annotations: readonly { index: number; state?: string }[]
+  /** The part of the page to draw, in user space, as for `renderPage`. */
+  region: Rect
+  /** The bitmap size in pixels, each a whole number from 1. The region is stretched to fill it. */
+  size: { width: number; height: number }
+  /** A turn clockwise on top of the page's /Rotate. Default 0. */
+  rotation?: 0 | 90 | 180 | 270
+  /**
+   * Cancels the call while it waits in the queue, and stops it between annotations once it has
+   * started: it then rejects with `aborted` and delivers no pixels.
+   */
+  signal?: AbortSignal
+}
+
+/**
+ * Annotations drawn alone. With the same region, size and rotation, the bitmap lines up pixel for
+ * pixel with `renderPage`'s, and like it leaves out what falls past the page box. An annotation
+ * the page render skips but the draw does not (one flagged NoView, or of an unknown type flagged
+ * Invisible) shows here and not on the page.
+ */
+export interface RenderedAnnotations {
+  /** Width in pixels. */
+  width: number
+  /** Height in pixels. */
+  height: number
+  /**
+   * Straight (not premultiplied) RGBA, four bytes per pixel, rows top to bottom with no padding,
+   * transparent (all four bytes 0) where nothing was drawn. The array belongs to the caller.
+   */
+  data: Uint8ClampedArray
+  /**
+   * The places in `/Annots` of the entries drawn, in the order drawn. An entry is left out when
+   * nothing was drawn for it: no annotation dictionary at that place, a hidden annotation, a
+   * popup, no rectangle, a state its `/AP /N` lacks, or no appearance the engine can make
+   * without writing one into the file. Other flags are not read: an annotation flagged NoView,
+   * or of an unknown type flagged Invisible, is drawn, though `renderPage` skips it.
+   */
+  drawn: number[]
+}
+
+/** One source of the document's `/Names /JavaScript` tree. */
+export interface DocumentScript {
+  /** The name it is listed under; `null` when the tree's key is not a string. */
+  name: FileText | null
+  source: string
+}
+
+/**
+ * The file's JavaScript outside its form fields, as source text that nothing runs. A field's
+ * scripts are in `WidgetFacts.scripts`. Script keys are the file's own: `OpenAction` for the
+ * catalog's open action, and each additional-action key (`WC`, `WS`, `DS`, `WP`, `DP`; `O` and `C`
+ * on a page) as the file writes it.
+ */
+export interface ScriptFacts {
+  /** The `/Names /JavaScript` tree in its order, one entry for each source of each name's chain. */
+  document: DocumentScript[]
+  /** The catalog's `/OpenAction`, when it holds JavaScript, and `/AA`, by key. */
+  documentActions: Record<string, string[]>
+  /** Each page whose `/AA` holds JavaScript, in page order, with its sources by key. */
+  pageActions: { page: number; scripts: Record<string, string[]> }[]
+  /**
+   * The report was cut short: a source past 4 MB, a name tree past 1,000 levels or 50,000 names,
+   * a chain past 1,000 objects, or past 16 MB of report or the work it may spend.
+   */
+  truncated: boolean
+}
+
+/** The order a page's structure tree gives its annotations. */
+export interface StructureOrder {
+  /**
+   * Object numbers of the page's annotations in the order the structure tree reaches them, each
+   * once. Annotations the tree does not reach are not listed; with no structure tree, none are.
+   */
+  order: number[]
+  /** The walk was cut short: past 1,000 levels deep or 1,000,000 objects. */
+  truncated: boolean
 }
 
 /**

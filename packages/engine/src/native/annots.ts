@@ -1,4 +1,5 @@
-// A page's annotations as the module's `INK_Annots_Page` report gives them.
+// A page's annotations and their structure order, as the module's `INK_Annots_Page` and
+// `INK_Struct_Order` reports give them.
 import {
   array,
   bad,
@@ -20,7 +21,12 @@ import {
   type Json,
 } from './report.ts'
 
-import type { AnnotationFacts, AppearanceFacts, PageAnnotations } from '../types.ts'
+import type {
+  AnnotationFacts,
+  AppearanceFacts,
+  PageAnnotations,
+  StructureOrder,
+} from '../types.ts'
 import type { Heap } from './strings.ts'
 
 const APPEARANCES = ['stream', 'states'] as const
@@ -130,5 +136,29 @@ export function readPageAnnotations(
 ): PageAnnotations {
   return parsePageAnnotations(
     takeJson(heap, heap.fn.INK_Annots_Page(doc, index), "A page's annotations")
+  )
+}
+
+/** The JSON `INK_Struct_Order` returns. */
+export function parseStructureOrder(text: string): StructureOrder {
+  const what = "A page's structure order"
+  const root = object(parse(text, what), what, 'root')
+  return {
+    order: array(root.order, what, 'order').map((n) => {
+      const objectNumber = count(n, what, 'order')
+      if (objectNumber === 0) throw bad(what, 'order', 'object numbers from 1')
+      return objectNumber
+    }),
+    truncated: boolean(root.truncated, what, 'truncated'),
+  }
+}
+
+export function readStructureOrder(
+  heap: Heap,
+  doc: number,
+  index: number
+): StructureOrder {
+  return parseStructureOrder(
+    takeJson(heap, heap.fn.INK_Struct_Order(doc, index), "A page's structure order")
   )
 }

@@ -243,6 +243,170 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
     expect(result.facts).toEqual({ title: expected, encrypted: false, openedAs: 'none' })
   })
 
+  test('a script key named __proto__ crosses as a key of its own', async () => {
+    const form = JSON.stringify({
+      kind: 'acroform',
+      needAppearances: false,
+      fields: [
+        {
+          name: 'f',
+          origin: 'acroform',
+          kind: 'text',
+          flags: 0,
+          valueKind: 'none',
+          defaultValueKind: 'none',
+          widgets: [
+            {
+              page: 0,
+              annotIndex: 0,
+              rect: [0, 0, 1, 1],
+              rectOk: true,
+              flags: 4,
+              hasAppearance: false,
+              appearance: null,
+              scripts: { PROTO: ['p()'], K: ['k()'] },
+            },
+          ],
+        },
+      ],
+      calculationOrder: [],
+      calculationOrderRefs: [],
+      fieldTreeDepth: 1,
+      fieldTreeRevisits: false,
+      tooLarge: false,
+      truncated: false,
+    }).replace('"PROTO"', '"__proto__"')
+    const scripts = JSON.stringify({
+      document: [],
+      documentActions: { PROTO: ['d()'] },
+      pageActions: [{ page: 0, scripts: { PROTO: ['q()'] } }],
+      truncated: false,
+    }).replaceAll('"PROTO"', '"__proto__"')
+    const engine = await engineWith(transport, (native) => ({
+      INK_Form: () => written(native, form),
+      INK_Scripts: () => written(native, scripts),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      const own = (value: object | undefined, sources: string[]) => {
+        expect(Object.getPrototypeOf(value)).toBe(Object.prototype)
+        expect(Object.getOwnPropertyDescriptor(value, '__proto__')?.value).toEqual(
+          sources
+        )
+      }
+      const widget = (await doc.formFields()).fields[0]?.widgets[0]
+      own(widget?.scripts, ['p()'])
+      expect(widget?.scripts.K).toEqual(['k()'])
+      const facts = await doc.scripts()
+      own(facts.documentActions, ['d()'])
+      own(facts.pageActions[0]?.scripts, ['q()'])
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test.each([
+    ['a page past the last', [{ page: 3, scripts: { O: ['x'] } }]],
+    ['a source that is not a string', [{ page: 0, scripts: { O: [1] } }]],
+    [
+      'a page listed twice',
+      [
+        { page: 0, scripts: { O: ['x'] } },
+        { page: 0, scripts: { C: ['y'] } },
+      ],
+    ],
+    [
+      'pages out of order',
+      [
+        { page: 1, scripts: { O: ['x'] } },
+        { page: 0, scripts: { O: ['y'] } },
+      ],
+    ],
+  ])('page actions with %s reject with engine-failure', async (_, entries) => {
+    const json = JSON.stringify({
+      document: [],
+      documentActions: {},
+      pageActions: entries,
+      truncated: false,
+    })
+    const engine = await engineWith(transport, (native) => ({
+      INK_Scripts: () => written(native, json),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      await expect((await engine.open(bytes)).scripts()).rejects.toMatchObject({
+        code: 'engine-failure',
+      })
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('pages in order, each once, are kept as given', async () => {
+    const json = JSON.stringify({
+      document: [],
+      documentActions: {},
+      pageActions: [
+        { page: 0, scripts: { O: ['x'] } },
+        { page: 2, scripts: { C: ['y'] } },
+      ],
+      truncated: false,
+    })
+    const engine = await engineWith(transport, (native) => ({
+      INK_Scripts: () => written(native, json),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      expect((await (await engine.open(bytes)).scripts()).pageActions).toEqual([
+        { page: 0, scripts: { O: ['x'] } },
+        { page: 2, scripts: { C: ['y'] } },
+      ])
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a scripts or structure order report the module cannot give rejects with engine-failure', async () => {
+    const engine = await engineWith(transport, () => ({
+      INK_Scripts: () => 0,
+      INK_Struct_Order: () => 0,
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      await expect(doc.scripts()).rejects.toMatchObject({ code: 'engine-failure' })
+      await expect(doc.structureOrder(0)).rejects.toMatchObject({
+        code: 'engine-failure',
+      })
+      // The document still answers.
+      expect((await doc.pageInfo(0)).width).toBeGreaterThan(0)
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a structure order of numbers that are not object numbers rejects with engine-failure', async () => {
+    const engine = await engineWith(transport, (native) => ({
+      INK_Struct_Order: () => written(native, '{"order":[0],"truncated":false}'),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      await expect((await engine.open(bytes)).structureOrder(0)).rejects.toMatchObject({
+        code: 'engine-failure',
+      })
+    } finally {
+      await engine.destroy()
+    }
+  })
+
   test('a document facts report the module cannot give at open rejects it', async () => {
     const engine = await engineWith(transport, () => ({ INK_Doc_Facts: () => 0 }))
     try {
