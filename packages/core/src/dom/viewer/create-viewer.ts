@@ -442,7 +442,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     const failure = fileActionFailure(error, words())
     if (!failure || destroyed) return
     formAlert.show(failure.message)
-    if (!failure.heard) onError?.(failure.error)
+    onError?.(failure.error)
   }
   // Ctrl or Cmd+P and +S inside the root: what viewer.print and viewer.download do.
   const stopFileKeys = attachFileKeys(root, () => current.get(), {

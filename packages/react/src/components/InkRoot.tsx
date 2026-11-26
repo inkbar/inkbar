@@ -939,7 +939,7 @@ export function InkRoot({
       const failure = fileActionFailure(error, messageState.get().messages)
       if (!failure) return
       showMessage(failure.message)
-      if (!failure.heard) reportError(failure.error)
+      reportError(failure.error)
     },
     [messageState, showMessage, reportError]
   )

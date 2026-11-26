@@ -317,16 +317,15 @@ describe('with changes to write', () => {
     await until(() => viewer.status.get().state === 'ready')
     addSquare(viewer)
     await engines.stop(viewer.document.get()!)
-    // The stop was reported once, as it happened.
+    // The stop, reported as it happens.
     expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
     download.click()
-    await until(
-      () =>
-        alertText() ===
-        'Saving is not available right now. Check your connection and try again.'
+    await until(() => errors.length === 2)
+    // The press that found it stopped reports its own failure, as a failed download does.
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
+    expect(alertText()).toBe(
+      'Saving is not available right now. Check your connection and try again.'
     )
-    // The download that found it stopped is not reported again.
-    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
     expect(clicked).toHaveLength(0)
     expect(busy(download)).toBe(false)
   })
