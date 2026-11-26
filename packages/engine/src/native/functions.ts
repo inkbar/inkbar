@@ -179,9 +179,23 @@ export const FUNCTIONS = {
   INK_Inspect_File: { args: ['ptr', 'ptr', 'i32'], ret: 'ptr' },
   INK_Inspect_Free: { args: ['ptr'], ret: 'void' },
   // (bitmap, page, int start_x, int start_y, int size_x, int size_y, int rotate, int flags,
-  //  const unsigned int* skip, int skip_count) -> InkRender*
+  //  const unsigned int* skip, int skip_count, const int* skip_at, int skip_at_count)
+  //  -> InkRender*
   INK_Render_Start: {
-    args: ['ptr', 'ptr', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'ptr', 'i32'],
+    args: [
+      'ptr',
+      'ptr',
+      'i32',
+      'i32',
+      'i32',
+      'i32',
+      'i32',
+      'i32',
+      'ptr',
+      'i32',
+      'ptr',
+      'i32',
+    ],
     ret: 'ptr',
   },
   // (InkRender* r, int slice_ms)
@@ -219,6 +233,19 @@ export const FUNCTIONS = {
   INK_Outline: { args: ['ptr'], ret: 'ptr' },
   // (FPDF_DOCUMENT doc, const unsigned char* name, int len) -> char* JSON, freed with INK_Json_Free
   INK_Dest_Named: { args: ['ptr', 'ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc, int page_index) -> char* JSON, freed with INK_Json_Free; NULL on failure
+  INK_Annots_Page: { args: ['ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc, int page_index) -> char* JSON, freed with INK_Json_Free; NULL on failure
+  INK_Struct_Order: { args: ['ptr', 'i32'], ret: 'ptr' },
+  // (FPDF_BITMAP bitmap, FPDF_PAGE page, int annot_index, const char* state,
+  //  const float* matrix) -> 1 when it drew
+  INK_Annot_Draw: { args: ['ptr', 'ptr', 'i32', 'ptr', 'ptr'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc) -> char* JSON, freed with INK_Json_Free
+  INK_Form: { args: ['ptr'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc) -> char* JSON, freed with INK_Json_Free
+  INK_Scripts: { args: ['ptr'], ret: 'ptr' },
+  // (FPDF_DOCUMENT doc) -> char* JSON, freed with INK_Json_Free
+  INK_Doc_Facts: { args: ['ptr'], ret: 'ptr' },
   INK_Json_Free: { args: ['ptr'], ret: 'void' },
 } as const satisfies Record<string, { args: readonly Kind[]; ret: Kind }>
 

@@ -156,6 +156,174 @@ describe.each(['in-thread', 'worker'] as const)('over the %s transport', (transp
     }
   }
 
+  async function reportsWith(annots: string, form: string, facts: string) {
+    const engine = await engineWith(transport, (native) => ({
+      INK_Annots_Page: () => written(native, annots),
+      INK_Form: () => written(native, form),
+      INK_Doc_Facts: () => written(native, facts),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      return {
+        annotations: await doc.pageAnnotations(0),
+        form: await doc.formFields(),
+        facts: await doc.documentFacts(),
+      }
+    } finally {
+      await engine.destroy()
+    }
+  }
+
+  test("a file's facts, annotations and form cross with their bytes intact", async () => {
+    const bytesOf = { bytes: '00ff' }
+    const result = await reportsWith(
+      JSON.stringify({
+        tabs: 'S',
+        annots: [
+          {
+            index: 0,
+            subtype: 'Text',
+            rect: null,
+            rectOk: false,
+            flags: 0,
+            hasAppearance: false,
+            appearance: null,
+            contents: bytesOf,
+          },
+        ],
+        truncated: false,
+      }),
+      JSON.stringify({
+        kind: 'acroform',
+        needAppearances: true,
+        fields: [
+          {
+            name: 'f',
+            origin: 'recovered',
+            kind: 'button',
+            flags: 65536,
+            valueKind: 'none',
+            defaultValueKind: 'none',
+            widgets: [
+              {
+                page: 0,
+                annotIndex: 0,
+                rect: [0, 0, 1, 1],
+                rectOk: true,
+                flags: 4,
+                hasAppearance: false,
+                appearance: null,
+                scripts: { A: ['go()'] },
+                action: { s: 'URI', uriHex: '6869' },
+              },
+            ],
+          },
+        ],
+        calculationOrder: [0],
+        calculationOrderRefs: [null],
+        fieldTreeDepth: 0,
+        fieldTreeRevisits: false,
+        tooLarge: false,
+        truncated: false,
+      }),
+      JSON.stringify({ title: bytesOf, encrypted: false, openedAs: 'none' })
+    )
+    const expected = { bytes: new Uint8Array([0, 255]) }
+    expect(result.annotations).toMatchObject({
+      tabs: 'S',
+      annotations: [{ subtype: 'Text', rect: null, contents: expected }],
+    })
+    expect(result.form.fields[0]?.widgets[0]).toMatchObject({
+      scripts: { A: ['go()'] },
+      action: { kind: 'URI', uri: new TextEncoder().encode('hi') },
+    })
+    expect(result.facts).toEqual({ title: expected, encrypted: false, openedAs: 'none' })
+  })
+
+  test('a document facts report the module cannot give at open rejects it', async () => {
+    const engine = await engineWith(transport, () => ({ INK_Doc_Facts: () => 0 }))
+    try {
+      await expect(engine.open(bytes)).rejects.toMatchObject({ code: 'engine-failure' })
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a page, form or facts report the module cannot give rejects with engine-failure', async () => {
+    let facts = true
+    const engine = await engineWith(transport, (native) => ({
+      INK_Annots_Page: () => 0,
+      INK_Form: () => 0,
+      // The open reads the facts; later reads get none.
+      INK_Doc_Facts: (doc: number) => (facts ? native.fn.INK_Doc_Facts(doc) : 0),
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      facts = false
+      await expect(doc.pageAnnotations(0)).rejects.toMatchObject({
+        code: 'engine-failure',
+      })
+      await expect(doc.formFields()).rejects.toMatchObject({ code: 'engine-failure' })
+      await expect(doc.documentFacts()).rejects.toMatchObject({ code: 'engine-failure' })
+      // The document still answers.
+      expect((await doc.pageInfo(0)).width).toBeGreaterThan(0)
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test('a write reads no document facts', async () => {
+    let reads = 0
+    const engine = await engineWith(transport, (native) => ({
+      INK_Doc_Facts: (doc: number) => {
+        reads++
+        return native.fn.INK_Doc_Facts(doc)
+      },
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      await doc.write({})
+      expect(reads).toBe(1)
+    } finally {
+      await engine.destroy()
+    }
+  })
+
+  test.each([
+    ['annotations', 'pageAnnotations'],
+    ['form', 'formFields'],
+  ] as const)('malformed %s reject with engine-failure', async (_, call) => {
+    const empty = JSON.stringify({ tabs: null, annots: [], truncated: false })
+    const form = JSON.stringify({
+      kind: 'none',
+      needAppearances: false,
+      fields: [],
+      calculationOrder: [],
+      calculationOrderRefs: [],
+      fieldTreeDepth: 0,
+      fieldTreeRevisits: false,
+      tooLarge: false,
+      truncated: false,
+    })
+    const engine = await engineWith(transport, (native) => ({
+      INK_Annots_Page: () => written(native, call === 'pageAnnotations' ? '[]' : empty),
+      INK_Form: () => written(native, call === 'formFields' ? '{"kind":1}' : form),
+      INK_Json_Free: (pointer: number) => {
+        native.fn.free(pointer)
+      },
+    }))
+    try {
+      const doc = await engine.open(bytes)
+      const read = call === 'pageAnnotations' ? doc.pageAnnotations(0) : doc.formFields()
+      await expect(read).rejects.toMatchObject({ code: 'engine-failure' })
+    } finally {
+      await engine.destroy()
+    }
+  })
+
   test('font metrics, the standard font and the cut flag cross as the module gives them', async () => {
     const text = await textWith(JSON.stringify([FONT, { ...FONT, ...nulls }]), 1)
     expect(text.truncated).toBe(true)

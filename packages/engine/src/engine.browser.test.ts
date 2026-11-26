@@ -195,6 +195,23 @@ test("a link's facts cross from the worker", async () => {
   })
 })
 
+test("a file's facts, annotations and form cross from the worker", async () => {
+  const engine = await start()
+  const direct = await engine.open(await fixture('annot-direct'))
+  expect(await direct.documentFacts()).toEqual({
+    title: 'Form edge fixture',
+    encrypted: false,
+    openedAs: 'none',
+  })
+  const { annotations } = await direct.pageAnnotations(0)
+  expect(annotations.map((a) => a.objectNumber)).toEqual([7, undefined, undefined])
+  await expect(direct.pageAnnotations(99)).rejects.toBeInstanceOf(RangeError)
+  const form = await (await engine.open(await fixture('form-fields'))).formFields()
+  expect(form.fields).toHaveLength(20)
+  const agree = form.fields.find((f) => f.name === 'agree')?.widgets[0]
+  expect(agree).toMatchObject({ appearanceStates: ['Off', 'Yes'], onState: 'Yes' })
+})
+
 test('render options cross to the worker', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))

@@ -27,6 +27,12 @@ export function dispatch(
       return core.pageTextAfterFonts(request.doc, request.index, signal)
     case 'pageLinks':
       return core.pageLinks(request.doc, request.index)
+    case 'documentFacts':
+      return core.documentFacts(request.doc)
+    case 'pageAnnotations':
+      return core.pageAnnotations(request.doc, request.index)
+    case 'formFields':
+      return core.formFields(request.doc)
     case 'outline':
       return core.outline(request.doc)
     case 'namedDestination':

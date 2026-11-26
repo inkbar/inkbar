@@ -5,10 +5,13 @@ import { createWorkerTransport } from './transport/worker.ts'
 import type { Request, Transport } from './protocol.ts'
 import type {
   CheckRedactionOptions,
+  DocumentFacts,
   FileDestination,
   FontKey,
+  FormFacts,
   OpenOptions,
   Outline,
+  PageAnnotations,
   PageInfo,
   PageLinks,
   PageText,
@@ -71,6 +74,26 @@ export interface EngineDocument {
    * rejects with a `RangeError`. A JavaScript action's source comes back as text and is never run.
    */
   pageLinks(index: number): Promise<PageLinks>
+  /**
+   * What the file's trailer and `/Info` say: its title, author, whether it is encrypted and which
+   * password opened it.
+   */
+  documentFacts(): Promise<DocumentFacts>
+  /**
+   * What the file says about each annotation dictionary of a page's `/Annots`, in order, whatever
+   * its kind, hidden ones and widgets included. `index` counts from 0. An index that is not a
+   * whole number from 0 to `pageCount - 1` rejects with a `RangeError`. The engine decides
+   * nothing about the entries: it reports what the dictionaries hold. Reading them loads no font
+   * and does not change what `save` writes.
+   */
+  pageAnnotations(index: number): Promise<PageAnnotations>
+  /**
+   * The file's form: each field with its value, options and widgets, and each widget's place,
+   * appearance states, look, actions and JavaScript sources, which are never run. A form of more
+   * than 50,000 fields is refused with `tooLarge` and no fields. Reading it does not change what
+   * `save` writes.
+   */
+  formFields(): Promise<FormFacts>
   /**
    * The document outline, nested, with each item's destination and actions as the file gives
    * them. A file with no outline gives no items. `truncated` is true when a loop, a nesting
@@ -240,6 +263,18 @@ class Document implements EngineDocument {
 
   pageLinks(index: number): Promise<PageLinks> {
     return this.#call({ op: 'pageLinks', doc: this.id, index })
+  }
+
+  documentFacts(): Promise<DocumentFacts> {
+    return this.#call({ op: 'documentFacts', doc: this.id })
+  }
+
+  pageAnnotations(index: number): Promise<PageAnnotations> {
+    return this.#call({ op: 'pageAnnotations', doc: this.id, index })
+  }
+
+  formFields(): Promise<FormFacts> {
+    return this.#call({ op: 'formFields', doc: this.id })
   }
 
   outline(): Promise<Outline> {

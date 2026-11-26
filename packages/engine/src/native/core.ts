@@ -3,9 +3,11 @@ import { createFontLoader, keysOf, type FontSources } from '../fonts.ts'
 import { anySignal } from '../signals.ts'
 
 import { writeAnnotation } from './annotations.ts'
+import { readPageAnnotations } from './annots.ts'
 import { checkAppearance } from './appearance.ts'
 import { hasSignature, writeFields } from './fields.ts'
 import { pageNeeds, registerFont } from './fonts.ts'
+import { readDocumentFacts, readForm } from './form.ts'
 import { FUNCTIONS } from './functions.ts'
 import { inspectDocument } from './inspect.ts'
 import { readNamedDestination, readOutline, readPageLinks } from './links.ts'
@@ -15,10 +17,13 @@ import { readPageText } from './text.ts'
 
 import type { RenderRequestOptions } from '../protocol.ts'
 import type {
+  DocumentFacts,
   FileDestination,
   FontKey,
+  FormFacts,
   OpenOptions,
   Outline,
+  PageAnnotations,
   PageInfo,
   PageLinks,
   PageText,
@@ -101,6 +106,8 @@ interface OpenDocument {
   redacted: boolean
   /** Whether the file is encrypted. */
   encrypted: boolean
+  /** Which password opened the file, read before the engine lifted its permission flags. */
+  openedAs: DocumentFacts['openedAs']
   /** The fallback fonts each page needs, by page index, as read so far from `doc`. */
   needs: Map<number, readonly FontKey[]>
 }
@@ -283,7 +290,12 @@ export class EngineCore {
     try {
       this.#native.HEAPU8.set(bytes, data)
       const password = options.password === '' ? undefined : options.password
-      const loaded = this.#load(data, bytes.length, password)
+      // Which password opened the file, read before `#load` lifts the permission flags: the
+      // module counts that as an owner's opening.
+      let openedAs: DocumentFacts['openedAs'] = 'none'
+      const loaded = this.#load(data, bytes.length, password, (opened) => {
+        openedAs = readDocumentFacts(this.#heap, opened).openedAs
+      })
       doc = loaded.doc
       const pageCount = fn.FPDF_GetPageCount(doc)
       if (pageCount <= 0)
@@ -298,6 +310,7 @@ export class EngineCore {
         written: false,
         redacted: false,
         encrypted: loaded.encrypted,
+        openedAs,
         needs: new Map(),
       })
       return { id, pageCount }
@@ -311,11 +324,16 @@ export class EngineCore {
     }
   }
 
-  /** Loads a document from bytes already in engine memory, and says whether it is encrypted. */
+  /**
+   * Loads a document from bytes already in engine memory, and says whether it is encrypted.
+   * `beforeGrant` reads the document before its permission flags are lifted; when it throws, the
+   * document is closed.
+   */
   #load(
     data: number,
     size: number,
-    password: string | undefined
+    password: string | undefined,
+    beforeGrant?: (doc: number) => void
   ): { doc: number; encrypted: boolean } {
     const fn = this.#fn
     const pointer = password === undefined ? 0 : this.#allocString(password)
@@ -326,6 +344,13 @@ export class EngineCore {
       if (pointer !== 0 && !this.#stopped) fn.free(pointer)
     }
     if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), password !== undefined)
+    if (beforeGrant)
+      try {
+        beforeGrant(doc)
+      } catch (error) {
+        if (!this.#stopped) fn.FPDF_CloseDocument(doc)
+        throw error
+      }
     // Writing ignores the file's permission flags, so every handle has owner permissions: parts
     // of PDFium that consult them would otherwise skip a write the caller asked for. The call
     // returns false only for a file with no encryption, which has no permission flags to lift.
@@ -354,6 +379,25 @@ export class EngineCore {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     return this.#guard(() => readPageLinks(this.#heap, entry.doc, index))
+  }
+
+  documentFacts(id: number): DocumentFacts {
+    const entry = this.#get(id)
+    return this.#guard(() => ({
+      ...readDocumentFacts(this.#heap, entry.doc),
+      openedAs: entry.openedAs,
+    }))
+  }
+
+  pageAnnotations(id: number, index: number): PageAnnotations {
+    const entry = this.#get(id)
+    this.#checkIndex(entry, index)
+    return this.#guard(() => readPageAnnotations(this.#heap, entry.doc, index))
+  }
+
+  formFields(id: number): FormFacts {
+    const entry = this.#get(id)
+    return this.#guard(() => readForm(this.#heap, entry.doc))
   }
 
   outline(id: number): Outline {
@@ -627,7 +671,9 @@ export class EngineCore {
           geometry.rotate,
           flags,
           skip,
-          hide.length
+          hide.length,
+          0,
+          0
         )
         if (render === 0)
           throw new EngineError('engine-failure', `Page ${index} could not be drawn.`)
