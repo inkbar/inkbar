@@ -1424,8 +1424,8 @@
   }
 
   /*
-   * The zoom select keeps one width as its value changes, wide enough for the longest fit label
-   * of the shipped languages ("Pleine largeur").
+   * The zoom select keeps one width as its value changes, wide enough for the fit labels of
+   * the shipped languages. A longer label shortens rather than widening it.
    */
   :where(.ink-zoom-select) {
     width: 9.5rem;
