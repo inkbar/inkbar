@@ -704,8 +704,8 @@ body {
   margin-left: auto;
   padding-left: var(--group-gap);
 }
+/* After a plugin's actions, which already end in their button's padding, no extra gap. */
 .scenario-toolbar > .scenario-actions + .scenario-file {
-  margin-left: 0;
   padding-left: 0;
 }
 .scenario-file button {
@@ -718,13 +718,18 @@ body {
     font-size: 0;
   }
 }
-/* A plugin's command and its status, at the end of the toolbar. */
+/*
+ * A plugin's actions take the rest of their row and keep to its right, so they sit next to
+ * the file group when both fit, and both rows end at the right edge when they do not. The
+ * actions grow first, so the file group's auto margin is zero on a shared row.
+ */
 .scenario-toolbar > .scenario-actions {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 2px;
-  margin-left: auto;
   padding-left: var(--group-gap);
 }
 .scenario-actions button,

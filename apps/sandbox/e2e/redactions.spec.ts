@@ -412,6 +412,38 @@ for (const framework of FRAMEWORK_ORDER) {
       expect(violations).toEqual([])
     })
 
+    test(`${framework} redactions: Suggest and the file group end at the right on a phone`, async ({
+      page,
+    }) => {
+      // German has the longest command label, so the actions and the file group cannot share
+      // a row at phone width.
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(`./?lang=de#/${framework}/redactions`)
+      await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
+        'data-state',
+        'ready',
+        { timeout: 20_000 }
+      )
+      const edges = await viewer(page)
+        .locator('.scenario-toolbar')
+        .evaluate((bar) => {
+          const right = (el: Element | null) => el!.getBoundingClientRect().right
+          const top = (el: Element | null) => el!.getBoundingClientRect().top
+          const content = right(bar) - parseFloat(getComputedStyle(bar).paddingRight)
+          const command = bar.querySelector('.scenario-actions .ink-command')
+          const file = bar.querySelector('.scenario-file')
+          return {
+            content,
+            command: right(command),
+            file: right(file),
+            sameRow: Math.abs(top(command) - top(file)) < 4,
+          }
+        })
+      expect(edges.sameRow).toBe(false)
+      expect(Math.abs(edges.file - edges.content)).toBeLessThanOrEqual(2)
+      expect(Math.abs(edges.command - edges.content)).toBeLessThanOrEqual(2)
+    })
+
     test(`${framework} redactions: Code tab shows the plugin source`, async ({
       page,
     }) => {
