@@ -460,6 +460,7 @@ export async function createEngineReader(
               size: fit(width, height),
               rotation: normaliseRotation(request.rotation - info.rotate),
               ...(hide.length > 0 && { hide }),
+              ...(request.background && { background: true }),
               signal: render.signal,
             }),
           signal

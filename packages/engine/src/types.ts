@@ -724,6 +724,12 @@ export interface RenderOptions {
    */
   signal?: AbortSignal
   /**
+   * Let every waiting call that is not background run before this render. A call that is
+   * already running is never interrupted, and background calls keep their order among
+   * themselves. Default false. For a draw nobody is waiting on, such as a thumbnail.
+   */
+  background?: boolean
+  /**
    * Draw the page's annotations, form widgets included. Default true. With false only the
    * page's own content is drawn, so a caller that paints annotations itself does not draw them
    * twice.

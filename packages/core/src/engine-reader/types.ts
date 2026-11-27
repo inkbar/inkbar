@@ -24,6 +24,8 @@ export interface ReaderEngineDocument {
       rotation?: 0 | 90 | 180 | 270
       /** By object number, or by place in `/Annots` for one written as a direct object. */
       hide?: readonly (number | { index: number })[]
+      /** Queue the draw behind every call that is not background. */
+      background?: boolean
       signal?: AbortSignal
     }
   ): Promise<{

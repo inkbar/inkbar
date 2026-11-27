@@ -63,68 +63,76 @@ class WorkerTransport implements Transport {
     this.#worker.terminate()
   }
 
-  call<T>(request: Request, signal?: AbortSignal): Promise<T> {
-    return this.#queue.enqueue(() => {
-      // The worker and its documents are gone, so there is nothing left to close.
-      if (this.#dead && request.op === 'close') return undefined as T
-      if (this.#dead) throw this.#dead
-      return new Promise<T>((resolve, reject) => {
-        const id = this.#nextId++
-        const stoppable =
-          request.op === 'renderPage' ||
-          request.op === 'renderAnnotations' ||
-          request.op === 'pageText' ||
-          request.op === 'write' ||
-          request.op === 'redact'
-        const abort = () => {
-          // Only while the call is unanswered: once the reply has arrived it stands.
-          if (!this.#pending.has(id)) return
-          const message: ToWorker = { type: 'abort', id }
-          try {
-            this.#worker.postMessage(message)
-          } catch {
-            // The worker is gone; `fail` or `destroy` settles the call.
+  call<T>(
+    request: Request,
+    signal?: AbortSignal,
+    options?: { background?: boolean }
+  ): Promise<T> {
+    return this.#queue.enqueue(
+      () => {
+        // The worker and its documents are gone, so there is nothing left to close.
+        if (this.#dead && request.op === 'close') return undefined as T
+        if (this.#dead) throw this.#dead
+        return new Promise<T>((resolve, reject) => {
+          const id = this.#nextId++
+          const stoppable =
+            request.op === 'renderPage' ||
+            request.op === 'renderAnnotations' ||
+            request.op === 'pageText' ||
+            request.op === 'write' ||
+            request.op === 'redact'
+          const abort = () => {
+            // Only while the call is unanswered: once the reply has arrived it stands.
+            if (!this.#pending.has(id)) return
+            const message: ToWorker = { type: 'abort', id }
+            try {
+              this.#worker.postMessage(message)
+            } catch {
+              // The worker is gone; `fail` or `destroy` settles the call.
+            }
           }
-        }
-        const settled = () => signal?.removeEventListener('abort', abort)
-        this.#pending.set(id, {
-          resolve: (value) => {
-            settled()
-            resolve(value as T)
-          },
-          reject: (reason) => {
-            settled()
-            reject(reason)
-          },
-          ...(stoppable && { abort }),
+          const settled = () => signal?.removeEventListener('abort', abort)
+          this.#pending.set(id, {
+            resolve: (value) => {
+              settled()
+              resolve(value as T)
+            },
+            reject: (reason) => {
+              settled()
+              reject(reason)
+            },
+            ...(stoppable && { abort }),
+          })
+          let sent = request
+          const transfer: Transferable[] = []
+          if (request.op === 'open' || request.op === 'checkRedaction') {
+            // The engine hands over a private copy; a view on a larger buffer is copied first.
+            const { bytes } = request
+            const own =
+              bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+            const owned = own ? bytes : bytes.slice()
+            sent = { ...request, bytes: owned }
+            transfer.push(owned.buffer as ArrayBuffer)
+          }
+          const message: ToWorker = { id, request: sent }
+          try {
+            this.#worker.postMessage(message, transfer)
+          } catch (error) {
+            this.#pending.delete(id)
+            reject(failure('The request could not be sent to the engine worker.', error))
+            return
+          }
+          // A call that can stop part way does so when its signal aborts; the worker then answers
+          // `aborted`.
+          if (stoppable && signal) {
+            if (signal.aborted) abort()
+            else signal.addEventListener('abort', abort, { once: true })
+          }
         })
-        let sent = request
-        const transfer: Transferable[] = []
-        if (request.op === 'open' || request.op === 'checkRedaction') {
-          // The engine hands over a private copy; a view on a larger buffer is copied first.
-          const { bytes } = request
-          const own =
-            bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-          const owned = own ? bytes : bytes.slice()
-          sent = { ...request, bytes: owned }
-          transfer.push(owned.buffer as ArrayBuffer)
-        }
-        const message: ToWorker = { id, request: sent }
-        try {
-          this.#worker.postMessage(message, transfer)
-        } catch (error) {
-          this.#pending.delete(id)
-          reject(failure('The request could not be sent to the engine worker.', error))
-          return
-        }
-        // A call that can stop part way does so when its signal aborts; the worker then answers
-        // `aborted`.
-        if (stoppable && signal) {
-          if (signal.aborted) abort()
-          else signal.addEventListener('abort', abort, { once: true })
-        }
-      })
-    }, signal)
+      },
+      signal,
+      options
+    )
   }
 
   /**

@@ -46,7 +46,11 @@ export type Request =
     }
 
 export interface Transport {
-  call<T>(request: Request, signal?: AbortSignal): Promise<T>
+  call<T>(
+    request: Request,
+    signal?: AbortSignal,
+    options?: { background?: boolean }
+  ): Promise<T>
   destroy(): Promise<void>
 }
 

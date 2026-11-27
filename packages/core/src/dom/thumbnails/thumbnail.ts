@@ -259,6 +259,7 @@ export function createThumbnailPainter(
       host: canvasLayer,
       transform,
       drawWidgets: true,
+      background: true,
     })
     painting = { doc: current, page: opts.page, transform }
     // A lifted annotation shows once: from the canvas until the render without its file copy

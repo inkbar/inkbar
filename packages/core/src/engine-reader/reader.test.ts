@@ -643,6 +643,15 @@ describe('drawing', () => {
     expect(t.renders[0]!.options.hide).toEqual([12, { index: 3 }])
   })
 
+  it('queues a background draw behind the calls that are not background', async () => {
+    const t = setup()
+    const reader = await t.open()
+    await reader.draw(request({ background: true }), fakeCanvas().canvas)
+    await reader.draw(request(), fakeCanvas().canvas)
+    expect(t.renders[0]!.options.background).toBe(true)
+    expect(t.renders[1]!.options).not.toHaveProperty('background')
+  })
+
   it('draws an oversized request smaller and stretches it onto the canvas', async () => {
     const t = setup()
     const reader = await t.open()
