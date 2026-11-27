@@ -1,5 +1,3 @@
-// Before any schema is built.
-import '../schema-config'
 import { z } from 'zod'
 
 import { checkValue, normaliseValue } from './values'

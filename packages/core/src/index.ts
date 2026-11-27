@@ -1,3 +1,6 @@
+// Before anything that builds a schema.
+import './model/schema-build'
+
 /** Replaced at build time (tsdown) and in tests (vitest) with package.json's version. */
 declare const __INKBAR_VERSION__: string
 

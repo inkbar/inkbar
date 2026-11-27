@@ -12,8 +12,8 @@
   "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
   "sideEffects": [
-    "./src/model/schema-config.ts",
-    "./dist/schema-config-*.mjs"
+    "./src/model/schema-build/*.ts",
+    "./dist/schema-build-*.mjs"
   ],
   "files": [
     "dist",

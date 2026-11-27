@@ -23,10 +23,14 @@ export default defineConfig({
   copy: [{ from: 'src/vite/client.d.ts', to: 'dist/vite' }],
   // `version` in src/index.ts.
   define: { __INKBAR_VERSION__: JSON.stringify(version) },
-  // A chunk of its own, so the chunks that use Zod import it, and it runs, before Gloss's
-  // schemas are built when `gloss-format` is imported. `sideEffects` in package.json keeps it.
+  // Zod's `jitless` goes on before Gloss's schemas are built, when `gloss-format` is imported:
+  // that step is a chunk of its own, which the chunk holding the schemas imports before
+  // `gloss-format`. The step that puts it back stays in that chunk, after the schemas.
+  // `sideEffects` in package.json keeps both.
   outputOptions: {
-    codeSplitting: { groups: [{ name: 'schema-config', test: /schema-config/ }] },
+    codeSplitting: {
+      groups: [{ name: 'schema-build-begin', test: /schema-build[\\/]begin/ }],
+    },
   },
   deps: { neverBundle: ['pdfjs-dist', '#pdfjs-sandbox', 'vite', /^node:/] },
 })
