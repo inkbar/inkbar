@@ -13,6 +13,8 @@ export * from './model/records'
 export { mergeLineRects } from './model/selection'
 
 export { openDocument } from './model/document'
+/** @internal For tests: makes every engine a document starts, in place of the `engine` option. */
+export { setEngineFactory as _setEngineFactory } from './model/engine-factory'
 export type {
   DocumentInfo,
   DocumentStatus,

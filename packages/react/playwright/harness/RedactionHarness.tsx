@@ -17,7 +17,7 @@
  * and `useRedaction` in `probe`.
  */
 import { allTools } from '@inkbar/core/dom'
-import { StrictMode, useRef, useState } from 'react'
+import { StrictMode, useEffect, useRef, useState } from 'react'
 
 import { InkApplyRedactions } from '../../src/components/InkApplyRedactions'
 import { InkDownloadButton } from '../../src/components/InkDownloadButton'
@@ -31,12 +31,11 @@ import { InkViewport } from '../../src/components/InkViewport'
 import { useInkContext } from '../../src/context'
 import { useRedaction } from '../../src/hooks/useRedaction'
 
-import { heldEngine } from './held-engine'
+import { holdEngine } from './held-engine'
 
 import type {
   Annotation,
   DocumentSource,
-  EngineLoader,
   InkError,
   InkMessagesInput,
   PdfAssets,
@@ -111,7 +110,6 @@ export interface RedactionHarnessProps {
 function Harness({
   src,
   assets,
-  loader,
   own = false,
   confirm,
   throwing = false,
@@ -120,9 +118,7 @@ function Harness({
   swap,
   relabel = false,
   disabled: hostDisabled,
-}: Omit<RedactionHarnessProps, 'engine' | 'strict'> & {
-  loader: EngineLoader | undefined
-}) {
+}: Omit<RedactionHarnessProps, 'engine' | 'strict'>) {
   const [errors, setErrors] = useState<string[]>([])
   const [previews, setPreviews] = useState<number[]>([])
   const [redacted, setRedacted] = useState(0)
@@ -166,7 +162,6 @@ function Harness({
           assets={assets}
           zoom={1}
           tools={tools}
-          engine={loader}
           redactionConfirm={confirm === 'dialog' ? undefined : confirm ? ask : false}
           messages={messages}
           onReady={() => {
@@ -242,13 +237,14 @@ export function RedactionHarness({
   ...props
 }: RedactionHarnessProps) {
   // Made outside StrictMode, which runs a state initialiser twice and would leave the page's
-  // `__heldEngine` pointing at the copy React threw away.
-  const [loader] = useState(() => (engine ? heldEngine() : undefined))
+  // `__heldEngine` pointing at the copy React threw away. The factory is cleared on unmount.
+  const [release] = useState(() => (engine ? holdEngine() : undefined))
+  useEffect(() => release, [release])
   return strict ? (
     <StrictMode>
-      <Harness {...props} loader={loader} />
+      <Harness {...props} />
     </StrictMode>
   ) : (
-    <Harness {...props} loader={loader} />
+    <Harness {...props} />
   )
 }

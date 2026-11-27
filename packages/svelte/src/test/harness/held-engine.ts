@@ -2,12 +2,12 @@
  * A stand-in for @inkbar/engine whose every write, and every apply of redaction marks, waits for
  * the test: `writing()` says whether one is waiting, `finish()` lets it through and `fail()`
  * makes it reject. A finished apply hands back the file as it was opened, which its check finds
- * clean under every mark. `loads` counts the loader's calls.
+ * clean under every mark. `loads` counts the engines made. Making one sets core's engine factory,
+ * so a document opened with no `engine` option still has it; `_setEngineFactory(undefined)` clears it.
  */
-import type { EngineLoader } from '@inkbar/core'
+import { _setEngineFactory } from '@inkbar/core'
 
 export interface HeldEngine {
-  loader: EngineLoader
   readonly loads: number
   writing(): boolean
   /** The types of the annotations the last apply wrote after its marks. */
@@ -102,12 +102,11 @@ export function heldEngine(): HeldEngine {
       }),
     destroy: () => Promise.resolve(),
   }
-  const loader = (() => {
+  _setEngineFactory(() => {
     loads++
-    return Promise.resolve({ createEngine: () => Promise.resolve(engine) })
-  }) as unknown as EngineLoader
+    return Promise.resolve(engine)
+  })
   return {
-    loader,
     get loads() {
       return loads
     },

@@ -1,3 +1,4 @@
+import { _setEngineFactory } from '@inkbar/core'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
@@ -7,7 +8,7 @@ import { guardConsole } from './console-guard.js'
 import { q } from './dom.js'
 import FileHarness from './harness/FileHarness.svelte'
 
-import type { EngineLoader, InkError } from '@inkbar/core'
+import type { EngineLoader, InkError, SaveEngine } from '@inkbar/core'
 
 const assets = browserAssets()
 guardConsole()
@@ -15,6 +16,7 @@ guardConsole()
 const src = fixtureUrl('text-simple')
 
 afterEach(() => {
+  _setEngineFactory(undefined)
   vi.restoreAllMocks()
   document.querySelectorAll('[data-ink-print-frame]').forEach((f) => f.remove())
 })
@@ -93,13 +95,17 @@ function heldEngine(unavailable = false) {
     close: () => Promise.resolve(),
   }
   const engine = { open: () => Promise.resolve(doc), destroy: () => Promise.resolve() }
+  // A held engine is the factory every engine comes from; an unavailable one is the host's
+  // loader failing, as offline.
+  const factory = vi.fn(() => Promise.resolve(engine as unknown as SaveEngine))
   const loader = vi.fn(() =>
-    unavailable
-      ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
-      : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
+    Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
   )
+  if (!unavailable) _setEngineFactory(factory)
   return {
-    loader: loader as unknown as EngineLoader & typeof loader,
+    factory,
+    // Passed to the root only for an unavailable engine.
+    loader: loader as unknown as EngineLoader,
     writing: () => settle !== undefined,
     finish: () => settle!.finish(),
     fail: () => settle!.fail(),
@@ -124,7 +130,7 @@ describe('with an engine', () => {
   it('the buttons are busy while the copy is written, then download it', async () => {
     const clicked = catchDownloads()
     const held = heldEngine()
-    await render(FileHarness, { src, assets, engine: held.loader })
+    await render(FileHarness, { src, assets })
     await q('[data-ink-scroll] .ink-page canvas')
     const download = await q<HTMLButtonElement>('[data-ink-download]')
     const print = await q<HTMLButtonElement>('[data-ink-print]')
@@ -148,8 +154,8 @@ describe('with an engine', () => {
     await expect.poll(() => download.getAttribute('aria-busy')).toBe('false')
     expect(download.hasAttribute('aria-disabled')).toBe(false)
     expect(print.disabled).toBe(false)
-    // The root passed its loader to the document, which loaded it once.
-    expect(held.loader).toHaveBeenCalledTimes(1)
+    // The document made one engine, from the factory.
+    expect(held.factory).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
   })
 
@@ -159,7 +165,6 @@ describe('with an engine', () => {
     await render(FileHarness, {
       src,
       assets,
-      engine: held.loader,
       onError: (e) => errors.push(e),
     })
     await q('[data-ink-scroll] .ink-page canvas')
