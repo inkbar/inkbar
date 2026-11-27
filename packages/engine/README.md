@@ -63,6 +63,21 @@ Two things to know about this wrapper:
 
 In Node (22.3 or later) the engine runs in the calling thread and reads the wasm from the package on disk.
 
+## Naming the files yourself
+
+`@inkbar/engine/bare` is for code that always passes its own wasm and worker, such as a library that depends on the engine and lets its host choose where the files live. It exports what the main entry does, but `createEngine` has no default file locations and its built code holds no `new URL('./inkbar-pdfium.wasm', import.meta.url)` or worker form. A bundler therefore emits nothing for it, and a host that serves the files itself does not also ship a second copy of the 7 MB binary.
+
+Both `wasm` and `worker` are required. `wasm` is a URL or the bytes, and `worker` is a URL, a `Worker` or `false` to run in the calling thread. Without one of them `createEngine` rejects with a `TypeError` that names it. Where there is no `Worker` global, such as Node, a URL for `worker` is ignored and the engine runs in the calling thread.
+
+```ts
+import { createEngine } from '@inkbar/engine/bare'
+
+const engine = await createEngine({
+  wasm: '/pdf/inkbar-pdfium.wasm',
+  worker: '/pdf/worker.mjs',
+})
+```
+
 ## Fallback fonts
 
 Some PDFs name a font without embedding it. The engine has no system fonts. It draws the standard Latin fonts, such as Helvetica, Times and Arial, from its own set. Japanese, Chinese, Korean, Cyrillic or Greek text in a font the file does not carry needs a font from you, or the engine draws it wrong or leaves it out.

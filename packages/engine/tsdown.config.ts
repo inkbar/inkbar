@@ -5,6 +5,14 @@ import { defineConfig, type UserConfig } from 'tsdown'
 const vendor = (name: string) => new URL(`vendor/${name}`, import.meta.url)
 
 /**
+ * The glue's last-resort wasm lookup is a literal `new URL("inkbar-pdfium.wasm", import.meta.url)`,
+ * which a bundler follows and copies. The engine always passes the wasm or a `locateFile`, so the
+ * lookup never runs. Building the name at run time keeps it as a fallback and hides it from a
+ * bundler, so the `bare` entry leaves no copy of the binary behind.
+ */
+const glueWasmLookup = 'new URL("inkbar-pdfium.wasm",import.meta.url)'
+
+/**
  * The glue loads Node's `module` with `await import("module")`, only when it runs under Node. A
  * browser bundler still sees the literal import, resolves it and warns. Node has
  * `getBuiltinModule` from 22.3, which no bundler follows.
@@ -18,7 +26,18 @@ const nodeOnlyImport = {
       throw new Error(
         `Expected one import("module") in the PDFium glue, found ${parts.length - 1}.`
       )
-    return { code: parts.join('process.getBuiltinModule("module")'), map: null }
+    const lookups = code.split(glueWasmLookup)
+    if (lookups.length !== 2)
+      throw new Error(
+        `Expected one ${glueWasmLookup} in the PDFium glue, found ${lookups.length - 1}.`
+      )
+    const hidden = parts
+      .join('process.getBuiltinModule("module")')
+      .replace(
+        glueWasmLookup,
+        'new URL(["inkbar-pdfium", "wasm"].join("."), import.meta.url)'
+      )
+    return { code: hidden, map: null }
   },
 }
 
@@ -35,7 +54,7 @@ const shared: UserConfig = {
 export default defineConfig([
   {
     ...shared,
-    entry: { index: 'src/index.ts' },
+    entry: { index: 'src/index.ts', bare: 'src/bare.ts' },
     copy: [{ from: 'vendor/inkbar-pdfium.wasm', to: 'dist' }],
     hooks: {
       'build:done': () => {

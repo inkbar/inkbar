@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, test } from 'vitest'
 
+import type { createEngine as CreateBareEngine } from './bare.ts'
 import type { createEngine as CreateEngine } from './index.ts'
 
 // Runs against the built package; turbo builds it before `test`.
@@ -84,8 +85,10 @@ test("the built files leave the glue's Node import invisible to a browser bundle
     expect(source, name).not.toMatch(/from\s*["']module["']/)
   }
   // Node still gets the module through the glue's own branch.
-  const index = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
-  expect(index).toContain('process.getBuiltinModule("module")')
+  // The glue sits in the chunk the index and bare entries share.
+  const chunk = names.find((name) => name.startsWith('engine-')) as string
+  const glue = await readFile(new URL(`../dist/${chunk}`, import.meta.url), 'utf8')
+  expect(glue).toContain('process.getBuiltinModule("module")')
 })
 
 test('the built package names its worker in one literal URL, inside the Worker call', async () => {
@@ -94,6 +97,41 @@ test('the built package names its worker in one literal URL, inside the Worker c
   const source = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
   const literals = source.match(/new URL\(\s*["'`]\.\/worker\.mjs["'`]/g) ?? []
   expect(literals).toHaveLength(1)
+})
+
+test('the built bare entry and every chunk it imports name no default wasm or worker', async () => {
+  // A bundler copies each literal `new URL('./…', import.meta.url)`, so a host that passes its
+  // own files would otherwise carry the binary twice.
+  const dist = new URL('../dist/', import.meta.url)
+  const seen = new Set<string>()
+  const queue = ['bare.mjs']
+  while (queue.length > 0) {
+    const name = queue.pop() as string
+    if (seen.has(name)) continue
+    seen.add(name)
+    const source = await readFile(new URL(name, dist), 'utf8')
+    expect(source, name).not.toMatch(
+      /new URL\(\s*["'`][^"'`]*(?:inkbar-pdfium\.wasm|worker\.mjs)/
+    )
+    for (const m of source.matchAll(/\bfrom\s*["']\.\/([^"']+)["']/g))
+      queue.push(m[1] as string)
+  }
+  expect(seen.has('worker.mjs')).toBe(false)
+})
+
+test('the built bare entry opens a document when given its wasm', async () => {
+  const { createEngine } = (await import(
+    new URL('../dist/bare.mjs', import.meta.url).href
+  )) as {
+    createEngine: typeof CreateBareEngine
+  }
+  const wasm = await readFile(new URL('../dist/inkbar-pdfium.wasm', import.meta.url))
+  const engine = await createEngine({ wasm, worker: false })
+  try {
+    expect((await engine.open(await fixtureBytes('text-simple'))).pageCount).toBe(3)
+  } finally {
+    await engine.destroy()
+  }
 })
 
 test('the package is published with the wasm, the worker, the types and the notices', async () => {
@@ -110,14 +148,27 @@ test('the package is published with the wasm, the worker, the types and the noti
       encoding: 'utf8',
     })
   ) as [{ files: { path: string }[] }]
-  const files = packed.files.map((f) => f.path).filter((path) => !path.endsWith('.map'))
+  // The index and bare entries share chunks, whose names carry a content hash.
+  const files = packed.files
+    .map((f) => f.path)
+    .filter((path) => !path.endsWith('.map'))
+    .map((path) =>
+      path.replace(
+        /-[\w-]{8}\.(d\.)?mjs$|-[\w-]{8}\.d\.mts$/,
+        (m) => `-HASH${m.slice(9)}`
+      )
+    )
   expect(files.sort()).toEqual(
     [
       'LICENSE',
       'README.md',
       'package.json',
       'dist/THIRD-PARTY-NOTICES',
+      'dist/bare.d.mts',
+      'dist/bare.mjs',
+      'dist/engine-HASH.mjs',
       'dist/index.d.mts',
+      'dist/public-HASH.d.mts',
       // The PDFium glue is bundled into both entry points.
       'dist/index.mjs',
       'dist/inkbar-pdfium.wasm',

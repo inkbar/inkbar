@@ -1,64 +1,15 @@
-export { createEngine } from './engine.ts'
-export { EngineError } from './errors.ts'
-export { TEXT_GEOMETRY_STRIDE } from './types.ts'
+import { defaults } from './defaults.ts'
+import { createEngineWith } from './engine.ts'
 
-export type { Engine, EngineDocument, EngineOptions } from './engine.ts'
-export type { EngineErrorCode, RefusalReason, UnremovableKind } from './errors.ts'
-export type {
-  AnnotationFacts,
-  AnnotationRef,
-  AnnotationRenderOptions,
-  Appearance,
-  AppearanceFacts,
-  CheckRedactionOptions,
-  DestinationArgKind,
-  DestinationFitKind,
-  DestinationPageKind,
-  DocumentFacts,
-  DocumentScript,
-  ExplicitDestination,
-  FieldAction,
-  FieldFacts,
-  FieldGroupFacts,
-  FieldTreeEntry,
-  FieldValue,
-  FieldValueKind,
-  FieldValueName,
-  FileAction,
-  FileDestination,
-  FileTarget,
-  FileText,
-  FontKey,
-  FormFacts,
-  ObjectRef,
-  OpenOptions,
-  Outline,
-  OutlineEntry,
-  PageAnnotationEntry,
-  PageAnnotations,
-  PageInfo,
-  PageLinkFacts,
-  PageLinks,
-  PageText,
-  PageTextOptions,
-  Rect,
-  RedactInput,
-  RedactionCandidate,
-  RedactionFindings,
-  RedactionRegion,
-  RedactResult,
-  RenderOptions,
-  RenderedAnnotations,
-  RenderedPage,
-  SaveMode,
-  SaveOptions,
-  ScriptFacts,
-  StandardFont,
-  StandardFontName,
-  StructureOrder,
-  TextFont,
-  WidgetFacts,
-  WriteAnnotation,
-  WriteField,
-  WriteInput,
-} from './types.ts'
+import type { Engine, EngineOptions } from './engine.ts'
+
+export * from './public.ts'
+
+/**
+ * Starts an engine. It loads the WebAssembly module and, in a worker, the worker script. Later it
+ * fetches only the `fallbackFonts` a page needs. It rejects with `engine-failure`, naming the
+ * URL, when the module or the worker cannot be loaded, or a font URL is not valid.
+ */
+export function createEngine(options: EngineOptions = {}): Promise<Engine> {
+  return createEngineWith(options, defaults)
+}
