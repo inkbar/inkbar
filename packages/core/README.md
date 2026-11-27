@@ -987,18 +987,15 @@ The files may be on another origin than the page, such as a CDN, when that origi
 Under a content security policy, with the files on the page's origin, Inkbar works with this policy:
 
 ```
-default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src-attr 'unsafe-inline'; frame-src blob:
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; frame-src blob:
 ```
 
 - `script-src 'wasm-unsafe-eval'`: the engine compiles its binary with WebAssembly in its worker, and the sandbox that runs a form's scripts compiles its own on the page. Neither needs `'unsafe-eval'`: the sandbox runs a form's scripts inside WebAssembly, not with `eval`.
 - `script-src 'self'`: the page imports `quickjs-eval.js` from the `sandbox` directory.
 - `worker-src 'self'`: the engine starts its worker from `worker.mjs`. Without `worker-src` the browser applies `script-src`.
 - `connect-src`, here given by `default-src 'self'`: the engine fetches its binary and the fonts, and the sandbox fetches its binary. The fonts are fetched as data, so they need no `font-src`.
-- `style-src-attr 'unsafe-inline'`: drawn annotations, such as a note's icon, set a `style` attribute so that page CSS cannot change how they look. Without it the browser drops those styles and reports each one.
 - `frame-src blob:`: Print loads the file into a hidden frame from a `blob:` URL. Download needs nothing.
 - `img-src 'self' data: blob:`, which the policy above leaves out: a signature or stamp made from an image is kept and drawn as a `data:` URL, and an image chosen for a signature is read through a `blob:` URL.
-
-Inkbar validates annotations with a schema library that checks once whether it may compile code with `Function`. The policy refuses, the browser reports a `script-src` violation for `eval`, and the library validates without compiling. Nothing fails.
 
 When the files are on another origin, allow that origin in `script-src`, for the sandbox, and in `connect-src`, for the binaries and fonts. Add `blob:` and that origin to `worker-src`: the engine starts its worker from a `blob:` module of the page's own, which runs under the page's policy and imports `worker.mjs`, and the browser checks a module worker's imports against `worker-src`.
 

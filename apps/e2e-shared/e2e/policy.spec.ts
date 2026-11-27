@@ -36,13 +36,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.afterEach(async ({ page }) => {
-  const seen = (
-    await page.evaluate(() => window.__policyViolations ?? []).catch(() => [])
-  ).filter(
-    // The schema library checks once whether it may compile with `Function`, which the policy
-    // refuses, and then validates without compiling.
-    (v) => !(v.directive === 'script-src' && v.blocked === 'eval')
-  )
+  const seen = await page.evaluate(() => window.__policyViolations ?? []).catch(() => [])
   // Chrome also reports a violation in the console, a worker's among them.
   const said = consoleGuard.take(/Content Security Policy/i)
   expect(
@@ -79,6 +73,25 @@ const field = (page: Page, name: string) =>
 /** Whether `bytes` hold an annotation Inkbar wrote: its `/INKB_Gloss` entry. */
 const holdsGloss = (bytes: Uint8Array): boolean =>
   Buffer.from(bytes).toString('latin1').includes('/INKB_Gloss')
+
+/**
+ * The drawn elements on the page, by tag, and those whose `fill`, `stroke` or `opacity` attribute
+ * is not also inline style with priority important, as Inkbar sets it so page CSS cannot change
+ * a drawing. A style the policy refused leaves the element without it.
+ */
+function drawnStyles(page: Page): Promise<{ tags: string[]; unstyled: string[] }> {
+  return page.evaluate(() => {
+    const tags = new Set<string>()
+    const unstyled = new Set<string>()
+    for (const el of document.querySelectorAll<SVGElement>('.ink-annotation svg *')) {
+      tags.add(el.localName)
+      for (const name of ['fill', 'stroke', 'opacity'])
+        if (el.hasAttribute(name) && el.style.getPropertyPriority(name) !== 'important')
+          unstyled.add(`${el.localName} ${name}`)
+    }
+    return { tags: [...tags].sort(), unstyled: [...unstyled].sort() }
+  })
+}
 
 test.describe('under the documented content security policy', () => {
   test('the engine starts and draws page 1', async ({ page }) => {
@@ -124,6 +137,10 @@ test.describe('under the documented content security policy', () => {
     await popover.getByRole('textbox', { name: 'Comment' }).fill('Check this paragraph')
     await popover.getByRole('button', { name: 'Comment' }).click()
     await page.keyboard.press('Escape')
+    await expect(
+      page.locator('.ink-annotation svg .ink-note-icon').first()
+    ).toBeAttached()
+    expect((await drawnStyles(page)).unstyled).toEqual([])
 
     const saving = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download' }).click()
@@ -150,4 +167,31 @@ test.describe('under the documented content security policy', () => {
       )
       .not.toBe('blocked')
   })
+  test('a speech bubble and its text are drawn with their styles', async ({ page }) => {
+    await page.goto('/?doc=text-simple&view=drawing')
+    await waitForFirstPage(page)
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    await page.getByRole('menuitemradio', { name: 'Speech bubble', exact: true }).click()
+    const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+    await page.mouse.move(box.x + 60, box.y + 60)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 260, box.y + 140, { steps: 6 })
+    await page.mouse.up()
+    await expect(page.getByRole('textbox', { name: 'Text box' })).toBeFocused()
+    await page.keyboard.type('Hello')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.ink-annotation svg text').first()).toHaveText('Hello')
+    const drawn = await drawnStyles(page)
+    expect(drawn.unstyled).toEqual([])
+  })
+
+  for (const doc of ['annotated-shapes', 'annotated-markup', 'freetext-fonts']) {
+    test(`the annotations of ${doc} are drawn with their styles`, async ({ page }) => {
+      await page.goto(`/?doc=${doc}`)
+      await waitForFirstPage(page)
+      await expect(page.locator('.ink-annotation svg *').first()).toBeAttached()
+      const drawn = await drawnStyles(page)
+      expect(drawn.unstyled).toEqual([])
+    })
+  }
 })
