@@ -1,0 +1,235 @@
+[
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "listbox",
+    "options": [
+      { "displayValue": "a", "exportValue": "a" },
+      { "displayValue": "b", "exportValue": "b" },
+      { "displayValue": "c", "exportValue": "c" }
+    ],
+    "value": ["b", "c"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "7R",
+        "page": 0,
+        "rect": [72, 700, 272, 730],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 131072,
+    "kind": "combo",
+    "name": "combo",
+    "options": [
+      { "displayValue": "x", "exportValue": "x" },
+      { "displayValue": "y", "exportValue": "y" },
+      { "displayValue": "z", "exportValue": "z" }
+    ],
+    "value": ["z"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "page": 0,
+        "rect": [72, 650, 272, 680],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "default text",
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "nulled",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [72, 600, 272, 630],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "default text",
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "unset",
+    "value": "default text",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 3,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "10R",
+        "page": 0,
+        "rect": [72, 550, 272, 580],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "names",
+    "options": [
+      { "displayValue": "Alpha", "exportValue": "Alpha" },
+      { "displayValue": "beta", "exportValue": "beta" }
+    ],
+    "value": ["Alpha", "beta"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 4,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "11R",
+        "page": 0,
+        "rect": [72, 500, 272, 530],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "launch",
+    "widgets": [
+      {
+        "actions": { "url": "https://example.com/launch.pdf" },
+        "at": 5,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "12R",
+        "page": 0,
+        "rect": [72, 450, 272, 480],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "remote",
+    "widgets": [
+      {
+        "actions": { "url": "ftp://example.com/other.pdf" },
+        "at": 6,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [72, 400, 272, 430],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "local",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 7,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "14R",
+        "page": 0,
+        "rect": [72, 350, 272, 380],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Maybe",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "consent",
+    "value": "Agreed",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 8,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "onValue": "Agreed",
+        "page": 0,
+        "rect": [72, 300, 102, 330],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Agreed"
+      }
+    ]
+  },
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "kidlist",
+    "options": [
+      { "displayValue": "p", "exportValue": "p" },
+      { "displayValue": "q", "exportValue": "q" },
+      { "displayValue": "r", "exportValue": "r" }
+    ],
+    "value": ["p"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 9,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "28R",
+        "page": 0,
+        "rect": [300, 300, 500, 330],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

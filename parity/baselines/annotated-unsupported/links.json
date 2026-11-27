@@ -1,0 +1,14 @@
+[
+  {
+    "links": [
+      {
+        "id": "pdf:0:7R",
+        "order": 0,
+        "page": 0,
+        "rect": { "height": 20, "width": 128, "x": 72, "y": 600 },
+        "target": { "kind": "url", "newWindow": false, "url": "https://inkbar.dev/" }
+      }
+    ],
+    "page": 1
+  }
+]

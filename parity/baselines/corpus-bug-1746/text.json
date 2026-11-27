@@ -1,0 +1,38 @@
+[
+  {
+    "items": [
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "",
+        "fontSize": 2,
+        "glyphEnds": [1],
+        "hasEOL": false,
+        "quad": {
+          "p1": { "x": 50, "y": 51.5 },
+          "p2": { "x": 170, "y": 51.5 },
+          "p3": { "x": 50, "y": 49.5 },
+          "p4": { "x": 170, "y": 49.5 }
+        },
+        "str": "a"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "",
+        "fontSize": 2,
+        "glyphEnds": [1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 72, "y": 81.5 },
+          "p2": { "x": 192, "y": 81.5 },
+          "p3": { "x": 72, "y": 79.5 },
+          "p4": { "x": 192, "y": 79.5 }
+        },
+        "str": "a"
+      }
+    ],
+    "page": 1,
+    "text": "a a"
+  }
+]

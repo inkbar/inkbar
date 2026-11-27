@@ -1,0 +1,84 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A note another program replied to",
+        "created": "D:20261117101000Z",
+        "hasAppearance": true,
+        "icon": "NoIcon",
+        "id": "11R",
+        "modified": "D:20261117101000Z",
+        "rect": [520, 700, 540, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A reply Inkbar saved",
+        "created": "D:20261117101000Z",
+        "hasAppearance": false,
+        "icon": "Note",
+        "id": "14R",
+        "inReplyTo": "11R",
+        "modified": "D:20261117101000Z",
+        "rect": [520, 698, 542, 720],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A note another program gave a pop-up",
+        "created": "D:20261117101000Z",
+        "hasAppearance": true,
+        "icon": "NoIcon",
+        "id": "16R",
+        "modified": "D:20261117101000Z",
+        "rect": [520, 640, 540, 660],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117101000Z",
+        "hasAppearance": true,
+        "id": "19R",
+        "modified": "D:20261117101000Z",
+        "rect": [72, 540, 152, 600],
+        "subtype": "Square"
+      },
+      {
+        "author": "Another program",
+        "border": { "width": 0 },
+        "contents": "A reply from another program",
+        "hasAppearance": false,
+        "icon": "Comment",
+        "id": "22R",
+        "inReplyTo": "11R",
+        "modified": "D:20261117120000Z",
+        "rect": [540, 658, 562, 680],
+        "subtype": "Text"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [242, 194, 48],
+        "contents": "A note another program gave a pop-up",
+        "created": "D:20261117101000Z",
+        "hasAppearance": false,
+        "id": "23R",
+        "modified": "D:20261117101000Z",
+        "rect": [400, 600, 580, 680],
+        "subtype": "Popup"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

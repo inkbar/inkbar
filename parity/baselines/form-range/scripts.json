@@ -1,0 +1,35 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "score",
+          "kids": ["9R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Validate": ["AFRange_Validate(true, 0, true, 10)"] }
+        },
+        "id": "8R",
+        "name": "score",
+        "widgets": ["9R"]
+      },
+      {
+        "container": { "fullName": "note", "kids": ["13R"], "page": -1, "rotation": 0 },
+        "id": "12R",
+        "name": "note",
+        "widgets": ["13R"]
+      },
+      {
+        "container": { "fullName": "clear", "kids": ["16R"], "page": -1, "rotation": 0 },
+        "id": "15R",
+        "name": "clear",
+        "widgets": ["16R"]
+      }
+    ]
+  },
+  "pages": []
+}

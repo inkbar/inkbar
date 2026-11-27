@@ -1,0 +1,78 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "8R",
+        "rect": [72, 700, 272, 725],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [72, 655, 272, 680],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "11R",
+        "rect": [72, 610, 272, 635],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "12R",
+        "rect": [72, 565, 272, 590],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [72, 520, 272, 545],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "15R",
+        "rect": [72, 430, 92, 450],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "16R",
+        "rect": [102, 430, 122, 450],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

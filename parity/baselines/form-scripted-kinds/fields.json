@@ -1,0 +1,415 @@
+[
+  {
+    "flags": 16777216,
+    "kind": "text",
+    "maxLength": 6,
+    "name": "amount",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Calculate": ["event.value = 7"],
+            "Format": ["AFNumber_Format(0, 0, 0, 0, \"\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(0, 0, 0, 0, \"\", true)"],
+            "Validate": ["event.rc = event.value < 1000000;"]
+          }
+        },
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "7R",
+        "page": 0,
+        "rect": [72, 700, 272, 725],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "start",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "keystrokeInFormat": true,
+          "scripts": { "Format": ["AFTime_Format(2);", "AFTime_Keystroke(2);"] }
+        },
+        "at": 1,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "page": 0,
+        "rect": [72, 655, 272, 680],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "due",
+    "value": "",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Format": ["AFDate_FormatEx(\"mmm d, yyyy\");"] } },
+        "at": 2,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [72, 610, 272, 635],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 131072,
+    "kind": "combo",
+    "name": "size",
+    "options": [
+      { "displayValue": "S", "exportValue": "S" },
+      { "displayValue": "M", "exportValue": "M" },
+      { "displayValue": "L", "exportValue": "L" }
+    ],
+    "value": ["M"],
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Keystroke": ["event.rc = true"],
+            "Validate": ["event.rc = event.value != 'L'"]
+          }
+        },
+        "at": 3,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "10R",
+        "page": 0,
+        "rect": [72, 565, 272, 590],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "colours",
+    "options": [
+      { "displayValue": "Red", "exportValue": "r" },
+      { "displayValue": "Green", "exportValue": "g" },
+      { "displayValue": "Blue", "exportValue": "b" }
+    ],
+    "value": ["r", "g"],
+    "widgets": [
+      {
+        "actions": { "scripts": { "Focus": ["var focused = true"] } },
+        "at": 4,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "11R",
+        "page": 0,
+        "rect": [72, 520, 272, 545],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 4096,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "note",
+    "value": "two places",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Blur": ["var blurred = true"] } },
+        "at": 5,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [72, 475, 272, 500],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": {
+          "scripts": { "Blur": ["var blurred = true"], "Focus": ["var noteFocused = true"] }
+        },
+        "at": 6,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "14R",
+        "page": 0,
+        "rect": [300, 475, 400, 500],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 49152,
+    "kind": "radio",
+    "name": "pick",
+    "value": "b",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 7,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "onValue": "a",
+        "page": 0,
+        "rect": [72, 430, 92, 450],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": { "scripts": { "Mouse Up": ["var pickedB = true"] } },
+        "at": 8,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "17R",
+        "onValue": "b",
+        "page": 0,
+        "rect": [102, 430, 122, 450],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "extras",
+    "value": "x",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 9,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "19R",
+        "onValue": "x",
+        "page": 0,
+        "rect": [72, 385, 92, 405],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "x"
+      },
+      {
+        "actions": { "scripts": { "Mouse Down": ["var pressedY = true"] } },
+        "at": 10,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "20R",
+        "onValue": "y",
+        "page": 0,
+        "rect": [102, 385, 122, 405],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Off"
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "signature",
+    "name": "sig",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 11,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "21R",
+        "page": 0,
+        "rect": [72, 385, 272, 410],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "person.first",
+    "value": "",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Keystroke": ["event.change = event.change.toUpperCase()"] } },
+        "at": 12,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "23R",
+        "page": 0,
+        "rect": [72, 340, 272, 365],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "go",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Action": ["app.alert('go')", "var went = true"],
+            "PageOpen": ["var shown = true"]
+          }
+        },
+        "at": 13,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "24R",
+        "page": 0,
+        "rect": [72, 295, 172, 320],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "twin",
+    "value": "",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Keystroke": ["var firstTwin = true"] } },
+        "at": 14,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "32R",
+        "page": 0,
+        "rect": [300, 655, 400, 680],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": { "scripts": { "Format": ["var secondTwin = true"] } },
+        "at": 15,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "34R",
+        "page": 0,
+        "rect": [300, 610, 400, 635],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "flags",
+    "value": "q",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Mouse Up": ["var flagged = true"] } },
+        "at": 16,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "36R",
+        "onValue": "q",
+        "page": 0,
+        "rect": [300, 385, 320, 405],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "q"
+      },
+      {
+        "actions": {},
+        "at": 17,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "37R",
+        "onValue": "r",
+        "page": 0,
+        "rect": [330, 385, 350, 405],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Off"
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "stamp",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {
+          "scripts": {
+            "Format": ["AFDate_FormatEx(\"dd/mm/yyyy\");", "AFDate_FormatEx(\"mm/dd/yyyy\");"]
+          }
+        },
+        "at": 18,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "38R",
+        "page": 0,
+        "rect": [300, 565, 400, 590],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

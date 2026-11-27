@@ -1,0 +1,198 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "7R",
+        "rect": [72, 700, 272, 725],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "8R",
+        "rect": [72, 655, 272, 680],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [72, 610, 272, 635],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "10R",
+        "rect": [72, 565, 272, 590],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "11R",
+        "rect": [72, 520, 272, 545],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [72, 475, 272, 500],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "14R",
+        "rect": [300, 475, 400, 500],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "16R",
+        "rect": [72, 430, 92, 450],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "17R",
+        "rect": [102, 430, 122, 450],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "19R",
+        "rect": [72, 385, 92, 405],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "20R",
+        "rect": [102, 385, 122, 405],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "21R",
+        "rect": [72, 385, 272, 410],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "23R",
+        "rect": [72, 340, 272, 365],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "24R",
+        "rect": [72, 295, 172, 320],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "32R",
+        "rect": [300, 655, 400, 680],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "34R",
+        "rect": [300, 610, 400, 635],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "36R",
+        "rect": [300, 385, 320, 405],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "37R",
+        "rect": [330, 385, 350, 405],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 10 },
+        "hasAppearance": true,
+        "id": "38R",
+        "rect": [300, 565, 400, 590],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

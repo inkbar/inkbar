@@ -1,0 +1,149 @@
+[
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "explicit",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [72, 640, 192, 664],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "named",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "18R",
+        "page": 0,
+        "rect": [72, 590, 192, 614],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "legacy",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "22R",
+        "page": 0,
+        "rect": [72, 540, 192, 564],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "missing",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 3,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "26R",
+        "page": 0,
+        "rect": [72, 490, 192, 514],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "scripted",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["app.alert(\"Going to chapter 3\")"] } },
+        "at": 4,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "30R",
+        "page": 0,
+        "rect": [72, 440, 192, 464],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "goto-script",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["var went = true"] } },
+        "at": 5,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "34R",
+        "page": 0,
+        "rect": [72, 390, 192, 414],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "chain",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["var chained = true"] } },
+        "at": 6,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "38R",
+        "page": 0,
+        "rect": [72, 340, 192, 364],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

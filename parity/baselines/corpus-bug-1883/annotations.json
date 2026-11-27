@@ -1,0 +1,114 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "7R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [90, 370, 270, 500],
+        "subtype": "Line"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [190, 470, 370, 600],
+        "subtype": "Line"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "7R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [90, 370, 270, 500],
+        "subtype": "Line"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [190, 470, 370, 600],
+        "subtype": "Line"
+      }
+    ],
+    "page": 2,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "7R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [90, 370, 270, 500],
+        "subtype": "Line"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [190, 470, 370, 600],
+        "subtype": "Line"
+      }
+    ],
+    "page": 3,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "7R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [90, 370, 270, 500],
+        "subtype": "Line"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "",
+        "hasAppearance": true,
+        "id": "8R",
+        "line": [100, 50, 100, 150],
+        "lineEndings": ["None", "None"],
+        "rect": [190, 470, 370, 600],
+        "subtype": "Line"
+      }
+    ],
+    "page": 4,
+    "tabOrder": []
+  }
+]

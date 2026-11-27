@@ -1,0 +1,46 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117094000Z",
+        "hasAppearance": true,
+        "id": "11R",
+        "modified": "D:20261117094000Z",
+        "rect": [72, 600, 172, 680],
+        "subtype": "Square"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "color": [192, 57, 43],
+        "contents": "",
+        "created": "D:20261117094000Z",
+        "hasAppearance": true,
+        "id": "15R",
+        "modified": "D:20261117094000Z",
+        "rect": [200, 600, 300, 680],
+        "subtype": "Circle"
+      },
+      {
+        "author": "",
+        "border": { "width": 2 },
+        "color": [21, 24, 32],
+        "contents": "",
+        "created": "D:20261117094000Z",
+        "hasAppearance": true,
+        "id": "19R",
+        "line": [330, 600, 450, 680],
+        "lineEndings": ["None", "None"],
+        "modified": "D:20261117094000Z",
+        "rect": [329, 599, 451, 681],
+        "subtype": "Line"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

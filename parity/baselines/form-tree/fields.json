@@ -1,0 +1,46 @@
+[
+  {
+    "flags": 4096,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "group.sub.a",
+    "value": "inherited text",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "page": 0,
+        "rect": [72, 640, 372, 700],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 4096,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "group.sub.b",
+    "value": "its own text",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "10R",
+        "page": 0,
+        "rect": [72, 560, 372, 620],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

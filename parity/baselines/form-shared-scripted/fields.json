@@ -1,0 +1,43 @@
+[
+  {
+    "defaultValue": "Off",
+    "flags": 32768,
+    "kind": "radio",
+    "name": "shared",
+    "value": "Off",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Validate": ["event.rc = true"] } },
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "dummy__noop", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "onValue": "A",
+        "page": 0,
+        "rect": [71.5, 599.5, 90.5, 618.5],
+        "rotation": 0,
+        "tooltip": ""
+      },
+      {
+        "actions": { "scripts": { "Validate": ["event.rc = true"] } },
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "dummy__noop", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "14R",
+        "onValue": "A",
+        "page": 0,
+        "rect": [171.5, 599.5, 190.5, 618.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

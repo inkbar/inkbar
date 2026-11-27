@@ -1,0 +1,82 @@
+[
+  {
+    "links": [
+      {
+        "id": "pdf:0:15R",
+        "order": 0,
+        "page": 0,
+        "rect": { "height": 20, "width": 473, "x": 69, "y": 633 },
+        "target": {
+          "dest": { "fit": "xyz", "left": 200, "page": 0, "top": 725, "zoom": 0 },
+          "kind": "resolved"
+        }
+      },
+      {
+        "id": "pdf:0:16R",
+        "order": 1,
+        "page": 0,
+        "rect": { "height": 20, "width": 462, "x": 80, "y": 613 },
+        "target": {
+          "dest": { "fit": "xyz", "left": 200, "page": 1, "top": 725, "zoom": 0 },
+          "kind": "resolved"
+        }
+      },
+      {
+        "id": "pdf:0:17R",
+        "order": 2,
+        "page": 0,
+        "rect": { "height": 15, "width": 130, "x": 66, "y": 529 },
+        "target": {
+          "kind": "url",
+          "newWindow": false,
+          "url": "https://www.adobe.com/content/dam/acom/en/devnet/acrobat/pdfs/pdf_reference_1-7.pdf"
+        }
+      },
+      {
+        "id": "pdf:0:18R",
+        "order": 3,
+        "page": 0,
+        "quads": [
+          {
+            "p1": { "x": 83, "y": 453 },
+            "p2": { "x": 178, "y": 453 },
+            "p3": { "x": 83, "y": 440 },
+            "p4": { "x": 178, "y": 440 }
+          }
+        ],
+        "rect": { "height": 13, "width": 95, "x": 83, "y": 440 },
+        "target": {
+          "kind": "url",
+          "newWindow": false,
+          "url": "https://cs.chromium.org/chromium/src/third_party/pdfium/public/fpdf_text.h"
+        }
+      }
+    ],
+    "page": 1
+  },
+  {
+    "links": [
+      {
+        "id": "pdf:1:15R",
+        "order": 0,
+        "page": 1,
+        "rect": { "height": 20, "width": 473, "x": 69, "y": 633 },
+        "target": {
+          "dest": { "fit": "xyz", "left": 200, "page": 0, "top": 725, "zoom": 0 },
+          "kind": "resolved"
+        }
+      },
+      {
+        "id": "pdf:1:16R",
+        "order": 1,
+        "page": 1,
+        "rect": { "height": 20, "width": 462, "x": 80, "y": 613 },
+        "target": {
+          "dest": { "fit": "xyz", "left": 200, "page": 1, "top": 725, "zoom": 0 },
+          "kind": "resolved"
+        }
+      }
+    ],
+    "page": 2
+  }
+]

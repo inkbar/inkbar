@@ -1,0 +1,18 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "contents": "A note",
+        "hasAppearance": true,
+        "icon": "NoIcon",
+        "id": "8R",
+        "rect": [100, 600, 124, 624],
+        "subtype": "Text"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

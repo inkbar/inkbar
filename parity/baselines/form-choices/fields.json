@@ -1,0 +1,58 @@
+[
+  {
+    "flags": 0,
+    "kind": "list",
+    "name": "size",
+    "options": [
+      { "displayValue": "S", "exportValue": "S" },
+      { "displayValue": "M", "exportValue": "M" },
+      { "displayValue": "L", "exportValue": "L" }
+    ],
+    "value": ["M"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [71.5, 559.5, 192.5, 620.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 2097152,
+    "kind": "list",
+    "name": "colours",
+    "options": [
+      { "displayValue": "red", "exportValue": "red" },
+      { "displayValue": "green", "exportValue": "green" },
+      { "displayValue": "blue", "exportValue": "blue" }
+    ],
+    "value": ["red"],
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [319.5, 559.5, 440.5, 620.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

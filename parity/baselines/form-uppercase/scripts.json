@@ -1,0 +1,23 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "code",
+          "kids": ["9R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Validate": ["event.value = event.value.toUpperCase()"] }
+        },
+        "id": "8R",
+        "name": "code",
+        "widgets": ["9R"]
+      }
+    ]
+  },
+  "pages": []
+}

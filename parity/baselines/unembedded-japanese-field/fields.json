@@ -1,0 +1,25 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "f",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "border": { "style": 1, "width": 0 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F2", "fontSize": 18 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "11R",
+        "page": 0,
+        "rect": [72, 500, 400, 540],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

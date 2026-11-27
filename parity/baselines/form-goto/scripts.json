@@ -1,0 +1,53 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": { "fullName": "explicit", "kids": ["13R"], "page": -1, "rotation": 0 },
+        "id": "12R",
+        "name": "explicit",
+        "widgets": ["13R"]
+      },
+      {
+        "container": { "fullName": "named", "kids": ["18R"], "page": -1, "rotation": 0 },
+        "id": "17R",
+        "name": "named",
+        "widgets": ["18R"]
+      },
+      {
+        "container": { "fullName": "legacy", "kids": ["22R"], "page": -1, "rotation": 0 },
+        "id": "21R",
+        "name": "legacy",
+        "widgets": ["22R"]
+      },
+      {
+        "container": { "fullName": "missing", "kids": ["26R"], "page": -1, "rotation": 0 },
+        "id": "25R",
+        "name": "missing",
+        "widgets": ["26R"]
+      },
+      {
+        "container": { "fullName": "scripted", "kids": ["30R"], "page": -1, "rotation": 0 },
+        "id": "29R",
+        "name": "scripted",
+        "widgets": ["30R"]
+      },
+      {
+        "container": { "fullName": "goto-script", "kids": ["34R"], "page": -1, "rotation": 0 },
+        "id": "33R",
+        "name": "goto-script",
+        "widgets": ["34R"]
+      },
+      {
+        "container": { "fullName": "chain", "kids": ["38R"], "page": -1, "rotation": 0 },
+        "id": "37R",
+        "name": "chain",
+        "widgets": ["38R"]
+      }
+    ]
+  },
+  "pages": []
+}

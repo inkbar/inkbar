@@ -1,0 +1,71 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "score",
+    "value": "",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Validate": ["AFRange_Validate(true, 0, true, 10)"] } },
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [71.5, 599.5, 272.5, 622.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "note",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [71.5, 539.5, 272.5, 562.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 65536,
+    "kind": "button",
+    "name": "clear",
+    "widgets": [
+      {
+        "actions": { "scripts": { "Action": ["this.getField(\"score\").value = \"3\""] } },
+        "at": 2,
+        "backgroundColor": [191, 191, 191],
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 21 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "16R",
+        "page": 0,
+        "rect": [72, 480, 192, 504],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

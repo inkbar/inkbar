@@ -1,0 +1,38 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "hasAppearance": true,
+        "id": "9R",
+        "rect": [71.5, 639.5, 272.5, 662.5],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "hasAppearance": true,
+        "id": "13R",
+        "rect": [71.5, 579.5, 272.5, 602.5],
+        "subtype": "Widget"
+      },
+      {
+        "border": { "width": 1 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helvetica", "fontSize": 17 },
+        "hasAppearance": true,
+        "id": "16R",
+        "rect": [71.5, 519.5, 272.5, 542.5],
+        "subtype": "Widget"
+      }
+    ],
+    "page": 1,
+    "tabOrder": ["16R", "9R"]
+  }
+]

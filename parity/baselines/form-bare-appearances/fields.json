@@ -1,0 +1,52 @@
+[
+  {
+    "defaultValue": "Off",
+    "flags": 0,
+    "kind": "checkbox",
+    "name": "agree",
+    "value": "Off",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "dummy__noop", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "9R",
+        "onValue": "Yes",
+        "page": 0,
+        "rect": [71.5, 599.5, 90.5, 618.5],
+        "rotation": 0,
+        "tooltip": "",
+        "value": "Off"
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "note",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "15R",
+        "page": 0,
+        "rect": [71.5, 539.5, 272.5, 562.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "field-one",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 6,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "9R",
+        "page": 0,
+        "rect": [72, 580, 272, 610],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "field-two",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 7,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 0 },
+        "flags": 4,
+        "hasAppearance": false,
+        "id": "12R",
+        "page": 0,
+        "rect": [72, 400, 272, 430],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

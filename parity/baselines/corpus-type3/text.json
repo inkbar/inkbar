@@ -1,0 +1,53 @@
+[
+  {
+    "items": [
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "",
+        "fontSize": 10.008,
+        "glyphEnds": [1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 27.5, "y": 55.3 },
+          "p2": { "x": 28.2366, "y": 73.716 },
+          "p3": { "x": 17.5, "y": 54.9 },
+          "p4": { "x": 18.2366, "y": 73.316 }
+        },
+        "str": "A"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "",
+        "fontSize": 8,
+        "glyphEnds": [1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 40, "y": 61 },
+          "p2": { "x": 42.88, "y": 61 },
+          "p3": { "x": 40, "y": 53 },
+          "p4": { "x": 42.88, "y": 53 }
+        },
+        "str": "A"
+      },
+      {
+        "advances": [0, 1],
+        "dir": "ltr",
+        "fontName": "",
+        "fontSize": 4,
+        "glyphEnds": [1],
+        "hasEOL": true,
+        "quad": {
+          "p1": { "x": 63, "y": 55 },
+          "p2": { "x": 64.44, "y": 56.44 },
+          "p3": { "x": 59, "y": 55 },
+          "p4": { "x": 60.44, "y": 56.44 }
+        },
+        "str": "A"
+      }
+    ],
+    "page": 1,
+    "text": "A A A"
+  }
+]

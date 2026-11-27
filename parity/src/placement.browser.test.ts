@@ -1,23 +1,26 @@
-// Draws turned pages and regions with both readers and holds them to the suite's measure. The
-// main suite draws whole pages at their own /Rotate only, so a turn or a region placed wrongly by
-// one reader would pass it. Independent of parity.json: every case here must be the same.
+// Draws turned pages and regions of a page, as the loupe draws one, and checks the engine against
+// itself: a region drawn alone must be the same pixels as that area cut from the whole page drawn
+// at the same turn. The baselines hold whole pages at their own /Rotate only, so a turn or a
+// region placed wrongly would pass them.
 import { createPageTransform, normalizeRotation } from '@inkbar/core/dom'
 import { describe, expect, it } from 'vitest'
 
-import { compare, differenceImage, type Comparison } from './compare'
-import { geometryDifference, openWith, PIXELS_PER_POINT } from './draw'
-import { writePng } from './report'
+import { reporting, writePng } from './baselines'
+import { describePixels, differenceImage, pixelDifference } from './differences'
+import { openFixture } from './draw'
 
 import type { InkDocument, PageInfo, Rect } from '@inkbar/core'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 type Turn = 0 | 90 | 180 | 270
 
+/** Pixels per unit the cases are drawn at, so a region's half-point corners fall on whole pixels. */
+const SCALE = 2
+
 /**
  * A rectangle in user space over two lines of each page's text, clear of the page's edges. Its
- * corners are at half points, between whole points but on whole pixels at 2 px per unit, so a
- * reader that misplaces the region by a point or more is caught whatever the turn. A region
- * whose top edge falls between two pixels is the case below that does not match.
+ * corners are at half points, between whole points but on whole pixels at `SCALE`; one case moves
+ * them a quarter point, between two pixels.
  */
 const REGIONS: Record<string, Rect> = {
   // Lines at baselines 676 and 652 from x 72, Helvetica 14.
@@ -29,58 +32,69 @@ const REGIONS: Record<string, Rect> = {
 }
 
 /**
- * CSS pixels per point for each fixture: `PIXELS_PER_POINT` over its /UserUnit, so every page is
- * drawn at 2 px per unit. At /UserUnit 2 and 4 px per point the two readers' Helvetica outlines
- * differ (parity.json records it), which would hide a placement error; the zoom still goes
- * through the user unit, so a reader that drops it is caught.
+ * CSS pixels per point for each fixture: `SCALE` over its /UserUnit, so every page is drawn at
+ * `SCALE` px per unit; the zoom still goes through the user unit, so dropping it is caught.
  */
-const zoomOf = (info: PageInfo) => PIXELS_PER_POINT / info.userUnit
+const zoomOf = (info: PageInfo) => SCALE / info.userUnit
 
 const FIXTURES = Object.keys(REGIONS) as FixtureName[]
 
-/** The whole page's canvas size at `zoomOf(info)`, with `view` added to the page's turn. */
-function pageCanvas(info: PageInfo, view: Turn): { width: number; height: number } {
-  const t = createPageTransform(info, zoomOf(info), view)
-  return { width: Math.round(t.cssWidth), height: Math.round(t.cssHeight) }
-}
-
-/**
- * The canvas a region fills, as the loupe sizes it (`regionCanvasSize` in core's
- * `dom/draw-request.ts`, which core does not export): the region's corners through the page
- * transform at `scale` device pixels per point and total turn `rotation`, rounded, at least 1.
- */
-function regionCanvas(
-  info: PageInfo,
-  region: Rect,
-  scale: number,
-  rotation: Turn
-): { width: number; height: number } {
-  const t = createPageTransform(info, scale, normalizeRotation(rotation - info.rotate))
+/** Where `region` lies on the whole page drawn at `zoom` and view turn `view`, in pixels. */
+function regionBox(info: PageInfo, region: Rect, zoom: number, view: Turn) {
+  const t = createPageTransform(info, zoom, view)
   const a = t.toCss({ x: region.x, y: region.y })
   const b = t.toCss({ x: region.x + region.width, y: region.y + region.height })
   return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    // As the loupe sizes a region's canvas (`regionCanvasSize` in core's
+    // `dom/draw-request.ts`, which core does not export): rounded, at least 1.
     width: Math.max(1, Math.round(Math.abs(b.x - a.x))),
     height: Math.max(1, Math.round(Math.abs(b.y - a.y))),
   }
 }
 
-interface Placement {
-  zoom: number
-  rotation: Turn
-  width: number
-  height: number
+/** Page 0 of `doc` drawn on white at `zoom`, view turn `view` and pixel ratio 1. */
+async function draw(
+  doc: InkDocument,
+  info: PageInfo,
+  zoom: number,
+  view: Turn,
   region?: Rect
-}
-
-/** Page 0 of `doc`, drawn on white as `placement` asks, at pixel ratio 1. */
-async function draw(doc: InkDocument, placement: Placement): Promise<ImageData> {
+): Promise<ImageData> {
+  const t = createPageTransform(info, zoom, view)
+  const size = region
+    ? regionBox(info, region, zoom, view)
+    : { width: Math.round(t.cssWidth), height: Math.round(t.cssHeight) }
   const canvas = document.createElement('canvas')
-  await doc._reader.draw({ page: 0, pixelRatio: 1, hide: [], ...placement }, canvas)
-  expect([canvas.width, canvas.height]).toEqual([placement.width, placement.height])
+  await doc._reader.draw(
+    {
+      page: 0,
+      pixelRatio: 1,
+      hide: [],
+      zoom,
+      rotation: normalizeRotation(info.rotate + view),
+      width: size.width,
+      height: size.height,
+      ...(region && { region }),
+    },
+    canvas
+  )
+  expect([canvas.width, canvas.height]).toEqual([size.width, size.height])
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height)
   canvas.width = canvas.height = 0
   return data
+}
+
+/** The `width` × `height` pixels of `img` from (`x`, `y`). */
+function cut(img: ImageData, x: number, y: number, width: number, height: number) {
+  const out = new ImageData(width, height)
+  for (let row = 0; row < height; row++) {
+    const from = ((y + row) * img.width + x) * 4
+    out.data.set(img.data.subarray(from, from + width * 4), row * width * 4)
+  }
+  return out
 }
 
 /** Share of pixels with any channel under 250. */
@@ -92,128 +106,71 @@ function inked(img: ImageData): number {
   return n / (img.width * img.height)
 }
 
-const describeNumbers = (c: Comparison) =>
-  `${(c.share * 100).toFixed(2)}% of pixels, worst block ${(c.worstBlock * 100).toFixed(0)}%, ` +
-  `longest unmatched run ${c.unmatchedRun} px, flat ${(c.flatShare * 100).toFixed(3)}%`
+/**
+ * Draws `region` of `name`'s first page alone and the whole page, both at view turn `view`, and
+ * gives the region and the same area cut from the page. `shift` moves the region drawn alone.
+ */
+async function regionAndCut(
+  name: FixtureName,
+  view: Turn,
+  region: Rect,
+  shift: Partial<Rect> = {}
+): Promise<{ alone: ImageData; fromPage: ImageData }> {
+  const doc = await openFixture(name)
+  try {
+    const info = await doc._reader.pageInfo(0)
+    const zoom = zoomOf(info)
+    const page = await draw(doc, info, zoom, view)
+    const alone = await draw(doc, info, zoom, view, { ...region, ...shift })
+    const box = regionBox(info, region, zoom, view)
+    const fromPage = cut(
+      page,
+      Math.round(box.x),
+      Math.round(box.y),
+      alone.width,
+      alone.height
+    )
+    return { alone, fromPage }
+  } finally {
+    doc.destroy()
+  }
+}
 
-// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
-// engine with committed results.
-describe.skip.each(FIXTURES)('%s', (name) => {
-  /** Opens both readers, checks they agree on page 0, and hands both and PDF.js's facts on. */
-  async function withBoth(
-    work: (pdfjs: InkDocument, engine: InkDocument, info: PageInfo) => Promise<void>
-  ): Promise<void> {
-    const pdfjs = await openWith(name, 'pdfjs')
-    try {
-      const engine = await openWith(name, 'engine')
-      try {
-        const info = await pdfjs._reader.pageInfo(0)
-        expect(geometryDifference(info, await engine._reader.pageInfo(0))).toEqual([])
-        await work(pdfjs, engine, info)
-      } finally {
-        engine.destroy()
+describe.each(FIXTURES)('%s', (name) => {
+  it.each([0, 90, 270] as const)(
+    'draws a region with the page turned a further %i degrees as the whole page draws it',
+    async (view) => {
+      const { alone, fromPage } = await regionAndCut(name, view, REGIONS[name]!)
+      expect(inked(fromPage), 'the area cut from the page is blank').toBeGreaterThan(0.01)
+      const difference = pixelDifference(fromPage, alone)
+      if (difference.count > 0 && reporting) {
+        const stem = `.report/placement/${name}-turned-${view}`
+        await writePng(`${stem}-page.png`, fromPage)
+        await writePng(`${stem}-region.png`, alone)
+        await writePng(`${stem}-diff.png`, differenceImage(fromPage, alone))
       }
-    } finally {
-      pdfjs.destroy()
-    }
-  }
-
-  /** Draws `placement` with both readers and expects the same drawing, with ink on it. */
-  async function expectSame(
-    pdfjs: InkDocument,
-    engine: InkDocument,
-    placement: Placement,
-    what: string
-  ): Promise<void> {
-    const a = await draw(pdfjs, placement)
-    const b = await draw(engine, placement)
-    expect(inked(a), `${what}: PDF.js draws it blank`).toBeGreaterThan(0.001)
-    const measured = compare(a, b)
-    if (!measured.same) {
-      // Both drawings and their difference, for whoever reads the failure.
-      const file = `.report/placement/${name}-${what.replaceAll(' ', '-')}`
-      await writePng(`${file}-pdfjs.png`, a)
-      await writePng(`${file}-engine.png`, b)
-      await writePng(`${file}-difference.png`, differenceImage(a, b))
-    }
-    expect(measured.same, `${what} differs: ${describeNumbers(measured)}`).toBe(true)
-  }
-
-  it.each([90, 270] as const)(
-    'the whole page turned a further %i degrees is the same in both readers',
-    async (view) => {
-      await withBoth(async (pdfjs, engine, info) => {
-        const rotation = normalizeRotation(info.rotate + view)
-        await expectSame(
-          pdfjs,
-          engine,
-          { zoom: zoomOf(info), rotation, ...pageCanvas(info, view) },
-          `turned ${view}`
-        )
-      })
+      expect(difference.count, describePixels(difference)).toBe(0)
     }
   )
 
-  it.each([0, 90] as const)(
-    'a region with the page turned a further %i degrees is the same in both readers',
-    async (view) => {
-      await withBoth(async (pdfjs, engine, info) => {
-        const region = REGIONS[name]!
-        const zoom = zoomOf(info)
-        const rotation = normalizeRotation(info.rotate + view)
-        const size = regionCanvas(info, region, zoom, rotation)
-        await expectSame(
-          pdfjs,
-          engine,
-          { zoom, rotation, region, ...size },
-          `region turned ${view}`
-        )
-      })
-    }
-  )
-
-  it('the measure sees a region placed 2 pt off', async () => {
-    await withBoth(async (pdfjs, engine, info) => {
-      const region = REGIONS[name]!
-      const zoom = zoomOf(info)
-      const size = regionCanvas(info, region, zoom, info.rotate)
-      const placed = { zoom, rotation: info.rotate, ...size }
-      const a = await draw(pdfjs, { ...placed, region })
-      const b = await draw(engine, { ...placed, region: { ...region, x: region.x + 2 } })
-      expect(compare(a, b).same).toBe(false)
+  // The engine places a page in its bitmap at whole pixels, so a region whose corner falls between
+  // two pixels is drawn as the area cut from the page at the nearest whole pixel, half rounded up.
+  it('draws a region whose corner falls between two pixels as the page does', async () => {
+    const region = REGIONS[name]!
+    const { alone, fromPage } = await regionAndCut(name, 0, {
+      ...region,
+      x: region.x + 0.25,
+      y: region.y - 0.25,
     })
+    const difference = pixelDifference(fromPage, alone)
+    expect(difference.count, describePixels(difference)).toBe(0)
   })
-})
 
-// The engine places a page in its bitmap at whole pixels: the module's render takes the page's
-// offset as integers. PDF.js places it at the exact fraction. A region whose top edge falls half
-// a pixel between two rows is therefore drawn half a pixel apart, and on a region of dense text
-// that is more than the measure allows (about 0.3% of pixels against 0.1%). Across, the same half
-// pixel stays within it. Marked as failing so the day the two match, this test says so.
-// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
-// engine with committed results.
-describe.skip('a region whose top edge falls between two pixels', () => {
-  it.fails('is the same in both readers', async () => {
-    const pdfjs = await openWith('text-simple', 'pdfjs')
-    const engine = await openWith('text-simple', 'engine')
-    try {
-      const info = await pdfjs._reader.pageInfo(0)
-      // The top edge at 690.25 pt is 203.5 px from the top of the page at 2 px per point.
-      const region = { x: 80, y: 640.25, width: 230, height: 50 }
-      const placement = {
-        zoom: PIXELS_PER_POINT,
-        rotation: info.rotate,
-        region,
-        ...regionCanvas(info, region, PIXELS_PER_POINT, info.rotate),
-      }
-      const measured = compare(
-        await draw(pdfjs, placement),
-        await draw(engine, placement)
-      )
-      expect(measured.same, describeNumbers(measured)).toBe(true)
-    } finally {
-      pdfjs.destroy()
-      engine.destroy()
-    }
+  it('tells a region drawn 1 pt off from the area cut from the page', async () => {
+    const region = REGIONS[name]!
+    const { alone, fromPage } = await regionAndCut(name, 0, region, {
+      x: region.x + 1,
+    })
+    expect(pixelDifference(fromPage, alone).count).toBeGreaterThan(0)
   })
 })

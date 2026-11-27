@@ -1,0 +1,46 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "hidden",
+    "value": "SECRET-DELTA",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 2,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "8R",
+        "page": 0,
+        "rect": [130, 160, 230, 185],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "kept",
+    "value": "KEEP-FIELD",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 3,
+        "border": { "style": 1, "width": 0 },
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 10 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [260, 60, 360, 85],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

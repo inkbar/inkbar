@@ -106,6 +106,8 @@ jobs:
       - env:
           PACKAGE: ${{ matrix.package }}
           SHARD: ${{ matrix.shard }}
+          # The parity suite writes what differs from its baselines to parity/.report/.
+          PARITY_REPORT: '1'
         run: |
           if [ -n "$SHARD" ]; then
             pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE" -- --shard="$SHARD/3"

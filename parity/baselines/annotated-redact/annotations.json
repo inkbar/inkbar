@@ -1,0 +1,26 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "7R",
+        "rect": [72, 671, 300, 691],
+        "subtype": "Redact"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "8R",
+        "rect": [72, 600, 200, 640],
+        "subtype": "Redact"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

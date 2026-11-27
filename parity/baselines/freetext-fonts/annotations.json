@@ -1,0 +1,48 @@
+[
+  {
+    "annotations": [
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Font 1",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 12 },
+        "hasAppearance": false,
+        "id": "7R",
+        "rect": [72, 640, 300, 670],
+        "subtype": "FreeText"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Font 2",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "hasAppearance": false,
+        "id": "8R",
+        "rect": [72, 580, 300, 610],
+        "subtype": "FreeText"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Font 3",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F2", "fontSize": 10 },
+        "hasAppearance": false,
+        "id": "9R",
+        "rect": [72, 520, 300, 550],
+        "subtype": "FreeText"
+      },
+      {
+        "author": "",
+        "border": { "width": 1 },
+        "contents": "Font 4",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F3", "fontSize": 10 },
+        "hasAppearance": false,
+        "id": "10R",
+        "rect": [72, 460, 300, 490],
+        "subtype": "FreeText"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

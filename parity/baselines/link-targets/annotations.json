@@ -1,0 +1,314 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "7R",
+        "rect": [300, 750, 420, 766],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "8R",
+        "rect": [300, 729, 420, 745],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "9R",
+        "rect": [300, 708, 420, 724],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "10R",
+        "rect": [300, 687, 420, 703],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "11R",
+        "rect": [300, 666, 420, 682],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "12R",
+        "rect": [300, 645, 420, 661],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "13R",
+        "rect": [300, 624, 420, 640],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "14R",
+        "rect": [300, 603, 420, 619],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "15R",
+        "rect": [300, 582, 420, 598],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "16R",
+        "rect": [300, 561, 420, 577],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "17R",
+        "rect": [300, 540, 420, 556],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "18R",
+        "rect": [300, 519, 420, 535],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "19R",
+        "rect": [300, 498, 420, 514],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "20R",
+        "rect": [300, 477, 420, 493],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "21R",
+        "rect": [300, 456, 420, 472],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "22R",
+        "rect": [300, 435, 420, 451],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "23R",
+        "rect": [300, 414, 420, 430],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "24R",
+        "rect": [300, 393, 420, 409],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "25R",
+        "rect": [300, 372, 420, 388],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "26R",
+        "rect": [300, 351, 420, 367],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "27R",
+        "rect": [300, 330, 420, 346],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "28R",
+        "rect": [300, 309, 420, 325],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "29R",
+        "rect": [300, 288, 420, 304],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "30R1",
+        "rect": [300, 267, 420, 283],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "31R",
+        "rect": [300, 246, 420, 262],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "32R",
+        "rect": [300, 225, 420, 241],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "33R",
+        "rect": [300, 204, 420, 220],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "34R",
+        "rect": [300, 183, 420, 199],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "35R",
+        "rect": [300, 162, 420, 178],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "36R",
+        "rect": [300, 141, 420, 157],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "37R",
+        "rect": [300, 120, 420, 136],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "38R",
+        "rect": [300, 99, 420, 115],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "39R",
+        "rect": [300, 78, 420, 94],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "41R",
+        "rect": [300, 57, 420, 73],
+        "subtype": "Link"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  }
+]

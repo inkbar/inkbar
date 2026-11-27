@@ -23,6 +23,10 @@
       ]
     },
     "test:browser": { "dependsOn": ["^build", "build"] },
+    "@inkbar/parity#test:browser": {
+      "dependsOn": ["^build", "build"],
+      "passThroughEnv": ["PARITY_REPORT"]
+    },
     "generate": { "cache": false }
   }
 }

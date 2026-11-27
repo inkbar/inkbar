@@ -1,0 +1,136 @@
+[
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "15R",
+        "rect": [69, 633, 542, 653],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "16R",
+        "rect": [80, 613, 542, 633],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "17R",
+        "rect": [66, 529, 196, 544],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "18R",
+        "quads": [83, 453, 178, 453, 83, 440, 178, 440],
+        "rect": [83, 440, 178, 453],
+        "subtype": "Link"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [255, 230, 0],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "19R",
+        "opacity": 1,
+        "quads": [293, 542, 349, 542, 293, 530, 349, 530],
+        "rect": [293, 530, 349, 542],
+        "subtype": "Highlight"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [68, 200, 245],
+        "contents": "",
+        "hasAppearance": true,
+        "id": "20R",
+        "opacity": 1,
+        "quads": [83, 453, 178, 453, 83, 440, 178, 440],
+        "rect": [83, 440, 178, 453],
+        "subtype": "Highlight"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [38, 230, 0],
+        "contents": "Text Note",
+        "hasAppearance": true,
+        "id": "22R",
+        "opacity": 1,
+        "quads": [149, 487, 191, 487, 149, 476, 191, 476],
+        "rect": [149, 476, 191, 487],
+        "subtype": "Highlight"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "F1", "fontSize": 12 },
+        "hasAppearance": false,
+        "id": "23R",
+        "rect": [70, 350, 170, 380],
+        "subtype": "Widget"
+      },
+      {
+        "author": "",
+        "border": { "width": 0 },
+        "color": [38, 230, 0],
+        "contents": "Text Note",
+        "created": "",
+        "hasAppearance": false,
+        "id": "21R",
+        "rect": [191, 377, 443, 488],
+        "subtype": "Popup"
+      }
+    ],
+    "page": 1,
+    "tabOrder": []
+  },
+  {
+    "annotations": [
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "15R",
+        "rect": [69, 633, 542, 653],
+        "subtype": "Link"
+      },
+      {
+        "border": { "width": 0 },
+        "color": [0, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "16R",
+        "rect": [80, 613, 542, 633],
+        "subtype": "Link"
+      },
+      {
+        "author": "",
+        "border": { "width": 2 },
+        "color": [255, 0, 0],
+        "contents": "",
+        "hasAppearance": false,
+        "id": "26R",
+        "rect": [50, 100, 60, 120],
+        "subtype": "Square"
+      }
+    ],
+    "page": 2,
+    "tabOrder": []
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "ticker",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 0,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "9R",
+        "page": 0,
+        "rect": [71.5, 599.5, 272.5, 622.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  },
+  {
+    "flags": 0,
+    "kind": "text",
+    "maxLength": 0,
+    "name": "note",
+    "value": "",
+    "widgets": [
+      {
+        "actions": {},
+        "at": 1,
+        "backgroundColor": [255, 255, 255],
+        "border": { "style": 1, "width": 1 },
+        "borderColor": [0, 0, 0],
+        "defaultAppearance": { "color": [0, 0, 0], "fontName": "Helv", "fontSize": 12 },
+        "flags": 4,
+        "hasAppearance": true,
+        "id": "13R",
+        "page": 0,
+        "rect": [71.5, 539.5, 272.5, 562.5],
+        "rotation": 0,
+        "tooltip": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,181 @@
+{
+  "file": {
+    "calculationOrder": ["total", "due"],
+    "calculationOrderIds": ["15R", "72R"],
+    "document": [{ "name": "init", "source": "var formReady = true;" }],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "qty",
+          "kids": ["9R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": ["AFNumber_Format(0, 0, 0, 0, \"\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(0, 0, 0, 0, \"\", true)"]
+          }
+        },
+        "id": "8R",
+        "name": "qty",
+        "widgets": ["9R"]
+      },
+      {
+        "container": {
+          "fullName": "price",
+          "kids": ["13R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "id": "12R",
+        "name": "price",
+        "widgets": ["13R"]
+      },
+      {
+        "container": {
+          "fullName": "total",
+          "kids": ["16R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Calculate": ["AFSimple_Calculate(\"PRD\", new Array(\"qty\", \"price\"))"],
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "id": "15R",
+        "name": "total",
+        "widgets": ["16R"]
+      },
+      {
+        "container": {
+          "fullName": "when",
+          "kids": ["19R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": ["AFDate_FormatEx(\"dd/mm/yyyy\");"],
+            "Keystroke": ["AFDate_KeystrokeEx(\"dd/mm/yyyy\");"]
+          }
+        },
+        "id": "18R",
+        "name": "when",
+        "widgets": ["19R"]
+      },
+      {
+        "container": {
+          "fullName": "age",
+          "kids": ["22R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": { "Validate": ["event.rc = event.value >= 18 && event.value <= 120"] }
+        },
+        "id": "21R",
+        "name": "age",
+        "widgets": ["22R"]
+      },
+      {
+        "container": { "fullName": "more", "kids": ["25R"], "page": -1, "rotation": 0 },
+        "id": "24R",
+        "name": "more",
+        "widgets": ["25R"]
+      },
+      {
+        "container": { "fullName": "extra", "kids": ["31R"], "page": -1, "rotation": 0 },
+        "id": "30R",
+        "name": "extra",
+        "widgets": ["31R"]
+      },
+      {
+        "container": { "fullName": "hello", "kids": ["34R"], "page": -1, "rotation": 0 },
+        "id": "33R",
+        "name": "hello",
+        "widgets": ["34R"]
+      },
+      {
+        "container": { "fullName": "ask", "kids": ["38R"], "page": -1, "rotation": 0 },
+        "id": "37R",
+        "name": "ask",
+        "widgets": ["38R"]
+      },
+      {
+        "container": { "fullName": "submit", "kids": ["42R"], "page": -1, "rotation": 0 },
+        "id": "41R",
+        "name": "submit",
+        "widgets": ["42R"]
+      },
+      {
+        "container": { "fullName": "mail", "kids": ["46R"], "page": -1, "rotation": 0 },
+        "id": "45R",
+        "name": "mail",
+        "widgets": ["46R"]
+      },
+      {
+        "container": { "fullName": "link", "kids": ["50R"], "page": -1, "rotation": 0 },
+        "id": "49R",
+        "name": "link",
+        "widgets": ["50R"]
+      },
+      {
+        "container": { "fullName": "print", "kids": ["54R"], "page": -1, "rotation": 0 },
+        "id": "53R",
+        "name": "print",
+        "widgets": ["54R"]
+      },
+      {
+        "container": { "fullName": "send", "kids": ["58R"], "page": -1, "rotation": 0 },
+        "id": "57R",
+        "name": "send",
+        "widgets": ["58R"]
+      },
+      {
+        "container": { "fullName": "site", "kids": ["62R"], "page": -1, "rotation": 0 },
+        "id": "61R",
+        "name": "site",
+        "widgets": ["62R"]
+      },
+      {
+        "container": { "fullName": "clear", "kids": ["66R"], "page": -1, "rotation": 0 },
+        "id": "65R",
+        "name": "clear",
+        "widgets": ["66R"]
+      },
+      {
+        "container": {
+          "fullName": "discount",
+          "kids": ["70R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": ["AFPercent_Format(1, 0)"],
+            "Keystroke": ["AFPercent_Keystroke(1, 0)"]
+          }
+        },
+        "id": "69R",
+        "name": "discount",
+        "widgets": ["70R"]
+      },
+      {
+        "container": {
+          "fullName": "due",
+          "kids": ["73R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Calculate": [
+              "var total = this.getField(\"total\").value; var off = this.getField(\"discount\").value; event.value = total * (1 - off);"
+            ],
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"£\", true)"]
+          }
+        },
+        "id": "72R",
+        "name": "due",
+        "widgets": ["73R"]
+      }
+    ]
+  },
+  "pages": []
+}

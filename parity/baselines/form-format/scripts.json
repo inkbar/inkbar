@@ -1,0 +1,26 @@
+{
+  "file": {
+    "calculationOrder": [],
+    "calculationOrderIds": [],
+    "document": [],
+    "documentActions": {},
+    "fields": [
+      {
+        "container": {
+          "fullName": "amount",
+          "kids": ["9R"],
+          "page": -1,
+          "rotation": 0,
+          "scripts": {
+            "Format": ["AFNumber_Format(2, 0, 0, 0, \"$\", true)"],
+            "Keystroke": ["AFNumber_Keystroke(2, 0, 0, 0, \"$\", true)"]
+          }
+        },
+        "id": "8R",
+        "name": "amount",
+        "widgets": ["9R"]
+      }
+    ]
+  },
+  "pages": []
+}
