@@ -658,26 +658,29 @@ describe('a text', () => {
     expect(first!.getAttribute('textLength')).toBe('120')
     expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
     // Font and colour are inline style as well, with priority important, so no host rule on
-    // the text restyles it.
-    expect(first!.getAttribute('style')).toBe(
-      [
-        'font-kerning:none',
-        'white-space:pre',
-        `font-family:${FONT_STACKS.Helvetica}`,
-        'font-size:24px',
-        'font-weight:normal',
-        'font-style:normal',
-        'fill:#0a0b0c',
-        'stroke:none',
-        'text-anchor:start',
-        'dominant-baseline:alphabetic',
-        'letter-spacing:0',
-        'word-spacing:0',
-        'text-decoration:none',
-      ]
-        .map((d) => `${d} !important`)
-        .join(';')
-    )
+    // the text restyles it. They are set through the style object, so the same declarations
+    // set on another element serialise the same.
+    const like = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    for (const d of [
+      'font-kerning:none',
+      'white-space:pre',
+      `font-family:${FONT_STACKS.Helvetica}`,
+      'font-size:24px',
+      'font-weight:normal',
+      'font-style:normal',
+      'fill:#0a0b0c',
+      'stroke:none',
+      'text-anchor:start',
+      'dominant-baseline:alphabetic',
+      'letter-spacing:0',
+      'word-spacing:0',
+      'text-decoration:none',
+    ]) {
+      const at = d.indexOf(':')
+      like.style.setProperty(d.slice(0, at), d.slice(at + 1), 'important')
+    }
+    expect(first!.style.cssText).toBe(like.style.cssText)
+    expect(first!.style.getPropertyPriority('white-space')).toBe('important')
     expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))
     const clip = el.querySelector(`clipPath${g.getAttribute('clip-path')!.slice(4, -1)}`)!

@@ -15,11 +15,18 @@ const SVG = 'http://www.w3.org/2000/svg'
 const fmt = (n: number): string => String(Math.round(n * 1000) / 1000 + 0)
 
 /**
- * A style attribute value for `declarations` (`name:value`), each with priority `important`: what
- * a drawing paints is inline style that no host rule, `!important` ones included, can change.
+ * Sets `declarations` (`name:value`) on `el`'s inline style, each with priority `important`: what
+ * a drawing paints is inline style that no host rule, `!important` ones included, can change. It
+ * goes through the style object, not a `style` attribute, which a content security policy without
+ * `'unsafe-inline'` in `style-src` refuses.
  */
-export const importantStyle = (declarations: readonly string[]): string =>
-  declarations.map((d) => `${d} !important`).join(';')
+export function setImportant(el: Element, declarations: readonly string[]): void {
+  const { style } = el as SVGElement
+  for (const d of declarations) {
+    const at = d.indexOf(':')
+    style.setProperty(d.slice(0, at), d.slice(at + 1), 'important')
+  }
+}
 
 /** Class names and data attributes the overlay, its theme and its tests select on. */
 const ROLE_CLASS: Partial<Record<DrawRole, string>> = {
@@ -183,16 +190,13 @@ function paintItem(
       const rule = item.fillRule ?? 'nonzero'
       if (item.fillRule) out.setAttribute('fill-rule', item.fillRule)
       paint(out, item.paint, len)
-      out.setAttribute(
-        'style',
-        `${out.getAttribute('style')};${importantStyle([`fill-rule:${rule}`, `clip-rule:${rule}`])}`
-      )
+      setImportant(out, [`fill-rule:${rule}`, `clip-rule:${rule}`])
       break
     }
     case 'group': {
       out = node('g')
       out.setAttribute('opacity', String(item.opacity))
-      out.setAttribute('style', importantStyle([`opacity:${item.opacity}`]))
+      setImportant(out, [`opacity:${item.opacity}`])
       for (const child of item.items)
         out.append(paintItem(doc, child, t, origin, at, len))
       break
@@ -281,24 +285,21 @@ function paintText(
     text.setAttribute('font-weight', weight)
     text.setAttribute('font-style', slant)
     text.setAttribute('fill', item.color)
-    text.setAttribute(
-      'style',
-      importantStyle([
-        'font-kerning:none',
-        'white-space:pre',
-        `font-family:${stack}`,
-        `font-size:${fmt(size)}px`,
-        `font-weight:${weight}`,
-        `font-style:${slant}`,
-        `fill:${item.color}`,
-        'stroke:none',
-        'text-anchor:start',
-        'dominant-baseline:alphabetic',
-        'letter-spacing:0',
-        'word-spacing:0',
-        'text-decoration:none',
-      ])
-    )
+    setImportant(text, [
+      'font-kerning:none',
+      'white-space:pre',
+      `font-family:${stack}`,
+      `font-size:${fmt(size)}px`,
+      `font-weight:${weight}`,
+      `font-style:${slant}`,
+      `fill:${item.color}`,
+      'stroke:none',
+      'text-anchor:start',
+      'dominant-baseline:alphabetic',
+      'letter-spacing:0',
+      'word-spacing:0',
+      'text-decoration:none',
+    ])
     text.setAttribute('pointer-events', 'none')
     if (turn !== 0)
       text.setAttribute('transform', `rotate(${turn} ${fmt(p.x)} ${fmt(p.y)})`)
@@ -332,15 +333,12 @@ function paintText(
       set(rule, { x1: from.x, y1: from.y, x2: to.x, y2: to.y })
       rule.setAttribute('stroke', item.color)
       rule.setAttribute('stroke-width', fmt(len(line.underline.thickness)))
-      rule.setAttribute(
-        'style',
-        importantStyle([
-          `stroke:${item.color}`,
-          `stroke-width:${fmt(len(line.underline.thickness))}px`,
-          'stroke-dasharray:none',
-          'stroke-linecap:butt',
-        ])
-      )
+      setImportant(rule, [
+        `stroke:${item.color}`,
+        `stroke-width:${fmt(len(line.underline.thickness))}px`,
+        'stroke-dasharray:none',
+        'stroke-linecap:butt',
+      ])
       rule.setAttribute('pointer-events', 'none')
       guard(rule, 'underline')
       group.append(rule)
@@ -490,18 +488,15 @@ function paint(el: Element, p: Paint, len: (n: number) => number): void {
     if (s.join) el.setAttribute('stroke-linejoin', s.join)
     if (s.cap) el.setAttribute('stroke-linecap', s.cap)
   }
-  el.setAttribute(
-    'style',
-    importantStyle([
-      `fill:${p.fill?.color ?? 'none'}`,
-      `fill-opacity:${p.fill?.opacity ?? 1}`,
-      `stroke:${s?.color ?? 'none'}`,
-      ...(s ? [`stroke-width:${len(s.width)}px`] : []),
-      `stroke-dasharray:${dashes ?? 'none'}`,
-      `stroke-linejoin:${s?.join ?? 'miter'}`,
-      `stroke-linecap:${s?.cap ?? 'butt'}`,
-    ])
-  )
+  setImportant(el, [
+    `fill:${p.fill?.color ?? 'none'}`,
+    `fill-opacity:${p.fill?.opacity ?? 1}`,
+    `stroke:${s?.color ?? 'none'}`,
+    ...(s ? [`stroke-width:${len(s.width)}px`] : []),
+    `stroke-dasharray:${dashes ?? 'none'}`,
+    `stroke-linejoin:${s?.join ?? 'miter'}`,
+    `stroke-linecap:${s?.cap ?? 'butt'}`,
+  ])
 }
 
 function pathData(
