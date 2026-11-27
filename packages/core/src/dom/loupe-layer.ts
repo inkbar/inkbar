@@ -210,13 +210,18 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     }, LOUPE_RENDER_DELAY)
   }
 
-  // File annotations lifted into the session leave the magnified page too: render each lens
-  // again, at once.
-  const stopLifted = opts.document._lifted.subscribe(() => {
+  /** Renders each lens again, at once. */
+  const renderAll = (): void => {
     for (const lens of lenses.values()) {
       lens.key = undefined
       if (lens.last) attach(lens.last.el, lens.last.a, lens.last.t, lens.last.hidden)
     }
+  }
+  // File annotations lifted into the session leave the magnified page too.
+  const stopLifted = opts.document._lifted.subscribe(renderAll)
+  // A document that has stopped reading and starts again: a lens drawn meanwhile failed.
+  const stopRestart = opts.document.engineStopped.subscribe((stopped) => {
+    if (!stopped) renderAll()
   })
 
   return {
@@ -232,6 +237,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
       if (destroyed) return
       destroyed = true
       stopLifted()
+      stopRestart()
       dprWatch?.destroy()
       for (const lens of lenses.values()) {
         stop(lens)

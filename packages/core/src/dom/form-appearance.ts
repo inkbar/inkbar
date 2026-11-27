@@ -571,6 +571,19 @@ export function createWidgetAppearances(
     }
   }
 
+  // A document that has stopped reading and starts again: the looks that failed meanwhile, which
+  // wait for a new geometry, are drawn again now.
+  const stopRestart = opts.document.engineStopped.subscribe((stopped) => {
+    if (stopped || destroyed) return
+    for (const item of items.values()) {
+      for (const slot of item.slots.values()) {
+        slot.failedKey = undefined
+        slot.failures = 0
+      }
+      ensure(item)
+    }
+  })
+
   // Draw again when the device pixel ratio changes, unless the caller fixed it.
   const dprWatch =
     opts.devicePixelRatio === undefined
@@ -626,6 +639,7 @@ export function createWidgetAppearances(
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopRestart()
       dprWatch?.destroy()
       idleHandle?.()
       idleHandle = undefined

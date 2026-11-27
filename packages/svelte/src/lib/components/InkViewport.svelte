@@ -209,6 +209,8 @@
         signRequest = signRequest?.widget === req.widget ? null : req
       },
       onAction: (a) => ctx.reportAction(a),
+      // The document stopped reading: once per stop, as the root's `onError`.
+      onError: (error) => ctx.reportError(error),
       onFormAlert: (message) => {
         alert = { message, shown: (alert?.shown ?? 0) + 1 }
       },

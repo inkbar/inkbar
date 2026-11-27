@@ -20,6 +20,7 @@ import {
 } from '../model/signatures'
 import { createMemoryStorage, type InkStorage } from '../model/storage'
 
+import { createEngineNotice, editingPaused } from './engine-notice'
 import { hasControl, type SignFieldRequest } from './form-layer'
 import { pageStopOrder } from './form-order'
 import {
@@ -193,9 +194,15 @@ export interface MountViewerOptions {
    * `error` when a page's canvas or text layer fails; `null` once every failed layer recovers.
    * Unmounting a failed page does not emit `null`: hosts that track errors by page must clear
    * them in `onPageUnmount`. Same ordering rule as `onPageMount`: do not read `engine.viewport`
-   * or `engine.tools`.
+   * or `engine.tools`. While the document has stopped reading (`document.engineStopped`) a page
+   * that cannot draw reports nothing: the notice over the pages is the one message.
    */
   onPageError?(page: number, error: InkError | null): void
+  /**
+   * The document stopped reading (`document.engineStopped`): `EngineUnavailable`, once per stop.
+   * Meanwhile a notice over the pages offers to start it again, and annotating pauses.
+   */
+  onError?(error: InkError): void
 }
 
 export interface ViewerEngine {
@@ -323,7 +330,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       field.setAttribute('aria-label', m.annotations.freetext)
   })
   // While the document's marks are applied the pages take no input: an edit made meanwhile
-  // would not reach the redacted file.
+  // would not reach the redacted file. Nor while it has stopped reading, until it starts again.
+  const paused = editingPaused(doc)
   const applying = redactionBusy(doc)
   // Meanwhile a polite live region beside the pages says so: inert content is not read out.
   const applyingStatus = el.ownerDocument.createElement('div')
@@ -335,12 +343,17 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     const said = applying.get() ? messages.get().messages.viewer.redacting : ''
     if (applyingStatus.textContent !== said) applyingStatus.textContent = said
   }
-  const stopApplying = applying.subscribe((on) => {
-    el.toggleAttribute('inert', on)
-    sayApplying()
-  })
+  const stopApplying = applying.subscribe(sayApplying)
+  const stopPaused = paused.subscribe((on) => el.toggleAttribute('inert', on))
   const stopApplyingWords = messages.subscribe(sayApplying)
-  el.toggleAttribute('inert', applying.get())
+  el.toggleAttribute('inert', paused.get())
+  // Subscribed after the pause, so the pages take input again before the notice goes.
+  const notice = createEngineNotice({
+    container: el,
+    document: doc,
+    messages,
+    onError: (error) => opts.onError?.(error),
+  })
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -412,6 +425,14 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
+        // The document has stopped reading: the notice says so, and the page keeps what it
+        // has drawn until it starts again.
+        if (
+          isInkError(cause) &&
+          cause.code === 'EngineUnavailable' &&
+          doc.engineStopped.get()
+        )
+          return
         failed.add(layer)
         // The first failure wins: a canvas and a text layer failing together report once.
         if (error) return
@@ -922,7 +943,9 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       destroyed = true
       stopEditorNames()
       stopApplying()
+      stopPaused()
       stopApplyingWords()
+      notice.destroy()
       applyingStatus.remove()
       el.removeAttribute('inert')
       teardown()

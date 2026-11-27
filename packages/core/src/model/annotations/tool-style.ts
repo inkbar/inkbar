@@ -6,7 +6,7 @@
 // `set` writes through the store, so in controlled mode every change is proposed to the host's
 // `onChange` and nothing is applied before the host applies it.
 import { writable, type Readable, type Writable } from '../readable'
-import { redactionApplying } from '../redaction/busy'
+import { sessionPaused } from '../redaction/busy'
 
 import { freeTextBox } from './callout'
 import { hasCallout, withBox } from './edit'
@@ -327,9 +327,9 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
       if (changed) groupStore(g).set(next)
     }
     if (!(opts.apply ?? (active === undefined || selectedIn(active) !== null))) return
-    // While the document's redaction marks are applied the session takes no edits: the tool's
-    // own style above still changes.
-    if (redactionApplying(store).get()) return
+    // While the document's redaction marks are applied, or it has stopped reading, the session
+    // takes no edits: the tool's own style above still changes.
+    if (sessionPaused(store)) return
     const edits = items
       .filter((a) => !a.locked && !store._isPinned(a.id))
       .map((a) => ({ id: a.id, fields: refit(a, toFields(a.type, patch)) }))

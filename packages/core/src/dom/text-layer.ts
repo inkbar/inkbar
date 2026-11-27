@@ -139,14 +139,16 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
   }
 
   let ready: Promise<void> = mount(opts.transform).catch(report)
+  let latest = opts.transform
 
-  return {
+  const api: TextLayerHandle = {
     element: el,
     get ready() {
       return ready
     },
     update(transform) {
       if (abort.signal.aborted) return
+      latest = transform
       ready = ready
         .then(async () => {
           if (abort.signal.aborted) return
@@ -171,7 +173,14 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     destroy() {
       if (abort.signal.aborted) return
       abort.abort()
+      stopRestart()
       el.remove()
     },
   }
+  // A document that has stopped reading and starts again: a mount that failed meanwhile is
+  // tried again (`update` does that), so the page's text comes back with its pixels.
+  const stopRestart = doc.engineStopped.subscribe((stopped) => {
+    if (!stopped && !spans && !mounted) api.update(latest)
+  })
+  return api
 }

@@ -54,6 +54,7 @@ describe('@inkbar/core/dom entry', () => {
         'runRedaction',
         'canRedact',
         'redactionBusy',
+        'editingPaused',
         'redactionFailure',
         'applyRedactionsFlow',
         'redactionDoneMessage',

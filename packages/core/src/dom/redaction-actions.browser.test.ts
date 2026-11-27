@@ -170,9 +170,10 @@ describe('runRedaction', () => {
       expect(confirm).not.toHaveBeenCalled()
       expect(error).toMatchObject({ code: 'EngineUnavailable' })
       expect(redactionBusy(doc).get()).toBe(false)
+      // Worded as a stopped document's is: the control is disabled without an engine anyway.
       expect(redactionFailure(error, en)).toMatchObject({
         error,
-        message: en.viewer.redactFailed,
+        message: en.viewer.redactUnavailable,
       })
     }
   )
@@ -192,7 +193,7 @@ describe('runRedaction', () => {
     )
     expect(redactionFailure(unavailable, en)).toMatchObject({
       error: unavailable,
-      message: en.viewer.redactFailed,
+      message: en.viewer.redactUnavailable,
     })
     expect(
       redactionFailure(new InkError('DocumentDestroyed', 'gone'), en)

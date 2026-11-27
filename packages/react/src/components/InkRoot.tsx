@@ -27,7 +27,7 @@ import {
   lockedStatus,
   MIN_DOCUMENT_WIDTH,
   pageSelectionText,
-  redactionBusy,
+  editingPaused,
   redactionDoneMessage,
   savePictures,
   SIGNATURE_FONTS,
@@ -431,9 +431,10 @@ export function InkRoot({
   }))
   const setActivated = useCallback(
     (id: string | null) => {
-      // While the marks are applied no thread opens: a reply written then would be lost.
+      // While the marks are applied, or the document has stopped reading, no thread opens: a reply
+      // written then would be lost.
       const doc = documentRef.current
-      if (id !== null && doc && redactionBusy(doc).get()) return
+      if (id !== null && doc && editingPaused(doc).get()) return
       setActivatedState(id)
       plugins.activated.set(id)
       if (id) latest.current.onActivate?.(id)
@@ -1072,29 +1073,33 @@ export function InkRoot({
     [keptViews]
   )
 
-  /** Whether the open document's redaction marks are being applied: nothing may edit it. */
-  const redacting = useReadable(document ? redactionBusy(document) : undefined, false)
+  /**
+   * Whether the open document takes no edits: its redaction marks are being applied, or it has
+   * stopped reading (`editingPaused`).
+   */
+  const paused = useReadable(document ? editingPaused(document) : undefined, false)
   useEffect(() => {
-    if (redacting) setActivated(null)
-  }, [redacting, setActivated])
+    if (paused) setActivated(null)
+  }, [paused, setActivated])
   const snapCanUndo = useReadable(snapshotHistory.canUndo, false)
   const snapCanRedo = useReadable(snapshotHistory.canRedo, false)
   const coreCanUndo = useReadable(document?.history.canUndo, false)
   const coreCanRedo = useReadable(document?.history.canRedo, false)
   const inkHistory = useMemo<InkHistory>(
     () => ({
-      // While the marks are applied the history stays still, as Undo and Redo show.
-      canUndo: !redacting && (controlled ? historyEnabled && snapCanUndo : coreCanUndo),
-      canRedo: !redacting && (controlled ? historyEnabled && snapCanRedo : coreCanRedo),
+      // While the marks are applied, or the document has stopped reading, the history stays still,
+      // as Undo and Redo show.
+      canUndo: !paused && (controlled ? historyEnabled && snapCanUndo : coreCanUndo),
+      canRedo: !paused && (controlled ? historyEnabled && snapCanRedo : coreCanRedo),
       undo: () => {
         const doc = documentRef.current
-        if (doc && redactionBusy(doc).get()) return
+        if (doc && editingPaused(doc).get()) return
         if (controlled) snapshotHistory.undo()
         else doc?.history.undo()
       },
       redo: () => {
         const doc = documentRef.current
-        if (doc && redactionBusy(doc).get()) return
+        if (doc && editingPaused(doc).get()) return
         if (controlled) snapshotHistory.redo()
         else doc?.history.redo()
       },
@@ -1110,7 +1115,7 @@ export function InkRoot({
     }),
     [
       controlled,
-      redacting,
+      paused,
       historyEnabled,
       snapCanUndo,
       snapCanRedo,
@@ -1131,7 +1136,7 @@ export function InkRoot({
     // React renders again, and a stale `canUndo` would prevent a key that undoes nothing.
     const stopKeys = attachHistoryKeys(rootEl, () => {
       const doc = documentRef.current
-      if (!doc || redactionBusy(doc).get()) return null
+      if (!doc || editingPaused(doc).get()) return null
       const snap = doc.annotations.mode === 'controlled'
       const on = latest.current.historyEnabled
       return {

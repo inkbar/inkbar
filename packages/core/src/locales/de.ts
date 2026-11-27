@@ -16,6 +16,10 @@ export const de: InkMessages = {
     saveUnavailable:
       'Speichern ist gerade nicht möglich. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
     preparingFile: 'Ihre Datei wird vorbereitet…',
+    engineStopped:
+      'Die Dokumentanzeige funktioniert nicht mehr. Ihre Änderungen bleiben erhalten.',
+    engineRetry: 'Erneut versuchen',
+    engineRestarting: 'Wird neu gestartet…',
     applyRedactions: 'Schwärzungen anwenden',
     redactTitle: 'Schwärzungen anwenden?',
     redactSummary: plurals(

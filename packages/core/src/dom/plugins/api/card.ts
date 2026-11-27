@@ -6,11 +6,12 @@
  * previous one, else the viewport. Escape or a press outside closes it and focus goes back to
  * the mark. An open card re-renders when the viewer's messages change, so label functions in
  * its spec read the host's language again; when nothing it shows changes, it is left alone.
- * While the document's redaction marks are applied the card is closed and does not open.
+ * While the document takes no edits (its redaction marks are applied, or it has stopped reading)
+ * the card is closed and does not open.
  */
 import { resolveLabel, type Label } from '../../../messages'
+import { editingPaused } from '../../engine-notice'
 import { createFocusReturn } from '../../popover-focus'
-import { redactionBusy } from '../../redaction-actions'
 import { createPopover, type Popover } from '../../viewer/popover'
 import { hostInternalsOf } from '../host'
 
@@ -235,9 +236,9 @@ export function createCard<T extends RecordBase>(
 
   ctx.onDocument((doc) => {
     opened = doc
-    // While the document's redaction marks are applied no card is open: an action run then
-    // would not reach the redacted file.
-    const stopBusy = redactionBusy(doc).subscribe((on) => {
+    // While the document takes no edits no card is open: an action run then would not reach the
+    // redacted file, or would edit a document that has stopped reading.
+    const stopBusy = editingPaused(doc).subscribe((on) => {
       if (on && shown !== null) close()
     })
     const refresh = (ifChanged: boolean) => {
@@ -266,7 +267,7 @@ export function createCard<T extends RecordBase>(
   return {
     open(record, mark) {
       const viewer = mark.closest<HTMLElement>('[data-ink-root]')
-      if (!viewer || (opened && redactionBusy(opened).get())) return
+      if (!viewer || (opened && editingPaused(opened).get())) return
       if (viewer !== root) {
         popover?.destroy()
         root = viewer

@@ -14,6 +14,9 @@ export const en: InkMessages = {
     saveUnavailable:
       'Saving is not available right now. Check your connection and try again.',
     preparingFile: 'Preparing your file…',
+    engineStopped: 'The viewer stopped working. Your changes are kept.',
+    engineRetry: 'Try again',
+    engineRestarting: 'Starting again…',
     applyRedactions: 'Apply redactions',
     redactTitle: 'Apply redactions?',
     redactSummary: plurals('en', 'This removes the content under {marks} on {pages}.', {
