@@ -1,6 +1,6 @@
 // Writes a document through @inkbar/engine, with an engine lent for each write: the one the
-// document's reader holds, or one started for the write while the reader has stopped. Nothing here imports the engine or names its types: some of this
-// module's types are public.
+// document's reader holds, or one started for the write while the reader has stopped. Nothing here
+// imports the engine or names its types: some of this module's types are public.
 import { InkError, isInkError } from '../errors'
 
 import { AnnotationUnwritable } from './write-input'
@@ -146,6 +146,12 @@ export interface BorrowedEngine {
    * happened. An engine started for the one write is destroyed here.
    */
   done?(): Promise<void>
+  /**
+   * The error a write that failed on this engine rejects with, given the one it failed with,
+   * once its document is closed and the holder told of any stop. Its holder decides, as it is
+   * the one that knows what became of the engine. Without it, the write rejects with that error.
+   */
+  failed?(error: unknown): unknown
 }
 
 export interface SaverOptions {
@@ -175,13 +181,13 @@ export interface Saver {
    */
   write(key: string, input: () => Promise<SaveInput>): Promise<Uint8Array>
   /**
-   * Applies `input()` to the file as opened, saves it and checks the saved bytes under
-   * `regions` followed by the regions of the earlier marks the engine applied, in the same turn
-   * as writes, so it never overlaps one. Resolves with the regions it checked, in that order. Rejects with
-   * `RedactionFailed` when the engine cannot apply or write the input, or cannot check the
-   * bytes, and with `DocumentDestroyed` once destroyed. `details.stage` says which: `'apply'`
-   * or `'verify'`; `details.page` and `details.annotation` name
-   * the page and the annotation when the engine named one.
+   * Applies `input()` to the file as opened, saves it and checks the saved bytes under `regions`
+   * followed by the regions of the earlier marks the engine applied, in the same turn as writes, so
+   * it never overlaps one. Resolves with the regions it checked, in that order. Rejects with
+   * `RedactionFailed` when the engine cannot apply or write the input, or cannot check the bytes,
+   * and with `DocumentDestroyed` once destroyed. `details.stage` says which: `'apply'` or
+   * `'verify'`; `details.page` and `details.annotation` name the page and the annotation when the
+   * engine named one.
    */
   redact(
     input: () => Promise<RedactSaveInput>,
@@ -385,7 +391,7 @@ export function createSaver(options: SaverOptions): Saver {
    * stopped the engine is told to its holder at once, before the close joins the engine's queue
    * behind reads that would find the engine stopped first, and the write rejects only once the
    * holder knows, so the next write is not lent a stopped engine. It rejects with the error the
-   * holder answers with, when it gives one.
+   * holder answers with, when it gives one, as the holder's `failed` has it.
    */
   const withDocument = async <T>(
     work: (doc: SaveEngineDocument, engine: SaveEngine) => Promise<T>
@@ -403,7 +409,8 @@ export function createSaver(options: SaverOptions): Saver {
     } catch (error) {
       const told = stoppedBy(error) ? lent.stopped() : undefined
       await giveBack(lent, doc)
-      throw (await told) ?? error
+      const failure = (await told) ?? error
+      throw lent.failed ? lent.failed(failure) : failure
     }
   }
 

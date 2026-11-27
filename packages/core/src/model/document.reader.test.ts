@@ -1,3 +1,4 @@
+import { EngineError } from '@inkbar/engine'
 import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -505,6 +506,18 @@ describe('a document whose engine is stopped', () => {
     doc.destroy()
   })
 
+  it("writes with the reader's engine while it reads, starting none", async () => {
+    const { held, doc } = await openHeld()
+    const engines = held.engines.length
+    square(doc)
+    await doc.save()
+    mark(doc)
+    await doc.applyRedactions()
+    expect(held.engines).toHaveLength(engines)
+    expect(held.engines.at(-1)).toMatchObject({ stopped: false, destroyed: false })
+    doc.destroy()
+  })
+
   describe('writes while it is stopped', () => {
     /** text-simple, stopped, with engines able to start again. */
     const openStopped = async () => {
@@ -612,7 +625,96 @@ describe('a document whose engine is stopped', () => {
       doc.destroy()
     })
 
-    it('rejects with DocumentDestroyed when destroyed during the write, and destroys the engine', async () => {
+    type Call = (...args: unknown[]) => unknown
+
+    /**
+     * text-simple, read by real engines that `held` counts, with hooks into each engine started.
+     * While `hooks.refuse` is true no engine starts. `holdStart()` holds the next engine's start
+     * until the function it returns is called. `gate(method)` holds the next `write` or `redact`
+     * until the function it returns is called; `reached(method)` says whether one waits there.
+     * An engine started while `hooks.failWrites` is true fails every write as a file it cannot
+     * write into. `destroys[i]` counts the destroys of the engine `held.engines[i]`.
+     */
+    const openHooked = async () => {
+      vi.stubGlobal('ImageData', FakeImageData)
+      const held = heldEngines()
+      const destroys: number[] = []
+      const gates = new Map<string, { at: Promise<void>; reached: boolean }>()
+      const hooks = {
+        refuse: false,
+        failWrites: false,
+        starting: false,
+        startHeld: undefined as Promise<void> | undefined,
+      }
+      setEngineFactory(async () => {
+        const wait = hooks.startHeld
+        hooks.startHeld = undefined
+        hooks.starting = true
+        if (wait) await wait
+        if (hooks.refuse) throw new Error('no engine')
+        const failWrites = hooks.failWrites
+        const engine = await held.factory()
+        const index = held.engines.length - 1
+        destroys[index] = 0
+        return new Proxy(engine, {
+          get(target, key, receiver) {
+            const value = Reflect.get(target, key, receiver) as unknown
+            if (key === 'destroy')
+              return () => {
+                destroys[index]!++
+                return (value as Call)()
+              }
+            if (key !== 'open') return value
+            return async (...args: unknown[]) => {
+              const opened = (await (value as Call)(...args)) as object
+              return new Proxy(opened, {
+                get(d, name, r) {
+                  const member = Reflect.get(d, name, r) as unknown
+                  if (name !== 'write' && name !== 'redact') return member
+                  return async (...a: unknown[]) => {
+                    const gate = gates.get(name)
+                    if (gate) {
+                      gates.delete(name)
+                      gate.reached = true
+                      await gate.at
+                    }
+                    if (failWrites && name === 'write')
+                      throw new EngineError('write-failed', 'The file cannot take it')
+                    return (member as Call)(...a)
+                  }
+                },
+              })
+            }
+          },
+        })
+      })
+      const doc = await openDocument((await fixtureBytes('text-simple')).slice(), {
+        assets: nodeAssets(),
+      })
+      await doc.ready
+      const holdStart = () => {
+        let release!: () => void
+        hooks.starting = false
+        hooks.startHeld = new Promise<void>((resolve) => (release = resolve))
+        return release
+      }
+      const gate = (name: 'write' | 'redact') => {
+        let release!: () => void
+        const at = new Promise<void>((resolve) => (release = resolve))
+        gates.set(name, { at, reached: false })
+        const entry = gates.get(name)!
+        return { release, reached: () => entry.reached }
+      }
+      /** Stops the reader under a draw, no engine able to start, then lets engines start. */
+      const stop = async () => {
+        hooks.refuse = true
+        await stopEngine(held, doc)
+        hooks.refuse = false
+      }
+      return { held, doc, hooks, destroys, holdStart, gate, stop }
+    }
+
+    it('rejects with DocumentDestroyed when destroyed before the write opens the file, and destroys the engine', async () => {
       const { held, doc } = await openStopped()
       const engines = held.engines.length
       let release!: () => void
@@ -638,6 +740,106 @@ describe('a document whose engine is stopped', () => {
       release()
       await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
       await vi.waitFor(() => expect(held.engines.at(-1)!.destroyed).toBe(true))
+    })
+
+    it('rejects with DocumentDestroyed when destroyed during the write, and destroys the engine once', async () => {
+      const { held, doc, destroys, gate, stop } = await openHooked()
+      await stop()
+      const engines = held.engines.length
+      const writing = gate('write')
+      square(doc)
+      const saving = doc.save()
+      await vi.waitFor(() => expect(writing.reached()).toBe(true))
+      doc.destroy()
+      writing.release()
+      await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+      expect(held.engines).toHaveLength(engines + 1)
+      expect(held.engines.at(-1)!.destroyed).toBe(true)
+      expect(destroys.at(-1)).toBe(1)
+    })
+
+    it('rejects with DocumentDestroyed when destroyed while the engine starts, and destroys the engine once', async () => {
+      const { held, doc, hooks, destroys, holdStart, stop } = await openHooked()
+      await stop()
+      const engines = held.engines.length
+      const start = holdStart()
+      square(doc)
+      const saving = doc.save()
+      await vi.waitFor(() => expect(hooks.starting).toBe(true))
+      doc.destroy()
+      start()
+      await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+      await vi.waitFor(() => expect(held.engines).toHaveLength(engines + 1))
+      await vi.waitFor(() => expect(held.engines.at(-1)!.destroyed).toBe(true))
+      expect(held.engines.at(-1)!.opened).toBe(0)
+      expect(destroys.at(-1)).toBe(1)
+    })
+
+    it('fails as the engine it ran on says: called while reading, run once stopped, the file refuses it', async () => {
+      const { doc, hooks, gate, stop } = await openHooked()
+      // An apply holds the reader's engine while a save waits its turn behind it.
+      mark(doc)
+      const applying = gate('redact')
+      const applied = doc.applyRedactions()
+      await vi.waitFor(() => expect(applying.reached()).toBe(true))
+      square(doc)
+      const saving = doc.save()
+      await stop()
+      hooks.failWrites = true
+      applying.release()
+      await expect(applied).rejects.toMatchObject(unavailable)
+      await expect(saving).rejects.toMatchObject({
+        code: 'SaveFailed',
+        details: { stage: 'write' },
+      })
+      expect(doc.engineStopped.get()).toBe(true)
+      doc.destroy()
+    })
+
+    it('fails as the engine it ran on says: called while stopped, run once restarted, its stop stops the reader', async () => {
+      const { held, doc, hooks, holdStart, stop } = await openHooked()
+      await stop()
+      // An apply holds the turn on an engine of its own, still starting, while a save waits.
+      mark(doc)
+      const start = holdStart()
+      const applied = doc.applyRedactions()
+      await vi.waitFor(() => expect(hooks.starting).toBe(true))
+      square(doc)
+      const saving = doc.save()
+      await doc.restartEngine()
+      expect(doc.engineStopped.get()).toBe(false)
+      // Two stops by reads; the save's write is the third within 60 seconds.
+      for (const page of [1, 2]) {
+        held.stopOnNext('pageText')
+        await doc.text(page)
+      }
+      expect(doc.engineStopped.get()).toBe(false)
+      held.stopOnNext('write')
+      start()
+      await expect(applied).resolves.toMatchObject({ result: { marks: 1 } })
+      await expect(saving).rejects.toMatchObject(unavailable)
+      expect(doc.engineStopped.get()).toBe(true)
+      doc.destroy()
+    })
+
+    it('gives callers of one write the same failure, whichever side of the stop they called from', async () => {
+      const { doc, hooks, gate, stop } = await openHooked()
+      mark(doc)
+      const applying = gate('redact')
+      const applied = doc.applyRedactions()
+      await vi.waitFor(() => expect(applying.reached()).toBe(true))
+      square(doc)
+      const reading = doc.save()
+      await stop()
+      const stopped = doc.save()
+      hooks.failWrites = true
+      applying.release()
+      await applied.catch(() => undefined)
+      const codes = await Promise.all(
+        [reading, stopped].map((s) => s.catch((e: { code: string }) => e.code))
+      )
+      expect(codes).toEqual(['SaveFailed', 'SaveFailed'])
+      doc.destroy()
     })
 
     it('starts no engine for a second save of the same changes', async () => {
