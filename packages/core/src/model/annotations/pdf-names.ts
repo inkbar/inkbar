@@ -1,3 +1,5 @@
+// Before any schema is built.
+import '../schema-config'
 import { PDF_NAME } from 'gloss-format'
 import { z } from 'zod'
 

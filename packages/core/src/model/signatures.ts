@@ -3,6 +3,8 @@
 // `SignatureStore`; core ships a memory store as a convenience.
 //
 // These are visual signatures, a mark on the page. Nothing here signs the file.
+// Before any schema is built.
+import './schema-config'
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
 

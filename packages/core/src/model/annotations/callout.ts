@@ -1,6 +1,8 @@
 // Free-text callouts as PDF and XFDF store them: `rect` holds box and leader line together,
 // `fringe` insets it to the text box, `callout` runs from the tip to the box and `head` is the
 // ending at the tip.
+// Before any schema is built.
+import '../schema-config'
 import { Fringe as GlossFringe } from 'gloss-format'
 import { z } from 'zod'
 

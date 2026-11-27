@@ -11,7 +11,10 @@
   },
   "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/model/schema-config.ts",
+    "./dist/schema-config-*.mjs"
+  ],
   "files": [
     "dist",
     "licences",
