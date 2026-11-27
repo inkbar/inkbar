@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { loadPdfjs } from '../pdfjs/load'
-import { pdfjsAssets } from '../test-support/pdfjs-reader'
+import { sandboxLoader } from '../pdfjs/sandbox'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false }))
 
-// The factory only runs when something actually imports PDF.js.
-vi.mock('#pdfjs', () => {
+// The factory only runs when something actually imports PDF.js's scripting sandbox, the one part
+// of PDF.js core loads.
+vi.mock('#pdfjs-sandbox', () => {
   evaluated.pdfjs = true
-  return { GlobalWorkerOptions: {} }
+  return { QuickJSSandbox: () => undefined }
 })
 
 describe('@inkbar/core/dom entry', () => {
@@ -63,8 +63,8 @@ describe('@inkbar/core/dom entry', () => {
       ])
     )
 
-    // Control: the same mock does fire once the loader runs, so the false above is meaningful.
-    await loadPdfjs(pdfjsAssets())
+    // Control: the same mock does fire once the sandbox loads, so the false above is meaningful.
+    await sandboxLoader.load()
     expect(evaluated.pdfjs).toBe(true)
   })
 })

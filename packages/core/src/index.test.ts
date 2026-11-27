@@ -6,15 +6,15 @@ import { describe, expect, it, vi } from 'vitest'
 
 import pkg from '../package.json' with { type: 'json' }
 
-import { loadPdfjs } from './pdfjs/load'
-import { pdfjsAssets } from './test-support/pdfjs-reader'
+import { sandboxLoader } from './pdfjs/sandbox'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false }))
 
-// The factory only runs when something actually imports PDF.js.
-vi.mock('#pdfjs', () => {
+// The factory only runs when something actually imports PDF.js's scripting sandbox, the one part
+// of PDF.js core loads.
+vi.mock('#pdfjs-sandbox', () => {
   evaluated.pdfjs = true
-  return { GlobalWorkerOptions: {} }
+  return { QuickJSSandbox: () => undefined }
 })
 
 describe('package entry', () => {
@@ -27,8 +27,8 @@ describe('package entry', () => {
     expect(Object.keys(entry)).not.toContain('linkFromPdfjs')
     expect(Object.keys(entry)).not.toContain('isNamedAction')
 
-    // Control: the same mock does fire once the loader runs, so the false above is meaningful.
-    await loadPdfjs(pdfjsAssets())
+    // Control: the same mock does fire once the sandbox loads, so the false above is meaningful.
+    await sandboxLoader.load()
     expect(evaluated.pdfjs).toBe(true)
   })
 })
@@ -125,6 +125,49 @@ describe('the built package', () => {
       }
       expect(dynamic).toHaveLength(1)
       expect(fixed).toEqual([])
+    }
+  )
+
+  // PDF.js is not core's reader: of PDF.js, core loads its scripting sandbox only, through
+  // `#pdfjs-sandbox`, and its Vite plugin finds the sandbox's QuickJS files in pdfjs-dist to copy
+  // them. No PDF.js code is bundled in, and the private switch that once chose a reader is gone.
+  it.skipIf(!existsSync(dist) && !process.env.CI)(
+    'holds no PDF.js code but the import of its scripting sandbox, and no reader switch',
+    async () => {
+      const files = (await readdir(dist, { recursive: true, withFileTypes: true }))
+        .filter((f) => f.isFile())
+        .map((f) => join(f.parentPath, f.name))
+      const found: string[] = []
+      let sandboxImports = 0
+      let sandboxFiles = 0
+      for (const file of files) {
+        const name = file.slice(dist.length + 1)
+        let text = await readFile(file, 'utf8')
+        if (text.includes('__INKBAR_READER__')) found.push(`${name}: __INKBAR_READER__`)
+        // A source map carries the sources' comments; the code it maps is checked below.
+        if (file.endsWith('.map')) continue
+        if (/\.d\.m?ts$/.test(name))
+          text = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+        text = text.replace(/\bimport\(\s*["']#pdfjs-sandbox["']\s*\)/g, () => {
+          sandboxImports++
+          return ''
+        })
+        if (name === 'vite.mjs')
+          text = text.replace(
+            /\brequire\.resolve\(\s*["']pdfjs-dist\/package\.json["']\s*\)/g,
+            () => {
+              sandboxFiles++
+              return ''
+            }
+          )
+        for (const [match] of text.matchAll(
+          /pdfjs-dist[\w./-]*|#pdfjs[\w-]*|GlobalWorkerOptions|pdfjsVersion/g
+        ))
+          found.push(`${name}: ${match}`)
+      }
+      expect(found).toEqual([])
+      expect(sandboxImports).toBe(1)
+      expect(sandboxFiles).toBe(1)
     }
   )
 

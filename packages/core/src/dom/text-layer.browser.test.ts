@@ -5,8 +5,6 @@ import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-uti
 import { createTextLayer, type TextLayerOptions } from './text-layer'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
-import type { EngineDocumentReader } from '../engine-reader/reader'
-
 let style: HTMLStyleElement
 beforeAll(() => {
   style = document.createElement('style')
@@ -256,7 +254,6 @@ describe('text layer', () => {
 describe("text layer, from the engine reader's text", () => {
   async function engineLayer(opts: Partial<TextLayerOptions> = {}) {
     const doc = await openFixtureInBrowser('text-simple')
-    expect(doc._reader.kind).toBe('engine')
     const t = createPageTransform(doc.pages[0]!, 1, 0)
     const host = mountContainer(t.cssWidth, t.cssHeight)
     host.dataset.page = '0'
@@ -308,7 +305,7 @@ describe("text layer, from the engine reader's text", () => {
     const onRendered = vi.fn()
     const onError = vi.fn()
     const { doc, start } = await engineLayer({ onRendered, onError })
-    const reader = doc._reader as EngineDocumentReader
+    const reader = doc._reader
     const text = vi.spyOn(reader, 'text')
     const families = vi.spyOn(reader, 'textFamilies')
     const tl = start()

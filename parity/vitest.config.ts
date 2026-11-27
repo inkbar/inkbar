@@ -11,9 +11,10 @@ import type { BrowserCommand } from 'vitest/node'
 
 const root = dirname(fileURLToPath(import.meta.url))
 /**
- * Core's own PDF.js. Core loads it through its `#pdfjs` import, which Vite's dependency scan does
- * not follow, so on a cold cache Vite found it mid-run and reloaded the page, failing every test.
- * Aliased so the name resolves from here and can be pre-bundled under the name core asks for.
+ * Core's own PDF.js, for its scripting sandbox. Core loads it through its `#pdfjs-sandbox` import,
+ * which Vite's dependency scan does not follow, so on a cold cache Vite found it mid-run and
+ * reloaded the page, failing every test. Aliased so the name resolves from here and can be
+ * pre-bundled under the name core asks for.
  */
 const pdfjsDir = dirname(
   createRequire(
@@ -95,7 +96,7 @@ export default defineConfig({
         plugins: [serveFixtures(), serveFonts()],
         // Pre-bundled up front: discovering one mid-run makes Vite reload the test page.
         optimizeDeps: {
-          include: ['pdfjs-dist', 'pdfjs-dist/build/pdf.sandbox.mjs', '@inkbar/fonts'],
+          include: ['pdfjs-dist/build/pdf.sandbox.mjs', '@inkbar/fonts'],
         },
         resolve: { alias: { 'pdfjs-dist': pdfjsDir } },
         test: {

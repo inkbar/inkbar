@@ -109,8 +109,7 @@ describe('createPageRenderer', () => {
     expect(canvas.width).toBe(792 * 3)
     expect(canvas.height).toBe(612 * 3)
     expect(errors).toEqual([])
-    // The superseded draw rejects with its signal's reason (PDF.js's own cancellation is mapped
-    // to it in pdfjs/reader.browser.test.ts).
+    // The superseded draw rejects with its signal's reason.
     expect(firstDraw.signal?.aborted).toBe(true)
     expect(await firstOutcome).toBe(firstDraw.signal!.reason)
   })

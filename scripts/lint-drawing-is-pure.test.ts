@@ -101,6 +101,7 @@ describe('inkbar/drawing-is-pure', () => {
     ['pdfjs/ from drawing/text/', IN_TEXT, '../../../../pdfjs/document'],
     ['pdfjs/ by its folder from drawing/text/', IN_TEXT, '../../../../pdfjs'],
     ['PDF.js', IN_DRAWING, 'pdfjs-dist'],
+    ["PDF.js's scripting sandbox", IN_DRAWING, '#pdfjs-sandbox'],
   ] as const)
     it(`reports an import of ${name}`, async () => {
       const code = `import * as everything from '${source}'\n\nexport { everything }\n`

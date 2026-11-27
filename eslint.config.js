@@ -26,6 +26,10 @@ const drawingImports = (depth) => {
   return [
     'error',
     {
+      // A `#` name goes under paths: in a pattern group it would start a comment.
+      paths: [
+        { name: '#pdfjs-sandbox', message: 'A drawing is described without PDF.js.' },
+      ],
       patterns: [
         {
           group: ['**/dom', '**/dom/**'],
@@ -34,16 +38,51 @@ const drawingImports = (depth) => {
         { regex: `^${src}(/index(\\.[cm]?[jt]s)?)?/?$`, message: index },
         { group: ['**/src/index', '@inkbar/core'], message: index },
         {
-          group: [
-            'pdfjs-dist',
-            'pdfjs-dist/**',
-            '#pdfjs',
-            '#pdfjs-sandbox',
-            '**/pdfjs',
-            '**/pdfjs/**',
-          ],
+          group: ['pdfjs-dist', 'pdfjs-dist/**', '**/pdfjs', '**/pdfjs/**'],
           message: 'A drawing is described without PDF.js.',
         },
+      ],
+    },
+  ]
+}
+
+/** The files the PDF.js quarantine covers. */
+const PDFJS_FENCED = [
+  'packages/**/*.{ts,mts,tsx,vue,svelte}',
+  'apps/**/*.{ts,mts,tsx,vue,svelte}',
+  'parity/**/*.ts',
+]
+/** Tests and the code only tests import. */
+const TEST_FILES = ['**/*.{test,spec}.{ts,mts,tsx}', 'packages/core/src/test-support/**']
+/**
+ * Where PDF.js may be imported: core's pdfjs/, and the engine's save round-trip test, which uses
+ * PDF.js as an independent reader of saved files.
+ */
+const PDFJS_ALLOWED = [
+  'packages/core/src/pdfjs/**',
+  'packages/engine/src/save.fixtures.test.ts',
+]
+/** core's test-only second reader, by any relative path. */
+const SECOND_READER = '(^|/)second-reader(\\.[cm]?[jt]s)?$'
+const SECOND_READER_MESSAGE =
+  'pdfjs/second-reader opens files with PDF.js for tests only. Import it only from a test.'
+
+/** PDF.js's own modules refused; with `secondReader`, core's second reader refused too. */
+const pdfjsImports = ({ secondReader }) => {
+  const message = 'Import PDF.js only inside packages/core/src/pdfjs/.'
+  return [
+    'error',
+    {
+      // A `#` name goes under paths: in a pattern group it would start a comment.
+      paths: [
+        { name: 'pdfjs-dist', message },
+        { name: '#pdfjs-sandbox', message },
+      ],
+      patterns: [
+        { group: ['pdfjs-dist/**'], message },
+        ...(secondReader
+          ? [{ regex: SECOND_READER, message: SECOND_READER_MESSAGE }]
+          : []),
       ],
     },
   ]
@@ -149,30 +188,28 @@ export default defineConfig(
   },
   {
     name: 'inkbar/pdfjs-quarantine',
-    // Shipped code, apps and the parity suite reach PDF.js only through @inkbar/core's loader.
-    files: [
-      'packages/**/*.{ts,mts,tsx,vue,svelte}',
-      'apps/**/*.{ts,mts,tsx,vue,svelte}',
-      'parity/**/*.ts',
-    ],
-    // The engine's save round-trip test uses PDF.js as an independent reader of saved files.
-    ignores: ['packages/core/src/pdfjs/**', 'packages/engine/src/save.fixtures.test.ts'],
+    // Shipped code and apps reach PDF.js only through @inkbar/core, and only its scripting
+    // sandbox; tests open files with it through core's second reader.
+    files: PDFJS_FENCED,
+    ignores: [...PDFJS_ALLOWED, ...TEST_FILES],
+    rules: { 'no-restricted-imports': pdfjsImports({ secondReader: true }) },
+  },
+  {
+    // Tests and their support may use the second reader, and nothing else of PDF.js.
+    name: 'inkbar/pdfjs-quarantine-in-tests',
+    files: PDFJS_FENCED.flatMap((fenced) => TEST_FILES.map((test) => [fenced, test])),
+    ignores: PDFJS_ALLOWED,
+    rules: { 'no-restricted-imports': pdfjsImports({ secondReader: false }) },
+  },
+  {
+    // Beside it, under pdfjs/, the second reader is still for tests only.
+    name: 'inkbar/second-reader-is-for-tests',
+    files: ['packages/core/src/pdfjs/**/*.ts'],
+    ignores: TEST_FILES,
     rules: {
       'no-restricted-imports': [
         'error',
-        {
-          paths: [
-            {
-              name: 'pdfjs-dist',
-              message: 'Import PDF.js only inside packages/core/src/pdfjs/.',
-            },
-            {
-              name: '#pdfjs',
-              message: 'Import PDF.js only inside packages/core/src/pdfjs/.',
-            },
-          ],
-          patterns: ['pdfjs-dist/**'],
-        },
+        { patterns: [{ regex: SECOND_READER, message: SECOND_READER_MESSAGE }] },
       ],
     },
   },

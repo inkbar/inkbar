@@ -1,8 +1,8 @@
 // Test support only, never production code: browser tests import it. A region of a page drawn
 // as the loupe draws it, for a test to compare a lens or a page canvas against.
 import { hiddenFromIds, regionCanvasSize } from '../dom/draw-request'
+import { hiddenAppearances } from '../dom/hidden-appearances'
 import { normalizeRotation } from '../dom/transform'
-import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'

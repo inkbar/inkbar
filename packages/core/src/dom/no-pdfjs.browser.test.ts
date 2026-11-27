@@ -1,31 +1,21 @@
-// The engine reads the file, and PDF.js is never loaded: `loadPdfjs` is never called, PDF.js's
-// module is never evaluated, and no request for its module, worker or assets is made. Only a
-// document with scripts loads the kept scripting sandbox.
+// The engine reads the file, and PDF.js is never loaded: PDF.js's module is never evaluated, and
+// no request for its module, worker or assets is made. Only a document with scripts loads the
+// kept scripting sandbox.
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
+import { openSecondReader } from '../pdfjs/second-reader'
 
 import { mountContainer, until } from './test-utils'
 import { createViewer } from './viewer/create-viewer'
 
 import type { InkDocument } from '../model/document'
 
-/** Whether PDF.js's module was evaluated, and how often core asked to load it. */
-const pdfjsUse = vi.hoisted(() => ({ evaluated: false, loads: 0 }))
-vi.mock('#pdfjs', async (original) => {
+/** Whether PDF.js's module was evaluated. */
+const pdfjsUse = vi.hoisted(() => ({ evaluated: false }))
+vi.mock('pdfjs-dist', async (original) => {
   pdfjsUse.evaluated = true
   return original()
-})
-vi.mock(import('../pdfjs/load'), async (original) => {
-  const real = await original()
-  return {
-    ...real,
-    loadPdfjs: (...args: Parameters<typeof real.loadPdfjs>) => {
-      pdfjsUse.loads++
-      return real.loadPdfjs(...args)
-    },
-  }
 })
 
 let cleanup: (() => void)[] = []
@@ -103,11 +93,10 @@ describe('a document', () => {
       const saved = await doc.save()
       expect(saved.byteLength).toBeGreaterThan(0)
     })
-    expect(doc._reader.kind).toBe('engine')
     // The page's own requests were seen: the fixture, and the engine's worker.
     expect(urls.some((url) => url.includes('form-fields.pdf'))).toBe(true)
     expect(urls.filter(isPdfjs)).toEqual([])
-    expect(pdfjsUse).toEqual({ evaluated: false, loads: 0 })
+    expect(pdfjsUse).toEqual({ evaluated: false })
   })
 
   it('loads the scripting sandbox, and nothing else of PDF.js, for a form with scripts', async () => {
@@ -120,7 +109,7 @@ describe('a document', () => {
     const pdfjs = urls.filter(isPdfjs)
     expect(pdfjs.length).toBeGreaterThan(0)
     expect(pdfjs.filter((url) => !isSandbox(url))).toEqual([])
-    expect(pdfjsUse).toEqual({ evaluated: false, loads: 0 })
+    expect(pdfjsUse).toEqual({ evaluated: false })
   })
 
   // Control, last as it loads PDF.js into the page: the same watch sees PDF.js load when the
@@ -130,10 +119,10 @@ describe('a document', () => {
       const bytes = new Uint8Array(
         await (await fetch(fixtureUrl('text-simple'))).arrayBuffer()
       )
-      const opened = await openWithPdfjsReader(bytes)
+      const opened = await openSecondReader(bytes)
       await opened.destroy()
     })
-    expect(pdfjsUse).toEqual({ evaluated: true, loads: 1 })
+    expect(pdfjsUse).toEqual({ evaluated: true })
     expect(urls.filter(isPdfjs)).not.toEqual([])
   })
 })

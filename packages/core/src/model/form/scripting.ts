@@ -25,7 +25,8 @@ import type { DocumentReader } from '../../reader/types'
 import type { PdfAssets } from '../assets'
 
 export interface FormScriptingOptions {
-  reader: DocumentReader
+  /** Where the file's JavaScript, the sandbox's field objects and each page's actions are read. */
+  reader: Pick<DocumentReader, 'scripts' | 'sandboxFields' | 'pageScripts'>
   assets: PdfAssets
   form: FormController
   info: { title?: string | undefined; author?: string | undefined; pageCount: number }

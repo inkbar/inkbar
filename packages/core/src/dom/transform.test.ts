@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 import { openDocument } from '../model/document'
 import { approxEqual } from '../model/geometry'
+import { openSecondReader } from '../pdfjs/second-reader'
 import { nodeAssets } from '../test-support/node-assets'
-import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { createPageTransform, normalizeRotation, type ViewRotation } from './transform'
 
@@ -41,12 +41,11 @@ describe('createPageTransform', () => {
     await doc.ready
     const page = doc.pages[0]!
     if (name === 'userunit-2') expect(page.userUnit).toBe(2)
-    const pdfjs = await openWithPdfjsReader(await fixtureBytes(name))
-    const proxy = await pdfjs.handles.getPage(0)
+    const pdfjs = await openSecondReader(await fixtureBytes(name))
     for (const rotation of ROTATIONS) {
       for (const zoom of [0.5, 1, 1.333, 3]) {
         const t = createPageTransform(page, zoom, rotation)
-        const vp = proxy.getViewport({
+        const vp = await pdfjs.viewport(0, {
           scale: zoom,
           rotation: (page.rotate + rotation) % 360,
         })

@@ -8,12 +8,11 @@ import { defineConfig } from 'vitest/config'
 import type { Component } from 'svelte'
 import type { BrowserCommand } from 'vitest/node'
 
-// `pdfjs-dist` belongs to @inkbar/core (PDF.js stays quarantined there), so the bare name does
-// not resolve from this package. Resolving it from core and aliasing it lets Vite pre-bundle the
-// same module core imports, instead of discovering it mid-run and reloading the test page.
+// The form scripting sandbox, which core loads on demand for a PDF with form scripts. `pdfjs-dist`
+// belongs to @inkbar/core (PDF.js stays quarantined there), so the name does not resolve from this
+// package. Resolving it from core and aliasing it lets Vite pre-bundle the same module core
+// imports, instead of discovering it mid-run and reloading the test page.
 const fromCore = createRequire(import.meta.resolve('@inkbar/core/package.json'))
-const pdfjs = fromCore.resolve('pdfjs-dist')
-// The form scripting sandbox, which core loads on demand for a PDF with form scripts.
 const pdfjsSandbox = fromCore.resolve('pdfjs-dist/build/pdf.sandbox.mjs')
 
 /**
@@ -52,17 +51,14 @@ export default defineConfig({
       {
         plugins: [svelte(), serveFixtures()],
         // Pre-bundled up front: discovering one mid-run makes Vite reload the test page.
-        // Regexes, so only these exact ids are aliased: a string key would also rewrite
-        // `pdfjs-dist/...` subpaths by prefix.
+        // A regex, so only this exact id is aliased.
         resolve: {
           alias: [
-            { find: /^pdfjs-dist$/, replacement: pdfjs },
             { find: /^pdfjs-dist\/build\/pdf\.sandbox\.mjs$/, replacement: pdfjsSandbox },
           ],
         },
         optimizeDeps: {
           include: [
-            'pdfjs-dist',
             'pdfjs-dist/build/pdf.sandbox.mjs',
             'esm-env',
             'bits-ui',

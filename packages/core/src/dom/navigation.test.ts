@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { destinationFromArray } from '../model/destination'
 import { writable } from '../model/readable'
-import { resolveDestination } from '../pdfjs/destinations'
 
 import { createNavigation } from './navigation'
 
@@ -9,7 +9,6 @@ import type { Viewport } from './viewport'
 import type { Destination, RawDestination } from '../model/destination'
 import type { InkDocument } from '../model/document'
 import type { ViewerAction } from '../model/form/types'
-import type { PdfjsDocument } from '../pdfjs/types'
 
 /**
  * A navigation over a fake viewport whose position is the last destination it scrolled to, and
@@ -23,16 +22,13 @@ function setup(pages = 100, names: Record<string, unknown[]> = {}) {
     currentPage.set(dest.page)
   })
   const viewport = { currentPage, scrollToDestination } as unknown as Viewport
-  const proxy = {
-    numPages: pages,
-    getDestination: (name: string) => Promise.resolve(names[name] ?? null),
-    getPageIndex: () => Promise.resolve(0),
-  }
   const doc = {
     pages: Array.from({ length: pages }, (_, index) => ({ index })),
-    // The document caches this; the fake resolves through the same PDF.js lookup.
-    resolveDestination: (raw: RawDestination) =>
-      resolveDestination(proxy as unknown as PdfjsDocument, raw),
+    // A name is looked up in `names`; an array names its page by index.
+    resolveDestination: (raw: RawDestination) => {
+      const array = typeof raw === 'string' ? names[raw] : raw
+      return Promise.resolve(array ? destinationFromArray(array, pages) : undefined)
+    },
   } as unknown as InkDocument
   const report = vi.fn<(a: ViewerAction) => void>()
   const nav = createNavigation({

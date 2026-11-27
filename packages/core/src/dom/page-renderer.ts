@@ -3,10 +3,10 @@
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
 import { readonly, writable, type Readable } from '../model/readable'
-import { hiddenAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
 import { hiddenFromIds, pageCanvasSize } from './draw-request'
+import { hiddenAppearances } from './hidden-appearances'
 
 import type { PageTransform } from './transform'
 import type { InkDocument } from '../model/document'

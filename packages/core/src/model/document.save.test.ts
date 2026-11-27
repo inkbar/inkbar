@@ -6,9 +6,9 @@ import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as annotationFields from '../pdf/annotation-fields'
+import { openSecondReader } from '../pdfjs/second-reader'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 import { nodeAssets } from '../test-support/node-assets'
-import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { isReply } from './annotations/threads'
 import { openDocument, type InkDocument, type OpenOptions } from './document'
@@ -563,9 +563,8 @@ describe('save', () => {
     const bytes = await save(doc, 'formatted')
     const back = await reopen(bytes)
     expect(back.form.get('amount')).toBe('1234.5')
-    const pdfjs = await openWithPdfjsReader(bytes)
-    const page = await pdfjs.handles.getPage(0)
-    const annotations = (await page.getAnnotations()) as {
+    const pdfjs = await openSecondReader(bytes)
+    const annotations = (await pdfjs.annotations(0)) as {
       fieldName?: string
       textContent?: string[]
     }[]
@@ -813,13 +812,9 @@ describe('save', () => {
 
   /** The annotations of page 0 of the file `doc` opened, hidden ones included, as PDF.js reads them. */
   const pdfjsAnnotations = async (doc: InkDocument) => {
-    const pdfjs = await openWithPdfjsReader(await doc.getData())
+    const pdfjs = await openSecondReader(await doc.getData())
     try {
-      return (await (
-        await pdfjs.handles.getPage(0)
-      ).getAnnotations({
-        intent: 'any',
-      })) as {
+      return (await pdfjs.annotations(0, { intent: 'any' })) as {
         id: string
         subtype: string
         annotationFlags: number
@@ -1004,7 +999,6 @@ describe('save', () => {
       const held = heldEngines()
       setEngineFactory(held.factory)
       const doc = await open('text-simple')
-      expect(doc._reader.kind).toBe('engine')
       const added = square(doc)
       const first = await save(doc, 'with the reader engine')
       square(doc, 20)

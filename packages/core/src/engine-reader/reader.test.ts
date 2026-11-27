@@ -443,7 +443,6 @@ describe('opening', () => {
   it('opens the bytes in an engine of its own and reports the page count', async () => {
     const t = setup({ pageCount: 3 })
     const reader = await t.open()
-    expect(reader.kind).toBe('engine')
     expect(reader.pageCount).toBe(3)
     expect(t.createEngine).toHaveBeenCalledTimes(1)
     expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), {})

@@ -2,8 +2,6 @@
 // document's scripts and actions, each page's actions, each widget's scripts, `/CO`, the fields
 // the sandbox is started with, and whether the file has any JavaScript at all. The engine gives
 // every source of each action's chain as written; each rule here is PDF.js's.
-import { DATE_TIME } from '../pdfjs/sandbox-fields'
-
 import { refId, rgbOf, rotationOf, textOf } from './file-values'
 
 import type {
@@ -16,6 +14,10 @@ import type {
   WidgetFactsShape,
 } from './types'
 import type { FileFieldContainer, FileScripts } from '../reader/file'
+
+/** @internal A standard date or time script, as PDF.js matches one. */
+export const DATE_TIME =
+  /^AF(Date|Time)_(?:Keystroke|Format)(?:Ex)?\(['"]?([^'"]+)['"]?\);$/
 
 /** A widget's additional-action keys by the event names PDF.js gives them, and `A` its own `/A`. */
 const WIDGET_EVENTS: ReadonlyMap<string, string> = new Map([
@@ -252,7 +254,7 @@ function containerOf(
 }
 
 /**
- * @internal The file's JavaScript in core's shape, as the PDF.js reader gives it, and whether the
+ * @internal The file's JavaScript in core's shape, as core read it with PDF.js, and whether the
  * file has any: as with PDF.js, it has when the document has a script or action, or a widget of a
  * field `/Fields` reaches has one; a page's own actions do not count. `form` is the form's facts,
  * `undefined` when it could not be read. `scripts` is given either way: the sandbox's fields are
@@ -332,7 +334,7 @@ function sameName(a: ScriptFactsShape['document'][number]['name'], b: typeof a):
 
 /**
  * @internal Page `page`'s actions by event as PDF.js reads them (`PageOpen`, `PageClose`); `{}`
- * when it has none. Built from entries, as the PDF.js reader builds them.
+ * when it has none. Built from entries, as core built them with PDF.js.
  */
 export function pageScriptsFromEngine(
   facts: ScriptFactsShape,

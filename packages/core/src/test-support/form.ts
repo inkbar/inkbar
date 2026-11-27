@@ -1,36 +1,40 @@
-import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 
+import { openDocument } from '../model/document'
 import { buildFormFields } from '../model/form/structure'
 import { readFormExtras } from '../pdf/form-fields'
 import { openPdfObjects } from '../pdf/objects'
-import { destinationPage } from '../pdfjs/destinations'
-import { fileFieldsFromPdfjs } from '../pdfjs/file-form'
 
-import { openWithPdfjsReader } from './pdfjs-reader'
+import { nodeAssets } from './node-assets'
 
 import type { FormField } from '../model/form/types'
-import type { PdfjsAnnotationData } from '../pdfjs/types'
 
-/** The fields `buildFormFields` makes from the widgets PDF.js reports for a fixture. */
+/**
+ * The fields `buildFormFields` makes from a fixture's fields as the engine reader reads them,
+ * with the extras read from the file's objects, as the document builds them.
+ */
 export async function formFieldsOf(name: FixtureName): Promise<FormField[]> {
-  const pdfjs = await openWithPdfjsReader(await fixtureBytes(name))
-  const { handles } = pdfjs
-  const raw: { page: number; at: number; data: PdfjsAnnotationData }[] = []
-  for (let page = 0; page < handles.proxy.numPages; page++) {
-    const annots = (await (
-      await handles.getPage(page)
-    ).getAnnotations()) as PdfjsAnnotationData[]
-    annots.forEach((data, at) => {
-      if (data.subtype === 'Widget') raw.push({ page, at, data })
-    })
+  const doc = await openDocument(await fixtureBytes(name), {
+    assets: nodeAssets(),
+    password: manifest[name].password,
+  })
+  try {
+    await doc.ready
+    const reader = doc._reader
+    const fields = await reader.form()
+    const extras = await readFormExtras(
+      await openPdfObjects(await fixtureBytes(name)),
+      fields.flatMap((f) => f.widgets.map((w) => w.id)),
+      {
+        destinationPage: (dest) =>
+          reader.resolveDestination(dest).then(
+            (d) => d?.page,
+            () => undefined
+          ),
+      }
+    )
+    return buildFormFields(fields, extras)
+  } finally {
+    doc.destroy()
   }
-  const fields = fileFieldsFromPdfjs(raw)
-  const objs = await openPdfObjects(await fixtureBytes(name))
-  const extras = await readFormExtras(
-    objs,
-    fields.flatMap((f) => f.widgets.map((w) => w.id)),
-    { destinationPage: (dest) => destinationPage(handles.proxy, dest) }
-  )
-  await pdfjs.destroy()
-  return buildFormFields(fields, extras)
 }

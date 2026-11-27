@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
 import { openPdfObjects } from '../../pdf/objects'
-import { fileFieldsFromPdfjs } from '../../pdfjs/file-form'
 import { formFieldsOf } from '../../test-support/form'
 import { nodeAssets } from '../../test-support/node-assets'
 import { openDocument } from '../document'
@@ -11,16 +10,38 @@ import { openDocument } from '../document'
 import { buildFormFields } from './structure'
 
 import type { FormField } from './types'
-import type { PdfjsAnnotationData } from '../../pdfjs/types'
+import type { FileField, FileWidget } from '../../reader/file'
 
-/** A widget as PDF.js reports it, with its page and place among the page's annotations. */
-type PdfjsWidget = { page: number; at: number; data: PdfjsAnnotationData }
+/** A 10-point widget at the origin, its page and place among the page's annotations given. */
+const widget = (
+  id: string,
+  page: number,
+  at: number,
+  rest: Partial<FileWidget> = {}
+): FileWidget => ({
+  id,
+  page,
+  at,
+  rect: [0, 0, 10, 10],
+  flags: 0,
+  hasAppearance: false,
+  actions: {},
+  ...rest,
+})
 
-/** Fields built from widgets given as PDF.js data. */
-const build = (widgets: PdfjsWidget[], extras = emptyFormExtras()) =>
-  buildFormFields(fileFieldsFromPdfjs(widgets), extras)
+/** A field of `kind` over `widgets`. */
+const field = (
+  name: string,
+  kind: FileField['kind'],
+  widgets: FileWidget[],
+  rest: Partial<FileField> = {}
+): FileField => ({ name, kind, flags: 0, widgets, ...rest })
 
-/** Fields built from the widgets PDF.js reports for an opened fixture, by name. */
+/** Fields built from fields given as a reader reads them. */
+const build = (fields: FileField[], extras = emptyFormExtras()) =>
+  buildFormFields(fields, extras)
+
+/** Fields built from the fields the engine reader reads in a fixture, by name. */
 async function fieldsOf(name: FixtureName): Promise<Map<string, FormField>> {
   return new Map((await formFieldsOf(name)).map((f) => [f.name, f]))
 }
@@ -74,30 +95,11 @@ describe('buildFormFields', () => {
   })
 
   it("numbers each widget by its place among its page's annotations", () => {
-    const widget = (
-      id: string,
-      page: number,
-      at: number,
-      field: string
-    ): PdfjsWidget => ({
-      page,
-      at,
-      data: {
-        id,
-        subtype: 'Widget',
-        annotationType: 20,
-        rect: [0, 0, 10, 10],
-        fieldName: field,
-        fieldType: 'Tx',
-      },
-    })
     // One field's two widgets on page 0 sit either side of another field's and a link.
     const fields = build([
-      widget('a1', 0, 0, 'a'),
-      widget('b1', 0, 1, 'b'),
-      widget('a2', 0, 3, 'a'),
-      widget('b2', 1, 0, 'b'),
-      widget('c1', 1, 1, 'c'),
+      field('a', 'text', [widget('a1', 0, 0), widget('a2', 0, 3)]),
+      field('b', 'text', [widget('b1', 0, 1), widget('b2', 1, 0)]),
+      field('c', 'text', [widget('c1', 1, 1)]),
     ])
     const order = Object.fromEntries(
       fields.flatMap((f) => f.widgets.map((w) => [w.id, w.order]))
@@ -305,25 +307,12 @@ describe('buildFormFields', () => {
   })
 
   it('reads NoView with Print as print-only, and NoView alone as hidden', () => {
-    const widget = (id: string, flags: number): PdfjsWidget => ({
-      page: 0,
-      at: 0,
-      data: {
-        id,
-        subtype: 'Widget',
-        annotationType: 20,
-        rect: [0, 0, 10, 10],
-        fieldName: id,
-        fieldType: 'Tx',
-        annotationFlags: flags,
-        // PDF.js marks a NoView widget hidden.
-        hidden: (flags & 34) !== 0,
-      },
-    })
+    const flagged = (id: string, flags: number) =>
+      field(id, 'text', [widget(id, 0, 0, { flags })])
     const fields = build([
-      widget('screen', 4),
-      widget('print', 32 | 4),
-      widget('never', 32),
+      flagged('screen', 4),
+      flagged('print', 32 | 4),
+      flagged('never', 32),
     ])
     const w = (i: number) => fields[i]!.widgets[0]!
     expect([w(0).hidden, w(0).printOnly]).toEqual([false, false])
@@ -332,43 +321,26 @@ describe('buildFormFields', () => {
   })
 
   it('drops a /DV that is not one of the options', () => {
-    const base = { subtype: 'Widget', annotationType: 20, rect: [0, 0, 10, 10] } as const
-    const radio = (id: string, state: string, dv: string): PdfjsWidget => ({
-      page: 0,
-      at: 0,
-      data: {
-        ...base,
-        rect: [0, 0, 10, 10],
-        id,
-        fieldName: 'pick',
-        fieldType: 'Btn',
-        radioButton: true,
-        buttonValue: state,
-        fieldValue: 'Off',
-        defaultFieldValue: dv,
-      },
-    })
-    const list = (name: string, dv: string): PdfjsWidget => ({
-      page: 0,
-      at: 0,
-      data: {
-        ...base,
-        rect: [0, 0, 10, 10],
-        id: `${name}1`,
-        fieldName: name,
-        fieldType: 'Ch',
+    const list = (name: string, dv: string) =>
+      field(name, 'list', [widget(`${name}1`, 0, 0)], {
         options: [{ exportValue: 'a', displayValue: 'A' }],
-        defaultFieldValue: dv,
-      },
-    })
+        defaultValue: dv,
+      })
     const extras = emptyFormExtras()
     extras.widgets.set('r1', { onState: 'one' })
     extras.widgets.set('r2', { onState: 'two', defaultState: 'three' })
     const fields = new Map(
       build(
         [
-          radio('r1', 'one', 'three'),
-          radio('r2', 'two', 'three'),
+          field(
+            'pick',
+            'radio',
+            [
+              widget('r1', 0, 0, { onValue: 'one' }),
+              widget('r2', 0, 0, { onValue: 'two' }),
+            ],
+            { value: 'Off', defaultValue: 'three' }
+          ),
           list('good', 'a'),
           list('bad', 'z'),
         ],
@@ -381,37 +353,18 @@ describe('buildFormFields', () => {
   })
 })
 
-describe('a reset naming a widget of a field PDF.js cannot type', () => {
+describe('a reset naming a field of a kind the reader leaves out', () => {
   it.each([true, false])(
     'keeps that field name, matching no field, with include %s',
     (include) => {
+      // The reader leaves out the field `odd`, and gives the reset's reference to its widget as
+      // the field's name.
       const fields = build([
-        {
-          page: 0,
-          at: 0,
-          data: {
-            id: '9R',
-            subtype: 'Widget',
-            annotationType: 20,
-            rect: [0, 0, 10, 10],
-            fieldName: 'odd',
-            fieldType: 'Btn',
-          },
-        },
-        {
-          page: 0,
-          at: 1,
-          data: {
-            id: '1R',
-            subtype: 'Widget',
-            annotationType: 20,
-            rect: [0, 0, 10, 10],
-            fieldName: 'reset',
-            fieldType: 'Btn',
-            pushButton: true,
-            resetForm: { fields: [], refs: ['9R'], include },
-          },
-        },
+        field('reset', 'button', [
+          widget('1R', 0, 1, {
+            actions: { resetForm: { fields: ['odd'], refs: [], include } },
+          }),
+        ]),
       ])
       expect(fields.map((f) => f.name)).toEqual(['reset'])
       // Not `fields: []`, which would name every field.

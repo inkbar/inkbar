@@ -1,6 +1,6 @@
 // Where a link or outline item goes, from the facts the engine reports, by the rules PDF.js
-// 6.4.299 applies to the same dictionaries (`Catalog.parseDestDictionary` and the reader's
-// `targetOf`), so either reader gives a host the same target. Nothing here runs a script: a
+// 6.4.299 applies to the same dictionaries (`Catalog.parseDestDictionary` and the `targetOf`
+// core used with it), so a host gets the target it got with PDF.js. Nothing here runs a script: a
 // JavaScript action is only matched against the one call shape PDF.js reads an address from.
 import { isNamedAction, type LinkTarget, type RawDestination } from '../model/destination'
 import { safeUrl, unsafeUrlReason } from '../model/form/url'

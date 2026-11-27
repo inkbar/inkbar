@@ -23,8 +23,8 @@ export interface MountTextSpansOptions {
 const DEGREES = 180 / Math.PI
 /**
  * The share of a span's line box, one font size high, that stands above the baseline when the
- * browser gives no figures for the span's font: the ascent core's PDF.js reader gives a font
- * PDF.js has no figures for.
+ * browser gives no figures for the span's font: the ascent PDF.js gives a font it has no
+ * figures for.
  */
 const LINE_ASCENT = 0.75
 /** The size, in CSS pixels, a family's ascent is measured at. */
