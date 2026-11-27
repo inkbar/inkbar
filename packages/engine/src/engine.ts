@@ -1,7 +1,7 @@
 import { ArgumentError, EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
 import { createWorkerTransport } from './transport/worker.ts'
-import { CROSS_ORIGIN_HINT, workerStart } from './worker-start.ts'
+import { crossOriginHint, workerStart } from './worker-start.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
@@ -473,7 +473,7 @@ interface StartedWorker {
   worker: Worker
   url?: string
   /** Set for a script on another origin, started through a module of the page's own. */
-  imported?: { release(): void }
+  imported?: { release(): void; hint: string }
 }
 
 /** The origin the page runs in, which an `about:srcdoc` frame's address does not give. */
@@ -495,7 +495,7 @@ function startWorker(worker: string | URL | Worker): StartedWorker {
     return {
       worker: new Worker(script, { type: 'module' }),
       url: String(worker),
-      imported: { release },
+      imported: { release, hint: crossOriginHint(how.href) },
     }
   } catch (error) {
     release()
@@ -538,12 +538,14 @@ export async function createEngineWith(
           : worker instanceof Worker
             ? ''
             : ` from ${String(worker)}`
-      const imported =
-        worker !== undefined &&
-        workerStart(worker, globalThis.location?.href, pageOrigin()).kind === 'imported'
+      const how =
+        worker === undefined
+          ? undefined
+          : workerStart(worker, globalThis.location?.href, pageOrigin())
+      const hint = how?.kind === 'imported' ? ` ${crossOriginHint(how.href)}` : ''
       throw new EngineError(
         'engine-failure',
-        `Could not start the engine worker${from}.${imported ? ` ${CROSS_ORIGIN_HINT}` : ''}`,
+        `Could not start the engine worker${from}.${hint}`,
         {
           cause,
         }
@@ -554,7 +556,7 @@ export async function createEngineWith(
         await createWorkerTransport(started.worker, wasm, {
           url: started.url,
           fallbackFonts,
-          ...(started.imported && { hint: CROSS_ORIGIN_HINT }),
+          ...(started.imported && { hint: started.imported.hint }),
         })
       )
     } finally {

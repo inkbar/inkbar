@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { workerStart } from './worker-start.ts'
+import { crossOriginHint, workerStart } from './worker-start.ts'
 
 describe('how the worker is started', () => {
   const page = 'https://app.example.com/viewer/index.html'
@@ -70,5 +70,15 @@ describe('how the worker is started', () => {
   test('a worker passed in is used as it is, and false runs in the calling thread', () => {
     expect(workerStart({ postMessage() {} }, page)).toEqual({ kind: 'given' })
     expect(workerStart(false, page)).toEqual({ kind: 'in-thread' })
+  })
+})
+
+describe('the hint for a worker on another origin', () => {
+  test('names its origin in worker-src, with blob:, and in connect-src', () => {
+    const hint = crossOriginHint('https://cdn.example.com/app/worker.mjs')
+    expect(hint).toContain('(https://cdn.example.com)')
+    expect(hint).toContain('CORS')
+    expect(hint).toContain('blob: and https://cdn.example.com in worker-src')
+    expect(hint).toContain('https://cdn.example.com in connect-src')
   })
 })
