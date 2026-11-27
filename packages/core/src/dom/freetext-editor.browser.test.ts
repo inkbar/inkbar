@@ -9,7 +9,7 @@ import { createAnnotationStore } from '../model/annotations/store'
 import { drawContext } from './drawing-context'
 import { editFreeText, editFreeTextIn, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
-import { mountContainer, until } from './test-utils'
+import { mountContainer, parkPointer, until } from './test-utils'
 import { checkTextFonts } from './text-font-check'
 import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
@@ -480,6 +480,7 @@ describe('the editor underline', () => {
     const el = overlay.elementFor(a.id)!
     const editor = editFreeTextIn(store, el, a.id, transform)!
     cleanup.unshift(() => editor.close(false))
+    await parkPointer()
     const png = await browserPage.screenshot({ element: host, save: false })
     const bitmap = await createImageBitmap(
       new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], {

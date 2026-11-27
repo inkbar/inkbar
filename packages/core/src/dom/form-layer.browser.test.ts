@@ -11,7 +11,13 @@ import { SCRATCH_BUDGET } from './form-appearance'
 import { createMessageState } from './messages-state'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
-import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
+import {
+  mountContainer,
+  nextFrame,
+  openFixtureInBrowser,
+  parkPointer,
+  until,
+} from './test-utils'
 import { drawTool } from './tools'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 import { mountViewer } from './viewer-engine'
@@ -1240,6 +1246,7 @@ describe('form layer', () => {
       probe.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;`
       host.append(probe)
       host.scrollIntoView()
+      await parkPointer()
       const base64 = await browserPage.screenshot({
         element: probe,
         base64: true,
@@ -1312,6 +1319,7 @@ describe('form layer', () => {
     probe.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;`
     p.host.append(probe)
     p.host.scrollIntoView()
+    await parkPointer()
     const base64 = await browserPage.screenshot({
       element: probe,
       base64: true,
@@ -1450,6 +1458,7 @@ async function shot(host: HTMLElement, transform: PageTransform, rect: Rect) {
   probe.style.cssText = `position:absolute;left:${css.left}px;top:${css.top}px;width:${css.width}px;height:${css.height}px;pointer-events:none;`
   host.append(probe)
   host.scrollIntoView()
+  await parkPointer()
   const base64 = await browserPage.screenshot({
     element: probe,
     base64: true,
