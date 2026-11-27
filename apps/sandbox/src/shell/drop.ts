@@ -24,7 +24,7 @@ export interface DropHandle {
   noViewer(): void
   /** Forgets any read still under way and clears the status. */
   reset(): void
-  /** Writes the status again in the current language. */
+  /** Writes the status again in the current language, without announcing it again. */
   refresh(): void
 }
 
@@ -122,7 +122,14 @@ export function handleDrops({
       say(null)
     },
     refresh() {
-      say(shown)
+      if (!shown) return
+      // The same message in new words: turn the live region off while the text changes, so a
+      // screen reader does not announce it again, then back on.
+      status.setAttribute('aria-live', 'off')
+      status.textContent = shown(text())
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => status.removeAttribute('aria-live'))
+      )
     },
   }
 }
