@@ -163,15 +163,15 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 ## When the engine stops
 
-The engine runs in a worker. If it stops while a file is open, core starts a new one and opens the file in it again, and the reader sees nothing. When that fails, or the engine has stopped three times within 60 seconds, the document is stopped: `doc.engineStopped`, a readable, is true, every read rejects with `EngineUnavailable`, and `doc.status` stays `ready`. A page whose reads stopped the engine twice is blocked on its own: it shows its page error, and the other pages read on.
+The engine runs in a worker. If it stops while a file is open, core starts a new one and opens the file in it again, and the reader sees nothing. When that fails, or the engine has stopped three times within 60 seconds, the document is stopped: `doc.engineStopped`, a readable, is true, every read rejects with `EngineUnavailable`, and `doc.status` stays `ready`. A page whose reads stopped the engine twice is blocked on its own: its reads reject with `EngineUnavailable`, with `details.page` naming the page, it shows its page error, and the other pages read on.
 
-`doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were.
+`doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were. A restart reads every page again, blocked pages included. On a document that is not stopped it does nothing, and a blocked page stays blocked.
 
 While the document is stopped, `doc.save()` with no changes still resolves with the bytes the file was opened from. With changes it rejects with `EngineUnavailable`, and so does `doc.applyRedactions()`.
 
-`mountViewer`, and so `createViewer` and the Vue, React and Svelte packages, shows a notice over the pages while the document is stopped: "The viewer stopped working. Your changes are kept.", with a "Try again" button that calls `doc.restartEngine()`. While the restart runs the button is busy and the notice reads "Starting again…". When it works the notice goes and the pages draw again; when it fails the first words come back. The notice is `[data-ink-engine-notice]` with `role="alert"`, and its words are `engineStopped`, `engineRetry` and `engineRestarting` in the `viewer` group of `messages`.
+`mountViewer`, and so `createViewer` and the Vue, React and Svelte packages, shows a notice over the pages while the document is stopped: "The viewer stopped working. Your changes are kept.", with a "Try again" button that calls `doc.restartEngine()`. While the restart runs the button is busy and the notice reads "Starting again…". When it works the notice goes and the pages draw again; when it fails the first words come back. The notice is `[data-ink-engine-notice]` with `role="alert"`, and its words are `engineStopped`, `engineRetry` and `engineRestarting` in the `viewer` group of `messages`. It goes just before the viewer's scroll element and is placed against its nearest positioned ancestor, so a host that calls `mountViewer` itself gives the container a positioned parent, such as one with `position: relative`. `createViewer` does this for you.
 
-While the notice is up, annotating pauses: the pages take no input, so no tool draws and no form field takes typing, no annotation activates, and undo and redo do nothing. Scrolling, zooming and the sidebars keep working, and pages already drawn keep their image. Download and Print stay enabled; with changes they show "Saving is not available right now". `onError` on `mountViewer` and `createViewer`, and the `error` event of each framework package, hear `EngineUnavailable` once each time the document stops.
+While the notice is up, annotating pauses: the pages take no input, so no tool draws and no form field takes typing, no annotation activates, and undo and redo do nothing. Scrolling, zooming and the sidebars keep working, and pages already drawn keep their image. Download and Print stay enabled; with changes they show a message that saving is not available while the viewer is stopped. `onError` on `mountViewer` and `createViewer`, and the `error` event of each framework package, hear `EngineUnavailable` once each time the document stops.
 
 ## Saving into the PDF
 
@@ -919,7 +919,7 @@ A card's `actions` is an array of `{ label, run }`, so each label can be a funct
 
 Inkbar loads its own files at runtime: the engine's binary and worker, fallback fonts for text a file does not embed, and the sandbox that runs a form's scripts. It loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
 
-Opening a file loads about 840 KB of JavaScript (260 KB gzipped), the engine's worker included, and the engine's 7.1 MB binary (3.0 MB gzipped). A font is fetched only when a page needs it, and the sandbox only when a file has scripts.
+Opening a file loads about 735 KB of JavaScript (240 KB gzipped), the engine's worker included, and the engine's 7.1 MB binary (3.0 MB gzipped). A font is fetched only when a page needs it, and the sandbox only when a file has scripts.
 
 ### With Vite
 
@@ -941,7 +941,7 @@ Then import the URLs from the virtual module:
 import { assets } from 'virtual:inkbar-assets'
 ```
 
-In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/<version>/`, where `<version>` is the installed `@inkbar/core` version, so a file a browser has cached is never served for a later release. The URLs respect your `base`. With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name in place of `inkbar`.
+In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/<version>/`, where `<version>` is the installed `@inkbar/core` version, so a file a browser has cached is never served for a later release. The URLs respect your `base`. A `base` on another origin, such as a CDN, works when that origin sends CORS headers for the files (see [Without Vite](#without-vite)). With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name in place of `inkbar`.
 
 For TypeScript, reference the module declaration once, for example in `env.d.ts`:
 
@@ -960,7 +960,7 @@ Copy these files to a path your server exposes. Take each from the package `@ink
 | `files/NotoSans-Regular.ttf`, `files/NotoSansJP-Regular.otf`, `files/NotoSansKR-Regular.otf`, `files/NotoSansSC-Regular.otf`, `files/NotoSansTC-Regular.otf` | `@inkbar/fonts`  | `fonts/`   |
 | `wasm/quickjs-eval.js`, `wasm/quickjs-eval.wasm`                                                                                                             | `pdfjs-dist`     | `sandbox/` |
 
-Put them under a directory named for the installed `@inkbar/core` version, as the plugin does, so a cached file is never stale after an upgrade. Then pass their URLs:
+Put them under a directory named for the installed `@inkbar/core` version, as the plugin does, so a cached file is never stale after an upgrade. `import { version } from '@inkbar/core'` gives that version, and so does the `version` field of the installed package's `package.json`. Serve `worker.mjs` with a JavaScript MIME type, such as `text/javascript`: a browser refuses to start a module worker from a script served as anything else. Then pass their URLs:
 
 ```ts
 const base = '/inkbar/<version>/' // the installed @inkbar/core version
@@ -974,15 +974,25 @@ const assets = {
 ```
 
 - `engine` is the URL of `inkbar-pdfium.wasm`.
-- `worker` is the URL of `worker.mjs`. A browser starts a worker only from the page's own origin, so serve `worker.mjs` from the page's origin even when the other files come from elsewhere, such as a CDN.
+- `worker` is the URL of `worker.mjs`.
 - `fonts` is the URL of the directory holding the five fonts. Pass one URL per font instead, as `{ default, japanese, 'simplified-chinese', 'traditional-chinese', korean }`, to name each file yourself or to leave some out. Pass `false` for no fallback fonts: Latin text in the standard fonts still draws, but Chinese, Japanese, Korean, Cyrillic or Greek text in a font the file does not embed draws wrong or not at all. Each Chinese, Japanese or Korean font is 4 to 8 MB.
 - `sandbox` is the URL of the directory holding `quickjs-eval.js` and `quickjs-eval.wasm`.
 
 A key that is missing or of the wrong type fails the open with `AssetConfigMissing`, and `details.key` names it. When the engine's binary or worker cannot be fetched or started, the open fails with `AssetLoadFailed`. A font that cannot be fetched is reported with `console.warn`, and its text draws with a substitute. When the sandbox cannot be loaded, the form stays fillable and its scripts do not run: the viewer's `onError` hears a `FormScriptError`.
 
+The files may be on another origin than the page, such as a CDN, when that origin sends CORS headers (`Access-Control-Allow-Origin`) for them. A browser does not start a worker from another origin's script, so the engine then starts it from a small `blob:` module of the page's own that imports `worker.mjs`.
+
+Under a content security policy, opening a file needs these directives:
+
+- `script-src 'wasm-unsafe-eval'`: the engine compiles its binary with WebAssembly, and so does the sandbox that runs a form's scripts, on the page. `script-src` also allows the origin of the `sandbox` directory, since the page imports `quickjs-eval.js` from it.
+- `worker-src` allowing the URL of `worker.mjs`: `'self'` when it is on the page's origin. When it is on another origin, `worker-src` needs `blob:`, and the worker then runs under the page's policy, so `script-src` also allows that origin.
+- `connect-src` allowing the origin the files are on, when it is not the page's: the engine fetches its binary and fonts, and the sandbox its binary.
+
+A worker started from its own URL runs under the policy its server sends with `worker.mjs`, so that response needs `script-src 'wasm-unsafe-eval'` and the `connect-src` as well.
+
 In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
 
-Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come with `pdfjs-dist` under the Apache License 2.0, in its `LICENSE`.
+Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come from `pdfjs-dist`, which is under the Apache License 2.0 (in its `LICENSE`). They also contain QuickJS (MIT licence, Fabrice Bellard and Charlie Gordon), built by Mozilla's `pdf.js.quickjs` (MIT licence), and `pdfjs-dist` carries neither notice, so `@inkbar/core` ships both: `licences/quickjs.txt` and `licences/pdfjs-quickjs.txt` in the installed `@inkbar/core` package. The Vite plugin copies each of these beside the files it covers, as `THIRD-PARTY-NOTICES`, `fonts/OFL.txt`, `sandbox/LICENSE`, `sandbox/LICENSE-quickjs` and `sandbox/LICENSE-pdfjs-quickjs`; copy them the same way when you copy the files by hand.
 
 ## Licence
 

@@ -6,13 +6,13 @@ Checks that core's reader still draws and reads every fixture the way it did whe
 
 The suite runs in headless Chromium over every fixture the manifest marks as opening. It opens each one with `openDocument`, the manifest's password included, and reads it through `doc._reader`. That is internal to core, and this package is the only place outside core that uses it.
 
-- **Pages** (`src/pages.browser.test.ts`). The first three pages, or fewer when the file has fewer, drawn whole at 1 pixel per point, pixel ratio 1, at the page's own `/Rotate`, with nothing hidden. Each must match `baselines/<fixture>/page-<n>.png` pixel for pixel.
+- **Pages** (`src/pages.browser.test.ts`). The first three pages, or fewer when the file has fewer, drawn whole at 1 pixel per point, pixel ratio 1, at the page's own `/Rotate`, with nothing hidden. Each must match `baselines/<fixture>/page-<n>.png` pixel for pixel. The first page of `text-simple` is also drawn turned a further 90 degrees, and must match `baselines/text-simple/page-1-turned-90.png`.
 - **The form layer** (`src/form-layer.browser.test.ts`). Each of those pages that holds a form field's widget, mounted with `createPageMount` as the viewer mounts it. The capture copies the page canvas, which leaves the widgets out, then each appearance canvas the form layer shows, at its place and in the layer's order. The HTML controls and the other DOM layers are left out, so a widget whose look the layer hands to its HTML control, or hides, shows nothing. Each must match `baselines/<fixture>/form-layer-<n>.png` pixel for pixel.
 - **Data** (`src/data.browser.test.ts`). Seven parts, each kept as JSON in `baselines/<fixture>/<part>.json` and compared as text:
 
   | File               | What it holds                                                                                                                                                             |
   | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | `facts.json`       | The title, author and whether the file is encrypted.                                                                                                                      |
+  | `facts.json`       | The title, author and whether the file is encrypted, and for each page drawn its box, `/Rotate` and `/UserUnit`.                                                          |
   | `text.json`        | For each page drawn: the text as search joins it, then every run with its box, font and character boundaries. A run's `rect` is left out: it is the bounds of its `quad`. |
   | `links.json`       | Every page's links, each destination replaced by the page and place it resolves to.                                                                                       |
   | `outline.json`     | The outline.                                                                                                                                                              |
@@ -22,7 +22,7 @@ The suite runs in headless Chromium over every fixture the manifest marks as ope
 
   A part that holds nothing for a fixture has no file. Links, annotations and scripts list only the pages that hold some.
 
-- **Placement** (`src/placement.browser.test.ts`). The baselines hold whole pages at their own `/Rotate`, so a region drawn in the wrong place would pass them. For `text-simple`, `text-rotated-90`, `cropbox-offset` and `userunit-2`, the test draws the first page whole and a region over two lines of its text, as the loupe draws one, at 2 pixels per unit. The region must equal the same area cut from the whole page, pixel for pixel, with the page turned a further 0, 90 and 270 degrees. One case moves the region's corner a quarter point, between two pixels. The engine places a page at whole pixels, so that region equals the area cut at the nearest whole pixel, half rounded up. A last case moves the region 1 pt and checks the test sees it.
+- **Placement** (`src/placement.browser.test.ts`). The baselines hold whole pages at their own `/Rotate`, so a region drawn in the wrong place would pass them. For `text-simple`, `text-rotated-90`, `cropbox-offset` and `userunit-2`, the test draws the first page whole and a region over two lines of its text, as the loupe draws one, at 2 pixels per unit. The region must equal the same area cut from the whole page, pixel for pixel, with the page turned a further 0, 90 and 270 degrees. One case moves the region's corner a quarter point, between two pixels. The engine places a page at whole pixels, so that region equals the area cut at the nearest whole pixel, half rounded up. A last case moves the region 1 pt and checks the test sees it. These cases compare the engine with itself, so a page turned wrongly at every size would pass them; the turned drawing of `text-simple` in the pages test holds a turned page to a baseline.
 
 Search is not checked here. Core's own search tests run their queries on the same fixtures and pin the hits, and `text.json` holds the text and positions search matches against.
 
@@ -82,9 +82,9 @@ The baselines are only as good as the engine's output when they were written. Do
 
 ## Excluded
 
-- **`form-timer` with the form layer.** A script bumps a field every 50 ms, so what the form layer shows depends on when the capture runs. Its page drawing and data still have baselines. The list is `TIMED` in `src/form-layer.browser.test.ts`. Every other drawing with the form layer gave the same pixels in five runs in a row.
+- **`form-timer` with the form layer.** A script bumps a field every 50 ms, so what the form layer shows depends on when the capture runs. Its page drawing and data still have baselines. The list is `TIMED` in `src/form-layer.browser.test.ts`. Its drawing with the form layer was made five times in a row and differed between runs. Every other drawing with the form layer gave the same pixels when the whole suite was run twice in a row.
 - **Pages after the third.** Links, annotations and scripts are read on every page; drawings and text only on the first three.
 
 ## Size
 
-The baselines must stay under 15 MB (`du -sb parity/baselines`). They hold about 5.3 MB today: 228 pages, 31 drawings with the form layer and 458 JSON files for 190 fixtures. If a change takes them over, lower `PAGES_PER_FIXTURE` in `src/draw.ts` before lowering `PIXELS_PER_POINT`.
+The baselines must stay under 15 MB (`du -sb parity/baselines`). They hold about 5.4 MB today: 229 page drawings (228 pages and one turned), 31 drawings with the form layer and 458 JSON files for 190 fixtures. If a change takes them over, lower `PAGES_PER_FIXTURE` in `src/draw.ts` before lowering `PIXELS_PER_POINT`.

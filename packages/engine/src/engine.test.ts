@@ -104,6 +104,21 @@ test('aborting a queued call rejects it and lets the running one finish', async 
   await expect(first).resolves.toMatchObject({ width: 2448 })
 })
 
+test('a background render waits for a normal call asked after it', async () => {
+  const settled: string[] = []
+  const note = (name: string, call: Promise<unknown>) =>
+    call.then(() => {
+      settled.push(name)
+    })
+  // Asked one after the other while nothing runs yet: the queue takes the normal calls first.
+  await Promise.all([
+    note('first', doc.renderPage(0)),
+    note('background', doc.renderPage(1, { background: true })),
+    note('later', doc.renderPage(2)),
+  ])
+  expect(settled).toEqual(['first', 'later', 'background'])
+})
+
 /**
  * How a render settled, in a few words: a failed expectation never prints a page of pixels.
  */

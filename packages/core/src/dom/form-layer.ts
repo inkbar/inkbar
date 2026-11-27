@@ -203,9 +203,9 @@ export function hasControl(field: FormField): boolean {
 const isToggle = (field: FormField) => field.type === 'checkbox' || field.type === 'radio'
 
 /**
- * The appearances PDF.js has for a widget, by the file's appearance states: none for a widget
- * the file hides; a toggle's on and off looks where `/AP /N` holds them; any other widget's own
- * where the file has an `/AP`.
+ * The appearances the engine draws for a widget, by the file's appearance states: none for a
+ * widget the file hides; a toggle's on and off looks where `/AP /N` holds them; any other
+ * widget's own where the file has an `/AP`.
  */
 function expectedLooks(field: FormField, widget: FormWidget): ReadonlySet<FieldLook> {
   const looks = new Set<FieldLook>()

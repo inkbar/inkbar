@@ -70,8 +70,8 @@ interface Case {
   name: string
   /** The /A, /AA or /Dest entries of the Link. `NUMBER_REF` stands for the number object. */
   entries: string
-  /** What the PDF.js reader reports in `doc.links(0)` for the Link. */
-  pdfjs: string
+  /** What core's reader reports in `doc.links(0)` for the Link. */
+  reported: string
   /** The generation of the Link's object, when not 0. */
   generation?: number
   /** An annotation written into /Annots just before the Link, beside it on the page. */
@@ -93,176 +93,176 @@ const CASES: Case[] = [
   {
     name: 'a-and-dest',
     entries: `/A ${uri(lit('https://example.com/a'))} /Dest [3 0 R /Fit]`,
-    pdfjs: 'url https://example.com/a, newWindow false',
+    reported: 'url https://example.com/a, newWindow false',
   },
   {
     name: 'gotor-absolute',
     entries: `/A << /S /GoToR /F ${lit('https://example.com/doc.pdf')} /NewWindow true >>`,
-    pdfjs: 'url https://example.com/doc.pdf, newWindow true',
+    reported: 'url https://example.com/doc.pdf, newWindow true',
   },
   {
     name: 'gotor-file',
     entries: `/A << /S /GoToR /F ${lit('other.pdf')} /D ${lit('ch1')} >>`,
-    pdfjs: 'unsupported, reason remote',
+    reported: 'unsupported, reason remote',
   },
   {
     name: 'launch-absolute',
     entries: `/A << /S /Launch /F ${lit('https://example.com/run')} >>`,
-    pdfjs: 'url https://example.com/run, newWindow false',
+    reported: 'url https://example.com/run, newWindow false',
   },
   {
     name: 'launch-file',
     entries: `/A << /S /Launch /F ${lit('app.exe')} >>`,
-    pdfjs: 'unsupported, reason launch',
+    reported: 'unsupported, reason launch',
   },
   {
     name: 'js-launch-url',
     entries: `/A ${js("app.launchURL('https://example.com/js', true)")}`,
-    pdfjs: 'url https://example.com/js, newWindow true',
+    reported: 'url https://example.com/js, newWindow true',
   },
   {
     name: 'js-window-open',
     entries: `/A ${js("window.open('https://example.com/open')")}`,
-    pdfjs: 'url https://example.com/open, newWindow false',
+    reported: 'url https://example.com/open, newWindow false',
   },
   {
     name: 'js-other',
     entries: `/A ${js("app.alert('x')")}`,
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'aa-only',
     entries: `/AA << /U ${uri(lit('https://example.com/aa'))} >>`,
-    pdfjs: 'url https://example.com/aa, newWindow false',
+    reported: 'url https://example.com/aa, newWindow false',
   },
   {
     name: 'uri-www',
     entries: `/A ${uri(lit('www.example.com/path'))}`,
-    pdfjs: 'url http://www.example.com/path, newWindow false',
+    reported: 'url http://www.example.com/path, newWindow false',
   },
   {
     name: 'uri-utf8',
     entries: `/A ${uri(hex(UTF8_E_ACUTE))}`,
-    pdfjs: 'url https://example.com/%C3%A9, newWindow false',
+    reported: 'url https://example.com/%C3%A9, newWindow false',
   },
   {
     name: 'uri-javascript',
     entries: `/A ${uri(lit('javascript:alert(1)'))}`,
-    pdfjs: 'unsupported, reason unsafe-url',
+    reported: 'unsupported, reason unsafe-url',
   },
   {
     name: 'uri-file',
     entries: `/A ${uri(lit('file:///etc/passwd'))}`,
-    pdfjs: 'unsupported, reason unsafe-url',
+    reported: 'unsupported, reason unsafe-url',
   },
   {
     name: 'uri-data',
     entries: `/A ${uri(lit('data:text/html,x'))}`,
-    pdfjs: 'unsupported, reason unsafe-url',
+    reported: 'unsupported, reason unsafe-url',
   },
   {
     name: 'uri-bytes',
     entries: `/A ${uri(hex([0xff, 0xfe]))}`,
-    pdfjs: 'unsupported, reason launch',
+    reported: 'unsupported, reason launch',
   },
   {
     name: 'js-launch-javascript',
     entries: `/A ${js("app.launchURL('javascript:alert(1)')")}`,
-    pdfjs: 'unsupported, reason unsafe-url',
+    reported: 'unsupported, reason unsafe-url',
   },
   {
     name: 'named-next',
     entries: '/A << /S /Named /N /NextPage >>',
-    pdfjs: 'named, action NextPage',
+    reported: 'named, action NextPage',
   },
   {
     name: 'named-other',
     entries: '/A << /S /Named /N /Print >>',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-catalog',
     entries: '/Dest [1 0 R /Fit]',
-    pdfjs: 'dest, raw [ref 1 0, name Fit]',
+    reported: 'dest, raw [ref 1 0, name Fit]',
   },
   {
     name: 'dest-named-utf16',
     entries: `/A << /S /GoTo /D ${hex(UTF16_RESUME)} >>`,
-    pdfjs: 'dest, raw résumé',
+    reported: 'dest, raw résumé',
   },
   // Explicit destinations PDF.js refuses (`isValidExplicitDest`): the Link goes nowhere.
   {
     name: 'dest-fit-argument',
     entries: '/Dest [3 0 R /Fit 72]',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-fith-two-arguments',
     entries: '/Dest [3 0 R /FitH 600 72]',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-xyz-four-arguments',
     entries: '/A << /S /GoTo /D [3 0 R /XYZ 72 600 0 5] >>',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'link-generation',
     entries: `/A ${uri(lit('https://example.com/generation'))}`,
     generation: 1,
-    pdfjs:
+    reported:
       'url https://example.com/generation, newWindow false, its id the object number, R and the generation 1',
   },
   {
     name: 'dest-invalid-beside-aa',
     entries: `/Dest 5 /AA << /U ${uri(lit('https://example.com/aa-unused'))} >>`,
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'launch-string-bom',
     entries: `/A << /S /Launch /F ${hex(utf16('https://example.com/bom'))} >>`,
-    pdfjs: 'unsupported, reason launch',
+    reported: 'unsupported, reason launch',
   },
   {
     name: 'launch-spec-utf16',
     entries: `/A << /S /Launch /F << /Type /Filespec /UF ${hex(utf16('https://example.com/spec'))} >> >>`,
-    pdfjs: 'url https://example.com/spec, newWindow false',
+    reported: 'url https://example.com/spec, newWindow false',
   },
   {
     name: 'uri-name',
     entries: '/A << /S /URI /URI /https:#2F#2Fexample.com#2Fname >>',
-    pdfjs: 'unsupported, reason launch',
+    reported: 'unsupported, reason launch',
   },
   {
     name: 'dest-xyz-one-argument',
     entries: '/Dest [3 0 R /XYZ 72]',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-indirect-argument',
     entries: `/Dest [3 0 R /FitH ${NUMBER_REF}]`,
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-fit-string',
     entries: '/Dest [3 0 R (Fit)]',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'dest-page-number',
     entries: '/Dest [0 /FitH 500]',
-    pdfjs: 'dest, raw [0, name FitH, 500]',
+    reported: 'dest, raw [0, name FitH, 500]',
   },
   {
     name: 'dest-page-real',
     entries: '/Dest [0.5 /Fit]',
-    pdfjs: 'unsupported, reason unknown',
+    reported: 'unsupported, reason unknown',
   },
   {
     name: 'after-markup-no-quads',
     entries: `/A ${uri(lit('https://example.com/after-markup'))}`,
     before: '/Subtype /Highlight /F 4 /C [1 1 0]',
-    pdfjs:
+    reported:
       'url https://example.com/after-markup, newWindow false, its order not counting the Highlight with no /QuadPoints before it',
   },
 ]
@@ -390,8 +390,8 @@ function linkOrder() {
 const TARGETS_DESCRIBES =
   `One page with ${CASES.length} Link annotations, each beside a label of its case name, and a ` +
   'Highlight with no /QuadPoints in /Annots just before the last Link. ' +
-  'For each case, in /Annots order, the target the PDF.js reader reports in doc.links(0): ' +
-  CASES.map((c) => `${c.name}: ${c.pdfjs}`).join('; ') +
+  "For each case, in /Annots order, the target core's reader reports in doc.links(0): " +
+  CASES.map((c) => `${c.name}: ${c.reported}`).join('; ') +
   '.'
 
 linkTargets(TARGETS_DESCRIBES)

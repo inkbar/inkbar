@@ -502,8 +502,8 @@ function appendStampHit(
 }
 
 /**
- * An invisible hit area for an annotation the overlay does not draw (embedded ones, which
- * PDF.js paints on the canvas): polygons over its quads, or its rect. Selection chrome only.
+ * An invisible hit area for an annotation the overlay does not draw (embedded ones, which the
+ * engine draws on the page canvas): polygons over its quads, or its rect. Selection chrome only.
  */
 export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
   drawHitArea(el, a, t)

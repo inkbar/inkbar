@@ -114,7 +114,8 @@ jobs:
           else
             pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE"
           fi
-      # The review spec again, against the app's production build (vite preview).
+      # Three specs again, against the app's production build (vite preview): the drawing page,
+      # Download and Print, and a scripted form.
       - if: startsWith(matrix.package, 'e2e-')
         env:
           PACKAGE: ${{ matrix.package }}

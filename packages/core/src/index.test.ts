@@ -152,14 +152,12 @@ describe('the built package', () => {
           sandboxImports++
           return ''
         })
+        // The Vite plugin finds the package that holds the sandbox's files, once.
         if (name === 'vite.mjs')
-          text = text.replace(
-            /\brequire\.resolve\(\s*["']pdfjs-dist\/package\.json["']\s*\)/g,
-            () => {
-              sandboxFiles++
-              return ''
-            }
-          )
+          text = text.replace(/\bfrom\(\s*["']pdfjs-dist["']\s*\)/g, () => {
+            sandboxFiles++
+            return ''
+          })
         for (const [match] of text.matchAll(
           /pdfjs-dist[\w./-]*|#pdfjs[\w-]*|GlobalWorkerOptions|pdfjsVersion/g
         ))

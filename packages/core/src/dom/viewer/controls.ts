@@ -288,10 +288,11 @@ function fileButton(
 }
 
 /**
- * Applies the redaction marks (`viewer.applyRedactions()`): asks first, removes the content
- * under them and reopens the viewer on the redacted file. It shows its name as text. Disabled
- * while no document is ready and while there is no mark (`canRedact`). While the marks are applied (`redactionBusy`) it says `viewer.redacting` and is
- * `aria-busy` and `aria-disabled`, keeping focus, and a press does nothing.
+ * Applies the redaction marks (`viewer.applyRedactions()`): asks first, removes the content under
+ * them and reopens the viewer on the redacted file. It shows its name as text. Disabled while no
+ * document is ready and while there is no mark (`canRedact`). While the marks are applied
+ * (`redactionBusy`) it says `viewer.redacting` and is `aria-busy` and `aria-disabled`, keeping
+ * focus, and a press does nothing.
  */
 export function createApplyRedactionsButton(viewer: Viewer): HTMLButtonElement {
   const b = h('button', {
@@ -453,10 +454,11 @@ export function logUnknownTool(viewer: Viewer, id: ToolId): void {
 }
 
 /**
- * Sets the tool; pressed while it is the active one. A creation, host or plugin tool's button
- * takes the tool's own `label` and `icon`; `opts.label` wins. Without either, a built-in tool
- * is named from the viewer's `messages.tools`, and any other by its id. For an id no tool registered it logs `InkError('UnknownTool')` to the console and
- * returns the same markup disabled, `aria-hidden` and unnamed.
+ * Sets the tool; pressed while it is the active one. A creation, host or plugin tool's button takes
+ * the tool's own `label` and `icon`; `opts.label` wins. Without either, a built-in tool is named
+ * from the viewer's `messages.tools`, and any other by its id. For an id no tool registered it logs
+ * `InkError('UnknownTool')` to the console and returns the same markup disabled, `aria-hidden` and
+ * unnamed.
  */
 export function createToolButton(
   viewer: Viewer,
@@ -501,11 +503,12 @@ export function createToolButton(
 }
 
 /**
- * A plugin command as a button with its status text beside it. The button is named by the
- * command's label, read again whenever the viewer's messages change, and disabled while the command is, except while it runs: then it keeps focus,
- * with `aria-busy` and `aria-disabled`, and a press does nothing. The status is a live region. A command without an icon shows its label as the button's text. For an id no
- * plugin registered it logs `InkError('UnknownCommand')` to the console and returns the same
- * markup disabled, `aria-hidden` and unnamed.
+ * A plugin command as a button with its status text beside it. The button is named by the command's
+ * label, read again whenever the viewer's messages change, and disabled while the command is,
+ * except while it runs: then it keeps focus, with `aria-busy` and `aria-disabled`, and a press does
+ * nothing. The status is a live region. A command without an icon shows its label as the button's
+ * text. For an id no plugin registered it logs `InkError('UnknownCommand')` to the console and
+ * returns the same markup disabled, `aria-hidden` and unnamed.
  */
 export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
   const command = viewer.commands.get(id)

@@ -1,1 +1,11 @@
-{ "encrypted": false }
+{
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 150, "width": 100, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    }
+  ]
+}

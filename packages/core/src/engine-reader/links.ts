@@ -1,5 +1,7 @@
-// A page's links and the document's outline from the facts the engine reports, as the PDF.js
-// reader gives them: the same links in the same order with the same ids, and the same outline.
+// A page's links and the document's outline from the facts the engine reports: each page's links
+// in the order of its annotations, with their annotations' ids, and the outline. Order, ids and
+// targets follow PDF.js's rules, which core read links with before, so ids a host or a saved
+// file holds still match.
 import { importedId } from '../model/annotations/embedded'
 import { quadsFromFlat, rectFromPoints, type Rect } from '../model/geometry'
 import { mapInOrder } from '../model/map-in-order'

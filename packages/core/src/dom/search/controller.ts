@@ -3,6 +3,7 @@
  * query, the scan and the hits; the bar is only a view of it. Scans go through `doc.search`, so
  * the bar and a plugin running the same query see the same hits.
  */
+import { isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
 import { isBlankQuery } from '../../model/search-text'
 
@@ -165,9 +166,14 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
         accept(hit)
       }
     } catch (error) {
-      // An abort is our own doing; anything else is a real failure worth reporting.
+      // An abort is our own doing; anything else is a real failure worth reporting, except a
+      // document that has stopped reading: the viewer's notice already says so.
       if (!controller.signal.aborted) {
-        console.error(error)
+        const stopped =
+          isInkError(error) &&
+          error.code === 'EngineUnavailable' &&
+          doc.engineStopped.get()
+        if (!stopped) console.error(error)
         if (scan === controller) scan = undefined
         flush()
         patch({ scanning: false })

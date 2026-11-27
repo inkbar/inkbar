@@ -7,14 +7,20 @@ import { AnnotationUnwritable } from './write-input'
 
 import type { Quad, Rect } from '../geometry'
 
-/** What a save writes, as far as the saver looks into it: the engine's `WriteInput` fits. */
+/**
+ * @internal What a save writes, as far as the saver looks into it: the engine's `WriteInput`
+ * fits.
+ */
 export interface SaveInput {
   remove?: readonly { page: number; objectNumber: number }[]
   annotations?: readonly object[]
   fields?: Readonly<Record<string, { value: string | readonly string[]; text?: string }>>
 }
 
-/** What applying redactions writes, as far as the saver looks into it: the engine's `RedactInput` fits. */
+/**
+ * @internal What applying redactions writes, as far as the saver looks into it: the engine's
+ * `RedactInput` fits.
+ */
 export interface RedactSaveInput extends SaveInput {
   /** The marks, each with the overlay left in its place as its appearance. */
   marks: readonly object[]
@@ -34,7 +40,7 @@ export interface RedactionSanitised {
   privateData: boolean
 }
 
-/** What the engine says an apply did: the engine's `RedactResult`, by shape. */
+/** @internal What the engine says an apply did: the engine's `RedactResult`, by shape. */
 export interface RedactEngineResult {
   /** Per page with marks applied: the marks, and the file annotations removed, pop-ups included. */
   pages: readonly { page: number; marks: number; annotationsRemoved: number }[]
@@ -356,28 +362,30 @@ export function createSaver(options: SaverOptions): Saver {
 
   /**
    * `work` on a document opened for this write in the borrowed engine, and that engine. The
-   * document is closed after it, whatever happens, and a call that stopped the engine is told to
-   * its holder before the write rejects, so the next write is not lent a stopped engine.
+   * document is closed after it, whatever happens. A call that stopped the engine is told to its
+   * holder at once, before the close joins the engine's queue behind reads that would find the
+   * engine stopped first, and the write rejects only once the holder knows, so the next write is
+   * not lent a stopped engine.
    */
   const withDocument = async <T>(
     work: (doc: SaveEngineDocument, engine: SaveEngine) => Promise<T>
   ): Promise<T> => {
     const lent = await options.borrow()
     if (destroyed) throw destroyedError()
+    let told: Promise<void> | undefined
+    let doc: SaveEngineDocument | undefined
     try {
-      let doc: SaveEngineDocument | undefined
-      try {
-        const bytes = await options.bytes()
-        if (destroyed) throw destroyedError()
-        doc = await lent.engine.open(bytes, passwordOption)
-        return await work(doc, lent.engine)
-      } finally {
-        const opened = doc
-        if (opened) await (async () => opened.close())().catch(() => undefined)
-      }
+      const bytes = await options.bytes()
+      if (destroyed) throw destroyedError()
+      doc = await lent.engine.open(bytes, passwordOption)
+      return await work(doc, lent.engine)
     } catch (error) {
-      if (stoppedBy(error)) await lent.stopped()
+      if (stoppedBy(error)) told = lent.stopped()
       throw error
+    } finally {
+      const opened = doc
+      if (opened) await (async () => opened.close())().catch(() => undefined)
+      await told
     }
   }
 

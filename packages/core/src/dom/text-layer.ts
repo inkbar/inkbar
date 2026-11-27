@@ -49,7 +49,7 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     const reader = doc._reader
     // Destroying the layer cancels its read, so a page scrolled past does not hold up the next.
     const [content, families, baselines, info] = await Promise.all([
-      reader.text(page, { glyphs: false, signal: abort.signal }),
+      reader.text(page, { signal: abort.signal }),
       reader.textFamilies(page, abort.signal),
       reader.textBaselines(page, abort.signal),
       reader.pageInfo(page),

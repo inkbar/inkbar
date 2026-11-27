@@ -86,13 +86,10 @@ export type LockedStatus = { state: 'locked'; incorrect: boolean }
 export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
 
 export type {
-  RedactEngineResult,
   RedactionCandidate,
   RedactionFindings,
   RedactionRegion,
   RedactionSanitised,
-  RedactSaveInput,
-  SaveInput,
 } from './save/saver'
 export type { RedactionPreview, RedactionResult } from './redaction/types'
 export type {
@@ -275,10 +272,13 @@ export interface InkDocument {
   /**
    * Starts a new engine for a stopped document and opens the file in it again. Resolves when the
    * document reads again, and rejects with EngineUnavailable when it does not; it then stays
-   * stopped. Every page is read again, a page whose reads stopped the engine twice included. The
-   * session's annotations, form values and history are untouched either way. Calls made while one
-   * runs share it. Resolves at once, doing nothing, for a document that is not stopped. Rejects
-   * with DocumentDestroyed once the document is destroyed, also when that happens while it runs.
+   * stopped. Once it has restarted a stopped document, every page is read again, a page whose
+   * reads stopped the engine twice included. The session's annotations, form values and history
+   * are untouched either way. Calls made while one runs share it. Resolves at once, doing
+   * nothing, for a document that is not stopped: a page blocked while the document reads stays
+   * blocked. A blocked page's reads reject with EngineUnavailable, its `details.page` naming the
+   * page. Rejects with DocumentDestroyed once the document is destroyed, also when that happens
+   * while it runs.
    */
   restartEngine(): Promise<void>
   /**
@@ -400,12 +400,15 @@ export async function openDocument(
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
-  /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
-  const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
+  /** Each page's searchable text. */
+  const searchable = new Map<number, Promise<SearchableText>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
   let outlineRead: Promise<readonly OutlineItem[]> | undefined
   let preserved: ForeignAnnotation[] = []
-  /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
+  /**
+   * Embedded annotations whose data from the reader lacks fields the file holds; read after
+   * `ready`.
+   */
   const targets: EmbeddedTarget[] = []
   /** The file's form fields and what was read for them from its objects, filled before `ready`. */
   const formData: {
@@ -502,7 +505,12 @@ export async function openDocument(
     const opened = opening
     const read = (async () => {
       const perPage = await mapInOrder(pageCount, EMBEDDED_CONCURRENCY, async (i) => {
-        const annotations = await opened.annotations(i)
+        // A page whose reads stopped the engine twice gives no annotations, as it gives no
+        // links: the file opens without them rather than not at all.
+        const annotations = await opened.annotations(i).catch((error: unknown) => {
+          if (blockedPage(error, i) && opened.unavailable() === undefined) return []
+          throw error
+        })
         const hasWidgets = annotations.some((d) => d.subtype === 'Widget')
         const links = await opened.links(i)
         // A reply Inkbar saved is hidden, so the reader leaves it out; its parent is not.
@@ -564,8 +572,14 @@ export async function openDocument(
       const structured = [...formData.extras.tabs].flatMap(([page, order]) =>
         order === 'S' && withFields.has(page) ? [page] : []
       )
+      // A page whose reads stopped the engine twice has no structure order, as a page whose
+      // order the engine cannot read: its fields go in page order.
       const orders = await mapInOrder(structured.length, EMBEDDED_CONCURRENCY, (i) =>
-        opened.tabOrder(structured[i]!)
+        opened.tabOrder(structured[i]!).catch((error: unknown) => {
+          if (blockedPage(error, structured[i]!) && opened.unavailable() === undefined)
+            return []
+          throw error
+        })
       )
       structured.forEach((page, i) => formData.structure.set(page, orders[i]!))
     }
@@ -633,10 +647,10 @@ export async function openDocument(
   // Signature fields and the annotations that sign them change together from here.
   form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 
-  // Fills in fields PDF.js leaves out, and lifts the annotations Inkbar saved and other
-  // programs' redaction marks, read from the file's own bytes. It runs after `ready` so it
-  // never delays it, and a failure leaves the annotations as PDF.js imported them. Both read
-  // one copy of the file's objects.
+  // Fills in fields the reader leaves out of the file's annotations, and lifts the annotations
+  // Inkbar saved and other programs' redaction marks, read from the file's own bytes. It runs
+  // after `ready` so it never delays it, and a failure leaves the annotations as the open
+  // imported them. Both read one copy of the file's objects.
   const liftSettled = ready.then(
     async () => {
       if (destroyed || !reader) return
@@ -919,18 +933,16 @@ export async function openDocument(
   }
 
   /**
-   * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
-   * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
-   * decodes its images, so search does it only for pages with hits. Rejects with
+   * A page's text, its boundaries from the engine's character boxes. Rejects with
    * `DocumentDestroyed` once the document is destroyed, whether or not the read has finished.
    */
-  async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
+  async function pageContent(page: number): Promise<TextContent> {
     if (destroyed) throw destroyedError()
     if (!reader) throw statusError(status.get())
     // A read still running when the document is destroyed ends here with it, rejecting with
     // `DocumentDestroyed` whatever the reader does with it.
     const content = await Promise.race([
-      reader.text(page, { glyphs }),
+      reader.text(page),
       destroyedSignal.then(() => Promise.reject<TextContent>(destroyedError())),
     ])
     if (destroyed) throw destroyedError()
@@ -939,7 +951,7 @@ export async function openDocument(
 
   const abortError = (signal: AbortSignal | undefined): unknown =>
     signal?.reason ?? new DOMException('Aborted', 'AbortError')
-  const searchableFor = (page: number, placed: boolean): Promise<SearchableText> => {
+  const searchableFor = (page: number): Promise<SearchableText> => {
     // Once the engine is gone for good no page answers, so no kept page does either: a search
     // rejects rather than finding hits in some pages and failing on the others.
     const gone = reader?.unavailable()
@@ -947,27 +959,15 @@ export async function openDocument(
       searchable.clear()
       return Promise.reject(gone)
     }
-    let cached = searchable.get(page)
-    if (!cached) {
-      cached = pageContent(page, placed).then((c) => ({ st: searchableText(c), placed }))
-    } else if (placed) {
-      // Only the boundaries change, so hits found in the measured text keep their offsets.
-      cached = cached.then((c) =>
-        c.placed
-          ? c
-          : pageContent(page, true).then((pc) => ({
-              st: searchableText(pc),
-              placed: true,
-            }))
-      )
-    } else return cached.then((c) => c.st)
-    const entry = cached
+    const cached = searchable.get(page)
+    if (cached) return cached
+    const entry = pageContent(page).then(searchableText)
     searchable.set(page, entry)
     // A failed page is not cached: the next search asks again.
     entry.catch(() => {
       if (searchable.get(page) === entry) searchable.delete(page)
     })
-    return entry.then((c) => c.st)
+    return entry
   }
 
   async function* scan(
@@ -989,12 +989,7 @@ export async function openDocument(
       check()
       let hits: SearchHit[]
       try {
-        hits = matchPage(await searchableFor(order[n]!, false), query, matchOpts)
-        // Hit boxes are cut where the page draws its glyphs, read only for pages with hits.
-        if (hits.length > 0) {
-          check()
-          hits = matchPage(await searchableFor(order[n]!, true), query, matchOpts)
-        }
+        hits = matchPage(await searchableFor(order[n]!), query, matchOpts)
       } catch (error) {
         check()
         throw error
@@ -1007,7 +1002,10 @@ export async function openDocument(
     }
   }
 
-  /** The engine reader, once the document it read is ready. */
+  /**
+   * The engine reader, once the document it read is ready. A document whose open failed has
+   * none: it is never stopped, and `restartEngine` does nothing for it.
+   */
   const readsWithEngine = status.get().state === 'ready' ? reader : undefined
   const engineStopped: Readable<boolean> =
     readsWithEngine?.engineStopped ?? readonly(writable(false))
@@ -1029,7 +1027,7 @@ export async function openDocument(
     pages,
     info,
     text(page) {
-      return pageContent(page, true)
+      return pageContent(page)
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw
@@ -1204,4 +1202,13 @@ function statusError(s: DocumentStatus): InkError {
 function errorMessage(cause: unknown): string {
   if (cause instanceof Error) return cause.message
   return String(cause)
+}
+
+/** Whether `error` is the one a page's reads reject with once they stopped the engine twice. */
+function blockedPage(error: unknown, page: number): boolean {
+  return (
+    isInkError(error) &&
+    error.code === 'EngineUnavailable' &&
+    (error.details as { page?: unknown } | undefined)?.page === page
+  )
 }

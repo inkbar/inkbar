@@ -287,6 +287,17 @@ describe('createSaver', () => {
     expect(fake.calls.at(-3)).toBe('write 2 1')
   })
 
+  it('tells the holder the engine stopped before it asks the engine anything more', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    fake.failNext(new EngineError('engine-failure', 'gone'))
+    await expect(s.write('k', input(1))).rejects.toMatchObject({ code: 'SaveFailed' })
+    // The close waits its turn on the engine behind any read queued there, which would find the
+    // engine stopped first; told before it, the holder takes the write for what stopped it.
+    expect(fake.calls.indexOf('stopped 1')).toBeGreaterThan(-1)
+    expect(fake.calls.indexOf('stopped 1')).toBeLessThan(fake.calls.indexOf('close 1'))
+  })
+
   it('tells the holder when the engine ran out of memory, which stops it too', async () => {
     const fake = fakeEngine()
     const s = saver(fake)

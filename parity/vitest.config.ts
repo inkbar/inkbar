@@ -64,11 +64,20 @@ const readParityFile: BrowserCommand<[string, 'base64' | 'utf8']> = (
 
 const baselines = join(root, 'baselines')
 
-/** Every file under `baselines/`, relative to it, `/` between folders, sorted. */
+/**
+ * Every file under `baselines/`, relative to it, `/` between folders, sorted. A dotfile, such as
+ * one a file manager leaves (`.DS_Store`), is left out, and so is anything in a dot folder.
+ */
 const listBaselines: BrowserCommand<[]> = () =>
   existsSync(baselines)
     ? readdirSync(baselines, { recursive: true, withFileTypes: true })
-        .filter((entry) => entry.isFile())
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            !relative(baselines, join(entry.parentPath, entry.name))
+              .split(sep)
+              .some((part) => part.startsWith('.'))
+        )
         .map((entry) =>
           relative(baselines, join(entry.parentPath, entry.name)).split(sep).join('/')
         )

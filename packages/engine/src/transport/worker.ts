@@ -1,4 +1,5 @@
 import { EngineError } from '../errors.ts'
+import { nextTask } from '../native/core.ts'
 
 import { CallQueue } from './queue.ts'
 
@@ -33,7 +34,12 @@ interface Pending {
 
 class WorkerTransport implements Transport {
   readonly #worker: Worker
-  readonly #queue = new CallQueue()
+  /**
+   * Once the worker has died, each queued call fails a task after the one before it: the call
+   * that was running is seen to fail first, however long the chain of promises its callers wait
+   * through, so a caller can tell which call stopped the engine.
+   */
+  readonly #queue = new CallQueue(() => (this.#dead ? nextTask() : Promise.resolve()))
   readonly #pending = new Map<number, Pending>()
   #nextId = 1
   readonly #destroyTimeout: number
@@ -210,9 +216,11 @@ const DESTROY_TIMEOUT_MS = 2_000
 export async function createWorkerTransport(
   worker: Worker,
   wasm: string | URL | Uint8Array,
-  // Internal: `url` names the worker script in errors; tests shorten the two bounds.
+  // Internal: `url` names the worker script in errors, and `hint` follows what they say when the
+  // worker cannot start; tests shorten the two bounds.
   options: {
     url?: string | undefined
+    hint?: string | undefined
     startTimeout?: number
     destroyTimeout?: number
     fallbackFonts?: FontSources | undefined
@@ -223,6 +231,7 @@ export async function createWorkerTransport(
     options.destroyTimeout ?? DESTROY_TIMEOUT_MS
   )
   const named = options.url === undefined ? '' : ` at ${options.url}`
+  const hint = options.hint === undefined ? '' : ` ${options.hint}`
   let source: string | Uint8Array
   try {
     // The worker's base URL can differ from the page's.
@@ -244,7 +253,7 @@ export async function createWorkerTransport(
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
-      fail(failure(`The engine worker${named} did not start in time.`))
+      fail(failure(`The engine worker${named} did not start in time.${hint}`))
     }, options.startTimeout ?? START_TIMEOUT_MS)
     const fail = (error: EngineError) => {
       clearTimeout(timer)
@@ -272,11 +281,8 @@ export async function createWorkerTransport(
       } else transport.handle(message)
     })
     worker.addEventListener('error', (event) => {
-      fail(
-        failure(
-          `The engine worker${named} failed: ${event.message || 'it could not be loaded or started'}.`
-        )
-      )
+      const why = event.message || 'it could not be loaded or started'
+      fail(failure(`The engine worker${named} failed: ${why}.${started ? '' : hint}`))
     })
     worker.addEventListener('messageerror', () => {
       fail(failure('The engine worker sent a message that could not be read.'))

@@ -1,1 +1,13 @@
-{ "author": "Inkbar", "encrypted": false, "title": "Inkbar fixture" }
+{
+  "author": "Inkbar",
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 792, "width": 612, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 180,
+      "userUnit": 1
+    }
+  ],
+  "title": "Inkbar fixture"
+}

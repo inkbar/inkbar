@@ -752,6 +752,84 @@ test('the built package finds its worker and wasm by default', async () => {
   expect((await doc.renderPage(0)).width).toBe(612)
 })
 
+describe('a worker script on another origin', () => {
+  /**
+   * The test server under another origin: the same server by another name for this machine,
+   * whichever of them it answers on. A browser treats each name as an origin of its own.
+   */
+  const other = async (): Promise<string> => {
+    for (const name of ['localhost', '127.0.0.1', '[::1]']) {
+      const url = new URL(location.href)
+      if (url.hostname === name) continue
+      url.hostname = name
+      const answers = await fetch(`${url.origin}/engine-cors/worker.mjs`, {
+        method: 'HEAD',
+      }).then(
+        (response) => response.ok,
+        () => false
+      )
+      if (answers) return url.origin
+    }
+    throw new Error('The test server answers on no other name for this machine')
+  }
+
+  test('starts, when its origin sends CORS headers for it', async () => {
+    const { createEngine: createBuilt } = await loadBuilt()
+    const script = `${await other()}/engine-cors/worker.mjs`
+    const engine = await createBuilt({
+      worker: script,
+      wasm: new URL('/engine-dist/inkbar-pdfium.wasm', location.href),
+    })
+    engines.push(engine)
+    const doc = await engine.open(await fixture('text-simple'))
+    expect(await doc.pageInfo(2)).toMatchObject({ width: 612, height: 792 })
+    expect((await doc.renderPage(0)).width).toBe(612)
+  })
+
+  test('says what it needs when its origin sends no CORS headers', async () => {
+    const { createEngine: createBuilt } = await loadBuilt()
+    const script = `${await other()}/engine-no-cors/worker.mjs`
+    const error: unknown = await createBuilt({
+      worker: script,
+      wasm: new URL('/engine-dist/inkbar-pdfium.wasm', location.href),
+    }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    const message = (error as Error).message
+    expect(message).toContain(script)
+    expect(message).toContain('another origin')
+    expect(message).toContain('CORS')
+    expect(message).toContain('blob:')
+  })
+
+  test('is started from a module of the page’s own, whose address is let go once it runs', async () => {
+    const created: string[] = []
+    const revoked: string[] = []
+    const createObjectURL = URL.createObjectURL.bind(URL)
+    const revokeObjectURL = URL.revokeObjectURL.bind(URL)
+    URL.createObjectURL = (blob: Blob | MediaSource) => {
+      const url = createObjectURL(blob)
+      created.push(url)
+      return url
+    }
+    URL.revokeObjectURL = (url: string) => {
+      revoked.push(url)
+      revokeObjectURL(url)
+    }
+    try {
+      const engine = await start({
+        worker: `${await other()}/engine-cors/worker.mjs`,
+        wasm,
+      })
+      expect(created).toHaveLength(1)
+      expect(revoked).toEqual(created)
+      await engine.open(await fixture('text-simple'))
+    } finally {
+      URL.createObjectURL = createObjectURL
+      URL.revokeObjectURL = revokeObjectURL
+    }
+  })
+})
+
 // Requests made inside the worker do not appear in the page's performance entries, so the wasm
 // fetch is not seen there. The `worker: false` engine below runs the same loading code in the page
 // and covers it.

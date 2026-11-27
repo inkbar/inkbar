@@ -93,6 +93,124 @@ function trapsOnNextCall() {
   }
 }
 
+/**
+ * Real engines, in this thread, of which a call `traps(method, args)` picks stops the engine it
+ * runs on: it and every later call there reject with `engine-failure`, as after a trap in PDFium.
+ */
+function trapsOn(traps: (method: string, args: unknown[]) => boolean) {
+  const stoppedError = () =>
+    Object.assign(new Error('stopped'), { code: 'engine-failure' })
+  const createEngine = vi.fn(async () => {
+    const real = await import('@inkbar/engine')
+    const engine = await real.createEngine({ worker: false })
+    let stopped = false
+    return new Proxy(engine, {
+      get(target, key, receiver) {
+        if (key !== 'open') return Reflect.get(target, key, receiver) as unknown
+        return async (...args: Parameters<typeof engine.open>) => {
+          const doc = await target.open(...args)
+          return new Proxy(doc, {
+            get(d, name, r) {
+              const value = Reflect.get(d, name, r) as unknown
+              if (typeof value !== 'function' || name === 'close') return value
+              return (...a: unknown[]) => {
+                if (traps(String(name), a)) stopped = true
+                if (stopped) return Promise.reject(stoppedError())
+                return (value as (...b: unknown[]) => unknown).apply(d, a)
+              }
+            },
+          })
+        }
+      },
+    })
+  })
+  return createEngine
+}
+
+describe('a page whose annotations stop every engine they are read on', () => {
+  afterEach(() => {
+    setEngineFactory(undefined)
+  })
+
+  /** Each page's annotation ids, in page order. */
+  const byPage = (doc: InkDocument): string[][] =>
+    doc.pages.map((_, page) =>
+      doc.annotations.list
+        .get()
+        .filter((a) => a.page === page)
+        .map((a) => a.id)
+    )
+
+  it('opens without that page’s annotations; the other pages have theirs, and the document reads', async () => {
+    const bytes = await fixtureBytes('saved-annotations')
+    const plain = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await plain.ready
+    const expected = byPage(plain)
+    plain.destroy()
+    const bad = expected.findIndex((ids) => ids.length > 0)
+    expect(expected.filter((ids) => ids.length > 0).length).toBeGreaterThan(1)
+
+    setEngineFactory(
+      trapsOn((method, args) => method === 'pageAnnotations' && args[0] === bad)
+    )
+    const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await doc.ready
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    expect(doc.engineStopped.get()).toBe(false)
+    expect(byPage(doc)).toEqual(expected.map((ids, page) => (page === bad ? [] : ids)))
+    // The other pages read; the page itself is blocked, as after any two stops of its own.
+    await expect(doc.pageText(bad + 1)).resolves.toEqual(expect.any(String))
+    await expect(doc.pageText(bad)).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+      details: { page: bad },
+    })
+    doc.destroy()
+  })
+
+  it('opens a form whose widgets sit on that page and another; the other page’s fields work', async () => {
+    // Page 0 holds most of the fields, page 1 a few, and `header.ref` has a widget on each.
+    const bytes = await fixtureBytes('form-fields')
+    setEngineFactory(
+      trapsOn((method, args) => method === 'pageAnnotations' && args[0] === 1)
+    )
+    const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await doc.ready
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    expect(doc.engineStopped.get()).toBe(false)
+    const fields = doc.form.fields.get()
+    const names = fields.map((f) => f.name)
+    expect(names).toEqual(expect.arrayContaining(['name', 'notes', 'header.ref']))
+    // The blocked page lists no widgets, so fields only it holds have none to show.
+    expect(names).not.toContain('rotated')
+    expect(fields.flatMap((f) => f.widgets.map((w) => w.page))).not.toContain(1)
+    expect(doc.form.set({ name: 'Ada' }).applied).toEqual(['name'])
+    expect(doc.form.get('name')).toBe('Ada')
+    doc.destroy()
+  })
+})
+
+describe('a page whose structure order stops every engine it is read on', () => {
+  afterEach(() => {
+    setEngineFactory(undefined)
+  })
+
+  it('opens with the same fields', async () => {
+    const bytes = await fixtureBytes('form-structure')
+    const plain = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await plain.ready
+    const names = plain.form.fields.get().map((f) => f.name)
+    plain.destroy()
+
+    setEngineFactory(trapsOn((method) => method === 'structureOrder'))
+    const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
+    await doc.ready
+    expect(doc.status.get()).toEqual({ state: 'ready' })
+    expect(doc.engineStopped.get()).toBe(false)
+    expect(doc.form.fields.get().map((f) => f.name)).toEqual(names)
+    doc.destroy()
+  })
+})
+
 describe('form fields', () => {
   it("reads a button's GoTo destinations as it did before", async () => {
     const doc = await openDocument(await fixtureBytes('form-goto'), {

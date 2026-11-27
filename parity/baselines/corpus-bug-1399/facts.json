@@ -1,1 +1,13 @@
-{ "author": "Ji Lulu", "encrypted": false, "title": "Untitled" }
+{
+  "author": "Ji Lulu",
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 792, "width": 612, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    }
+  ],
+  "title": "Untitled"
+}

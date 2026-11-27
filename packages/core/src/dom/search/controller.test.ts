@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InkError } from '../../model/errors'
 import { writable } from '../../model/readable'
 
 import { createSearchController } from './controller'
@@ -443,6 +444,26 @@ describe('createSearchController', () => {
       controller.setQuery('foo')
       await settle()
       expect(error).toHaveBeenCalledWith(boom)
+      expect(controller.state.get().scanning).toBe(false)
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('logs nothing for a scan the stopped document could not read, and stops scanning', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { controller, doc } = setup({})
+    const unavailable = new InkError('EngineUnavailable', 'stopped')
+    Object.assign(doc, {
+      engineStopped: writable(true),
+      search: () => ({
+        [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(unavailable) }),
+      }),
+    })
+    try {
+      controller.setQuery('foo')
+      await settle()
+      expect(error).not.toHaveBeenCalled()
       expect(controller.state.get().scanning).toBe(false)
     } finally {
       error.mockRestore()

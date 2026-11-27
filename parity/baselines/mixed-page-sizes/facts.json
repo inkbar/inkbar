@@ -1,1 +1,25 @@
-{ "author": "Inkbar", "encrypted": false, "title": "Inkbar fixture" }
+{
+  "author": "Inkbar",
+  "encrypted": false,
+  "pages": [
+    {
+      "box": { "height": 792, "width": 612, "x": 0, "y": 0 },
+      "page": 1,
+      "rotate": 0,
+      "userUnit": 1
+    },
+    {
+      "box": { "height": 842, "width": 595, "x": 0, "y": 0 },
+      "page": 2,
+      "rotate": 0,
+      "userUnit": 1
+    },
+    {
+      "box": { "height": 595, "width": 842, "x": 0, "y": 0 },
+      "page": 3,
+      "rotate": 0,
+      "userUnit": 1
+    }
+  ],
+  "title": "Inkbar fixture"
+}

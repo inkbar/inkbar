@@ -323,9 +323,7 @@ describe('with changes to write', () => {
     await until(() => errors.length === 2)
     // The press that found it stopped reports its own failure, as a failed download does.
     expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
-    expect(alertText()).toBe(
-      'Saving is not available right now. Check your connection and try again.'
-    )
+    expect(alertText()).toBe('Saving is not available while the viewer is stopped.')
     expect(clicked).toHaveLength(0)
     expect(busy(download)).toBe(false)
   })

@@ -309,7 +309,7 @@ describe("text layer, from the engine reader's text", () => {
     const text = vi.spyOn(reader, 'text')
     const families = vi.spyOn(reader, 'textFamilies')
     const tl = start()
-    const textSignal = text.mock.calls[0]![1].signal!
+    const textSignal = text.mock.calls[0]![1]!.signal!
     const familiesSignal = families.mock.calls[0]![1]!
     expect([textSignal.aborted, familiesSignal.aborted]).toEqual([false, false])
     tl.destroy()

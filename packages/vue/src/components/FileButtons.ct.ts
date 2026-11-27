@@ -160,7 +160,7 @@ test('an engine that stops and cannot start again says saving is unavailable', a
   await page.locator('[data-ink-form-alert-ok]').click()
   await page.getByRole('button', { name: 'Download' }).click()
   await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
-    'Saving is not available right now. Check your connection and try again.'
+    'Saving is not available while the viewer is stopped.'
   )
   // The write's failure; the stop, as it happens; then the press that found it stopped
   // reports its own failure, as a failed download does.

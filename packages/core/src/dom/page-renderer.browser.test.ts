@@ -229,6 +229,20 @@ describe('createPageRenderer', () => {
     cleanup.push(() => (r.destroy(), doc.destroy(), host.remove()))
     await r.rendered
 
+    // The new draw waits until both probes have looked: a fast engine could otherwise land it
+    // within the frame.
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const original = doc._reader.draw.bind(doc._reader)
+    const spy = vi
+      .spyOn(doc._reader, 'draw')
+      .mockImplementation((request, target, signal) =>
+        held.then(() => original(request, target, signal))
+      )
+    cleanup.unshift(() => spy.mockRestore())
+
     const zoomed = createPageTransform(page, 2, 0)
     r.update(zoomed)
     host.style.width = `${zoomed.cssWidth}px`
@@ -243,6 +257,7 @@ describe('createPageRenderer', () => {
     await nextFrame()
     probe() // next frame
 
+    release()
     await r.rendered
     const canvas = canvasIn(host)!
     expect(canvas.width).toBe(zoomed.cssWidth)

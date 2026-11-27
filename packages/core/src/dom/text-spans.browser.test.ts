@@ -48,7 +48,7 @@ async function mount(name: FixtureName, zoom: number, rotation: ViewRotation = 0
   const doc = await open(name)
   const reader = doc._reader
   const [content, families, baselines, info] = await Promise.all([
-    reader.text(0, { glyphs: false }),
+    reader.text(0),
     reader.textFamilies(0),
     reader.textBaselines(0),
     reader.pageInfo(0),

@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import pkg from '../../package.json' with { type: 'json' }
 
-import { inkbar } from './index'
+import { copyShipped, inkbar, packageFile } from './index'
 
 import type { InkbarPluginOptions } from './index'
 import type { PdfAssets } from '../model/assets'
@@ -27,6 +27,7 @@ const require = createRequire(import.meta.url)
 const engineDist = join(dirname(require.resolve('@inkbar/engine/package.json')), 'dist')
 const fontsDir = dirname(require.resolve('@inkbar/fonts/files/NotoSans-Regular.ttf'))
 const pdfjsRoot = dirname(require.resolve('pdfjs-dist/package.json'))
+const corePkg = dirname(require.resolve('@inkbar/core/package.json'))
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const version = pkg.version
 
@@ -39,6 +40,12 @@ const SHIPPED: Record<string, string> = {
   ),
   'sandbox/quickjs-eval.js': join(pdfjsRoot, 'wasm', 'quickjs-eval.js'),
   'sandbox/quickjs-eval.wasm': join(pdfjsRoot, 'wasm', 'quickjs-eval.wasm'),
+  // The licences of what is copied, beside the files they cover.
+  'THIRD-PARTY-NOTICES': join(engineDist, 'THIRD-PARTY-NOTICES'),
+  'fonts/OFL.txt': join(dirname(fontsDir), 'OFL.txt'),
+  'sandbox/LICENSE': join(pdfjsRoot, 'LICENSE'),
+  'sandbox/LICENSE-quickjs': join(corePkg, 'licences', 'quickjs.txt'),
+  'sandbox/LICENSE-pdfjs-quickjs': join(corePkg, 'licences', 'pdfjs-quickjs.txt'),
 }
 
 /** Scratch projects live inside the package, not in a RAM-backed temporary directory. */
@@ -123,10 +130,35 @@ describe('inkbar vite plugin', () => {
     )
     for (const [path, from] of Object.entries(SHIPPED))
       expect(sha(readFileSync(join(out, path))), path).toBe(sha(readFileSync(from)))
+    expect(readFileSync(join(out, 'sandbox/LICENSE-quickjs'), 'utf8')).toBe(
+      readFileSync(join(corePkg, 'licences', 'quickjs.txt'), 'utf8')
+    )
+    expect(readFileSync(join(out, 'sandbox/LICENSE-pdfjs-quickjs'), 'utf8')).toBe(
+      readFileSync(join(corePkg, 'licences', 'pdfjs-quickjs.txt'), 'utf8')
+    )
     const js = readdirSync(join(root, 'dist', 'assets')).find((f) => f.endsWith('.js'))!
     const bundle = readFileSync(join(root, 'dist', 'assets', js), 'utf8')
     expect(bundle).toContain(`/app/inkbar/${version}/inkbar-pdfium.wasm`)
     expect(bundle).toContain(`/app/inkbar/${version}/fonts/`)
+  })
+
+  it('names the package and the file when one it ships cannot be found or copied', () => {
+    const missing = Object.assign(new Error("Cannot find module '@inkbar/engine'"), {
+      code: 'MODULE_NOT_FOUND',
+    })
+    expect(() =>
+      packageFile('@inkbar/engine', 'dist/worker.mjs', () => {
+        throw missing
+      })
+    ).toThrow(/dist\/worker\.mjs.*@inkbar\/engine/)
+    const root = project()
+    expect(() =>
+      copyShipped(
+        { pkg: '@inkbar/fonts', from: join(root, 'no-such-font.ttf') },
+        join(root, 'out', 'fonts', 'NotoSans-Regular.ttf'),
+        'fonts/NotoSans-Regular.ttf'
+      )
+    ).toThrow(/fonts\/NotoSans-Regular\.ttf.*@inkbar\/fonts/)
   })
 
   it('copies into a custom assetsDir', async () => {

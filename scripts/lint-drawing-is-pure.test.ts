@@ -129,6 +129,33 @@ describe('inkbar/drawing-is-pure', () => {
       )
     })
 
+  for (const [where, path, source] of [
+    ['drawing/', IN_DRAWING, '../../../test-support/held-engines'],
+    ['drawing/text/', IN_TEXT, '../../../../test-support/held-engines'],
+    ['drawing/pdf/', IN_PDF, '../../../../test-support/held-engines'],
+  ] as const)
+    it(`reports an import of test support from a file in ${where} that is not a test`, async () => {
+      const code = `import * as everything from '${source}'\n\nexport { everything }\n`
+      const messages = await report(code, `${drawing}/${path}`)
+      assert.ok(
+        messages.some((m) => m.includes('test-support/ is for tests only')),
+        `${source} was not reported: ${messages.join(' | ')}`
+      )
+    })
+
+  for (const [where, path, source] of [
+    ['drawing/', 'path-data.test.ts', '../../../test-support/held-engines'],
+    ['drawing/text/', 'text/measure.test.ts', '../../../../test-support/held-engines'],
+  ] as const)
+    it(`reports nothing for test support imported by a test in ${where}`, async () => {
+      const code = `import * as everything from '${source}'\n\nexport { everything }\n`
+      const messages = await report(code, `${drawing}/${path}`)
+      assert.deepEqual(
+        messages.filter((m) => m.startsWith('no-restricted')),
+        []
+      )
+    })
+
   it('reports nothing for a pure file', async () => {
     const code = `import type { Point } from '../../geometry'\n\nexport const origin: Point = { x: 0, y: 0 }\n`
     const messages = await report(code, `${drawing}/${IN_DRAWING}`)

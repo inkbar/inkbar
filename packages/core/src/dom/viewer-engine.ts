@@ -20,7 +20,7 @@ import {
 } from '../model/signatures'
 import { createMemoryStorage, type InkStorage } from '../model/storage'
 
-import { createEngineNotice, editingPaused } from './engine-notice'
+import { createEngineNotice } from './engine-notice'
 import { hasControl, type SignFieldRequest } from './form-layer'
 import { pageStopOrder } from './form-order'
 import {
@@ -46,7 +46,7 @@ import {
 } from './tools'
 import { FONT_FAMILIES, SIGNATURE_FONTS } from './ui'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
-import { attachViewportKeys } from './viewport-keys'
+import { attachViewportKeys, VIEWPORT_KEYS } from './viewport-keys'
 
 import type { LayoutMode } from './layout'
 import type { DecorateAnnotation } from './overlay'
@@ -317,6 +317,12 @@ function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
 /** The tools under which form fields take input: the pointer tools, which make nothing. */
 const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'])
 
+/**
+ * Mounts a viewer of `opts.document` in `opts.container`, the element the pages scroll in. While
+ * the document is stopped a notice shows over the pages: it goes just before the container and
+ * is placed against the nearest positioned ancestor, so give the container a positioned parent
+ * (`position: relative`, say). `createViewer` does.
+ */
 export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
   let highlight = opts.formHighlight ?? true
@@ -329,9 +335,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     for (const field of el.querySelectorAll('[data-ink-editor]'))
       field.setAttribute('aria-label', m.annotations.freetext)
   })
-  // While the document's marks are applied the pages take no input: an edit made meanwhile
-  // would not reach the redacted file. Nor while it has stopped reading, until it starts again.
-  const paused = editingPaused(doc)
+  // While the document's marks are applied the viewer takes no input: an edit made meanwhile
+  // would not reach the redacted file. The apply is short, and the document is replaced after it.
   const applying = redactionBusy(doc)
   // Meanwhile a polite live region beside the pages says so: inert content is not read out.
   const applyingStatus = el.ownerDocument.createElement('div')
@@ -344,15 +349,40 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     if (applyingStatus.textContent !== said) applyingStatus.textContent = said
   }
   const stopApplying = applying.subscribe(sayApplying)
-  const stopPaused = paused.subscribe((on) => el.toggleAttribute('inert', on))
+  const stopPaused = applying.subscribe((on) => el.toggleAttribute('inert', on))
   const stopApplyingWords = messages.subscribe(sayApplying)
-  el.toggleAttribute('inert', paused.get())
-  // Subscribed after the pause, so the pages take input again before the notice goes.
+  el.toggleAttribute('inert', applying.get())
+  /** The element the viewport puts the pages in; a rebuild makes a new one. */
+  const pagesOf = (): HTMLElement | null =>
+    el.querySelector<HTMLElement>(':scope > [data-ink-pages]')
+  /**
+   * While the document has stopped reading, the pages, and pages mounted meanwhile, are inert:
+   * they take no press, focus or key. The scroll area itself is not, so the wheel, touch, the
+   * keyboard and the scroll bars still scroll it, and zoom still works.
+   */
+  const pausePages = (on: boolean): void => {
+    pagesOf()?.toggleAttribute('inert', on)
+  }
+  // The tools listen on the scroll area, which takes the presses that pass the inert pages: no
+  // tool hears them while stopped. Captured, and added before the tools' own listeners.
+  const onStoppedPress = (e: PointerEvent): void => {
+    if (doc.engineStopped.get()) e.stopImmediatePropagation()
+  }
+  // Nor a key that would act on the selection: Delete, Enter or an arrow's nudge. Chords, Tab
+  // and the viewport's own keys go on; an arrow, Space or Page key still scrolls by default.
+  const onStoppedKey = (e: KeyboardEvent): void => {
+    if (!doc.engineStopped.get() || e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.key === 'Tab' || VIEWPORT_KEYS.has(e.key)) return
+    e.stopImmediatePropagation()
+  }
+  el.addEventListener('pointerdown', onStoppedPress, { capture: true })
+  el.addEventListener('keydown', onStoppedKey, { capture: true })
   const notice = createEngineNotice({
     container: el,
     document: doc,
     messages,
     onError: (error) => opts.onError?.(error),
+    pause: pausePages,
   })
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
@@ -814,6 +844,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       onUpdate: (page, _host, transform) => pages.get(page)?.update(transform),
       onUnmount: unmountPage,
     })
+    // Pages a rebuild mounts while the document is stopped are inert as well.
+    if (doc.engineStopped.get()) pausePages(true)
     const list = withHostTools(hostTools)
     const tc = createToolController({
       ...(state.tool === undefined ? {} : { initial: state.tool }),
@@ -948,6 +980,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       notice.destroy()
       applyingStatus.remove()
       el.removeAttribute('inert')
+      el.removeEventListener('pointerdown', onStoppedPress, { capture: true })
+      el.removeEventListener('keydown', onStoppedKey, { capture: true })
       teardown()
       openPageEvents(undefined)
       layers?.destroy()

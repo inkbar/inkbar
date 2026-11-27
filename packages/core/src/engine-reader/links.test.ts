@@ -90,8 +90,8 @@ describe('linksFromFacts', () => {
   })
 
   it('keeps a link with the Hidden flag, as PDF.js does', () => {
-    // PDF.js keeps a Link with the Hidden flag: getAnnotations does not test Hidden, and the
-    // PDF.js reader keeps what it lists (link-order's link-hidden).
+    // A Link with the Hidden flag is kept, as PDF.js keeps it: its getAnnotations does not test
+    // Hidden (link-order's link-hidden).
     expect(linksFromFacts(0, page([entry(0, { flags: 2 })])).map((l) => l.id)).toEqual([
       'pdf:0:10R',
     ])

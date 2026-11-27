@@ -1,6 +1,7 @@
 // The values of an annotation or widget dictionary as PDF.js 6.4.299 reads them, from the facts
 // the engine reports: text strings, colours, `/DA`, the border width and ids. The engine gives the
-// file's values as written; each rule here is PDF.js's, so core reads the values it did with PDF.js.
+// file's values as written; each rule here is PDF.js's, so core reads the values it did with
+// PDF.js.
 import { pdfString } from './targets'
 
 import type { AppearanceFactsShape, FileTextShape, ObjectRefShape } from './types'

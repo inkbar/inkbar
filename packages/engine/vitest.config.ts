@@ -6,7 +6,11 @@ import { serveFixtures } from '@inkbar/fixtures/vite-serve'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig, type Plugin } from 'vitest/config'
 
-/** Serves the built package untransformed at /engine-dist/, as a host would. */
+/**
+ * Serves the built package untransformed at /engine-dist/, as a host would, and again for a page
+ * on another origin: at /engine-cors/ with CORS headers, as a host serving it to that page would,
+ * and at /engine-no-cors/ with none, not even the ones the dev server adds for local origins.
+ */
 function serveBuiltPackage(): Plugin {
   const types: Record<string, string> = {
     '.mjs': 'text/javascript',
@@ -17,11 +21,15 @@ function serveBuiltPackage(): Plugin {
     name: 'inkbar-serve-built-engine',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const prefix = '/engine-dist/'
-        if (!req.url?.startsWith(prefix)) return next()
+        const prefix = ['/engine-dist/', '/engine-cors/', '/engine-no-cors/'].find((p) =>
+          req.url?.startsWith(p)
+        )
+        if (!prefix || !req.url) return next()
         const name = decodeURIComponent(req.url.slice(prefix.length).split('?')[0] ?? '')
         const file = new URL(name, dist)
         if (!file.href.startsWith(dist.href) || !existsSync(file)) return next()
+        if (prefix === '/engine-cors/') res.setHeader('Access-Control-Allow-Origin', '*')
+        if (prefix === '/engine-no-cors/') res.removeHeader('Access-Control-Allow-Origin')
         res.setHeader('Content-Type', types[name.slice(name.lastIndexOf('.'))] ?? '')
         res.setHeader('Cache-Control', 'no-store')
         res.end(readFileSync(file))

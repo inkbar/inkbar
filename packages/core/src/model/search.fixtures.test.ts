@@ -217,19 +217,16 @@ describe('InkDocument.search', () => {
     expect(t!.rect.width).toBeCloseTo((611 * 14) / 1000, 2)
   })
 
-  it('reads glyph positions only for pages with hits, once each', async () => {
+  it("reads each page's text once, for every search after the first", async () => {
     const doc = await open('text-simple')
     const reads = vi.spyOn(doc._reader, 'text')
-    /** The pages whose glyph positions were read, in order. */
-    const placed = () =>
-      reads.mock.calls.filter(([, options]) => options?.glyphs).map(([page]) => page)
+    const asked = () => reads.mock.calls.map(([page]) => page)
     await doc.search('not anywhere in this file').all()
-    expect(placed()).toEqual([])
+    expect(asked()).toEqual([0, 1, 2])
     const [hit] = await doc.search('QQ123456C', { pages: [1] }).all()
     expect(hit!.exact).toBe(true)
-    expect(placed()).toEqual([1])
-    await doc.search('QQ123456C', { pages: [1] }).all()
-    expect(placed()).toEqual([1])
+    await doc.search('QQ123456C').all()
+    expect(asked()).toEqual([0, 1, 2])
     doc.destroy()
   })
 })

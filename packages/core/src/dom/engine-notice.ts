@@ -79,6 +79,13 @@ export interface EngineNoticeOptions {
   messages: Readable<MessageState>
   /** Hears `EngineUnavailable` once each time the document stops. */
   onError?(error: InkError): void
+  /**
+   * Takes the pages out of use while the document is stopped (`true`), and gives them back once
+   * it reads again (`false`). Called after the notice has looked where focus is and moved it, and
+   * before it moves focus back, so focus is never read from inside pages that are already out of
+   * use.
+   */
+  pause?(on: boolean): void
 }
 
 export interface EngineNotice {
@@ -144,6 +151,7 @@ export function createEngineNotice(opts: EngineNoticeOptions): EngineNotice {
       notice = { root, text, button }
       relabel()
       // Focus in the pages, which take no input now, moves to the button, the one thing to do.
+      // Read before the pages are paused: focus inside them is lost once they are.
       const inPages = container.contains(owner.activeElement)
       container.before(root)
       if (inPages) button.focus({ preventScroll: true })
@@ -175,12 +183,17 @@ export function createEngineNotice(opts: EngineNoticeOptions): EngineNotice {
   }
 
   const follow = (stopped: boolean): void => {
-    if (stopped) show()
-    else hide()
+    if (stopped) {
+      show()
+      opts.pause?.(true)
+    } else {
+      opts.pause?.(false)
+      hide()
+    }
   }
   const stopFollowing = doc.engineStopped.subscribe(follow)
   const stopWords = messages.subscribe(relabel)
-  if (doc.engineStopped.get()) show()
+  if (doc.engineStopped.get()) follow(true)
 
   return {
     destroy() {

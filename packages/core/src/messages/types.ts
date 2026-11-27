@@ -18,7 +18,7 @@ export interface InkMessages {
     pageFailed: MessageFn<Page>
     /** A download or print could not write the changes into its copy of the file. */
     saveFailed: string
-    /** A download or print could not load or start what writes the copy (offline, say). */
+    /** A download or print with changes, while the viewer has stopped reading the document. */
     saveUnavailable: string
     /** Shown in the tab a print opens on iOS while its copy is written. */
     preparingFile: string
@@ -55,7 +55,7 @@ export interface InkMessages {
     redactUnremovable: MessageFn<{ count: number }>
     /** The check of the redacted file found content left under a mark. */
     redactUnverified: string
-    /** What applies the marks could not be loaded or started (offline, say). */
+    /** An apply asked for while the viewer has stopped reading the document. */
     redactUnavailable: string
     redactDone: MessageFn<{ marks: number }>
     /** Shown with `redactDone` when the file has hidden layers, which are not cleaned. */
