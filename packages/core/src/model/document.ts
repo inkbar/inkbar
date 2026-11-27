@@ -284,6 +284,23 @@ export interface InkDocument {
    */
   readonly changed: Readable<boolean>
   /**
+   * True while the engine that reads the file is stopped: one started to replace an engine that
+   * stopped could not start, or the engine stopped 3 times within 60 seconds. Reads then reject
+   * with EngineUnavailable and `status` stays ready. `save()` with changes and
+   * `applyRedactions()` reject with EngineUnavailable; `save()` with none still resolves with the
+   * opened bytes. `restartEngine()` ends it. Always false when the engine does not read the file.
+   */
+  readonly engineStopped: Readable<boolean>
+  /**
+   * Starts a new engine for a stopped document and opens the file in it again. Resolves when the
+   * document reads again, and rejects with EngineUnavailable when it does not; it then stays
+   * stopped. Every page is read again, a page whose reads stopped the engine twice included. The
+   * session's annotations, form values and history are untouched either way. Calls made while one
+   * runs share it. Resolves at once, doing nothing, for a document that is not stopped. Rejects
+   * with DocumentDestroyed once the document is destroyed, also when that happens while it runs.
+   */
+  restartEngine(): Promise<void>
+  /**
    * Applies every redaction mark of the session to the file as opened: removes the text, image
    * samples and drawing under each one, leaves an opaque box in its place, removes the
    * annotations a mark overlaps, writes the others and the changed form values after, sanitises
@@ -917,6 +934,15 @@ export async function openDocument(
     // programs' stay locked.
     encrypted: info.isEncrypted,
   })
+  /**
+   * `write`, which rejects with EngineUnavailable when the engine reader is stopped once it
+   * fails: the write found the engine could not start again, or stopped it once too often.
+   */
+  const whileReading = <T>(write: Promise<T>): Promise<T> =>
+    write.catch((error: unknown) => {
+      const gone = destroyed ? undefined : engineOpened?.unavailable()
+      throw gone ?? error
+    })
   /** The apply running, which a second call shares. */
   let applying: Promise<AppliedRedactions> | undefined
   /** What `applyRedactions()` gives for the apply `of`, without its `_marks`. */
@@ -937,16 +963,21 @@ export async function openDocument(
         'EngineUnavailable',
         'Applying redactions needs @inkbar/engine: pass the engine option.'
       )
+    // A stopped engine reader: no engine runs, so none applies the marks.
+    const gone = engineOpened?.unavailable()
+    if (gone) throw gone
     const { measure, ...helpers } = options.pictures ?? {}
-    return applyRedactions({
-      ...redactionState(),
-      pages,
-      lifted: liftedRefs('RedactionFailed'),
-      fileParents: fileParents(),
-      helpers,
-      measure,
-      saver,
-    })
+    return whileReading(
+      applyRedactions({
+        ...redactionState(),
+        pages,
+        lifted: liftedRefs('RedactionFailed'),
+        fileParents: fileParents(),
+        helpers,
+        measure,
+        saver,
+      })
+    )
   }
   /** The apply running, started if none is. */
   const applyShared = (): Promise<AppliedRedactions> => {
@@ -1051,6 +1082,11 @@ export async function openDocument(
     }
   }
 
+  /** The engine reader, once the document it read is ready. */
+  const readsWithEngine = status.get().state === 'ready' ? engineOpened : undefined
+  const engineStopped: Readable<boolean> =
+    readsWithEngine?.engineStopped ?? readonly(writable(false))
+
   const doc: InkDocument = {
     key: resolved.key,
     fileName: options._fileName ?? sourceFileName(source),
@@ -1147,9 +1183,9 @@ export async function openDocument(
       if (!reader || !baseline) throw statusError(status.get())
       const now = snapshot()
       if (!hasChanges(now, baseline)) return fileData()
-      // An engine reader whose engine stopped and could not be started again. A save fails only
-      // when there are bytes to write: with no changes it has already returned the opened bytes
-      // above, which needs no engine. With changes it needs one, and fails as every read does.
+      // A stopped engine reader. A save fails only when there are bytes to write: with no
+      // changes it has already returned the opened bytes above, which needs no engine. With
+      // changes it needs one, and fails as every read does.
       const gone = engineOpened?.unavailable()
       if (gone) throw gone
       if (!saver)
@@ -1160,21 +1196,28 @@ export async function openDocument(
       const lifted = liftedRefs()
       const parents = fileParents()
       const { measure, ...helpers } = options.pictures ?? {}
-      return saver.write(now.key, () => {
-        const { fields, signs } = writeFields(now.fields, form.fields.get())
-        return buildWriteInput({
-          annotations: now.annotations,
-          pages,
-          lifted,
-          fields,
-          signs,
-          helpers,
-          measure,
-          fileParents: parents,
+      return whileReading(
+        saver.write(now.key, () => {
+          const { fields, signs } = writeFields(now.fields, form.fields.get())
+          return buildWriteInput({
+            annotations: now.annotations,
+            pages,
+            lifted,
+            fields,
+            signs,
+            helpers,
+            measure,
+            fileParents: parents,
+          })
         })
-      })
+      )
     },
     changed: readonly(changed),
+    engineStopped,
+    restartEngine() {
+      if (destroyed) return Promise.reject(destroyedError())
+      return readsWithEngine ? readsWithEngine.restart() : Promise.resolve()
+    },
     applyRedactions() {
       const running = applyShared()
       if (applyingPlain?.of !== running)

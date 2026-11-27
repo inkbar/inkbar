@@ -601,7 +601,19 @@ describe("the engine reader's links and outline", () => {
       const pdfjs = await read(name)
       expect([engine.kind, pdfjs.kind]).toEqual(['engine', 'pdfjs'])
       expect(engine.links.map((l) => l.length)).toEqual(pdfjs.links.map((l) => l.length))
-      engine.links.forEach((links, page) => expectSameLinks(links, pdfjs.links[page]!))
+      // A link written as a direct object has no object number: PDF.js invents an id from a
+      // counter, the engine reader gives the one its annotation has.
+      const direct = (links: typeof engine.links) =>
+        links.map((page) =>
+          page.map((l) => ({
+            ...l,
+            id: l.id.replace(/:(annot_p\d+_\d+|p\d+i\d+)$/u, ':direct'),
+          }))
+        )
+      const pdfjsLinks = direct(pdfjs.links)
+      direct(engine.links).forEach((links, page) =>
+        expectSameLinks(links, pdfjsLinks[page]!)
+      )
       expect(engine.outline).toEqual(pdfjs.outline)
     }
   )
@@ -715,7 +727,7 @@ describe("the engine reader's links and outline", () => {
     ).resolves.toEqual({ page: 1, fit: 'xyz', left: 72, top: 600, zoom: undefined })
   })
 
-  it("orders link-order's links as PDF.js does, with the ids it gives", async () => {
+  it("orders link-order's links as PDF.js does, with the ids their annotations have", async () => {
     const { links } = await read('link-order')
     expect(links[0]!.map((l) => [l.id, l.order])).toEqual([
       ['pdf:0:8R', 1],
@@ -723,8 +735,8 @@ describe("the engine reader's links and outline", () => {
       ['pdf:0:13R', 3],
       // A Link with the Hidden flag: PDF.js keeps it.
       ['pdf:0:14R', 4],
-      // A Link written as a direct object in /Annots.
-      ['pdf:0:annot_p0_1', 5],
+      // A Link written as a direct object in /Annots, named by its place there.
+      ['pdf:0:p0i8', 5],
     ])
   })
 

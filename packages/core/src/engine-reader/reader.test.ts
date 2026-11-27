@@ -1315,7 +1315,7 @@ describe('links, the outline and destinations', () => {
       8,
       async (page) => (await reader.links(page)).length
     )
-    return { t, found }
+    return { t, reader, found }
   }
 
   it('reads every other page of a file in which one page stops the engine, 8 at a time', async () => {
@@ -1335,10 +1335,36 @@ describe('links, the outline and destinations', () => {
   })
 
   it('stops asking for links once link reads have stopped three engines in a row', async () => {
-    const { t, found } = await linksAtOpen(40, () => true)
+    const { t, reader, found } = await linksAtOpen(40, () => true)
     expect(found).toEqual(Array<number>(40).fill(0))
     // The engine the file opened in, then one for each of the three it dropped; then no more.
     expect(t.createEngine).toHaveBeenCalledTimes(4)
+    // Link reads' stops count towards neither stopping the reader nor blocking a page: every
+    // page still draws and reads.
+    expect(reader.engineStopped.get()).toBe(false)
+    for (let page = 0; page < 40; page++) {
+      await expect(reader.draw(request({ page }), fakeCanvas().canvas)).resolves.toBe(
+        undefined
+      )
+      await expect(reader.tabOrder(page)).resolves.toEqual([])
+    }
+  })
+
+  it('draws a page whose link read stops every engine, and reads its Tab order', async () => {
+    const t = setup({
+      pageCount: 2,
+      pageLinks: (index) =>
+        index === 1 ? Promise.reject(engineError('engine-failure')) : oneLink(),
+    })
+    const reader = await t.open()
+    await reader.pageInfo(0)
+    for (let i = 0; i < 2; i++) await expect(reader.links(1)).resolves.toEqual([])
+    const { canvas, context } = fakeCanvas()
+    await reader.draw(request({ page: 1 }), canvas)
+    expect(context.putImageData).toHaveBeenCalledTimes(1)
+    await expect(reader.tabOrder(1)).resolves.toEqual([])
+    await expect(reader.text(1, { glyphs: false })).resolves.toMatchObject({ page: 1 })
+    expect(reader.engineStopped.get()).toBe(false)
   })
 
   it('reads the links of the pages after one whose read stopped the engine', async () => {
@@ -1366,6 +1392,8 @@ describe('links, the outline and destinations', () => {
     const found = []
     for (let page = 0; page < 8; page++) found.push((await reader.links(page)).length)
     expect(found).toEqual([0, 1, 0, 1, 0, 1, 0, 1])
+    // Eight engines stopped, none of them counted towards stopping the reader.
+    expect(reader.engineStopped.get()).toBe(false)
   })
 
   it('rejects with PageOutOfRange, and after destroy with DocumentDestroyed', async () => {
@@ -2409,7 +2437,7 @@ describe('field appearances', () => {
     })
   })
 
-  it('draws again on a new engine once the engine stops under the draw, and rejects when that one stops too', async () => {
+  it('draws again on a new engine once the engine stops under the draw, and blocks the page when it stops one again', async () => {
     let stops = 1
     const { t, reader } = await opened({
       renderAnnotations: (_, options) =>
@@ -2427,10 +2455,17 @@ describe('field appearances', () => {
     )
     expect(t.fieldRenders.map((r) => r.engine)).toEqual([0, 1])
     stops = 2
-    await expect(reader.drawFields(pass(), fakeCanvas().canvas)).rejects.toMatchObject({
+    // The page's second stop: the draw rejects at once, and so does every later one.
+    const blocked = reader.drawFields(pass(), fakeCanvas().canvas)
+    await expect(blocked).rejects.toMatchObject({
       code: 'EngineUnavailable',
+      details: { page: 0 },
     })
-    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    await expect(reader.drawFields(pass(), fakeCanvas().canvas)).rejects.toBe(
+      await blocked.catch((e: unknown) => e)
+    )
+    expect(t.fieldRenders).toHaveLength(3)
     await reader.destroy()
   })
 })
@@ -2484,5 +2519,318 @@ describe('lending its engine', () => {
     await expect(reader.borrowEngine()).rejects.toMatchObject({
       code: 'DocumentDestroyed',
     })
+  })
+})
+
+describe('the stopped state', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(0)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const unavailable = { name: 'InkError', code: 'EngineUnavailable' }
+
+  /** Every call made on every engine's document so far. */
+  const engineCalls = (engines: FakeEngine[]): number =>
+    engines.reduce(
+      (n, e) =>
+        n +
+        Object.values(e.doc).reduce(
+          (m: number, f) => m + (vi.isMockFunction(f) ? f.mock.calls.length : 0),
+          0
+        ),
+      0
+    )
+
+  /**
+   * A file whose text read of a page in `always` stops every engine it is read on, and of a
+   * page in `once` stops the first engine it is read on.
+   */
+  const stopping = async (
+    pageCount: number,
+    stops: { always?: number[]; once?: number[] }
+  ) => {
+    const done = new Set<number>()
+    const t = setup({
+      pageCount,
+      pageText: (index) => {
+        if (stops.always?.includes(index))
+          return Promise.reject(engineError('engine-failure'))
+        if (stops.once?.includes(index) && !done.has(index)) {
+          done.add(index)
+          return Promise.reject(engineError('engine-failure'))
+        }
+        return Promise.resolve(hiText())
+      },
+    })
+    const reader = await t.open()
+    // A page the engine has read, so the reader can tell the engine stopped.
+    await reader.pageInfo(0)
+    return { t, reader }
+  }
+  const read = (reader: Awaited<ReturnType<typeof stopping>>['reader'], page: number) =>
+    reader.text(page, { glyphs: false })
+
+  it('stops the document at the third restart within 60 seconds', async () => {
+    const { t, reader } = await stopping(4, { once: [1, 2, 3] })
+    const seen: boolean[] = []
+    reader.engineStopped.subscribe((stopped) => seen.push(stopped))
+    await expect(read(reader, 1)).resolves.toMatchObject({ page: 1 })
+    vi.setSystemTime(30_000)
+    await expect(read(reader, 2)).resolves.toMatchObject({ page: 2 })
+    expect(reader.engineStopped.get()).toBe(false)
+    vi.setSystemTime(59_999)
+    await expect(read(reader, 3)).rejects.toMatchObject(unavailable)
+    expect(reader.engineStopped.get()).toBe(true)
+    expect(seen).toEqual([true])
+    expect(reader.unavailable()).toMatchObject(unavailable)
+    // The third stopped engine is not replaced, and no read starts another.
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    await expect(read(reader, 0)).rejects.toMatchObject(unavailable)
+    await expect(reader.pageInfo(1)).rejects.toMatchObject(unavailable)
+    await expect(reader.borrowEngine()).rejects.toMatchObject(unavailable)
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    expect(t.engines.every((e) => e.destroy.mock.calls.length === 1)).toBe(true)
+  })
+
+  it('goes on when the third restart comes 60 seconds after the first', async () => {
+    const { t, reader } = await stopping(4, { once: [1, 2, 3] })
+    await read(reader, 1)
+    vi.setSystemTime(30_000)
+    await read(reader, 2)
+    vi.setSystemTime(60_000)
+    await expect(read(reader, 3)).resolves.toMatchObject({ page: 3 })
+    expect(reader.engineStopped.get()).toBe(false)
+    expect(t.createEngine).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops the document when an engine started to replace a stopped one cannot start', async () => {
+    const { t, reader } = await stopping(2, { once: [1] })
+    t.createEngine.mockRejectedValue(new Error('no wasm'))
+    await expect(read(reader, 1)).rejects.toMatchObject(unavailable)
+    expect(reader.engineStopped.get()).toBe(true)
+  })
+
+  it('blocks a page whose reads stopped the engine twice; the other pages read on', async () => {
+    const { t, reader } = await stopping(5, { always: [3] })
+    const first = read(reader, 3)
+    await expect(first).rejects.toMatchObject({ ...unavailable, details: { page: 3 } })
+    const error = await first.catch((e: unknown) => e)
+    expect(t.createEngine).toHaveBeenCalledTimes(2)
+    await expect(read(reader, 4)).resolves.toMatchObject({ page: 4 })
+    expect(reader.engineStopped.get()).toBe(false)
+    expect(reader.unavailable()).toBeUndefined()
+    // No read of page 3 reaches an engine again: each rejects with the error the second stop gave.
+    const calls = engineCalls(t.engines)
+    const { canvas } = fakeCanvas()
+    const reads: [string, Promise<unknown>][] = [
+      ['draw', reader.draw(request({ page: 3 }), canvas)],
+      ['drawFields', reader.drawFields({ ...fieldRequest, page: 3 }, canvas)],
+      ['text', read(reader, 3)],
+      ['textFamilies', reader.textFamilies(3)],
+      ['textBaselines', reader.textBaselines(3)],
+      ['annotations', reader.annotations(3)],
+      ['tabOrder', reader.tabOrder(3)],
+      ['pageScripts', reader.pageScripts(3)],
+      ['pageInfo', reader.pageInfo(3)],
+    ]
+    for (const [name, call] of reads) await expect(call, name).rejects.toBe(error)
+    // A page whose links cannot be read has none, as ever.
+    await expect(reader.links(3)).resolves.toEqual([])
+    expect(engineCalls(t.engines)).toBe(calls)
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+    await expect(read(reader, 4)).resolves.toMatchObject({ page: 4 })
+  })
+
+  it("counts a page's first stop but not the stop that blocks it", async () => {
+    const { reader } = await stopping(5, { always: [3], once: [1, 2] })
+    await expect(read(reader, 3)).rejects.toMatchObject(unavailable)
+    // Page 3 counted once: one more stop leaves the document reading.
+    await expect(read(reader, 1)).resolves.toMatchObject({ page: 1 })
+    expect(reader.engineStopped.get()).toBe(false)
+    await expect(read(reader, 2)).rejects.toMatchObject(unavailable)
+    expect(reader.engineStopped.get()).toBe(true)
+  })
+
+  it('counts a stop a borrower found, which names no page', async () => {
+    const { t, reader } = await stopping(2, {})
+    for (let i = 0; i < 3; i++) {
+      const lent = await reader.borrowEngine()
+      t.states[i]!.stopped = true
+      await lent.stopped()
+    }
+    expect(reader.engineStopped.get()).toBe(true)
+    expect(t.createEngine).toHaveBeenCalledTimes(3)
+  })
+
+  describe('restarting it', () => {
+    /** A reader stopped because the engine to replace a stopped one could not start. */
+    const stoppedReader = async () => {
+      const s = await stopping(5, { always: [3], once: [1] })
+      const real = s.t.createEngine.getMockImplementation()!
+      // Page 3 is blocked first, then page 1's stop finds no engine to start.
+      await read(s.reader, 3).catch(() => undefined)
+      s.t.createEngine.mockRejectedValueOnce(new Error('no wasm'))
+      await expect(read(s.reader, 1)).rejects.toMatchObject(unavailable)
+      expect(s.reader.engineStopped.get()).toBe(true)
+      return { ...s, real }
+    }
+
+    it('starts an engine, reopens the file, and reads again with every page unblocked', async () => {
+      const { t, reader } = await stoppedReader()
+      const engines = t.createEngine.mock.calls.length
+      await expect(reader.restart()).resolves.toBeUndefined()
+      expect(t.createEngine).toHaveBeenCalledTimes(engines + 1)
+      const engine = t.engines.at(-1)!
+      expect(engine.open).toHaveBeenCalledTimes(1)
+      expect(engine.open.mock.calls[0]![0]).toEqual(new Uint8Array([1, 2, 3]))
+      expect(reader.engineStopped.get()).toBe(false)
+      expect(reader.unavailable()).toBeUndefined()
+      await expect(read(reader, 1)).resolves.toMatchObject({ page: 1 })
+      // Page 3 is read again: it reaches the engine, which it stops.
+      const calls = engineCalls(t.engines)
+      await expect(read(reader, 3)).rejects.toMatchObject(unavailable)
+      expect(engineCalls(t.engines)).toBeGreaterThan(calls)
+    })
+
+    it('rejects with EngineUnavailable, and stays stopped, when no engine starts', async () => {
+      const { t, reader } = await stoppedReader()
+      t.createEngine.mockRejectedValueOnce(new Error('still no wasm'))
+      await expect(reader.restart()).rejects.toMatchObject(unavailable)
+      expect(reader.engineStopped.get()).toBe(true)
+      await expect(read(reader, 0)).rejects.toMatchObject(unavailable)
+      // Asked again, it tries again.
+      await expect(reader.restart()).resolves.toBeUndefined()
+      await expect(read(reader, 0)).resolves.toMatchObject({ page: 0 })
+    })
+
+    it('rejects, and destroys the engine it started, when that engine cannot read', async () => {
+      const { t, reader, real } = await stoppedReader()
+      t.createEngine.mockImplementationOnce(async () => {
+        const engine = await real()
+        engine.doc.pageInfo.mockRejectedValue(engineError('engine-failure'))
+        return engine
+      })
+      await expect(reader.restart()).rejects.toMatchObject(unavailable)
+      expect(t.engines.at(-1)!.destroy).toHaveBeenCalledTimes(1)
+      expect(reader.engineStopped.get()).toBe(true)
+    })
+
+    it('turns engineStopped true once for each stop, however many reads it rejects', async () => {
+      const { t, reader } = await stoppedReader()
+      const seen: boolean[] = []
+      reader.engineStopped.subscribe((stopped) => seen.push(stopped))
+      for (let page = 0; page < 3; page++)
+        await expect(read(reader, page)).rejects.toMatchObject(unavailable)
+      await reader.restart()
+      // Stopped again: the engine stops, and its replacement cannot start.
+      t.states.at(-1)!.stopped = true
+      t.createEngine.mockRejectedValueOnce(new Error('no wasm'))
+      for (let page = 0; page < 3; page++)
+        await expect(read(reader, page)).rejects.toMatchObject(unavailable)
+      expect(seen).toEqual([false, true])
+    })
+
+    it('makes one engine for two calls at once', async () => {
+      const { t, reader } = await stoppedReader()
+      const engines = t.createEngine.mock.calls.length
+      const a = reader.restart()
+      const b = reader.restart()
+      await Promise.all([a, b])
+      expect(t.createEngine).toHaveBeenCalledTimes(engines + 1)
+    })
+
+    it('does nothing for a reader that is not stopped', async () => {
+      const { t, reader } = await stopping(2, {})
+      await expect(reader.restart()).resolves.toBeUndefined()
+      expect(t.createEngine).toHaveBeenCalledTimes(1)
+      expect(t.engines[0]!.destroy).not.toHaveBeenCalled()
+    })
+
+    it('rejects a read made while it runs, and answers the reads after it', async () => {
+      const { t, reader, real } = await stoppedReader()
+      const starting = deferred<void>()
+      t.createEngine.mockImplementationOnce(async () => {
+        await starting.promise
+        return real()
+      })
+      const restarting = reader.restart()
+      await expect(read(reader, 0)).rejects.toMatchObject(unavailable)
+      starting.resolve()
+      await restarting
+      await expect(read(reader, 0)).resolves.toMatchObject({ page: 0 })
+    })
+
+    it('rejects with DocumentDestroyed when the reader is destroyed under it, and destroys its engine', async () => {
+      const { t, reader, real } = await stoppedReader()
+      const starting = deferred<void>()
+      t.createEngine.mockImplementationOnce(async () => {
+        await starting.promise
+        return real()
+      })
+      const restarting = reader.restart()
+      const destroying = reader.destroy()
+      starting.resolve()
+      await expect(restarting).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+      await destroying
+      await vi.waitFor(() => expect(t.engines.at(-1)!.destroy).toHaveBeenCalledTimes(1))
+      expect(t.engines.every((e) => e.destroy.mock.calls.length === 1)).toBe(true)
+      await expect(reader.restart()).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+    })
+  })
+})
+
+describe('a region with no area', () => {
+  it('draws a 1 × 1 transparent canvas without asking the engine', async () => {
+    const t = setup()
+    const reader = await t.open()
+    const { canvas, raw, context } = fakeCanvas()
+    await reader.draw(
+      request({ width: 10, height: 10, region: { x: 72, y: 72, width: 0, height: 20 } }),
+      canvas
+    )
+    expect([raw.width, raw.height]).toEqual([1, 1])
+    expect(context.putImageData).not.toHaveBeenCalled()
+    expect(t.renders).toHaveLength(0)
+  })
+})
+
+describe('a link stored as a direct object', () => {
+  it('has the id its annotation has', async () => {
+    const entry = {
+      index: 8,
+      subtype: 'Link',
+      flags: 4,
+      rectOk: true,
+      hasQuads: false,
+      quadsOk: true,
+    }
+    const t = setup({
+      pageLinks: () =>
+        Promise.resolve({
+          annotations: [entry],
+          links: [{ index: 8, rect: { x: 72, y: 700, width: 100, height: 20 } }],
+        }),
+      pageAnnotations: () =>
+        Promise.resolve({
+          annotations: [
+            {
+              ...entry,
+              rect: [72, 700, 172, 720],
+              hasAppearance: false,
+              appearanceStates: [],
+            },
+          ],
+          truncated: false,
+        }),
+    })
+    const reader = await t.open()
+    const [annotation] = await reader.annotations(0)
+    expect(annotation!.id).toBe('p0i8')
+    const [link] = await reader.links(0)
+    expect(link!.id).toBe(`pdf:0:${annotation!.id}`)
   })
 })

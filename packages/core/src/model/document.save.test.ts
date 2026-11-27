@@ -1071,7 +1071,7 @@ describe('save', () => {
       expect(held.engines).toHaveLength(1)
     })
 
-    it('fails a write as an engine that cannot start when the reader cannot start one', async () => {
+    it('fails a write with EngineUnavailable when the reader cannot start an engine', async () => {
       const held = heldEngines()
       let refuse = false
       setEngineFactory(() =>
@@ -1082,10 +1082,8 @@ describe('save', () => {
       held.stopOnNext('write')
       await expect(doc.save()).rejects.toMatchObject({ code: 'SaveFailed' })
       refuse = true
-      await expect(doc.save()).rejects.toMatchObject({
-        code: 'SaveFailed',
-        details: { stage: 'engine' },
-      })
+      await expect(doc.save()).rejects.toMatchObject({ code: 'EngineUnavailable' })
+      expect(doc.engineStopped.get()).toBe(true)
       expect(held.engines).toHaveLength(1)
     })
   })

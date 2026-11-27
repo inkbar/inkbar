@@ -4,6 +4,7 @@ import { importedId } from '../model/annotations/embedded'
 import { quadsFromFlat, rectFromPoints, type Rect } from '../model/geometry'
 import { mapInOrder } from '../model/map-in-order'
 
+import { annotationId } from './file-values'
 import { targetFromFacts, type RefPages } from './targets'
 
 import type { PageAnnotationEntryShape, PageLinksShape, OutlineEntryShape } from './types'
@@ -67,10 +68,10 @@ export function listed(
 
 /**
  * @internal The page's links as core's `PageLink`s. `order` is the link's place in the list PDF.js
- * gives of the page's annotations, which puts widgets and popups after the rest. `id` is the one
- * PDF.js gives: the object number, `R` and, when it is not 0, the generation, or for an
- * annotation written as a direct object `annot_p<page>_<n>`, n counting the page's direct
- * annotations from 1. Page references in the links' destinations are noted in `pages`.
+ * gives of the page's annotations, which puts widgets and popups after the rest. `id` is the
+ * one the page's annotations read gives the same annotation: the object number, `R` and, when it
+ * is not 0, the generation, or for an annotation written as a direct object `p<page>i<index>`,
+ * its place in `/Annots`. Page references in the links' destinations are noted in `pages`.
  */
 export function linksFromFacts(
   page: number,
@@ -80,9 +81,7 @@ export function linksFromFacts(
   const byIndex = new Map(facts.links.map((link) => [link.index, link]))
   const out: PageLink[] = []
   let order = 0
-  let direct = 0
   for (const entry of facts.annotations) {
-    if (entry.objectNumber === undefined) direct++
     if (!listed(entry) || entry.subtype === 'Widget' || entry.subtype === 'Popup')
       continue
     const at = order++
@@ -98,12 +97,7 @@ export function linksFromFacts(
         ? boxedQuads(link.quads, rect)
         : undefined
     out.push({
-      id: importedId(
-        page,
-        entry.objectNumber === undefined
-          ? `annot_p${page}_${direct}`
-          : `${entry.objectNumber}R${entry.generation ? entry.generation : ''}`
-      ),
+      id: importedId(page, annotationId(page, entry)),
       page,
       rect,
       ...(quads ? { quads: quadsFromFlat(quads) } : {}),

@@ -21,10 +21,12 @@ export interface HeldEngine {
  * `factory` makes each engine. `stopOnNext(method)` makes the next call of that document or
  * engine method, on whichever engine, stop its engine: it and every later call on that engine
  * reject with `engine-failure`, except `close` and `destroy`, which resolve, as the engine's do.
+ * `stopOnEvery(method)` makes every call of it stop its engine, until `stopOnEvery(undefined)`.
  */
 export function heldEngines() {
   const engines: HeldEngine[] = []
   let stopOn: string | undefined
+  let stopEvery: string | undefined
   const stoppedError = () => new EngineError('engine-failure', 'PDFium stopped')
 
   /** `value` called on a live engine; the call `stopOn` names stops it. */
@@ -36,6 +38,7 @@ export function heldEngines() {
         stopOn = undefined
         held.stopped = true
       }
+      if (stopEvery === name) held.stopped = true
       if (held.stopped) return Promise.reject(stoppedError())
       return value(...args)
     }
@@ -83,6 +86,9 @@ export function heldEngines() {
     engines,
     stopOnNext: (method: string) => {
       stopOn = method
+    },
+    stopOnEvery: (method: string | undefined) => {
+      stopEvery = method
     },
   }
 }
