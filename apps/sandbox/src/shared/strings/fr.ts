@@ -14,7 +14,7 @@ export const fr: SandboxStrings = {
     home: 'accueil',
     breadcrumb: 'Fil d’Ariane',
     mainLinks: 'Principal',
-    docs: 'Doc',
+    docs: 'Docs',
     language: 'Langue',
     scenarios: 'Scénarios',
     framework: 'Framework',
