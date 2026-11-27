@@ -6,5 +6,6 @@ export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval'",
   "worker-src 'self'",
+  "img-src 'self' data: blob:",
   'frame-src blob:',
 ].join('; ')

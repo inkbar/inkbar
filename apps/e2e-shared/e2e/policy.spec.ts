@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page, type Worker } from '@playwright/test'
+
+import { CONTENT_SECURITY_POLICY } from '../policy'
 
 import { guardConsole } from './console-guard'
 import { waitForFirstPage } from './helpers'
@@ -22,29 +24,90 @@ declare global {
   }
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    const seen: Violation[] = (window.__policyViolations = [])
-    document.addEventListener('securitypolicyviolation', (e) => {
-      seen.push({
-        directive: e.effectiveDirective,
-        blocked: e.blockedURI,
-        source: `${e.sourceFile}:${e.lineNumber}`,
-      })
+/** Records the violations a document or a worker reports, in `__policyViolations`. */
+function watchViolations(): void {
+  const scope = globalThis as unknown as {
+    __policyViolations?: Violation[]
+    addEventListener(
+      type: string,
+      listener: (e: SecurityPolicyViolationEvent) => void
+    ): void
+  }
+  if (scope.__policyViolations) return
+  const seen: Violation[] = (scope.__policyViolations = [])
+  scope.addEventListener('securitypolicyviolation', (e) => {
+    seen.push({
+      directive: e.effectiveDirective,
+      blocked: e.blockedURI,
+      source: `${e.sourceFile}:${e.lineNumber}`,
     })
+  })
+}
+
+/** The workers each test's page started, while they run. */
+const workers = new Set<Worker>()
+/** The responses that must carry the policy: each page's document and the engine's worker. */
+let served: { url: string; policy: string | undefined }[] = []
+
+test.beforeEach(async ({ page }) => {
+  workers.clear()
+  served = []
+  await page.addInitScript(watchViolations)
+  page.on('worker', (worker) => {
+    workers.add(worker)
+    worker.on('close', () => workers.delete(worker))
+    // A violation before this runs still reaches the console, which the checks below read.
+    void worker.evaluate(watchViolations).catch(() => undefined)
+  })
+  page.on('response', (response) => {
+    const request = response.request()
+    // A blob: document, such as Print's frame, carries no headers: it takes its creator's policy.
+    if (!response.url().startsWith('http')) return
+    if (
+      request.resourceType() === 'document' ||
+      /\/worker\.mjs(\?|$)/.test(response.url())
+    )
+      served.push({
+        url: response.url(),
+        policy: response.headers()['content-security-policy'],
+      })
   })
 })
 
 test.afterEach(async ({ page }) => {
-  const seen = await page.evaluate(() => window.__policyViolations ?? []).catch(() => [])
+  // The policy was sent with the page and with the worker's script, which runs under its own.
+  expect(served.some(({ url }) => /\/worker\.mjs(\?|$)/.test(url))).toBe(true)
+  expect(served.filter(({ policy }) => policy !== CONTENT_SECURITY_POLICY)).toEqual([])
+  const seen: string[] = []
+  for (const frame of page.frames()) {
+    const found = await frame.evaluate(() => window.__policyViolations)
+    if (!found)
+      throw new Error(`No violations were watched in the frame at ${frame.url()}`)
+    seen.push(
+      ...found.map(
+        (v) => `${v.directive} blocked ${v.blocked || '(inline)'} from ${v.source}`
+      )
+    )
+  }
+  for (const worker of workers) {
+    const found = await worker.evaluate(
+      () => (globalThis as { __policyViolations?: Violation[] }).__policyViolations
+    )
+    if (!found)
+      throw new Error(`No violations were watched in the worker at ${worker.url()}`)
+    seen.push(
+      ...found.map((v) => `${v.directive} blocked ${v.blocked || '(inline)'} in a worker`)
+    )
+  }
   // Chrome also reports a violation in the console, a worker's among them.
   const said = consoleGuard.take(/Content Security Policy/i)
-  expect(
-    seen.map((v) => `${v.directive} blocked ${v.blocked || '(inline)'} from ${v.source}`),
-    'violations of the content security policy'
-  ).toEqual([])
+  expect(seen, 'violations of the content security policy').toEqual([])
   expect(said, 'console messages about the content security policy').toEqual([])
 })
+
+/** A one-pixel PNG, as an image stamp or signature keeps its image. */
+const STAMP =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
 /** How many sampled pixels of a canvas are darker than paper, read through a copy. */
 function inked(canvas: Locator): Promise<number> {
@@ -167,6 +230,7 @@ test.describe('under the documented content security policy', () => {
       )
       .not.toBe('blocked')
   })
+
   test('a speech bubble and its text are drawn with their styles', async ({ page }) => {
     await page.goto('/?doc=text-simple&view=drawing')
     await waitForFirstPage(page)
@@ -183,6 +247,72 @@ test.describe('under the documented content security policy', () => {
     await expect(page.locator('.ink-annotation svg text').first()).toHaveText('Hello')
     const drawn = await drawnStyles(page)
     expect(drawn.unstyled).toEqual([])
+  })
+
+  test("the theme draws a native select's chevron", async ({ page }) => {
+    await page.goto('/?doc=text-simple')
+    await waitForFirstPage(page)
+    // A native select as core's zoom select is, styled by the theme: its chevron is a data: URL.
+    const select = page.locator('select.ink-select')
+    await page.evaluate(() => {
+      const el = document.createElement('select')
+      el.className = 'ink-select'
+      el.setAttribute('aria-label', 'Zoom')
+      el.append(new Option('100%'))
+      document.querySelector('[data-ink-root]')!.append(el)
+    })
+    await expect(select).toBeVisible()
+    expect(await select.evaluate((el) => getComputedStyle(el).backgroundImage)).toMatch(
+      /^url\("data:image\/svg\+xml,/
+    )
+    // Let it paint, which is when a blocked image would be reported.
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        )
+    )
+  })
+
+  test('an image stamp is drawn from its data: URL', async ({ page }) => {
+    // The review page loads its annotations from the stand-in server, in session storage.
+    await page.addInitScript(
+      ([key, stamp]) => {
+        sessionStorage.setItem(
+          key,
+          JSON.stringify({ format: 'gloss', version: 1, annotations: [stamp] })
+        )
+      },
+      [
+        'inkbar-sandbox:annotations:case-1:v1',
+        {
+          id: 'stamp-1',
+          type: 'stamp',
+          page: 0,
+          rect: { x: 300, y: 600, width: 120, height: 40 },
+          color: '#000000',
+          opacity: 1,
+          createdAt: '2026-11-27T00:00:00.000Z',
+          modifiedAt: '2026-11-27T00:00:00.000Z',
+          source: 'session',
+          imagedata: STAMP,
+        },
+      ] as const
+    )
+    await page.goto('/?doc=text-simple')
+    await waitForFirstPage(page)
+    const image = page.locator('.ink-annotation svg image').first()
+    await expect(image).toHaveAttribute('href', STAMP)
+    // Drawn: the image loaded and has a size on screen.
+    await expect
+      .poll(() => image.evaluate((el: SVGImageElement) => el.getBBox().width))
+      .toBeGreaterThan(0)
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        )
+    )
   })
 
   for (const doc of ['annotated-shapes', 'annotated-markup', 'freetext-fonts']) {
