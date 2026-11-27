@@ -104,8 +104,14 @@ languageSelect.innerHTML = LANGUAGES.map(
 ).join('')
 const languagePicker = document.createElement('div')
 languagePicker.className = 'lang-picker'
-languagePicker.innerHTML = '<label for="language-select"></label>'
-languagePicker.append(languageSelect)
+languagePicker.innerHTML = `<label for="language-select"></label><span class="lang-picker-field"></span>`
+languagePicker.querySelector('.lang-picker-field')!.append(languageSelect)
+languagePicker
+  .querySelector('.lang-picker-field')!
+  .insertAdjacentHTML(
+    'beforeend',
+    '<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'
+  )
 $('.app-links').prepend(languagePicker)
 const sideTabs = $('.side-tabs')
 /** The scenarios' Open a PDF buttons pick a file through this one input. */

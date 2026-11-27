@@ -91,6 +91,7 @@ body {
 /* The same links as the landing page's header: plain ink, Ballpoint on hover. */
 .app-links {
   display: flex;
+  align-items: center;
   gap: 4px 28px;
   font-size: 15px;
   font-weight: 500;
@@ -965,25 +966,43 @@ body {
   }
 }
 
-/* The language select in the header. It is sandbox UI, so its label stays English. */
+/*
+ * The language select in the header. A real select, so keyboards, screen readers and a phone's
+ * own picker all work, with the browser's arrow replaced by the framework picker's chevron:
+ * the same size, stroke and 12px inset, centred on the text.
+ */
 .lang-picker {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .lang-picker label {
-  color: var(--ink);
-  font-size: 0.8125rem;
+  color: var(--caption);
+  font-size: 13px;
+}
+.lang-picker-field {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 .lang-picker select {
-  min-height: 32px;
-  padding: 4px 8px;
+  height: 36px;
+  padding: 0 40px 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--sheet);
   color: var(--ink);
   font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  appearance: none;
 }
 .lang-picker select:hover {
   border-color: var(--ink);
+}
+.lang-picker .chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
 }
