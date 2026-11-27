@@ -56,10 +56,10 @@ import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { InkDocument } from '@inkbar/core'
 
 const tools = allTools()
-const plugins = [suggestionsPlugin()]
 
 /** Logs each result of the Suggest command. It sits inside InkRoot to reach the command. */
 function CommandLog({ log }: { log: Log }) {
@@ -76,7 +76,7 @@ function CommandLog({ log }: { log: Log }) {
  * review and removes its redaction, in one undo step. The sidebar opens Suggestions when the
  * Suggest command finishes. It sits inside InkRoot to reach the records and the command.
  */
-function ReviewSidebar() {
+function ReviewSidebar({ labels }: { labels: ScenarioLabels }) {
   const { records, handle } = useRecords<Suggestion>('sandbox.suggestions')
   const { annotations, remove } = useAnnotations()
   const { busy } = useCommand('sandbox.suggest')
@@ -109,30 +109,30 @@ function ReviewSidebar() {
     >
       <InkPanel
         id="suggestions"
-        label="Suggestions"
+        label={labels.suggestions}
         icon={SquareDashed}
         badge={openCount}
       >
         <InkRecordList records="sandbox.suggestions" />
       </InkPanel>
-      <InkPanel id="accepted" label="Accepted" icon={Check}>
+      <InkPanel id="accepted" label={labels.accepted} icon={Check}>
         <div className="accepted">
           {accepted.length > 0 ? (
             <ul>
               {accepted.map((s) => (
                 <li key={s.id}>
-                  <span className="accepted-reason">{s.reason}</span>
+                  <span className="accepted-reason">{labels.plugin.reasons[s.kind]}</span>
                   <span className="accepted-meta">
-                    {s.text}, page {s.page + 1}
+                    {labels.acceptedAt({ text: s.text, page: s.page + 1 })}
                   </span>
                   <button type="button" onClick={() => undoAccept(s)}>
-                    Undo accept
+                    {labels.undoAccept}
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="accepted-empty">Nothing accepted yet.</p>
+            <p className="accepted-empty">{labels.nothingAccepted}</p>
           )}
         </div>
       </InkPanel>
@@ -144,10 +144,19 @@ export default function SuggestRedactions({
   source,
   messages,
   locale,
+  labels,
   log,
   onDocument,
   openFile,
 }: ScenarioProps) {
+  // The plugin reads its words when it shows them, from the latest labels, so they follow
+  // the language. The plugin itself is made once. The ref is written during render, not in an
+  // effect, because InkRoot applies the new messages in a layout effect that runs before this
+  // component's effects, and the plugin reads its words at that moment.
+  const text = useRef(labels.plugin)
+  text.current = labels.plugin
+  const [plugins] = useState(() => [suggestionsPlugin({ text: () => text.current })])
+
   function onReady(doc: InkDocument) {
     log('onReady', { pages: doc.pages.length })
     onDocument(doc)
@@ -168,8 +177,8 @@ export default function SuggestRedactions({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <InkHighlightMenu />
-        <div className="scenario-group" role="group" aria-label="Tools">
+        <div className="scenario-group" role="group" aria-label={labels.tools}>
+          <InkHighlightMenu />
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
@@ -182,21 +191,31 @@ export default function SuggestRedactions({
           <InkToolButton tool="note" />
         </div>
         <InkToolbarSeparator />
-        <div className="scenario-group" role="group" aria-label="Style">
+        <div className="scenario-group" role="group" aria-label={labels.style}>
           <InkLineStyleMenu />
           <InkColorMenu property="border" />
           <InkColorMenu property="fill" />
           <InkTextStyleMenu />
         </div>
-        <InkUndo />
-        <InkRedo />
-        <div className="scenario-actions" role="group" aria-label="Suggest">
+        <div className="scenario-group" role="group" aria-label={labels.history}>
+          <InkUndo />
+          <InkRedo />
+        </div>
+        <div className="scenario-actions" role="group" aria-label={labels.suggest}>
           <InkCommand id="sandbox.suggest" />
         </div>
-        <div className="scenario-group scenario-file" role="group" aria-label="File">
-          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+        <div
+          className="scenario-group scenario-file"
+          role="group"
+          aria-label={labels.file}
+        >
+          <InkToolbarButton
+            aria-label={labels.openPdf}
+            title={labels.openPdf}
+            onClick={openFile}
+          >
             <InkIcon icon={FileUp} />
-            Open
+            {labels.open}
           </InkToolbarButton>
           <InkDownloadButton />
           <InkPrintButton />
@@ -205,21 +224,25 @@ export default function SuggestRedactions({
       <div className="scenario-body">
         {/* The Pages panel starts closed, leaving the pages the room. */}
         <InkSidebar name="redactions-left" side="left" layout="rail" defaultOpen={null}>
-          <InkPanel id="pages" label="Pages" icon={Square}>
+          <InkPanel id="pages" label={labels.pages} icon={Square}>
             <InkThumbnails />
           </InkPanel>
         </InkSidebar>
         <InkViewport />
-        <ReviewSidebar />
+        <ReviewSidebar labels={labels} />
       </div>
-      <InkToolbar label="Page and zoom" className="scenario-status-bar">
-        <div className="scenario-group" role="group" aria-label="Page">
+      <InkToolbar label={labels.pageAndZoom} className="scenario-status-bar">
+        <div className="scenario-group" role="group" aria-label={labels.page}>
           <InkPrevPage />
           <InkPageInput />
           <InkPageCount />
           <InkNextPage />
         </div>
-        <div className="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <div
+          className="scenario-group scenario-zoom"
+          role="group"
+          aria-label={labels.zoom}
+        >
           <InkZoomOut />
           <InkZoomSelect />
           <InkZoomIn />

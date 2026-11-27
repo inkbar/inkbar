@@ -11,6 +11,7 @@ import { makeLetter } from '../../vite/documents/letter.ts'
 import { makeRedactions, redactionRecords } from '../../vite/documents/redactions.ts'
 
 import {
+  englishText,
   findSuggestions,
   suggestionsPlugin,
   type Suggestion,
@@ -86,6 +87,9 @@ async function setUp(options?: SuggestionsOptions) {
 }
 
 const statusOf = (s: Suggestion) => [s.id, s.status]
+
+const labelOf = (label: string | (() => string)) =>
+  typeof label === 'function' ? label() : label
 
 void test('findSuggestions lists the first record values in reading order', async () => {
   const doc = await openRedactions()
@@ -165,7 +169,7 @@ void test('Suggest adds the suggestions once, in one undo step, and saves them',
   const { doc, suggest } = await setUp({
     records: { suggestions: { onChange: (list) => (saved = list) } },
   })
-  assert.equal(suggest.label, 'Suggest redactions')
+  assert.equal(labelOf(suggest.label), 'Suggest redactions')
   await suggest.run()
   assert.equal(suggest.status?.get(), '11 suggestions')
   assert.deepEqual(
@@ -215,4 +219,25 @@ void test('deleting an accepted redaction restores its suggestion, in the same u
   doc.history.undo()
   assert.deepEqual(saved.map(statusOf), [[first!.id, 'accepted']])
   assert.ok(doc.annotations.list.get().some((a) => a.id === redaction.id))
+})
+
+void test('the plugin reads its words from text each time it shows them', async () => {
+  let words = englishText
+  const french = {
+    ...englishText,
+    command: 'Suggérer des caviardages',
+    found: () => 'trouvées',
+  }
+  const { suggest } = await setUp({ text: () => words })
+  assert.equal(labelOf(suggest.label), 'Suggest redactions')
+  words = french
+  assert.equal(labelOf(suggest.label), 'Suggérer des caviardages')
+  await suggest.run()
+  assert.equal(suggest.status?.get(), 'trouvées')
+})
+
+void test('English counts its suggestions with a plural', () => {
+  assert.equal(englishText.found({ count: 1 }), '1 suggestion')
+  assert.equal(englishText.found({ count: 0 }), '0 suggestions')
+  assert.equal(englishText.found({ count: 11 }), '11 suggestions')
 })

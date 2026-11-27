@@ -34,25 +34,28 @@ import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { Annotation, DocumentSource, InkMessagesInput } from '@inkbar/core'
-
-function group(
-  label: string,
-  className: string,
-  ...controls: HTMLElement[]
-): HTMLElement {
-  const g = document.createElement('div')
-  g.className = className
-  g.setAttribute('role', 'group')
-  g.setAttribute('aria-label', label)
-  g.append(...controls)
-  return g
-}
 
 export function mount(
   el: HTMLElement,
-  { source, messages, locale, log, onDocument, openFile }: ScenarioProps
+  { source, messages, locale, labels, log, onDocument, openFile }: ScenarioProps
 ) {
+  /** The groups this file names itself, each with its name in a set of labels. */
+  const groups: [HTMLElement, (words: ScenarioLabels) => string][] = []
+  function group(
+    label: (words: ScenarioLabels) => string,
+    className: string,
+    ...controls: HTMLElement[]
+  ): HTMLElement {
+    const g = document.createElement('div')
+    g.className = className
+    g.setAttribute('role', 'group')
+    g.append(...controls)
+    groups.push([g, label])
+    return g
+  }
+
   /** The list this app holds; the viewer shows what is pushed back into it. */
   let annotations: Annotation[] = []
   const viewer = createViewer(el, {
@@ -94,10 +97,10 @@ export function mount(
   const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
-    createHighlightMenu(viewer),
     group(
-      'Tools',
+      (w) => w.tools,
       'scenario-group',
+      createHighlightMenu(viewer),
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
       createToolButton(viewer, 'redact-area'),
@@ -110,7 +113,7 @@ export function mount(
     ),
     createToolbarSeparator(),
     group(
-      'Style',
+      (w) => w.style,
       'scenario-group',
       createLineStyleMenu(viewer),
       createColorMenu(viewer, { property: 'border' }),
@@ -119,11 +122,11 @@ export function mount(
     )
   )
 
-  const status = createToolbar({ label: 'Page and zoom' })
+  const status = createToolbar({ label: labels.pageAndZoom })
   status.classList.add('scenario-status-bar')
   status.append(
     group(
-      'Page',
+      (w) => w.page,
       'scenario-group',
       createPrevPage(viewer),
       createPageInput(viewer),
@@ -131,7 +134,7 @@ export function mount(
       createNextPage(viewer)
     ),
     group(
-      'Zoom',
+      (w) => w.zoom,
       'scenario-group scenario-zoom',
       createZoomOut(viewer),
       createZoomSelect(viewer),
@@ -142,13 +145,12 @@ export function mount(
   // Your own button joins the toolbar like the built-in ones: arrow keys reach it.
   const openButton = document.createElement('button')
   openButton.type = 'button'
-  openButton.setAttribute('aria-label', 'Open a PDF')
-  openButton.title = 'Open a PDF'
-  openButton.append(createIcon(FileUp), 'Open')
+  const openText = document.createTextNode('')
+  openButton.append(createIcon(FileUp), openText)
   openButton.addEventListener('click', openFile)
   tools.append(
     group(
-      'File',
+      (w) => w.file,
       'scenario-group scenario-file',
       openButton,
       createDownloadButton(viewer),
@@ -159,9 +161,24 @@ export function mount(
   viewer.element.prepend(tools)
   viewer.element.append(status)
 
+  /** Writes the words this file supplies itself; a change of language writes them again. */
+  function showLabels(words: ScenarioLabels): void {
+    for (const [g, label] of groups) g.setAttribute('aria-label', label(words))
+    status.setAttribute('aria-label', words.pageAndZoom)
+    openButton.setAttribute('aria-label', words.openPdf)
+    openButton.title = words.openPdf
+    openText.data = words.open
+  }
+  showLabels(labels)
+
   return {
     open: (next: DocumentSource) => viewer.open(next),
-    setLanguage(m: InkMessagesInput | undefined, l: string | undefined) {
+    setLanguage(
+      m: InkMessagesInput | undefined,
+      l: string | undefined,
+      words: ScenarioLabels
+    ) {
+      showLabels(words)
       viewer.setMessages(m)
       viewer.setLocale(l)
     },

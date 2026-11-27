@@ -8,9 +8,13 @@ import { SCENARIOS } from '../scenarios/registry.ts'
 import { FRAMEWORK_ORDER, FRAMEWORKS, type FrameworkId } from './frameworks.ts'
 import { formatRoute, type Route } from './route.ts'
 
+import type { SandboxStrings } from '../shared/strings/types.ts'
+
 export interface Sidebar {
   /** Shows `route`'s framework and marks its scenario as the current page. */
   select(route: Route): void
+  /** Shows the list's own words, and the scenarios' titles, in another language. */
+  setText(strings: SandboxStrings): void
 }
 
 const CHEVRON =
@@ -18,10 +22,10 @@ const CHEVRON =
 const CHECK =
   '<svg class="fw-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
 
-export function createSidebar(nav: HTMLElement): Sidebar {
+export function createSidebar(nav: HTMLElement, initial: SandboxStrings): Sidebar {
   nav.innerHTML = `
 <div class="fw-picker">
-  <button type="button" class="fw-trigger" aria-expanded="false" aria-controls="fw-menu" aria-label="Framework">
+  <button type="button" class="fw-trigger" aria-expanded="false" aria-controls="fw-menu">
     <span class="fw-tile" data-fw-mark></span>
     <span class="fw-trigger-text">
       <span class="fw-name" data-fw-name></span>
@@ -44,7 +48,7 @@ export function createSidebar(nav: HTMLElement): Sidebar {
   </ul>
 </div>
 <ul class="nav-scenarios">
-  ${SCENARIOS.map((s) => `<li><a data-scenario="${s.id}">${s.title}</a></li>`).join('')}
+  ${SCENARIOS.map((s) => `<li><a data-scenario="${s.id}"></a></li>`).join('')}
 </ul>`
 
   const trigger = nav.querySelector<HTMLButtonElement>('.fw-trigger')!
@@ -107,8 +111,27 @@ export function createSidebar(nav: HTMLElement): Sidebar {
   })
 
   let shown: FrameworkId | null = null
+  let strings = initial
+
+  const nameTrigger = (): void => {
+    trigger.setAttribute(
+      'aria-label',
+      shown
+        ? strings.shell.frameworkNamed({ name: FRAMEWORKS[shown].name })
+        : strings.shell.framework
+    )
+  }
+  const setText = (next: SandboxStrings): void => {
+    strings = next
+    nameTrigger()
+    menu.setAttribute('aria-label', strings.shell.frameworks)
+    for (const a of scenarios)
+      a.textContent = strings.scenarios[a.dataset.scenario as Route['scenario']].title
+  }
+  setText(initial)
 
   return {
+    setText,
     select(route) {
       const fw = FRAMEWORKS[route.framework]
       if (shown !== route.framework) {
@@ -116,7 +139,7 @@ export function createSidebar(nav: HTMLElement): Sidebar {
         nav.querySelector('[data-fw-mark]')!.innerHTML = fw.mark
         nav.querySelector('[data-fw-name]')!.textContent = fw.name
         nav.querySelector('[data-fw-package]')!.textContent = fw.package
-        trigger.setAttribute('aria-label', `Framework: ${fw.name}`)
+        nameTrigger()
       }
       for (const a of options) {
         const id = a.dataset.framework as FrameworkId

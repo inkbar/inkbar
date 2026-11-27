@@ -43,6 +43,7 @@ export default function Outline({
   source,
   messages,
   locale,
+  labels,
   log,
   onDocument,
   openFile,
@@ -69,18 +70,26 @@ export default function Outline({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <div className="scenario-group" role="group" aria-label="Tools">
+        <div className="scenario-group" role="group" aria-label={labels.tools}>
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
         </div>
-        <div className="scenario-group" role="group" aria-label="History">
+        <div className="scenario-group" role="group" aria-label={labels.history}>
           <InkBack />
           <InkForward />
         </div>
-        <div className="scenario-group scenario-file" role="group" aria-label="File">
-          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+        <div
+          className="scenario-group scenario-file"
+          role="group"
+          aria-label={labels.file}
+        >
+          <InkToolbarButton
+            aria-label={labels.openPdf}
+            title={labels.openPdf}
+            onClick={openFile}
+          >
             <InkIcon icon={FileUp} />
-            Open
+            {labels.open}
           </InkToolbarButton>
           <InkDownloadButton />
           <InkPrintButton />
@@ -88,26 +97,30 @@ export default function Outline({
       </InkToolbar>
       <div className="scenario-body">
         <InkSidebar name="outline" side="left" defaultOpen="outline">
-          <InkPanel id="outline" label="Outline" icon={List}>
+          <InkPanel id="outline" label={labels.outline} icon={List}>
             <InkOutline />
           </InkPanel>
-          <InkPanel id="pages" label="Pages" icon={Square}>
+          <InkPanel id="pages" label={labels.pages} icon={Square}>
             <InkThumbnails />
           </InkPanel>
-          <InkPanel id="search" label="Search" icon={Search}>
+          <InkPanel id="search" label={labels.search} icon={Search}>
             <InkSearchResults />
           </InkPanel>
         </InkSidebar>
         <InkViewport />
       </div>
-      <InkToolbar label="Page and zoom" className="scenario-status-bar">
-        <div className="scenario-group" role="group" aria-label="Page">
+      <InkToolbar label={labels.pageAndZoom} className="scenario-status-bar">
+        <div className="scenario-group" role="group" aria-label={labels.page}>
           <InkPrevPage />
           <InkPageInput />
           <InkPageCount />
           <InkNextPage />
         </div>
-        <div className="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <div
+          className="scenario-group scenario-zoom"
+          role="group"
+          aria-label={labels.zoom}
+        >
           <InkZoomOut />
           <InkZoomSelect />
           <InkZoomIn />

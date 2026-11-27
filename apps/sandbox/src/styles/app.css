@@ -23,6 +23,11 @@ body {
   font-size: 14px;
 }
 
+/* A French or German address keeps the shell hidden, its space kept, until its words arrive. */
+#app[data-waiting] > :is(.app-header, .app-body) {
+  visibility: hidden;
+}
+
 /* Header: the mark, the breadcrumb, then Docs and GitHub. */
 .app-header {
   display: flex;
@@ -91,6 +96,7 @@ body {
 /* The same links as the landing page's header: plain ink, Ballpoint on hover. */
 .app-links {
   display: flex;
+  align-items: center;
   gap: 4px 28px;
   font-size: 15px;
   font-weight: 500;
@@ -636,20 +642,64 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: 8px;
   font-size: 14px;
 }
+/*
+ * The toolbar wraps a group at a time. A group stays whole while it fits on a row and moves to
+ * the next row as one; a group wider than the row wraps inside itself, from its own start.
+ * Groups sit 14px apart. A separator is drawn by the group after it, in the middle of that
+ * gap; at the start of a row the gap falls in a strip on the toolbar's left that it clips, so
+ * a separator never starts or ends a row. The clip leaves the focus rings and the bottom line.
+ */
 .scenario-toolbar {
+  --group-gap: 14px;
+  column-gap: 0;
+  padding-right: var(--group-gap);
+  padding-left: 0;
   border-bottom: 1px solid var(--ink-border);
+  /*
+   * The clipped strip is half a gap plus 1px wide, so it covers a separator drawn at a row's
+   * start (half a gap in) and stops short of the first control's focus ring (5px out from a
+   * gap in). That holds for any gap of 12px or more.
+   */
+  --clip-strip: calc(var(--group-gap) / 2 + 1px);
+  clip-path: polygon(
+    var(--clip-strip) 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 calc(100% - 1px),
+    var(--clip-strip) calc(100% - 1px)
+  );
+}
+.scenario-toolbar > * {
+  margin-left: var(--group-gap);
+}
+.scenario-toolbar > .ink-toolbar-separator {
+  display: none;
+}
+.scenario-toolbar > .ink-toolbar-separator + * {
+  position: relative;
+}
+.scenario-toolbar > .ink-toolbar-separator + *::before {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: calc(var(--group-gap) / -2 - 0.5px);
+  width: 1px;
+  background: var(--ink-border);
+  content: '';
 }
 .scenario-status-bar {
   --ink-control-size: 2rem;
   --ink-icon-size: 1rem;
+  padding-inline: var(--group-gap, 14px);
   border-top: 1px solid var(--ink-border);
   font-size: 14px;
 }
 .scenario-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
 }
@@ -658,13 +708,16 @@ body {
 }
 /*
  * The sandbox's own section at the end of the toolbar: Open, an InkToolbarButton the scenario
- * adds. Ballpoint text sets it apart from Inkbar's controls.
+ * adds. Ballpoint text sets it apart from Inkbar's controls. It keeps to the right end of the
+ * last row, with a group's gap before it.
  */
-.scenario-file {
+.scenario-toolbar > .scenario-file {
   margin-left: auto;
+  padding-left: var(--group-gap);
 }
-.scenario-actions + .scenario-file {
-  margin-left: 0;
+/* After a plugin's actions, which already end in their button's padding, no extra gap. */
+.scenario-toolbar > .scenario-actions + .scenario-file {
+  padding-left: 0;
 }
 .scenario-file button {
   gap: 6px;
@@ -676,13 +729,35 @@ body {
     font-size: 0;
   }
 }
-/* A plugin's command and its status, at the end of the toolbar. */
-.scenario-actions {
+/*
+ * A plugin's actions take the rest of their row and keep to its right, so they sit next to
+ * the file group when both fit, and both rows end at the right edge when they do not. The
+ * actions grow first, so the file group's auto margin is zero on a shared row.
+ */
+.scenario-toolbar > .scenario-actions {
   display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 2px;
-  margin-left: auto;
+  padding-left: var(--group-gap);
+}
+/*
+ * A plugin's command label longer than the row wraps onto a second line inside its button
+ * rather than running past the toolbar's edge, where the clip would cut it off.
+ */
+.scenario-actions .ink-command {
+  min-width: 0;
+  max-width: 100%;
+}
+.scenario-actions .ink-command button {
+  height: auto;
+  max-width: 100%;
+  padding-block: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .scenario-actions button,
 .scenario-file button {
@@ -955,35 +1030,68 @@ body {
     padding: 12px 16px 16px;
   }
 }
-/* The sheet's title names the scenario, so a phone's narrow header drops the breadcrumb. */
+/*
+ * The sheet's title names the scenario, so a phone's narrow header drops the breadcrumb. The
+ * language picker, Docs and GitHub take a row of their own under the mark, the picker at the
+ * left edge and the links at the right.
+ */
 @media (max-width: 599px) {
+  .app-header {
+    padding: 4px 16px;
+  }
   .app-header .breadcrumb {
     display: none;
   }
+  .app-header .brand {
+    min-height: 52px;
+  }
   .app-header .app-links {
-    margin-left: auto;
+    flex: 1 0 100%;
+    gap: 20px;
+    padding-bottom: 4px;
+  }
+  .app-links .lang-picker {
+    margin-right: auto;
   }
 }
 
-/* The language select in the header. It is sandbox UI, so its label stays English. */
+/*
+ * The language select in the header. A real select, so keyboards, screen readers and a phone's
+ * own picker all work, with the browser's arrow replaced by the framework picker's chevron:
+ * the same size, stroke and 12px inset, centred on the text.
+ */
 .lang-picker {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .lang-picker label {
-  color: var(--ink);
-  font-size: 0.8125rem;
+  color: var(--caption);
+  font-size: 13px;
+}
+.lang-picker-field {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 .lang-picker select {
-  min-height: 32px;
-  padding: 4px 8px;
+  height: 36px;
+  padding: 0 40px 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--sheet);
   color: var(--ink);
   font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  appearance: none;
 }
 .lang-picker select:hover {
   border-color: var(--ink);
+}
+.lang-picker .chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
 }

@@ -11,8 +11,14 @@
  * Suggest searches the open document for a fixed list of made-up values: the customer records
  * in the sandbox's documents. A real plugin would ask its own service, or receive them from the
  * host through `initial`.
+ *
+ * Every word the plugin shows comes from `text`, English unless the host passes its own. The
+ * host passes a function, and Inkbar calls the labels that read it again whenever the viewer's
+ * language changes, so the button, the marks and an open card follow the host's language.
  */
 import { definePlugin, type PluginStoreOptions } from '@inkbar/core/dom'
+
+import { englishText, type KindId, type SuggestionsText } from './suggestions-text.ts'
 
 import type {
   Annotation,
@@ -23,6 +29,8 @@ import type {
   SearchHit,
 } from '@inkbar/core'
 
+export { englishText, type KindId, type SuggestionsText }
+
 export interface Suggestion extends RecordBase {
   /** Page index, from 0. */
   page: number
@@ -32,6 +40,9 @@ export interface Suggestion extends RecordBase {
   rect: Rect
   /** From 0 to 1. */
   confidence: number
+  /** What the text is. The card names it in the reader's language, from `text`. */
+  kind: KindId
+  /** `kind` in English, kept with the record as data. */
   reason: string
   explanation?: string
   /** The text the quads cover. */
@@ -42,10 +53,8 @@ export interface Suggestion extends RecordBase {
 /** A kind of personal data, and the values of it that Suggest looks for. */
 interface Kind {
   /** The first suggestion of this kind takes it as its id, the next `<id>-2`, and so on. */
-  id: string
-  reason: string
+  id: KindId
   confidence: number
-  explanation: string
   values: readonly string[]
 }
 
@@ -54,23 +63,17 @@ interface Kind {
 const KINDS: readonly Kind[] = [
   {
     id: 'ni-number',
-    reason: 'National Insurance number',
     confidence: 0.95,
-    explanation: 'Two letters, six digits and a final letter.',
     values: ['QQ123456C', 'QQ654321A'],
   },
   {
     id: 'email',
-    reason: 'Email address',
     confidence: 0.85,
-    explanation: 'A customer’s email address.',
     values: ['m.okafor@example.com', 'dan.price@example.com', 'aisha.rahman@example.com'],
   },
   {
     id: 'phone',
-    reason: 'Phone number',
     confidence: 0.6,
-    explanation: 'Eleven digits starting 07, like a UK mobile number.',
     values: ['07700 900123', '07700 900456', '07700 900789'],
   },
 ]
@@ -99,8 +102,14 @@ export function acceptedFrom(annotation: Annotation): string | undefined {
   return typeof id === 'string' ? id : undefined
 }
 
-export function suggestionCount(n: number): string {
-  return n === 1 ? '1 suggestion' : `${n} suggestions`
+/** The card's meta line: how sure the suggestion is. */
+function confidenceText(text: SuggestionsText, confidence: number): string {
+  const level = confidenceLevel(confidence)
+  return level === 'Low'
+    ? text.lowConfidence
+    : level === 'Medium'
+      ? text.mediumConfidence
+      : text.highConfidence
 }
 
 /**
@@ -133,8 +142,9 @@ export async function findSuggestions(
       quads: hit.quads,
       rect: hit.rect,
       confidence: kind.confidence,
-      reason: kind.reason,
-      explanation: kind.explanation,
+      kind: kind.id,
+      reason: englishText.reasons[kind.id],
+      explanation: englishText.explanations[kind.id],
       text: hit.text,
       status: 'suggested',
     }
@@ -147,50 +157,68 @@ export interface SuggestionsOptions {
    * `suggestions.onChange`: called after every change, to save them. Inkbar keeps no plugin data.
    */
   records?: { suggestions?: PluginStoreOptions<Suggestion> }
+  /**
+   * The plugin's words. It calls this each time it shows them, so a host that changes language
+   * returns the new words from here. Default: English.
+   */
+  text?: () => SuggestionsText
 }
 
-export const suggestionsPlugin = definePlugin<SuggestionsOptions>('sandbox', (plugin) => {
-  const suggestions = plugin.records<Suggestion>('suggestions')
+export const suggestionsPlugin = definePlugin<SuggestionsOptions>(
+  'sandbox',
+  (plugin, options) => {
+    const text = options?.text ?? (() => englishText)
+    const suggestions = plugin.records<Suggestion>('suggestions')
 
-  // Accept adds a redaction linked to its suggestion. Deleting that redaction puts the
-  // suggestion back up for review, inside the delete's undo step.
-  const redaction = suggestions.annotates('redact', {
-    from: (s) => ({ page: s.page, quads: s.quads }),
-    onRemoved: (s) => suggestions.update(s.id, { status: 'suggested' }),
-  })
-
-  plugin.command(
-    'suggest',
-    'Suggest redactions',
-    async ({ doc, signal }) => {
-      const found = await findSuggestions(doc, { signal })
-      // Bound to this run's document: if another file opened meanwhile, this adds nothing.
-      return suggestionCount(suggestions.in(doc).addMissing(found).length)
-    },
-    { errorStatus: 'Could not check this document.' }
-  )
-
-  plugin
-    .marks(suggestions, {
-      where: (s) => s.status === 'suggested',
-      rect: (s) => s.rect,
-      label: (s) => `Suggested redaction: ${s.reason}`,
-      style: (s) => ({ borderColor: confidenceColor(s.confidence) }),
-      className: 'sandbox-suggestion',
-      card: (s) => ({
-        title: s.reason,
-        label: 'Suggested redaction',
-        meta: `${confidenceLevel(s.confidence)} confidence`,
-        swatch: confidenceColor(s.confidence),
-        ...(s.explanation && { body: s.explanation }),
-        actions: {
-          Accept: () => {
-            suggestions.update(s.id, { status: 'accepted' })
-            redaction.add(s)
-          },
-          Dismiss: () => suggestions.update(s.id, { status: 'dismissed' }),
-        },
-      }),
+    // Accept adds a redaction linked to its suggestion. Deleting that redaction puts the
+    // suggestion back up for review, inside the delete's undo step.
+    const redaction = suggestions.annotates('redact', {
+      from: (s) => ({ page: s.page, quads: s.quads }),
+      onRemoved: (s) => suggestions.update(s.id, { status: 'suggested' }),
     })
-    .scrollToFirst()
-})
+
+    plugin.command(
+      'suggest',
+      () => text().command,
+      async ({ doc, signal }) => {
+        const found = await findSuggestions(doc, { signal })
+        // Bound to this run's document: if another file opened meanwhile, this adds nothing.
+        const count = suggestions.in(doc).addMissing(found).length
+        return text().found({ count })
+      },
+      { errorStatus: () => text().failed }
+    )
+
+    // Marks and an open card are drawn again when the viewer's language changes, so each reads
+    // `text()` as it draws.
+    plugin
+      .marks(suggestions, {
+        where: (s) => s.status === 'suggested',
+        rect: (s) => s.rect,
+        label: (s) => text().mark({ reason: text().reasons[s.kind] }),
+        style: (s) => ({ borderColor: confidenceColor(s.confidence) }),
+        className: 'sandbox-suggestion',
+        card: (s) => ({
+          title: () => text().reasons[s.kind],
+          label: () => text().card,
+          meta: confidenceText(text(), s.confidence),
+          swatch: confidenceColor(s.confidence),
+          body: text().explanations[s.kind],
+          actions: [
+            {
+              label: () => text().accept,
+              run: () => {
+                suggestions.update(s.id, { status: 'accepted' })
+                redaction.add(s)
+              },
+            },
+            {
+              label: () => text().dismiss,
+              run: () => suggestions.update(s.id, { status: 'dismissed' }),
+            },
+          ],
+        }),
+      })
+      .scrollToFirst()
+  }
+)

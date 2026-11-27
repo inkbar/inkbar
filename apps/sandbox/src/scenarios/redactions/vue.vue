@@ -54,11 +54,12 @@ import ReviewSidebar from './ReviewSidebar.vue'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, messages, locale, log, onDocument, openFile } =
+const { source, messages, locale, labels, log, onDocument, openFile } =
   defineProps<ScenarioProps>()
 
 const tools = allTools()
-const plugins = [suggestionsPlugin()]
+// The plugin reads its words when it shows them, so they follow the language.
+const plugins = [suggestionsPlugin({ text: () => labels.plugin })]
 
 /** The Pages panel starts closed, leaving the pages the room. */
 const pagesOpen = ref<SidebarOpen | undefined>(null)
@@ -97,8 +98,8 @@ function onActivate(id: string): void {
     @activate="onActivate"
   >
     <InkToolbar class="scenario-toolbar">
-      <InkHighlightMenu />
-      <div class="scenario-group" role="group" aria-label="Tools">
+      <div class="scenario-group" role="group" :aria-label="labels.tools">
+        <InkHighlightMenu />
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="redact-area" />
@@ -111,21 +112,27 @@ function onActivate(id: string): void {
         <InkToolButton tool="note" />
       </div>
       <InkToolbarSeparator />
-      <div class="scenario-group" role="group" aria-label="Style">
+      <div class="scenario-group" role="group" :aria-label="labels.style">
         <InkLineStyleMenu />
         <InkColorMenu property="border" />
         <InkColorMenu property="fill" />
         <InkTextStyleMenu />
       </div>
-      <InkUndo />
-      <InkRedo />
-      <div class="scenario-actions" role="group" aria-label="Suggest">
+      <div class="scenario-group" role="group" :aria-label="labels.history">
+        <InkUndo />
+        <InkRedo />
+      </div>
+      <div class="scenario-actions" role="group" :aria-label="labels.suggest">
         <InkCommand id="sandbox.suggest" />
       </div>
-      <div class="scenario-group scenario-file" role="group" aria-label="File">
-        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+      <div class="scenario-group scenario-file" role="group" :aria-label="labels.file">
+        <InkToolbarButton
+          :aria-label="labels.openPdf"
+          :title="labels.openPdf"
+          @click="openFile"
+        >
           <InkIcon :icon="FileUp" />
-          Open
+          {{ labels.open }}
         </InkToolbarButton>
         <InkDownloadButton />
         <InkPrintButton />
@@ -138,21 +145,21 @@ function onActivate(id: string): void {
         side="left"
         layout="rail"
       >
-        <InkPanel id="pages" label="Pages" :icon="Square">
+        <InkPanel id="pages" :label="labels.pages" :icon="Square">
           <InkThumbnails />
         </InkPanel>
       </InkSidebar>
       <InkViewport />
-      <ReviewSidebar />
+      <ReviewSidebar :labels="labels" />
     </div>
-    <InkToolbar label="Page and zoom" class="scenario-status-bar">
-      <div class="scenario-group" role="group" aria-label="Page">
+    <InkToolbar :label="labels.pageAndZoom" class="scenario-status-bar">
+      <div class="scenario-group" role="group" :aria-label="labels.page">
         <InkPrevPage />
         <InkPageInput />
         <InkPageCount />
         <InkNextPage />
       </div>
-      <div class="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+      <div class="scenario-group scenario-zoom" role="group" :aria-label="labels.zoom">
         <InkZoomOut />
         <InkZoomSelect />
         <InkZoomIn />

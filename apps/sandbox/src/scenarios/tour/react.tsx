@@ -47,6 +47,7 @@ export default function AnnotationTour({
   source,
   messages,
   locale,
+  labels,
   log,
   onDocument,
   openFile,
@@ -80,8 +81,8 @@ export default function AnnotationTour({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <InkHighlightMenu />
-        <div className="scenario-group" role="group" aria-label="Tools">
+        <div className="scenario-group" role="group" aria-label={labels.tools}>
+          <InkHighlightMenu />
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
@@ -93,32 +94,46 @@ export default function AnnotationTour({
           <InkToolButton tool="note" />
         </div>
         <InkToolbarSeparator />
-        <div className="scenario-group" role="group" aria-label="Style">
+        <div className="scenario-group" role="group" aria-label={labels.style}>
           <InkLineStyleMenu />
           <InkColorMenu property="border" />
           <InkColorMenu property="fill" />
           <InkTextStyleMenu />
         </div>
-        <InkUndo />
-        <InkRedo />
-        <div className="scenario-group scenario-file" role="group" aria-label="File">
-          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+        <div className="scenario-group" role="group" aria-label={labels.history}>
+          <InkUndo />
+          <InkRedo />
+        </div>
+        <div
+          className="scenario-group scenario-file"
+          role="group"
+          aria-label={labels.file}
+        >
+          <InkToolbarButton
+            aria-label={labels.openPdf}
+            title={labels.openPdf}
+            onClick={openFile}
+          >
             <InkIcon icon={FileUp} />
-            Open
+            {labels.open}
           </InkToolbarButton>
           <InkDownloadButton />
           <InkPrintButton />
         </div>
       </InkToolbar>
       <InkViewport />
-      <InkToolbar label="Page and zoom" className="scenario-status-bar">
-        <div className="scenario-group" role="group" aria-label="Page">
+      <InkToolbar label={labels.pageAndZoom} className="scenario-status-bar">
+        <div className="scenario-group" role="group" aria-label={labels.page}>
           <InkPrevPage />
           <InkPageInput />
           <InkPageCount />
           <InkNextPage />
         </div>
-        <div className="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <div
+          className="scenario-group scenario-zoom"
+          role="group"
+          aria-label={labels.zoom}
+        >
           <InkZoomOut />
           <InkZoomSelect />
           <InkZoomIn />

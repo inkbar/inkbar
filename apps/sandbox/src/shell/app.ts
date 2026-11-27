@@ -2,12 +2,14 @@
  * The scenario shell: a header, the scenario list, the selected scenario's Preview and Code
  * tabs, and the Events panel. It knows no framework. The hash names the framework and
  * scenario; each change unmounts the scenario and mounts the next, and the latest selection
- * wins, so exactly one viewer is ever mounted.
+ * wins, so exactly one viewer is ever mounted. The language changes in place: the shell writes
+ * its words again and the mounted scenario takes the new ones, without a remount.
  */
 import '../styles/app.css'
 
 import { mountScenario } from '../frameworks/index.ts'
 import { SCENARIOS } from '../scenarios/registry.ts'
+import { en, type SandboxStrings, type ShellText } from '../shared/strings/index.ts'
 
 import { loadSources, type SourceFile } from './code.ts'
 import { documentSource } from './documents.ts'
@@ -36,20 +38,41 @@ const REPO = 'https://github.com/inkbar/inkbar'
 const BASE = import.meta.env.BASE_URL
 
 const app = document.getElementById('app')!
+
+/*
+ * A French or German address starts loading its words before anything renders, names the
+ * page's language at once, and keeps the shell hidden, its space kept, until the words arrive,
+ * so no English is ever shown or read out. An English address shows at once. If the words fail
+ * to load, the page shows in English with the failure message.
+ */
+const firstLang = parseRoute(location.hash, location.search).lang
+/** True until the first address's words are shown. */
+let waitingForWords = firstLang !== 'en'
+if (waitingForWords) {
+  document.documentElement.lang = firstLang
+  app.dataset.waiting = ''
+  // Starts the download now; `select` awaits the same modules.
+  loadLanguage(firstLang).catch(() => undefined)
+}
+/** Shows the shell: its words are in, or English is the fallback. */
+function stopWaiting(): void {
+  waitingForWords = false
+  delete app.dataset.waiting
+}
 app.innerHTML = `
 <header class="app-header">
-  <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="wordmark-suffix">sandbox</span><span class="visually-hidden"> home</span></a>
-  <nav class="breadcrumb" aria-label="Breadcrumb">
+  <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="wordmark-suffix">sandbox</span><span class="visually-hidden" data-home></span></a>
+  <nav class="breadcrumb">
     <ol><li data-crumb-framework></li><li aria-current="page" data-crumb-scenario></li></ol>
   </nav>
-  <nav class="app-links" aria-label="Main">
-    <a href="https://inkbar.dev/docs/">Docs</a>
+  <nav class="app-links">
+    <a href="https://inkbar.dev/docs/" data-docs></a>
     <a href="${REPO}">GitHub</a>
   </nav>
 </header>
 <input type="file" accept="application/pdf,.pdf" class="visually-hidden" tabindex="-1" aria-hidden="true" data-file-input />
 <div class="app-body">
-  <nav class="app-nav" aria-label="Scenarios"></nav>
+  <nav class="app-nav"></nav>
   <main class="app-main">
     <div class="stage" data-view="preview">
       <div class="scenario-head">
@@ -58,12 +81,12 @@ app.innerHTML = `
         <p data-scenario-note hidden></p>
       </div>
       <div class="stage-bar">
-        <div class="view-tabs" role="tablist" aria-label="View">
-          ${tabMarkup('tab-preview', 'panel-preview', 'Preview')}
-          ${tabMarkup('tab-code', 'panel-code', 'Code')}
+        <div class="view-tabs" role="tablist">
+          ${tabMarkup('tab-preview', 'panel-preview', '')}
+          ${tabMarkup('tab-code', 'panel-code', '')}
         </div>
         <div class="stage-files">
-          <p class="caption stage-hint">Open or drop your own PDF. It stays in your browser.</p>
+          <p class="caption stage-hint"></p>
           <p class="caption stage-status" role="status" data-file-status></p>
         </div>
       </div>
@@ -73,10 +96,10 @@ app.innerHTML = `
       <section class="code" id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden></section>
     </div>
   </main>
-  <aside class="app-side" aria-label="Events">
-    <div class="side-tabs" role="tablist" aria-label="Panels" hidden>
-      ${tabMarkup('tab-events', 'panel-events', 'Events')}
-      ${tabMarkup('tab-values', 'panel-values', 'Values')}
+  <aside class="app-side">
+    <div class="side-tabs" role="tablist" hidden>
+      ${tabMarkup('tab-events', 'panel-events', '')}
+      ${tabMarkup('tab-values', 'panel-values', '')}
     </div>
     <div class="side-panel" id="panel-events" data-events></div>
     <div class="side-panel" id="panel-values" hidden></div>
@@ -86,12 +109,15 @@ app.innerHTML = `
 const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
   app.querySelector<T>(selector)!
 
+/** The sandbox's own words in the language shown; English until another one loads. */
+let strings: SandboxStrings = en
+
 const viewer = $('[data-scenario-viewer]')
 const codePanel = $('#panel-code')
-const events = createEventLog($('[data-events]'))
-const values = createValuesPanel($('#panel-values'))
-const sidebar = createSidebar($('nav[aria-label="Scenarios"]'))
-// The language of the viewer. The select itself is sandbox UI, so its label stays English.
+const events = createEventLog($('[data-events]'), strings.shell)
+const values = createValuesPanel($('#panel-values'), strings.shell)
+const sidebar = createSidebar($('.app-nav'), strings)
+// The language of the page. Each option names its language in that language.
 const languageSelect = document.createElement('select')
 languageSelect.id = 'language-select'
 languageSelect.innerHTML = LANGUAGES.map(
@@ -99,8 +125,14 @@ languageSelect.innerHTML = LANGUAGES.map(
 ).join('')
 const languagePicker = document.createElement('div')
 languagePicker.className = 'lang-picker'
-languagePicker.innerHTML = '<label for="language-select">Language</label>'
-languagePicker.append(languageSelect)
+languagePicker.innerHTML = `<label for="language-select"></label><span class="lang-picker-field"></span>`
+languagePicker.querySelector('.lang-picker-field')!.append(languageSelect)
+languagePicker
+  .querySelector('.lang-picker-field')!
+  .insertAdjacentHTML(
+    'beforeend',
+    '<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'
+  )
 $('.app-links').prepend(languagePicker)
 const sideTabs = $('.side-tabs')
 /** The scenarios' Open a PDF buttons pick a file through this one input. */
@@ -138,6 +170,7 @@ const drops = handleDrops({
   target: viewer,
   input: fileInput,
   status: $('[data-file-status]'),
+  text: () => strings.shell,
   open(source) {
     if (mounted) mounted.update(source)
     else if (mounting) queued = source
@@ -146,20 +179,77 @@ const drops = handleDrops({
   },
 })
 
+/** Rewrites the preview's error, if it shows one, in the current language. */
+let showPreviewError: (() => void) | null = null
+
+/** Shows an error in place of the scenario. */
+function previewError(host: HTMLElement, message: (t: ShellText) => string): void {
+  const p = document.createElement('p')
+  p.className = 'scenario-error'
+  host.replaceChildren(p)
+  showPreviewError = () => (p.textContent = message(strings.shell))
+  showPreviewError()
+}
+
+/** The current scenario's title, blurb and note, and the page title, in the current language. */
+function showScenarioText(): void {
+  const text = strings.scenarios[route.scenario]
+  const framework = FRAMEWORKS[route.framework]
+  if (!waitingForWords)
+    document.title = strings.shell.pageTitle({
+      scenario: text.title,
+      framework: framework.name,
+    })
+  $('[data-crumb-framework]').textContent = framework.name
+  $('[data-crumb-scenario]').textContent = text.title
+  $('[data-scenario-title]').textContent = text.title
+  $('[data-scenario-blurb]').textContent = text.blurb
+  const note = text.notes?.[route.framework]
+  $('[data-scenario-note]').textContent = note ?? ''
+  $('[data-scenario-note]').hidden = !note
+}
+
+/** Writes every word the shell owns in the current language. */
+function showText(): void {
+  const t = strings.shell
+  if (!waitingForWords) document.documentElement.lang = strings.lang
+  $('[data-home]').textContent = ` ${t.home}`
+  $('.breadcrumb').setAttribute('aria-label', t.breadcrumb)
+  $('.app-links').setAttribute('aria-label', t.mainLinks)
+  $('[data-docs]').textContent = t.docs
+  $('label[for="language-select"]').textContent = t.language
+  $('.app-nav').setAttribute('aria-label', t.scenarios)
+  $('.view-tabs').setAttribute('aria-label', t.view)
+  $('#tab-preview').textContent = t.preview
+  $('#tab-code').textContent = t.code
+  $('.stage-hint').textContent = t.dropHint
+  $('.app-side').setAttribute('aria-label', t.events)
+  sideTabs.setAttribute('aria-label', t.panels)
+  $('#tab-events').textContent = t.events
+  $('#tab-values').textContent = t.values
+  sidebar.setText(strings)
+  events.setText(t)
+  values.setText(t)
+  drops.refresh()
+  showPreviewError?.()
+  showCodeText()
+  showScenarioText()
+}
+
+/** Shows `next` once it is the route's language; a later choice makes it stale. */
+function applyStrings(lang: LangId, next: SandboxStrings): void {
+  if (route.lang !== lang || strings === next) return
+  strings = next
+  stopWaiting()
+  showText()
+}
+
 /** Mounts the route's scenario with its own document. */
 async function select(next: Route): Promise<void> {
   route = next
   const gen = ++generation
   const scenario = SCENARIOS.find((s) => s.id === next.scenario)!
-  const framework = FRAMEWORKS[next.framework]
-  document.title = `${scenario.title} · ${framework.name} · Inkbar sandbox`
-  $('[data-crumb-framework]').textContent = framework.name
-  $('[data-crumb-scenario]').textContent = scenario.title
-  $('[data-scenario-title]').textContent = scenario.title
-  $('[data-scenario-blurb]').textContent = scenario.blurb
-  const note = scenario.notes?.[next.framework]
-  $('[data-scenario-note]').textContent = note ?? ''
-  $('[data-scenario-note]').hidden = !note
+  showScenarioText()
   sidebar.select(next)
   languageSelect.value = next.lang
 
@@ -194,6 +284,7 @@ async function select(next: Route): Promise<void> {
   const host = document.createElement('div')
   host.className = 'scenario-host'
   viewer.replaceChildren(host)
+  showPreviewError = null
 
   let language: Language
   try {
@@ -202,13 +293,18 @@ async function select(next: Route): Promise<void> {
     if (gen !== generation) return
     mounting = false
     queued = null
-    host.innerHTML = '<p class="scenario-error">This language could not be loaded.</p>'
+    if (waitingForWords) {
+      stopWaiting()
+      showText()
+    }
+    previewError(host, (t) => t.languageFailed)
     // A file dropped while this loaded was reported as opened; no viewer took it.
     drops.noViewer()
     console.error(error)
     return
   }
   if (gen !== generation) return
+  applyStrings(next.lang, language.strings)
 
   const log: Log = (name, value) => {
     if (gen === generation) events.log(name, value)
@@ -222,6 +318,7 @@ async function select(next: Route): Promise<void> {
       source: documentSource(scenario.document),
       messages: language.messages,
       locale: language.locale,
+      labels: language.strings.labels,
       log,
       onDocument,
       openFile,
@@ -230,7 +327,7 @@ async function select(next: Route): Promise<void> {
     if (gen !== generation) return
     mounting = false
     queued = null
-    host.innerHTML = '<p class="scenario-error">This scenario could not be loaded.</p>'
+    previewError(host, (t) => t.scenarioFailed)
     // A file dropped while this loaded was reported as opened; no viewer took it.
     drops.noViewer()
     console.error(error)
@@ -248,7 +345,10 @@ async function select(next: Route): Promise<void> {
     loadLanguage(want).then(
       (l) => {
         // Still this mount, and no later choice of language.
-        if (mounted === m && route.lang === want) m.setLanguage(l.messages, l.locale)
+        if (mounted === m && route.lang === want) {
+          applyStrings(want, l.strings)
+          m.setLanguage(l.messages, l.locale, l.strings.labels)
+        }
       },
       (error: unknown) => console.error(error)
     )
@@ -260,6 +360,30 @@ async function select(next: Route): Promise<void> {
 }
 
 let codeFor = ''
+/** The Code tab's loading or failure message, kept as words to write again. */
+let codeStatus: ((t: ShellText) => string) | null = null
+
+/** Shows a loading or failure message in the Code tab. */
+function showCodeStatus(
+  role: 'status' | 'alert',
+  message: (t: ShellText) => string
+): void {
+  codeStatus = message
+  codePanel.innerHTML = `<p class="code-status" role="${role}"></p>`
+  showCodeText()
+}
+
+/** The Code tab's own words in the current language; the source itself stays as it is. */
+function showCodeText(): void {
+  const t = strings.shell
+  const status = codePanel.querySelector('.code-status')
+  if (status && codeStatus) status.textContent = codeStatus(t)
+  codePanel.querySelector('.file-tabs')?.setAttribute('aria-label', t.files)
+  for (const button of codePanel.querySelectorAll<HTMLButtonElement>('[data-copy]'))
+    if (!button.dataset.feedback) button.textContent = t.copy
+  for (const link of codePanel.querySelectorAll('.source-link'))
+    link.textContent = t.viewOnGitHub
+}
 
 async function showCode(): Promise<void> {
   const want = formatRoute(route)
@@ -267,7 +391,7 @@ async function showCode(): Promise<void> {
   codeFor = want
   const { framework, scenario } = route
   // Drop the previous scenario's source at once, so it is never shown under the new title.
-  codePanel.innerHTML = '<p class="code-status" role="status">Loading the code…</p>'
+  showCodeStatus('status', (t) => t.loadingCode)
   let files: SourceFile[]
   try {
     files = await loadSources(framework, scenario)
@@ -275,8 +399,7 @@ async function showCode(): Promise<void> {
     if (codeFor !== want) return
     // Forget the attempt so showing the tab again tries once more.
     codeFor = ''
-    codePanel.innerHTML =
-      '<p class="code-status" role="alert">The code could not be loaded. Switch tabs to try again.</p>'
+    showCodeStatus('alert', (t) => t.codeFailed)
     return
   }
   if (codeFor !== want) return
@@ -285,8 +408,9 @@ async function showCode(): Promise<void> {
 
 function renderCode(framework: FrameworkId, files: SourceFile[]): void {
   const install = FRAMEWORKS[framework].install
+  codeStatus = null
   codePanel.innerHTML = `
-<div class="file-tabs" role="tablist" aria-label="Files">
+<div class="file-tabs" role="tablist">
   ${files.map((f, i) => tabMarkup(`file-tab-${i}`, `file-panel-${i}`, f.path.split('/').pop()!)).join('')}
 </div>
 ${files
@@ -296,8 +420,8 @@ ${files
   <div class="source-head">
     <span class="source-path">${f.path}</span>
     <code class="source-install"><span aria-hidden="true">$ </span>${install}</code>
-    <button type="button" class="ghost-button" data-copy="${i}">Copy</button>
-    <a class="source-link" href="${REPO}/blob/main/apps/sandbox/${f.path}">View on GitHub</a>
+    <button type="button" class="ghost-button" data-copy="${i}"></button>
+    <a class="source-link" href="${REPO}/blob/main/apps/sandbox/${f.path}"></a>
   </div>
   <div class="source-body" tabindex="0" aria-label="${f.path}">${f.html}</div>
 </div>`
@@ -307,18 +431,23 @@ ${files
     [...codePanel.querySelectorAll<HTMLElement>('[role=tab]')],
     [...codePanel.querySelectorAll<HTMLElement>('[role=tabpanel]')]
   )
+  showCodeText()
   for (const button of codePanel.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
     const file = files[Number(button.dataset.copy)]!
     let reset: ReturnType<typeof setTimeout> | undefined
     button.addEventListener('click', () => {
       const show = (text: string): void => {
         button.textContent = text
+        button.dataset.feedback = ''
         clearTimeout(reset)
-        reset = setTimeout(() => (button.textContent = 'Copy'), 1500)
+        reset = setTimeout(() => {
+          delete button.dataset.feedback
+          button.textContent = strings.shell.copy
+        }, 1500)
       }
       navigator.clipboard.writeText(file.code).then(
-        () => show('Copied'),
-        () => show('Copy failed')
+        () => show(strings.shell.copied),
+        () => show(strings.shell.copyFailed)
       )
     })
   }
@@ -361,12 +490,14 @@ async function changeLanguage(lang: LangId): Promise<void> {
   }
   // A later choice, or a new scenario, makes this one stale.
   if (route !== chosen) return
-  mounted?.setLanguage(language.messages, language.locale)
+  applyStrings(lang, language.strings)
+  mounted?.setLanguage(language.messages, language.locale, language.strings.labels)
 }
 languageSelect.addEventListener('change', () => {
   void changeLanguage(languageSelect.value as LangId)
 })
 
+showText()
 if (location.hash !== formatRoute(route))
   history.replaceState(null, '', formatRoute(route))
 void select(route)
