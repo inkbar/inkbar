@@ -1,6 +1,6 @@
 {
   "name": "@inkbar/engine",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "description": "Opens, renders and writes PDFs for Inkbar: PDFium compiled to WebAssembly.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",
