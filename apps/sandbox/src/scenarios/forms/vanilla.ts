@@ -85,8 +85,7 @@ export function mount(
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select')
     ),
-    createUndo(viewer),
-    createRedo(viewer)
+    group((w) => w.history, 'scenario-group', createUndo(viewer), createRedo(viewer))
   )
 
   const status = createToolbar({ label: labels.pageAndZoom })

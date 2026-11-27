@@ -175,8 +175,8 @@ export default function SuggestRedactions({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <InkHighlightMenu />
         <div className="scenario-group" role="group" aria-label={labels.tools}>
+          <InkHighlightMenu />
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
@@ -195,8 +195,10 @@ export default function SuggestRedactions({
           <InkColorMenu property="fill" />
           <InkTextStyleMenu />
         </div>
-        <InkUndo />
-        <InkRedo />
+        <div className="scenario-group" role="group" aria-label={labels.history}>
+          <InkUndo />
+          <InkRedo />
+        </div>
         <div className="scenario-actions" role="group" aria-label={labels.suggest}>
           <InkCommand id="sandbox.suggest" />
         </div>

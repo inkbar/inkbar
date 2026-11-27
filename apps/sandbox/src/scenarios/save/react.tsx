@@ -62,14 +62,16 @@ export default function SaveAndReopen({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <InkHighlightMenu />
         <div className="scenario-group" role="group" aria-label={labels.tools}>
+          <InkHighlightMenu />
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="note" />
         </div>
-        <InkUndo />
-        <InkRedo />
+        <div className="scenario-group" role="group" aria-label={labels.history}>
+          <InkUndo />
+          <InkRedo />
+        </div>
         <div
           className="scenario-group scenario-file"
           role="group"

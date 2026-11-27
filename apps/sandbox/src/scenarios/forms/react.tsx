@@ -78,8 +78,10 @@ export default function FillAForm({
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
         </div>
-        <InkUndo />
-        <InkRedo />
+        <div className="scenario-group" role="group" aria-label={labels.history}>
+          <InkUndo />
+          <InkRedo />
+        </div>
         <div
           className="scenario-group scenario-file"
           role="group"

@@ -79,8 +79,8 @@ export default function ControlledAnnotations({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <InkHighlightMenu />
         <div className="scenario-group" role="group" aria-label={labels.tools}>
+          <InkHighlightMenu />
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />

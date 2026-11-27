@@ -64,14 +64,16 @@ function onTool(tool: ToolId): void {
     @update:tool="onTool"
   >
     <InkToolbar class="scenario-toolbar">
-      <InkHighlightMenu />
       <div class="scenario-group" role="group" :aria-label="labels.tools">
+        <InkHighlightMenu />
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="note" />
       </div>
-      <InkUndo />
-      <InkRedo />
+      <div class="scenario-group" role="group" :aria-label="labels.history">
+        <InkUndo />
+        <InkRedo />
+      </div>
       <div class="scenario-group scenario-file" role="group" :aria-label="labels.file">
         <InkToolbarButton
           :aria-label="labels.openPdf"

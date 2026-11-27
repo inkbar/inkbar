@@ -98,8 +98,8 @@ function onActivate(id: string): void {
     @activate="onActivate"
   >
     <InkToolbar class="scenario-toolbar">
-      <InkHighlightMenu />
       <div class="scenario-group" role="group" :aria-label="labels.tools">
+        <InkHighlightMenu />
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="redact-area" />
@@ -118,8 +118,10 @@ function onActivate(id: string): void {
         <InkColorMenu property="fill" />
         <InkTextStyleMenu />
       </div>
-      <InkUndo />
-      <InkRedo />
+      <div class="scenario-group" role="group" :aria-label="labels.history">
+        <InkUndo />
+        <InkRedo />
+      </div>
       <div class="scenario-actions" role="group" :aria-label="labels.suggest">
         <InkCommand id="sandbox.suggest" />
       </div>

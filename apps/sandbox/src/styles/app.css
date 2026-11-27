@@ -637,20 +637,58 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: 8px;
   font-size: 14px;
 }
+/*
+ * The toolbar wraps a group at a time. A group stays whole while it fits on a row and moves to
+ * the next row as one; a group wider than the row wraps inside itself, from its own start.
+ * Groups sit 14px apart. A separator is drawn by the group after it, in the middle of that
+ * gap; at the start of a row the gap falls in a strip on the toolbar's left that it clips, so
+ * a separator never starts or ends a row. The clip leaves the focus rings and the bottom line.
+ */
 .scenario-toolbar {
+  --group-gap: 14px;
+  column-gap: 0;
+  padding-right: var(--group-gap);
+  padding-left: 0;
   border-bottom: 1px solid var(--ink-border);
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 calc(100% - 1px),
+    8px calc(100% - 1px)
+  );
+}
+.scenario-toolbar > * {
+  margin-left: var(--group-gap);
+}
+.scenario-toolbar > .ink-toolbar-separator {
+  display: none;
+}
+.scenario-toolbar > .ink-toolbar-separator + * {
+  position: relative;
+}
+.scenario-toolbar > .ink-toolbar-separator + *::before {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: calc(var(--group-gap) / -2 - 0.5px);
+  width: 1px;
+  background: var(--ink-border);
+  content: '';
 }
 .scenario-status-bar {
   --ink-control-size: 2rem;
   --ink-icon-size: 1rem;
+  padding-inline: var(--group-gap, 14px);
   border-top: 1px solid var(--ink-border);
   font-size: 14px;
 }
 .scenario-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
 }
@@ -659,13 +697,16 @@ body {
 }
 /*
  * The sandbox's own section at the end of the toolbar: Open, an InkToolbarButton the scenario
- * adds. Ballpoint text sets it apart from Inkbar's controls.
+ * adds. Ballpoint text sets it apart from Inkbar's controls. It keeps to the right end of the
+ * last row, with a group's gap before it.
  */
-.scenario-file {
+.scenario-toolbar > .scenario-file {
   margin-left: auto;
+  padding-left: var(--group-gap);
 }
-.scenario-actions + .scenario-file {
+.scenario-toolbar > .scenario-actions + .scenario-file {
   margin-left: 0;
+  padding-left: 0;
 }
 .scenario-file button {
   gap: 6px;
@@ -678,12 +719,13 @@ body {
   }
 }
 /* A plugin's command and its status, at the end of the toolbar. */
-.scenario-actions {
+.scenario-toolbar > .scenario-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   margin-left: auto;
+  padding-left: var(--group-gap);
 }
 .scenario-actions button,
 .scenario-file button {

@@ -79,16 +79,15 @@ export function mount(
   const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
-    createHighlightMenu(viewer),
     group(
       (w) => w.tools,
       'scenario-group',
+      createHighlightMenu(viewer),
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
       createToolButton(viewer, 'note')
     ),
-    createUndo(viewer),
-    createRedo(viewer)
+    group((w) => w.history, 'scenario-group', createUndo(viewer), createRedo(viewer))
   )
 
   const status = createToolbar({ label: labels.pageAndZoom })

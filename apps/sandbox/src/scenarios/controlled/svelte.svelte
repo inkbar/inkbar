@@ -68,8 +68,8 @@
   class="scenario-root"
 >
   <InkToolbar class="scenario-toolbar">
-    <InkHighlightMenu />
     <div class="scenario-group" role="group" aria-label={labels.tools}>
+      <InkHighlightMenu />
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="redact-area" />

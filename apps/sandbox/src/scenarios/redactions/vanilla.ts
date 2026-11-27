@@ -102,10 +102,10 @@ export function mount(
   const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
-    createHighlightMenu(viewer),
     group(
       (w) => w.tools,
       'scenario-group',
+      createHighlightMenu(viewer),
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
       createToolButton(viewer, 'redact-area'),
@@ -126,8 +126,7 @@ export function mount(
       createColorMenu(viewer, { property: 'fill' }),
       createTextStyleMenu(viewer)
     ),
-    createUndo(viewer),
-    createRedo(viewer),
+    group((w) => w.history, 'scenario-group', createUndo(viewer), createRedo(viewer)),
     group(
       (w) => w.suggest,
       'scenario-actions',
