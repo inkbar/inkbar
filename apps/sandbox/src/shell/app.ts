@@ -38,6 +38,27 @@ const REPO = 'https://github.com/inkbar/inkbar'
 const BASE = import.meta.env.BASE_URL
 
 const app = document.getElementById('app')!
+
+/*
+ * A French or German address starts loading its words before anything renders, names the
+ * page's language at once, and keeps the shell hidden, its space kept, until the words arrive,
+ * so no English is ever shown or read out. An English address shows at once. If the words fail
+ * to load, the page shows in English with the failure message.
+ */
+const firstLang = parseRoute(location.hash, location.search).lang
+/** True until the first address's words are shown. */
+let waitingForWords = firstLang !== 'en'
+if (waitingForWords) {
+  document.documentElement.lang = firstLang
+  app.dataset.waiting = ''
+  // Starts the download now; `select` awaits the same modules.
+  loadLanguage(firstLang).catch(() => undefined)
+}
+/** Shows the shell: its words are in, or English is the fallback. */
+function stopWaiting(): void {
+  waitingForWords = false
+  delete app.dataset.waiting
+}
 app.innerHTML = `
 <header class="app-header">
   <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="wordmark-suffix">sandbox</span><span class="visually-hidden" data-home></span></a>
@@ -174,10 +195,11 @@ function previewError(host: HTMLElement, message: (t: ShellText) => string): voi
 function showScenarioText(): void {
   const text = strings.scenarios[route.scenario]
   const framework = FRAMEWORKS[route.framework]
-  document.title = strings.shell.pageTitle({
-    scenario: text.title,
-    framework: framework.name,
-  })
+  if (!waitingForWords)
+    document.title = strings.shell.pageTitle({
+      scenario: text.title,
+      framework: framework.name,
+    })
   $('[data-crumb-framework]').textContent = framework.name
   $('[data-crumb-scenario]').textContent = text.title
   $('[data-scenario-title]').textContent = text.title
@@ -190,7 +212,7 @@ function showScenarioText(): void {
 /** Writes every word the shell owns in the current language. */
 function showText(): void {
   const t = strings.shell
-  document.documentElement.lang = strings.lang
+  if (!waitingForWords) document.documentElement.lang = strings.lang
   $('[data-home]').textContent = ` ${t.home}`
   $('.breadcrumb').setAttribute('aria-label', t.breadcrumb)
   $('.app-links').setAttribute('aria-label', t.mainLinks)
@@ -218,6 +240,7 @@ function showText(): void {
 function applyStrings(lang: LangId, next: SandboxStrings): void {
   if (route.lang !== lang || strings === next) return
   strings = next
+  stopWaiting()
   showText()
 }
 
@@ -270,6 +293,10 @@ async function select(next: Route): Promise<void> {
     if (gen !== generation) return
     mounting = false
     queued = null
+    if (waitingForWords) {
+      stopWaiting()
+      showText()
+    }
     previewError(host, (t) => t.languageFailed)
     // A file dropped while this loaded was reported as opened; no viewer took it.
     drops.noViewer()

@@ -23,6 +23,11 @@ body {
   font-size: 14px;
 }
 
+/* A French or German address keeps the shell hidden, its space kept, until its words arrive. */
+#app[data-waiting] > :is(.app-header, .app-body) {
+  visibility: hidden;
+}
+
 /* Header: the mark, the breadcrumb, then Docs and GitHub. */
 .app-header {
   display: flex;

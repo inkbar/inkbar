@@ -75,6 +75,91 @@ async function expectShellIn(
   ).toBeVisible()
 }
 
+interface Frame {
+  title: string
+  lang: string
+  header: string
+  nav: string
+}
+
+/** Records the title, the language and the visible text of the header and list on every frame. */
+async function recordFrames(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const frames: Frame[] = []
+    ;(window as unknown as { __frames: Frame[] }).__frames = frames
+    // `innerText` leaves out text that is not rendered, hidden text included.
+    const shown = (selector: string) =>
+      document.querySelector<HTMLElement>(selector)?.innerText ?? ''
+    const tick = () => {
+      frames.push({
+        title: document.title,
+        lang: document.documentElement?.lang ?? '',
+        header: shown('.app-header'),
+        nav: shown('.app-nav'),
+      })
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}
+
+const frames = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __frames: Frame[] }).__frames)
+
+for (const [lang, text] of [
+  ['fr', frText],
+  ['de', deText],
+] as const) {
+  test(`a ${lang} address never shows English while its words load`, async ({ page }) => {
+    await recordFrames(page)
+    await open(page, 'react', `?lang=${lang}`)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      text.scenarios.tour.title
+    )
+    // Let a few frames pass with the page settled.
+    await page.waitForTimeout(300)
+    const seen = await frames(page)
+    expect(seen.length).toBeGreaterThan(5)
+    const english = Object.values(enText.scenarios)
+      .map((s) => s.title)
+      .filter((title) => !Object.values(text.scenarios).some((s) => s.title === title))
+    for (const frame of seen) {
+      expect(frame.lang).toBe(lang)
+      expect(frame.header).not.toContain(enText.shell.language)
+      for (const title of english) {
+        expect(frame.title).not.toContain(title)
+        expect(frame.nav).not.toContain(title)
+      }
+    }
+    // And the words did arrive.
+    expect(seen.at(-1)!.header).toContain(text.shell.language)
+    expect(seen.at(-1)!.nav).toContain(text.scenarios.tour.title)
+  })
+}
+
+test('a French address whose words fail to load shows the page in English', async ({
+  page,
+}) => {
+  await page.route(/\/assets\/fr-[\w-]+\.js$/, (r) => r.abort())
+  guard.take(/./)
+  await page.goto('./?lang=fr#/react/tour')
+  await expect(page.locator('.scenario-error')).toHaveText(enText.shell.languageFailed)
+  await expect(page.locator('.app-header')).toBeVisible()
+  await expect(page.getByRole('combobox', { name: enText.shell.language })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: enText.shell.scenarios }).getByRole('link', {
+      name: enText.scenarios.tour.title,
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('lang', enText.lang)
+  await expect(page).toHaveTitle(
+    enText.shell.pageTitle({ scenario: enText.scenarios.tour.title, framework: 'React' })
+  )
+  // The failed requests and the logged import error.
+  expect(guard.take(/./).length).toBeGreaterThan(0)
+})
+
 for (const framework of FRAMEWORK_ORDER) {
   test.describe(framework, () => {
     test("shows the sandbox's own words in French and back in English", async ({
@@ -160,6 +245,9 @@ for (const framework of FRAMEWORK_ORDER) {
       const german = deText.labels.plugin
       const cardDe = page.getByRole('dialog', { name: german.card })
       await expect(cardDe).toContainText(german.reasons['ni-number'])
+      // The meta line and the body come from the card's spec, which core runs again.
+      await expect(cardDe).toContainText(german.highConfidence)
+      await expect(cardDe).toContainText(german.explanations['ni-number'])
       await expect(cardDe.getByRole('button', { name: german.dismiss })).toBeVisible()
       await expect(firstMark).toHaveAttribute(
         'aria-label',
