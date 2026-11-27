@@ -1,5 +1,6 @@
 // When the engine reader gives up on its engine: the stops it counts, the pages it blocks, and
-// when it stops the document.
+// when it stops the document. What it learns about pages lasts as long as the reader: a restart
+// by hand forgets only the counted stops, so a page that keeps stopping the engine stays blocked.
 import { InkError } from '../model/errors'
 
 /** How many counted stops within `STOP_WINDOW` stop the document. */
@@ -31,8 +32,12 @@ export interface StopCount {
   found(page: number | undefined, counts: boolean, cause: unknown): StopOutcome
   /** The error a blocked page's reads reject with; `undefined` for a page that is not blocked. */
   blocked(page: number): InkError | undefined
-  /** Forgets every stop and block, for an engine started again by hand. */
-  clear(): void
+  /**
+   * Forgets the stops counted towards `STOPS_TO_STOP`, for an engine started again by hand. Each
+   * page's stops and blocks stay: a page that stopped the engine once is blocked at its next stop,
+   * which is not counted, so the same pages cannot stop the document again and again.
+   */
+  forgetCounted(): void
 }
 
 /** @internal `now` gives the time in milliseconds; tests pass their own. */
@@ -65,9 +70,7 @@ export function createStopCount(now: () => number = Date.now): StopCount {
       return times.length >= STOPS_TO_STOP ? { kind: 'stop' } : { kind: 'go-on' }
     },
     blocked: (page) => blocks.get(page),
-    clear() {
-      pageStops.clear()
-      blocks.clear()
+    forgetCounted() {
       times = []
     },
   }

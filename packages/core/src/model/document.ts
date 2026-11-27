@@ -272,12 +272,13 @@ export interface InkDocument {
   /**
    * Starts a new engine for a stopped document and opens the file in it again. Resolves when the
    * document reads again, and rejects with EngineUnavailable when it does not; it then stays
-   * stopped. Once it has restarted a stopped document, every page is read again, a page whose
-   * reads stopped the engine twice included. The session's annotations, form values and history
-   * are untouched either way. Calls made while one runs share it. Resolves at once, doing
-   * nothing, for a document that is not stopped: a page blocked while the document reads stays
-   * blocked. A blocked page's reads reject with EngineUnavailable, its `details.page` naming the
-   * page. Rejects with DocumentDestroyed once the document is destroyed, also when that happens
+   * stopped. It forgets the stops counted towards stopping the document, and keeps what it has
+   * learnt about pages: a page whose reads stopped the engine twice stays blocked, and a page that
+   * stopped it once is blocked at its next stop, which does not count towards stopping the
+   * document. A blocked page stays blocked until the file is opened again. The session's
+   * annotations, form values and history are untouched either way. Calls made while one runs share
+   * it. Resolves at once, doing nothing, for a document that is not stopped. A blocked page's
+   * reads reject with EngineUnavailable, its `details.page` naming the page. Rejects with DocumentDestroyed once the document is destroyed, also when that happens
    * while it runs.
    */
   restartEngine(): Promise<void>

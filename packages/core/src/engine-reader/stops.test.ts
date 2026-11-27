@@ -60,14 +60,19 @@ describe('the stop count', () => {
     expect(count.found(undefined, true, 'f')).toEqual({ kind: 'stop' })
   })
 
-  it('forgets every stop and block once cleared', () => {
+  it("forgets the counted stops, and keeps each page's stops and blocks", () => {
     const { count } = counted()
     count.found(3, true, 'a')
     count.found(3, true, 'b')
-    count.found(undefined, true, 'c')
-    count.clear()
-    expect(count.blocked(3)).toBeUndefined()
-    expect(count.found(3, true, 'd')).toEqual({ kind: 'go-on' })
-    expect(count.found(undefined, true, 'e')).toEqual({ kind: 'go-on' })
+    count.found(5, true, 'c')
+    count.found(undefined, true, 'd')
+    count.forgetCounted()
+    // Page 3 stays blocked, and page 5's next stop blocks it without counting.
+    expect(count.blocked(3)).toMatchObject({ details: { page: 3 } })
+    expect(count.found(5, true, 'e')).toMatchObject({ kind: 'blocked' })
+    // Nothing counted before survives: two counted stops leave the document reading.
+    expect(count.found(undefined, true, 'f')).toEqual({ kind: 'go-on' })
+    expect(count.found(undefined, true, 'g')).toEqual({ kind: 'go-on' })
+    expect(count.found(undefined, true, 'h')).toEqual({ kind: 'stop' })
   })
 })

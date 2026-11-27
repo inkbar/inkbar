@@ -165,7 +165,9 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 The engine runs in a worker. If it stops while a file is open, core starts a new one and opens the file in it again, and the reader sees nothing. When that fails, or the engine has stopped three times within 60 seconds, the document is stopped: `doc.engineStopped`, a readable, is true, every read rejects with `EngineUnavailable`, and `doc.status` stays `ready`. A page whose reads stopped the engine twice is blocked on its own: its reads reject with `EngineUnavailable`, with `details.page` naming the page, it shows its page error, and the other pages read on.
 
-`doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were. A restart reads every page again, blocked pages included. On a document that is not stopped it does nothing, and a blocked page stays blocked.
+`doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were. On a document that is not stopped it does nothing.
+
+A page that keeps stopping the engine stays out of use until the file is opened again. "Try again" and `doc.restartEngine()` do not bring it back. A blocked page stays blocked after a restart, and a page that stopped the engine once before is blocked at its next stop. That stop does not count towards the three, so the pages that stopped the document cannot stop it again.
 
 While the document is stopped, `doc.save()` with no changes still resolves with the bytes the file was opened from. With changes it rejects with `EngineUnavailable`, and so does `doc.applyRedactions()`.
 

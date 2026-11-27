@@ -111,10 +111,11 @@ export interface EngineDocumentReader extends DocumentReader {
   readonly engineStopped: Readable<boolean>
   /**
    * Starts an engine for a stopped reader, opens the file in it again with the same bytes and
-   * password, and resolves once a read works there. Every page is read again and the stops
-   * counted so far are forgotten. Rejects with `EngineUnavailable` when that fails, and the
-   * reader stays stopped; with `DocumentDestroyed` when the reader is destroyed first or under
-   * it, and any engine it started is destroyed. Calls made while one runs share it. On a reader
+   * password, and resolves once a read works there. The stops counted towards stopping it are
+   * forgotten; each page's stops and blocks are kept, so a blocked page stays blocked and a page
+   * that stopped the engine once is blocked at its next stop, which is not counted. Rejects with
+   * `EngineUnavailable` when that fails, and the reader stays stopped; with `DocumentDestroyed`
+   * when the reader is destroyed first or under it, and any engine it started is destroyed. Calls made while one runs share it. On a reader
    * that is not stopped it resolves at once and does nothing.
    */
   restart(): Promise<void>
@@ -216,7 +217,8 @@ const free = (s: Session): Promise<void> =>
  * A page whose reads stopped the engine twice is blocked: its reads reject at once with the
  * error the second stop gave. When a replacement cannot start, or the engine has stopped 3 times
  * within 60 seconds, the reader is stopped: no engine runs, and every call from then on, and
- * every call still waiting, rejects with `EngineUnavailable` until `restart`.
+ * every call still waiting, rejects with `EngineUnavailable` until `restart`. A restart keeps
+ * each page's stops and blocks; only a new reader starts with none.
  *
  * @internal
  */
@@ -1390,7 +1392,8 @@ export async function createEngineReader(
     if (restarting) return restarting
     if (!stoppedWith) return Promise.resolve()
     const attempt = (async () => {
-      stops.clear()
+      // Only the counted stops and the link stops: each page's stops and blocks stay.
+      stops.forgetCounted()
       linkStops = 0
       let s: Session
       try {
