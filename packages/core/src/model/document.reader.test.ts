@@ -2,6 +2,7 @@ import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { linksAsSeen } from '../engine-reader/test-utils'
+import { openSecondReader } from '../pdfjs/second-reader'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 import { nodeAssets } from '../test-support/node-assets'
 
@@ -497,9 +498,157 @@ describe('a document whose engine is stopped', () => {
     held.stopOnNext('write')
     await expect(doc.save()).rejects.toMatchObject(unavailable)
     expect(doc.engineStopped.get()).toBe(true)
+    // The next write runs on an engine of its own, which starts.
     mark(doc)
-    await expect(doc.applyRedactions()).rejects.toMatchObject(unavailable)
+    await expect(doc.applyRedactions()).resolves.toMatchObject({ result: { marks: 1 } })
+    expect(doc.engineStopped.get()).toBe(true)
     doc.destroy()
+  })
+
+  describe('writes while it is stopped', () => {
+    /** text-simple, stopped, with engines able to start again. */
+    const openStopped = async () => {
+      let refuse = false
+      const opened = await openHeld(() => refuse)
+      refuse = true
+      await stopEngine(opened.held, opened.doc)
+      refuse = false
+      return {
+        ...opened,
+        refuse: (value: boolean) => {
+          refuse = value
+        },
+      }
+    }
+
+    it('saves with an engine of its own, destroyed after, and stays stopped', async () => {
+      const { held, doc } = await openStopped()
+      const engines = held.engines.length
+      square(doc)
+      const bytes = await doc.save()
+      expect(held.engines).toHaveLength(engines + 1)
+      expect(held.engines.at(-1)).toEqual({
+        opened: 1,
+        closed: 1,
+        stopped: false,
+        destroyed: true,
+      })
+      expect(held.engines.every((e) => e.destroyed)).toBe(true)
+      expect(doc.engineStopped.get()).toBe(true)
+      await expect(doc.text(0)).rejects.toMatchObject(unavailable)
+      const pdfjs = await openSecondReader(bytes)
+      const annotations = (await pdfjs.annotations(0)) as { subtype: string }[]
+      await pdfjs.destroy()
+      expect(annotations.map((a) => a.subtype)).toEqual(['Square'])
+      doc.destroy()
+    })
+
+    it('applies redactions and checks them on one engine of its own, destroyed after', async () => {
+      const { held, doc } = await openStopped()
+      const engines = held.engines.length
+      mark(doc)
+      const { bytes, result } = await doc.applyRedactions()
+      expect(result.marks).toBe(1)
+      expect(result.findings.candidates.map((c) => c.verdict)).toEqual(['clean'])
+      expect(held.engines).toHaveLength(engines + 1)
+      expect(held.engines.at(-1)).toMatchObject({ opened: 1, closed: 1, destroyed: true })
+      expect(doc.engineStopped.get()).toBe(true)
+      await expect(doc.text(0)).rejects.toMatchObject(unavailable)
+      const pdfjs = await openSecondReader(bytes)
+      expect(pdfjs.pageCount).toBe(3)
+      await pdfjs.destroy()
+      doc.destroy()
+    })
+
+    it('rejects with EngineUnavailable when the check stops that engine', async () => {
+      const { held, doc } = await openStopped()
+      mark(doc)
+      held.stopOnNext('checkRedaction')
+      await expect(doc.applyRedactions()).rejects.toMatchObject(unavailable)
+      expect(held.engines.at(-1)).toMatchObject({ stopped: true, destroyed: true })
+      doc.destroy()
+    })
+
+    it('rejects with EngineUnavailable when no engine starts for the write', async () => {
+      const { held, doc, refuse } = await openStopped()
+      const engines = held.engines.length
+      refuse(true)
+      square(doc)
+      await expect(doc.save()).rejects.toMatchObject(unavailable)
+      mark(doc)
+      await expect(doc.applyRedactions()).rejects.toMatchObject(unavailable)
+      expect(held.engines).toHaveLength(engines)
+      expect(held.engines.every((e) => e.destroyed)).toBe(true)
+      doc.destroy()
+    })
+
+    it('rejects with EngineUnavailable when that engine stops, and starts another at the next save', async () => {
+      const { held, doc } = await openStopped()
+      const engines = held.engines.length
+      square(doc)
+      held.stopOnNext('write')
+      await expect(doc.save()).rejects.toMatchObject(unavailable)
+      expect(held.engines).toHaveLength(engines + 1)
+      expect(held.engines.at(-1)).toMatchObject({ stopped: true, destroyed: true })
+      await expect(doc.save()).resolves.toBeInstanceOf(Uint8Array)
+      expect(held.engines).toHaveLength(engines + 2)
+      expect(held.engines.at(-1)).toMatchObject({ stopped: false, destroyed: true })
+      expect(doc.engineStopped.get()).toBe(true)
+      doc.destroy()
+    })
+
+    it('rejects a write the file cannot take with SaveFailed, as a document that reads does', async () => {
+      const { doc } = await openStopped()
+      const box = doc.annotations.add({
+        type: 'freetext',
+        page: 0,
+        rect: { x: 100, y: 100, width: 200, height: 40 },
+        contents: '你好，世界',
+      })
+      await expect(doc.save()).rejects.toMatchObject({
+        code: 'SaveFailed',
+        details: { stage: 'write', annotation: box.id },
+      })
+      doc.destroy()
+    })
+
+    it('rejects with DocumentDestroyed when destroyed during the write, and destroys the engine', async () => {
+      const { held, doc } = await openStopped()
+      const engines = held.engines.length
+      let release!: () => void
+      const gate = new Promise<void>((resolve) => (release = resolve))
+      // The write's engine waits to open the file until the document is destroyed.
+      setEngineFactory(async () => {
+        const engine = await held.factory()
+        return new Proxy(engine, {
+          get(target, key, receiver) {
+            const value = Reflect.get(target, key, receiver) as unknown
+            if (key !== 'open') return value
+            return async (...args: unknown[]) => {
+              await gate
+              return (value as (...a: unknown[]) => unknown)(...args)
+            }
+          },
+        })
+      })
+      square(doc)
+      const saving = doc.save()
+      await vi.waitFor(() => expect(held.engines).toHaveLength(engines + 1))
+      doc.destroy()
+      release()
+      await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+      await vi.waitFor(() => expect(held.engines.at(-1)!.destroyed).toBe(true))
+    })
+
+    it('starts no engine for a second save of the same changes', async () => {
+      const { held, doc } = await openStopped()
+      const engines = held.engines.length
+      square(doc)
+      const first = await doc.save()
+      await expect(doc.save()).resolves.toEqual(first)
+      expect(held.engines).toHaveLength(engines + 1)
+      doc.destroy()
+    })
   })
 
   it('opens the redacted file with no page blocked', async () => {
