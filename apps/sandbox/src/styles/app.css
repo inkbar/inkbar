@@ -956,13 +956,28 @@ body {
     padding: 12px 16px 16px;
   }
 }
-/* The sheet's title names the scenario, so a phone's narrow header drops the breadcrumb. */
+/*
+ * The sheet's title names the scenario, so a phone's narrow header drops the breadcrumb. The
+ * language picker, Docs and GitHub take a row of their own under the mark, the picker at the
+ * left edge and the links at the right.
+ */
 @media (max-width: 599px) {
+  .app-header {
+    padding: 4px 16px;
+  }
   .app-header .breadcrumb {
     display: none;
   }
+  .app-header .brand {
+    min-height: 52px;
+  }
   .app-header .app-links {
-    margin-left: auto;
+    flex: 1 0 100%;
+    gap: 20px;
+    padding-bottom: 4px;
+  }
+  .app-links .lang-picker {
+    margin-right: auto;
   }
 }
 
