@@ -10,10 +10,10 @@ import type { SandboxStrings } from './types.ts'
 export const fr: SandboxStrings = {
   lang: 'fr',
   shell: {
-    pageTitle: template('fr', '{scenario} · {framework} · Bac à sable Inkbar'),
+    pageTitle: template('fr', '{scenario} · {framework} · Inkbar sandbox'),
     home: 'accueil',
     breadcrumb: 'Fil d’Ariane',
-    mainLinks: 'Principal',
+    mainLinks: 'Navigation principale',
     docs: 'Docs',
     language: 'Langue',
     scenarios: 'Scénarios',
@@ -48,7 +48,7 @@ export const fr: SandboxStrings = {
     notPdf: template('fr', '{name} n’est pas un PDF.'),
     unreadable: template('fr', 'Impossible de lire {name}.'),
     opened: template('fr', '{name} est ouvert.'),
-    noViewer: template('fr', 'Aucune visionneuse ne peut ouvrir {name}.'),
+    noViewer: template('fr', 'Aucune visionneuse n’est prête pour ouvrir {name}.'),
   },
   scenarios: {
     tour: {

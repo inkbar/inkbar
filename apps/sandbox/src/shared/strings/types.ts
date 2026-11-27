@@ -13,7 +13,7 @@ export interface ScenarioLabels {
   tools: string
   /** The toolbar group of style menus. */
   style: string
-  /** The toolbar group of back and forward. */
+  /** The toolbar group of Undo and Redo, or of Back and Forward. */
   history: string
   /** The toolbar group of Open, Download and Print. */
   file: string

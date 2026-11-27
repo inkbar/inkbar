@@ -10,7 +10,7 @@ import type { SandboxStrings } from './types.ts'
 export const de: SandboxStrings = {
   lang: 'de',
   shell: {
-    pageTitle: template('de', '{scenario} · {framework} · Inkbar-Sandbox'),
+    pageTitle: template('de', '{scenario} · {framework} · Inkbar sandbox'),
     home: 'Startseite',
     breadcrumb: 'Brotkrümelnavigation',
     mainLinks: 'Hauptnavigation',
@@ -49,7 +49,7 @@ export const de: SandboxStrings = {
     notPdf: template('de', '{name} ist kein PDF.'),
     unreadable: template('de', '{name} konnte nicht gelesen werden.'),
     opened: template('de', '{name} wurde geöffnet.'),
-    noViewer: template('de', 'Keine Dokumentanzeige kann {name} öffnen.'),
+    noViewer: template('de', 'Keine Dokumentanzeige ist bereit, {name} zu öffnen.'),
   },
   scenarios: {
     tour: {

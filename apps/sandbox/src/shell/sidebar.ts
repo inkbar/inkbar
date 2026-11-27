@@ -124,6 +124,7 @@ export function createSidebar(nav: HTMLElement, initial: SandboxStrings): Sideba
   const setText = (next: SandboxStrings): void => {
     strings = next
     nameTrigger()
+    menu.setAttribute('aria-label', strings.shell.frameworks)
     for (const a of scenarios)
       a.textContent = strings.scenarios[a.dataset.scenario as Route['scenario']].title
   }

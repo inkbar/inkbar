@@ -6,7 +6,7 @@ import type { SandboxStrings } from './types.ts'
 
 /** The sandbox's own words in English, the language every other set is made from. */
 export const en: SandboxStrings = {
-  lang: 'en',
+  lang: 'en-GB',
   shell: {
     pageTitle: template('en', '{scenario} · {framework} · Inkbar sandbox'),
     home: 'home',
@@ -92,7 +92,7 @@ export const en: SandboxStrings = {
     locked: {
       title: 'Open a locked file',
       blurb:
-        'A password-protected PDF. Inkbar asks for the password before it opens. The password is "inkbar".',
+        'A password-protected PDF. Inkbar asks for the password before it opens. The password is “inkbar”.',
     },
     events: {
       title: 'Press and long press',

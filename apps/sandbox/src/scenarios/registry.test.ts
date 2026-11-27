@@ -56,7 +56,7 @@ void test('locked is registered for every framework', () => {
   assert.equal(locked.title, 'Open a locked file')
   assert.equal(
     locked.blurb,
-    'A password-protected PDF. Inkbar asks for the password before it opens. The password is "inkbar".'
+    'A password-protected PDF. Inkbar asks for the password before it opens. The password is “inkbar”.'
   )
   assert.equal(locked.document, 'locked')
   assert.deepEqual(locked.panels, ['events'])

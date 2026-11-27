@@ -150,7 +150,9 @@ export default function SuggestRedactions({
   openFile,
 }: ScenarioProps) {
   // The plugin reads its words when it shows them, from the latest labels, so they follow
-  // the language. The plugin itself is made once.
+  // the language. The plugin itself is made once. The ref is written during render, not in an
+  // effect, because InkRoot applies the new messages in a layout effect that runs before this
+  // component's effects, and the plugin reads its words at that moment.
   const text = useRef(labels.plugin)
   text.current = labels.plugin
   const [plugins] = useState(() => [suggestionsPlugin({ text: () => text.current })])
