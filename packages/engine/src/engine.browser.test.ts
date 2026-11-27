@@ -798,7 +798,11 @@ describe('a worker script on another origin', () => {
     expect(message).toContain(script)
     expect(message).toContain('another origin')
     expect(message).toContain('CORS')
-    expect(message).toContain('blob:')
+    const origin = new URL(script).origin
+    expect(message).toContain(`blob: and ${origin} in worker-src`)
+    expect(message).toContain(
+      "the origins of the engine's binary and fonts in connect-src"
+    )
   })
 
   test('is started from a module of the page’s own, whose address is let go once it runs', async () => {

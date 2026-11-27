@@ -146,7 +146,7 @@ function fakeEngine() {
       stopped: () => {
         calls.push(`stopped ${n}`)
         if (lent === made) lent = undefined
-        return Promise.resolve()
+        return Promise.resolve(undefined)
       },
     }
   })
@@ -263,7 +263,7 @@ describe('createSaver', () => {
             open: () => Promise.reject(unopenable),
             destroy: () => Promise.resolve(),
           } as unknown as Engine,
-          stopped: () => Promise.resolve(),
+          stopped: () => Promise.resolve(undefined),
         }),
       bytes: () => Promise.resolve(new Uint8Array([1])),
       password: undefined,
@@ -285,6 +285,54 @@ describe('createSaver', () => {
     expect(fake.calls).toContain('stopped 1')
     expect(fake.calls).not.toContain('destroy 1')
     expect(fake.calls.at(-3)).toBe('write 2 1')
+  })
+
+  it('hands back an engine lent for one write once its document is closed, whatever happened', async () => {
+    const fake = fakeEngine()
+    const replaced = new InkError('EngineUnavailable', 'stopped')
+    const s = createSaver({
+      borrow: async () => {
+        const lent = await fake.borrow()
+        return {
+          engine: lent.engine,
+          stopped: () => {
+            fake.calls.push('stopped')
+            return Promise.resolve(replaced)
+          },
+          done: () => {
+            fake.calls.push('done')
+            return Promise.resolve()
+          },
+        }
+      },
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+    })
+    await s.write('one', input(1))
+    expect(fake.calls).toEqual(['open 1 ', 'write 1 1', 'save 1', 'close 1', 'done'])
+    fake.calls.length = 0
+    fake.failNext(new EngineError('write-failed', 'no'))
+    await expect(s.write('two', input(2))).rejects.toMatchObject({ code: 'SaveFailed' })
+    expect(fake.calls).toEqual(['open 1 ', 'write 1 2', 'close 1', 'done'])
+    // A stop the holder answers with an error of its own fails the write with that error.
+    fake.calls.length = 0
+    fake.failNext(new EngineError('engine-failure', 'gone'))
+    await expect(s.write('three', input(3))).rejects.toBe(replaced)
+    expect(fake.calls).toEqual(['open 1 ', 'write 1 3', 'stopped', 'close 1', 'done'])
+    fake.calls.length = 0
+    fake.failCheck(new EngineError('engine-failure', 'gone'))
+    await expect(s.redact(() => Promise.resolve({ marks: [{}] }), [])).rejects.toBe(
+      replaced
+    )
+    expect(fake.calls).toEqual([
+      'open 1 ',
+      'redact 1 1',
+      'save 1',
+      'check 1 0',
+      'stopped',
+      'close 1',
+      'done',
+    ])
   })
 
   it('tells the holder the engine stopped before it asks the engine anything more', async () => {

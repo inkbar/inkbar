@@ -306,7 +306,38 @@ describe('with changes to write', () => {
     expect(alertText()).toBe('Your changes could not be written into this file.')
   })
 
-  it('says saving is unavailable while the document has stopped', async () => {
+  it('downloads the changes while the document has stopped, with an engine started for the write', async () => {
+    const clicked = catchDownloads()
+    const engines = stoppableEngines()
+    cleanup.push(() => engines.restore())
+    const errors: InkError[] = []
+    const viewer = make({ onError: (e) => errors.push(e) })
+    const download = createDownloadButton(viewer)
+    viewer.element.prepend(download)
+    await until(() => viewer.status.get().state === 'ready')
+    addSquare(viewer)
+    const doc = viewer.document.get()!
+    await engines.stop(doc)
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
+    const notice = () => document.querySelector('[data-ink-engine-notice]')
+    expect(notice()).not.toBeNull()
+    // Engines start again, but only the write's: the document stays stopped. The button is busy
+    // while that engine starts and writes.
+    engines.allow()
+    const start = engines.hold()
+    download.click()
+    await until(() => busy(download))
+    start()
+    await until(() => clicked.length === 1)
+    expect(clicked[0]!.download).toBe('text-simple.pdf')
+    await until(() => !busy(download))
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
+    expect(alertText()).toBeNull()
+    expect(doc.engineStopped.get()).toBe(true)
+    expect(notice()).not.toBeNull()
+  })
+
+  it('says saving is unavailable while the document has stopped and no engine starts for the write', async () => {
     const clicked = catchDownloads()
     const engines = stoppableEngines()
     cleanup.push(() => engines.restore())

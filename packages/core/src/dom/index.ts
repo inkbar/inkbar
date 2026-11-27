@@ -1,5 +1,8 @@
 // `@inkbar/core/dom`. Nothing here may evaluate PDF.js at module load: frameworks import this
 // entry during server rendering.
+// Before anything that builds a schema.
+import '../model/schema-build'
+
 export { createPageTransform, normalizeRotation } from './transform'
 export type { CssRect, PageTransform, ViewRotation } from './transform'
 export {

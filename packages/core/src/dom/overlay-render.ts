@@ -4,7 +4,7 @@ import { freeTextBox } from '../model/annotations/callout'
 import { isTextMarkup } from '../model/annotations/edit'
 
 import { drawingFor } from './drawing-context'
-import { importantStyle, itemElement, paintDrawing } from './drawing-svg'
+import { itemElement, paintDrawing, setImportant } from './drawing-svg'
 import { type CssRect, type PageTransform } from './transform'
 
 import type { DrawItem } from '../model/annotations/drawing/types'
@@ -93,8 +93,10 @@ export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
 /**
  * Gives a press-taking shape its paint (`transparent` or `none`) as attributes and as inline
  * style with priority `important`, so a host rule such as `svg rect { fill: currentColor }`, with
- * `!important` or without, cannot fill or outline it and cover what is drawn under it. `width` is the stroke's, in CSS px. Hit testing
- * (`pointer-events`) is the caller's.
+ * `!important` or without, cannot fill or outline it and cover what is drawn under it. Its inline
+ * style is set through the style object, which a content security policy does not restrict, and
+ * holds only these. `width` is the stroke's, in CSS px. Hit testing (`pointer-events`) is the
+ * caller's.
  */
 function invisible(
   el: Element,
@@ -105,21 +107,20 @@ function invisible(
   el.setAttribute('fill', fill)
   el.setAttribute('stroke', stroke)
   if (width !== undefined) el.setAttribute('stroke-width', String(width))
-  el.setAttribute(
-    'style',
-    importantStyle([
-      `fill:${fill}`,
-      `stroke:${stroke}`,
-      ...(width === undefined ? [] : [`stroke-width:${width}px`]),
-      // A press band's join and cap are inline too, as the caller set them or the default.
-      ...(width === undefined
-        ? []
-        : [
-            `stroke-linejoin:${el.getAttribute('stroke-linejoin') ?? 'miter'}`,
-            `stroke-linecap:${el.getAttribute('stroke-linecap') ?? 'butt'}`,
-          ]),
-    ])
-  )
+  // A twin drops the style it was painted with, such as its dashes.
+  ;(el as SVGElement).style.cssText = ''
+  setImportant(el, [
+    `fill:${fill}`,
+    `stroke:${stroke}`,
+    ...(width === undefined ? [] : [`stroke-width:${width}px`]),
+    // A press band's join and cap are inline too, as the caller set them or the default.
+    ...(width === undefined
+      ? []
+      : [
+          `stroke-linejoin:${el.getAttribute('stroke-linejoin') ?? 'miter'}`,
+          `stroke-linecap:${el.getAttribute('stroke-linecap') ?? 'butt'}`,
+        ]),
+  ])
 }
 
 /** Width in CSS px a thin stroke's invisible hit twin is widened to. */

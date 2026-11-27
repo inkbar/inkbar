@@ -17,7 +17,7 @@
   "scripts": {
     "build": "echo skip",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src e2e playwright.ts vite.ts",
+    "lint": "eslint src e2e playwright.ts policy.ts vite.ts",
     "test": "node --test src/page-count.test.ts"
   },
   "dependencies": {

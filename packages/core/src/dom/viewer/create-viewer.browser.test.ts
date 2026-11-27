@@ -4881,7 +4881,7 @@ describe('a document whose engine has stopped', () => {
     expect(doc.annotations.list.get()).toHaveLength(list.length - 1)
   })
 
-  it('keeps Apply redactions on, and says redaction is not available when it is pressed', async () => {
+  it('keeps Apply redactions on, and says redaction is not available when no engine starts for it', async () => {
     const stop = engines()
     const errors: InkError[] = []
     const { viewer } = make('text-simple', {
@@ -4945,7 +4945,7 @@ describe('a document whose engine has stopped', () => {
     expect(doc.annotations.list.get()).toHaveLength(list.length + 1)
   })
 
-  it('keeps the file buttons on: without changes they hand over the file, with changes they say saving is not available', async () => {
+  it('keeps the file buttons on: without changes they hand over the file, with changes and no engine to write them they say saving is not available', async () => {
     const clicked = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => undefined)
