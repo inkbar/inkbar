@@ -657,13 +657,19 @@ body {
   padding-right: var(--group-gap);
   padding-left: 0;
   border-bottom: 1px solid var(--ink-border);
+  /*
+   * The clipped strip is half a gap plus 1px wide, so it covers a separator drawn at a row's
+   * start (half a gap in) and stops short of the first control's focus ring (5px out from a
+   * gap in). That holds for any gap of 12px or more.
+   */
+  --clip-strip: calc(var(--group-gap) / 2 + 1px);
   clip-path: polygon(
-    8px 0,
+    var(--clip-strip) 0,
     100% 0,
     100% 100%,
     0 100%,
     0 calc(100% - 1px),
-    8px calc(100% - 1px)
+    var(--clip-strip) calc(100% - 1px)
   );
 }
 .scenario-toolbar > * {
@@ -730,12 +736,28 @@ body {
  */
 .scenario-toolbar > .scenario-actions {
   display: flex;
+  min-width: 0;
   flex: 1 1 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 2px;
   padding-left: var(--group-gap);
+}
+/*
+ * A plugin's command label longer than the row wraps onto a second line inside its button
+ * rather than running past the toolbar's edge, where the clip would cut it off.
+ */
+.scenario-actions .ink-command {
+  min-width: 0;
+  max-width: 100%;
+}
+.scenario-actions .ink-command button {
+  height: auto;
+  max-width: 100%;
+  padding-block: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .scenario-actions button,
 .scenario-file button {
