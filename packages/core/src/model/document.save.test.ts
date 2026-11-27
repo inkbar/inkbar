@@ -3,13 +3,15 @@ import { readFile } from 'node:fs/promises'
 import { EngineError } from '@inkbar/engine'
 import { fixtureBytes, fixturePath, manifest, type FixtureName } from '@inkbar/fixtures'
 import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as annotationFields from '../pdf/annotation-fields'
 import { nodeAssets } from '../pdfjs/node-assets'
+import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 
 import { isReply } from './annotations/threads'
 import { openDocument, type InkDocument, type OpenOptions } from './document'
+import { setEngineFactory } from './engine-factory'
 import { signField } from './form/sign'
 import { createImageTemplate } from './signatures'
 
@@ -37,6 +39,8 @@ vi.mock(import('./form/scripting'), async (original) => {
     },
   }
 })
+
+const flag = globalThis as { __INKBAR_READER__?: unknown }
 
 /** A 1 × 1 PNG. */
 const PNG =
@@ -981,6 +985,108 @@ describe('save', () => {
       const back = await reopen(await save(doc, 'controlled, dropped'))
       expect(session(back)).toEqual([])
       expect(embedded(back)).toEqual([])
+    })
+  })
+
+  describe('with the engine reading the file', () => {
+    beforeEach(() => {
+      flag.__INKBAR_READER__ = 'engine'
+      vi.stubGlobal('ImageData', FakeImageData)
+    })
+    afterEach(() => {
+      setEngineFactory(undefined)
+      delete flag.__INKBAR_READER__
+      vi.unstubAllGlobals()
+    })
+
+    const square = (doc: InkDocument, x = 1) =>
+      doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x, y: 1, width: 9, height: 9 },
+      })
+
+    it("writes with the reader's engine, in a document of its own it closes after each write", async () => {
+      const held = heldEngines()
+      setEngineFactory(held.factory)
+      const doc = await open('text-simple')
+      expect(doc._reader.kind).toBe('engine')
+      const added = square(doc)
+      const first = await save(doc, 'with the reader engine')
+      square(doc, 20)
+      await save(doc, 'with the reader engine, again')
+      expect(held.engines).toEqual([
+        // The reader's document and one for each write, each write's closed.
+        { opened: 3, closed: 2, stopped: false, destroyed: false },
+      ])
+      // The reader still draws and reads with it.
+      await expect(drawn(doc)).resolves.toBe(true)
+      expect(await doc.pageText(0)).not.toBe('')
+      const back = await reopen(first)
+      expect(session(back).map((a) => a.id)).toEqual([added.id])
+    })
+
+    it('rejects a write the engine stops in; the reader starts another and reads on', async () => {
+      const held = heldEngines()
+      setEngineFactory(held.factory)
+      const doc = await open('text-simple')
+      const text = await doc.pageText(0)
+      square(doc)
+      held.stopOnNext('write')
+      await expect(doc.save()).rejects.toMatchObject({
+        name: 'InkError',
+        code: 'SaveFailed',
+        details: { stage: 'write' },
+        cause: { code: 'engine-failure' },
+      })
+      // The reader has dropped the stopped engine, and the next read starts another.
+      expect(held.engines).toMatchObject([{ stopped: true, destroyed: true }])
+      await expect(drawn(doc)).resolves.toBe(true)
+      expect(held.engines).toHaveLength(2)
+      expect(await doc._reader.annotations(0)).toEqual([])
+      expect(await doc.getData()).toEqual(await fixtureBytes('text-simple'))
+      // The next save writes with the reader's new engine.
+      await save(doc, 'after the engine stopped')
+      expect(held.engines).toHaveLength(2)
+      expect(held.engines[1]).toMatchObject({ opened: 2, closed: 1 })
+      expect(await doc.pageText(0)).toBe(text)
+    })
+
+    it('leaves the engine to the reader, which destroys it once with the document', async () => {
+      const held = heldEngines()
+      setEngineFactory(held.factory)
+      const doc = await open('text-simple')
+      square(doc)
+      await save(doc, 'before the document is destroyed')
+      square(doc, 20)
+      const saving = doc.save()
+      // Destroyed, so it has no data left to compare after the test.
+      opened.splice(
+        opened.findIndex((o) => o.doc === doc),
+        1
+      )
+      doc.destroy()
+      await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+      await vi.waitFor(() => expect(held.engines[0]!.destroyed).toBe(true))
+      expect(held.engines).toHaveLength(1)
+    })
+
+    it('fails a write as an engine that cannot start when the reader cannot start one', async () => {
+      const held = heldEngines()
+      let refuse = false
+      setEngineFactory(() =>
+        refuse ? Promise.reject(new Error('no engine')) : held.factory()
+      )
+      const doc = await open('text-simple')
+      square(doc)
+      held.stopOnNext('write')
+      await expect(doc.save()).rejects.toMatchObject({ code: 'SaveFailed' })
+      refuse = true
+      await expect(doc.save()).rejects.toMatchObject({
+        code: 'SaveFailed',
+        details: { stage: 'engine' },
+      })
+      expect(held.engines).toHaveLength(1)
     })
   })
 

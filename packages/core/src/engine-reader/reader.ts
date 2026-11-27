@@ -100,6 +100,25 @@ export interface EngineDocumentReader extends DocumentReader {
    * that stopped could not start; `undefined` until then.
    */
   unavailable(): InkError | undefined
+  /**
+   * The engine the file is open in, lent for writes, so a document runs one engine. The
+   * reader keeps it: the borrower opens and closes documents of its own in it and never destroys
+   * it. An engine that stopped is replaced first; when no engine can start it rejects with
+   * `EngineUnavailable`, and once destroyed with `DocumentDestroyed`. Ask at each write: the
+   * reader may have replaced the engine since.
+   */
+  borrowEngine(): Promise<LentEngine>
+}
+
+/** @internal The engine the reader lends, and how the borrower says a call stopped it. */
+export interface LentEngine {
+  engine: ReaderEngine
+  /**
+   * Tells the reader a call failed in a way that may have stopped the engine. The reader checks,
+   * and drops an engine that has stopped, so its next call, and the next loan, start another.
+   * Resolves once it knows.
+   */
+  stopped(): Promise<void>
 }
 
 /** An engine and the file open in it. */
@@ -1173,6 +1192,25 @@ export async function createEngineReader(
       return sandboxFieldObjects(fields, found)
     })
 
+  const borrowEngine = async (): Promise<LentEngine> => {
+    if (destroyed) throw destroyedError()
+    if (cannotStart) throw cannotStart.error
+    const used = session()
+    let s: Session
+    try {
+      s = await used
+    } catch (error) {
+      throw destroyed ? destroyedError() : unavailable(error)
+    }
+    if (destroyed) throw destroyedError()
+    return {
+      engine: s.engine,
+      stopped: async () => {
+        if (!(await stillWorks(s))) drop(used, s)
+      },
+    }
+  }
+
   let destroying: Promise<void> | undefined
   return {
     kind: 'engine',
@@ -1214,6 +1252,7 @@ export async function createEngineReader(
     outline,
     resolveDestination,
     unavailable: () => cannotStart?.error,
+    borrowEngine,
     destroy() {
       if (destroying) return destroying
       destroyed = true

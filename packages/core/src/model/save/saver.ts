@@ -1,6 +1,7 @@
-// Writes a document through @inkbar/engine, which it loads only through the host's loader: one
-// engine and one open copy of the file, kept for the next save. Nothing here imports the engine
-// or names its types: this module's types are public, and a host without the engine checks them.
+// Writes a document through @inkbar/engine: either an engine of its own, loaded only through the
+// host's loader, with one open copy of the file kept for the next save, or the engine the
+// document's reader holds, borrowed for each write. Nothing here imports the engine or names its
+// types: this module's types are public, and a host without the engine checks them.
 import { InkError, isInkError } from '../errors'
 
 import { AnnotationUnwritable } from './write-input'
@@ -138,8 +139,32 @@ export type EngineLoader = () => Promise<{
   createEngine: () => Promise<SaveEngine>
 }>
 
-export interface SaverOptions {
-  loader: EngineLoader
+/** An engine another part of core holds, lent for one write. */
+export interface BorrowedEngine {
+  engine: SaveEngine
+  /**
+   * Says a call failed in a way that may have stopped the engine, so its holder can check and
+   * replace it. Resolves once the holder knows.
+   */
+  stopped(): Promise<void>
+}
+
+export type SaverOptions = (
+  | {
+      /** Starts an engine of the saver's own, on the first write, kept until `destroy`. */
+      loader: EngineLoader
+      borrow?: undefined
+    }
+  | {
+      /**
+       * The engine to write with, asked for at each write, since its holder may replace it. The
+       * saver opens a document of its own in it for each write and closes it after; it never
+       * destroys the engine. A rejection fails the write as an engine that cannot start does.
+       */
+      borrow: () => Promise<BorrowedEngine>
+      loader?: undefined
+    }
+) & {
   /** The bytes the document was opened from. */
   bytes: () => Promise<Uint8Array>
   /** The password the document was opened with. */
@@ -177,7 +202,10 @@ export interface Saver {
     checked: readonly RedactionRegion[]
     findings: RedactionFindings
   }>
-  /** Destroys the engine. A write in flight rejects with `DocumentDestroyed`. */
+  /**
+   * Destroys the saver's own engine; a borrowed one is left to its holder. A write in flight
+   * rejects with `DocumentDestroyed`.
+   */
   destroy(): void
 }
 
@@ -277,10 +305,13 @@ export function createSaver(options: SaverOptions): Saver {
 
   /** The engine and the file open in it, made on first use and kept. */
   const open = (): Promise<Session> => {
+    const { loader } = options
     const made = (async () => {
       let engine: SaveEngine
       try {
-        const { createEngine } = await options.loader()
+        // Only a saver with a loader opens a session: one that borrows opens a document per write.
+        if (!loader) throw new Error('No engine loader')
+        const { createEngine } = await loader()
         if (destroyed) throw destroyedError()
         engine = await createEngine()
       } catch (error) {
@@ -427,24 +458,73 @@ export function createSaver(options: SaverOptions): Saver {
     return result
   }
 
+  /** Whether `error`, or the check failure it wraps, says the engine has stopped. */
+  const stoppedBy = (error: unknown): boolean =>
+    STOPPED_CODES.has(engineCode(error instanceof NotChecked ? error.cause : error))
+
+  /**
+   * `work` on a document open for a write, and the engine it is open in. With an engine of the
+   * saver's own: the session's document, opened again when a redaction has spent it, and a call
+   * that stopped the engine drops the session. With a borrowed engine: a document opened for this
+   * write and closed after it, whatever happens, and a call that stopped the engine is told to
+   * its holder before the write rejects, so the next write is not lent a stopped engine.
+   * `spends` marks the session's document spent before `work` runs.
+   */
+  const withDocument = async <T>(
+    work: (doc: SaveEngineDocument, engine: SaveEngine) => Promise<T>,
+    spends: boolean
+  ): Promise<T> => {
+    if (options.borrow) {
+      let lent: BorrowedEngine
+      try {
+        lent = await options.borrow()
+      } catch (error) {
+        throw isInkError(error) && error.code === 'DocumentDestroyed'
+          ? error
+          : new NotStarted(error)
+      }
+      if (destroyed) throw destroyedError()
+      try {
+        let doc: SaveEngineDocument | undefined
+        try {
+          const bytes = await options.bytes()
+          if (destroyed) throw destroyedError()
+          doc = await lent.engine.open(bytes, passwordOption)
+          return await work(doc, lent.engine)
+        } finally {
+          const opened = doc
+          if (opened) await (async () => opened.close())().catch(() => undefined)
+        }
+      } catch (error) {
+        if (stoppedBy(error)) await lent.stopped()
+        throw error
+      }
+    }
+    const current = session ?? open()
+    const s = await current
+    if (destroyed) throw destroyedError()
+    try {
+      const doc = await docOf(s)
+      // Spent from here, whether the apply works or not: the next write opens the file again.
+      if (spends) s.spent = true
+      return await work(doc, s.engine)
+    } catch (error) {
+      if (stoppedBy(error)) drop(current)
+      throw error
+    }
+  }
+
   const run = async (input: () => Promise<SaveInput>): Promise<Uint8Array> => {
     const written = await input()
     if (destroyed) throw destroyedError()
     return exclusive(async () => {
       if (destroyed) throw destroyedError()
-      const current = session ?? open()
-      const s = await current
-      if (destroyed) throw destroyedError()
-      try {
-        const doc = await docOf(s)
+      return withDocument(async (doc) => {
         await doc.write(written)
         const bytes = await doc.save()
         if (destroyed) throw destroyedError()
         return bytes
-      } catch (error) {
-        if (STOPPED_CODES.has(engineCode(error))) drop(current)
-        throw error
-      }
+      }, false)
     })
   }
 
@@ -455,13 +535,7 @@ export function createSaver(options: SaverOptions): Saver {
       if (destroyed) throw destroyedError()
       return await exclusive(async () => {
         if (destroyed) throw destroyedError()
-        const current = session ?? open()
-        const s = await current
-        if (destroyed) throw destroyedError()
-        try {
-          const doc = await docOf(s)
-          // Spent from here, whether the apply works or not: the next write opens the file again.
-          s.spent = true
+        return withDocument(async (doc, engine) => {
           const result = await doc.redact(written)
           const bytes = await doc.save()
           if (destroyed) throw destroyedError()
@@ -470,7 +544,7 @@ export function createSaver(options: SaverOptions): Saver {
           // Whatever the check throws, the file has not passed it.
           // A throw as the call is made counts, not only a rejection.
           const findings = await (async () =>
-            s.engine.checkRedaction(bytes, {
+            engine.checkRedaction(bytes, {
               ...passwordOption,
               regions: checked,
             }))().catch((cause: unknown) => {
@@ -478,11 +552,7 @@ export function createSaver(options: SaverOptions): Saver {
           })
           if (destroyed) throw destroyedError()
           return { bytes, result, checked, findings }
-        } catch (error) {
-          const cause = error instanceof NotChecked ? error.cause : error
-          if (STOPPED_CODES.has(engineCode(cause))) drop(current)
-          throw error
-        }
+        }, true)
       })
     } catch (error) {
       throw redactFailed(error)

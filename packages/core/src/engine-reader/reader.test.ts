@@ -2434,3 +2434,55 @@ describe('field appearances', () => {
     await reader.destroy()
   })
 })
+
+describe('lending its engine', () => {
+  it('lends the engine the file is open in, and the one that replaced it once it stopped', async () => {
+    const { open, engines, states } = setup()
+    const reader = await open()
+    await reader.pageInfo(0)
+    const lent = await reader.borrowEngine()
+    expect(lent.engine).toBe(engines[0])
+    // A write on the lent engine stopped it: the reader finds out at once and drops it.
+    states[0]!.stopped = true
+    await lent.stopped()
+    expect(engines[0]!.destroy).toHaveBeenCalledTimes(1)
+    expect(engines[0]!.doc.close).toHaveBeenCalledTimes(1)
+    // The next loan, and the next read, start the engine that replaces it.
+    expect((await reader.borrowEngine()).engine).toBe(engines[1])
+    await expect(reader.text(0, { glyphs: false })).resolves.toMatchObject({ page: 0 })
+    expect(engines).toHaveLength(2)
+    expect(engines[1]!.open).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an engine that still works when told a write failed in it', async () => {
+    const { open, engines } = setup()
+    const reader = await open()
+    await reader.pageInfo(0)
+    const lent = await reader.borrowEngine()
+    await lent.stopped()
+    expect(engines[0]!.destroy).not.toHaveBeenCalled()
+    expect((await reader.borrowEngine()).engine).toBe(engines[0])
+    expect(engines).toHaveLength(1)
+  })
+
+  it('rejects with EngineUnavailable when no engine can start, and once destroyed', async () => {
+    const { open, states, createEngine } = setup()
+    const reader = await open()
+    await reader.pageInfo(0)
+    const lent = await reader.borrowEngine()
+    states[0]!.stopped = true
+    await lent.stopped()
+    createEngine.mockRejectedValueOnce(new Error('no engine'))
+    await expect(reader.borrowEngine()).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
+    expect(reader.unavailable()).toMatchObject({ code: 'EngineUnavailable' })
+    await expect(reader.borrowEngine()).rejects.toMatchObject({
+      code: 'EngineUnavailable',
+    })
+    void reader.destroy()
+    await expect(reader.borrowEngine()).rejects.toMatchObject({
+      code: 'DocumentDestroyed',
+    })
+  })
+})

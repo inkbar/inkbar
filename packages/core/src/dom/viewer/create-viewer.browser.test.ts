@@ -3816,22 +3816,52 @@ describe('a floating sidebar beside the viewer', () => {
 
 describe('applying redactions', () => {
   /**
-   * `loader`, held until `gate` resolves. The engine reader loads the engine once more, first, to
-   * open the file: that load goes through, so only what the apply loads is held.
+   * `loader`, with the apply held until `gate` resolves. With the PDF.js reader the apply loads
+   * an engine of its own, and that load is held. With the engine reader the apply writes with the
+   * reader's engine, so the `redact` of each document opened in it waits for `gate`; the reader
+   * never calls it.
    */
   const gated = (loader: EngineLoader, gate?: Promise<void>): EngineLoader => {
-    let opened = readerKind() !== 'engine'
-    return async () => {
-      if (!opened) {
-        opened = true
+    if (readerKind() !== 'engine')
+      return async () => {
+        await gate
         return loader()
       }
-      await gate
-      return loader()
+    return async () => {
+      const { createEngine } = await loader()
+      return {
+        createEngine: async () => {
+          const engine = await createEngine()
+          return new Proxy(engine, {
+            get(target, key) {
+              const value: unknown = Reflect.get(target, key, target)
+              if (key !== 'open')
+                return typeof value === 'function'
+                  ? (value as (...a: unknown[]) => unknown).bind(target)
+                  : value
+              return async (...args: Parameters<typeof engine.open>) => {
+                const doc = await target.open(...args)
+                return new Proxy(doc, {
+                  get(d, name) {
+                    const member: unknown = Reflect.get(d, name, d)
+                    if (typeof member !== 'function') return member
+                    const call = (member as (...a: unknown[]) => unknown).bind(d)
+                    if (name !== 'redact') return call
+                    return async (...a: unknown[]) => {
+                      await gate
+                      return call(...a)
+                    }
+                  },
+                })
+              }
+            },
+          })
+        },
+      }
     }
   }
 
-  /** The real engine, in this page; `gate` holds the apply's loading until resolved. */
+  /** The real engine, in this page; `gate` holds the apply until resolved. */
   const realEngine = (gate?: Promise<void>): EngineLoader =>
     vi.fn<EngineLoader>(gated(() => import('@inkbar/engine'), gate))
 

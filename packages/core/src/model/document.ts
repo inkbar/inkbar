@@ -51,7 +51,13 @@ import {
   type FieldChange,
   type Snapshot,
 } from './save/changes'
-import { createSaver, type EngineLoader, type Saver } from './save/saver'
+import {
+  createSaver,
+  type BorrowedEngine,
+  type EngineLoader,
+  type SaveEngine,
+  type Saver,
+} from './save/saver'
 import { buildWriteInput, writeFields } from './save/write-input'
 import {
   matchPage,
@@ -483,6 +489,14 @@ export async function openDocument(
     return opened
   }
 
+  /** The engine reader's engine, lent for a write. Writes run only once the file is open. */
+  const borrowReaderEngine = async (): Promise<BorrowedEngine> => {
+    if (!engineOpened) throw statusError(status.get())
+    const lent = await engineOpened.borrowEngine()
+    // The reader's type for the engine is its own; the engine it holds also writes.
+    return { engine: lent.engine as unknown as SaveEngine, stopped: () => lent.stopped() }
+  }
+
   /** Loads PDF.js and opens the file in it. */
   const openWithPdfjs = async (): Promise<PdfjsReader> => {
     pdfjsOpened = await openPdfjs({
@@ -745,10 +759,12 @@ export async function openDocument(
   // document destroyed while the pass waits on PDF.js does not wait for it.
   const _liftSettled = Promise.race([liftSettled, destroyedSignal]).catch(() => undefined)
 
-  // Saving. The engine is loaded through the host's loader, on the first save with changes.
+  // Saving. With the engine reader, a save and an apply write with the reader's engine, so a
+  // document runs one. Otherwise the engine is loaded through the host's loader, on the first
+  // save with changes.
   const saver: Saver | undefined = engineLoader
     ? createSaver({
-        loader: engineLoader,
+        ...(withEngine ? { borrow: borrowReaderEngine } : { loader: engineLoader }),
         // A copy each time: core goes on reading its own bytes, whatever an engine does with these.
         bytes: fileData,
         password: options.password,

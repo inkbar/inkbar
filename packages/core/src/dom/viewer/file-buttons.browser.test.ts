@@ -107,46 +107,72 @@ describe('download and print', () => {
 })
 
 /**
- * A stand-in engine whose every write waits for the test: `finish()` lets it save, `fail(e)`
- * makes it reject with `e`. `unavailable` makes the loader itself fail, as offline. `saves`
- * counts the loads a save makes: the engine reader first loads the real engine to open the file,
- * which goes through and is not counted.
+ * An engine whose every write waits for the test: `finish()` lets it save, `fail(e)` makes it
+ * reject with `e`. With the PDF.js reader the save loads a stand-in engine; `unavailable` makes
+ * that load fail, as offline, and `saves` counts those loads. With the engine reader the save
+ * writes with the reader's engine, the real one, whose documents' writes are held, and `saves`
+ * is never called.
  */
 function heldEngine(opts: { unavailable?: boolean } = {}) {
   let settle: { finish: () => void; fail: (e: Error) => void } | undefined
   const writing = () => settle !== undefined
+  const write = () =>
+    new Promise<void>((resolve, reject) => {
+      settle = {
+        finish: () => {
+          settle = undefined
+          resolve()
+        },
+        fail: (e) => {
+          settle = undefined
+          reject(e)
+        },
+      }
+    })
   const engine = {
     open: () =>
       Promise.resolve({
         pageCount: 1,
-        write: () =>
-          new Promise<void>((resolve, reject) => {
-            settle = {
-              finish: () => {
-                settle = undefined
-                resolve()
-              },
-              fail: (e) => {
-                settle = undefined
-                reject(e)
-              },
-            }
-          }),
+        write,
         save: () => Promise.resolve(new Uint8Array([37, 80, 68, 70, 45])),
         close: () => Promise.resolve(),
       }),
     destroy: () => Promise.resolve(),
   } as unknown as Engine
+  /** `real`, with the writes of every document it opens held. */
+  const holdingWrites = (real: Engine): Engine =>
+    new Proxy(real, {
+      get(target, key) {
+        const value = Reflect.get(target, key, target) as unknown
+        if (key !== 'open')
+          return typeof value === 'function'
+            ? (value as (...a: unknown[]) => unknown).bind(target)
+            : value
+        return async (...args: Parameters<Engine['open']>) => {
+          const doc = await target.open(...args)
+          return new Proxy(doc, {
+            get(d, name) {
+              if (name === 'write') return write
+              const member = Reflect.get(d, name, d) as unknown
+              return typeof member === 'function'
+                ? (member as (...a: unknown[]) => unknown).bind(d)
+                : member
+            },
+          })
+        }
+      },
+    })
   const saves = vi.fn<EngineLoader>(() =>
     opts.unavailable
       ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
       : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
   )
   let opened = readerKind() !== 'engine'
-  const loader: EngineLoader = () => {
+  const loader: EngineLoader = async () => {
     if (opened) return saves()
     opened = true
-    return import('@inkbar/engine')
+    const { createEngine } = await import('@inkbar/engine')
+    return { createEngine: () => createEngine().then(holdingWrites) }
   }
   return {
     loader,
@@ -200,7 +226,8 @@ describe('with an engine', () => {
     expect(busy(download)).toBe(false)
     expect(download.disabled).toBe(false)
     expect(print.disabled).toBe(false)
-    expect(held.saves).toHaveBeenCalledTimes(1)
+    // With the engine reader the save writes with the reader's engine and loads none.
+    expect(held.saves).toHaveBeenCalledTimes(readerKind() === 'engine' ? 0 : 1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
     expect(clicked).toHaveLength(1)
   })
@@ -297,23 +324,31 @@ describe('with an engine', () => {
     expect(alertText()).toBe('Your changes could not be written into this file.')
   })
 
-  it('says saving is unavailable when the engine cannot be loaded', async () => {
-    const clicked = catchDownloads()
-    const held = heldEngine({ unavailable: true })
-    const errors: InkError[] = []
-    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
-    const download = createDownloadButton(viewer)
-    await until(() => viewer.status.get().state === 'ready')
-    addSquare(viewer)
-    download.click()
-    await until(() => errors.length === 1)
-    expect(errors[0]).toMatchObject({ code: 'SaveFailed', details: { stage: 'engine' } })
-    expect(alertText()).toBe(
-      'Saving is not available right now. Check your connection and try again.'
-    )
-    expect(clicked).toHaveLength(0)
-    expect(busy(download)).toBe(false)
-  })
+  // With the engine reader a save loads no engine: it writes with the reader's, so it cannot
+  // fail to load one. A reader whose engine cannot start again is covered in core's save tests.
+  it.skipIf(readerKind() === 'engine')(
+    'says saving is unavailable when the engine cannot be loaded',
+    async () => {
+      const clicked = catchDownloads()
+      const held = heldEngine({ unavailable: true })
+      const errors: InkError[] = []
+      const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+      const download = createDownloadButton(viewer)
+      await until(() => viewer.status.get().state === 'ready')
+      addSquare(viewer)
+      download.click()
+      await until(() => errors.length === 1)
+      expect(errors[0]).toMatchObject({
+        code: 'SaveFailed',
+        details: { stage: 'engine' },
+      })
+      expect(alertText()).toBe(
+        'Saving is not available right now. Check your connection and try again.'
+      )
+      expect(clicked).toHaveLength(0)
+      expect(busy(download)).toBe(false)
+    }
+  )
 
   it('with no changes downloads the opened file and loads no engine', async () => {
     const clicked = catchDownloads()

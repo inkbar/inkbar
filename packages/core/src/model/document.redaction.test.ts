@@ -1,10 +1,12 @@
 import { EngineError } from '@inkbar/engine'
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../pdfjs/node-assets'
+import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
 
 import { openDocument, type InkDocument, type OpenOptions } from './document'
+import { setEngineFactory } from './engine-factory'
 
 import type { Annotation } from './annotations/types'
 import type { Quad } from './geometry'
@@ -18,6 +20,8 @@ import type {
   RedactionCandidate,
   WriteInput,
 } from '@inkbar/engine'
+
+const flag = globalThis as { __INKBAR_READER__?: unknown }
 
 const quad = (x: number, y: number, width: number, height: number): Quad => ({
   p1: { x, y: y + height },
@@ -1056,4 +1060,73 @@ describe('applyRedactions with the engine', () => {
     expect(text).not.toContain('Enc')
     expect(text).toContain('pted')
   })
+})
+
+describe('applyRedactions with the engine reading the file', () => {
+  beforeEach(() => {
+    flag.__INKBAR_READER__ = 'engine'
+    vi.stubGlobal('ImageData', FakeImageData)
+  })
+  afterEach(() => {
+    setEngineFactory(undefined)
+    delete flag.__INKBAR_READER__
+    vi.unstubAllGlobals()
+  })
+
+  it("applies with the reader's engine, in a document of its own it closes after", async () => {
+    const held = heldEngines()
+    setEngineFactory(held.factory)
+    const doc = await open('redact-text')
+    expect(doc._reader.kind).toBe('engine')
+    const mark = markOver(doc)
+    const { bytes } = await doc.applyRedactions()
+    expect(held.engines).toEqual([
+      { opened: 2, closed: 1, stopped: false, destroyed: false },
+    ])
+    // The reader's copy of the file is the one opened, and it still draws.
+    expect(await doc.pageText(0)).toContain('SECRET')
+    await expect(drawn(doc)).resolves.toBe(true)
+    // A save after the apply writes into the file as opened, in a document opened for it.
+    const kept = doc.annotations.add({ type: 'highlight', page: 0, quads: [KEEP] })
+    const saved = await doc.save()
+    expect(held.engines).toEqual([
+      { opened: 3, closed: 2, stopped: false, destroyed: false },
+    ])
+    const back = await openBytes(saved)
+    // The apply leaves the session as it was, so the save writes the mark too.
+    expect(session(back).map((a) => a.id)).toEqual([mark.id, kept.id])
+    expect(await back.pageText(0)).toContain('SECRET')
+    const redacted = await openBytes(bytes)
+    expect(await redacted.pageText(0)).not.toContain('SECRET')
+  })
+
+  it.each([
+    ['apply', 'redact'],
+    ['verify', 'checkRedaction'],
+  ])(
+    'rejects at %s when the engine stops there; the reader starts another and reads on',
+    async (stage, method) => {
+      const held = heldEngines()
+      setEngineFactory(held.factory)
+      const doc = await open('redact-text')
+      const text = await doc.pageText(0)
+      const mark = markOver(doc)
+      held.stopOnNext(method)
+      await expect(doc.applyRedactions()).rejects.toMatchObject({
+        code: 'RedactionFailed',
+        details: { stage },
+      })
+      expect(session(doc).map((a) => a.id)).toEqual([mark.id])
+      // The reader has dropped the stopped engine, and the next read starts another.
+      expect(held.engines).toMatchObject([{ stopped: true, destroyed: true }])
+      await expect(drawn(doc)).resolves.toBe(true)
+      expect(await doc.pageText(0)).toBe(text)
+      expect(held.engines).toHaveLength(2)
+      expect(await doc.getData()).toEqual(await fixtureBytes('redact-text'))
+      // The next apply runs on the reader's new engine.
+      await doc.applyRedactions()
+      expect(held.engines).toHaveLength(2)
+      expect(held.engines[1]).toMatchObject({ opened: 2, closed: 1 })
+    }
+  )
 })
