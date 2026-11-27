@@ -10,7 +10,7 @@ import { page as browserPage } from 'vitest/browser'
 import { drawingFor } from '../dom/drawing-context'
 import { createPageMount } from '../dom/page-mount'
 import { savePictures } from '../dom/save-pictures'
-import { mountContainer, nextFrame, until } from '../dom/test-utils'
+import { mountContainer, nextFrame, parkPointer, until } from '../dom/test-utils'
 import { createPageTransform, type PageTransform } from '../dom/transform'
 import { padRect, paintedRect } from '../model/annotations/drawing/extent'
 import { openDocument, type InkDocument } from '../model/document'
@@ -147,6 +147,8 @@ async function screenOf(doc: InkDocument, page: number): Promise<Pixels> {
     Math.ceil(transform.cssWidth) + 40,
     Math.ceil(transform.cssHeight) + 40
   )
+  // Nothing photographed may be under the mouse, or it shows its hover ring.
+  await parkPointer()
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   host.style.background = '#ffffff'
   const mount = createPageMount({
