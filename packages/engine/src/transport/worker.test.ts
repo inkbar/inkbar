@@ -337,7 +337,7 @@ test('when the worker dies, the running call fails a task before the calls waiti
   const first = watch('first', doc.pageInfo(0))
   const second = watch('second', doc.pageInfo(0))
   await vi.waitUntil(() => worker.waiting.length === 1)
-  worker.dispatchEvent(new ErrorEvent('error', { message: 'gone' }))
+  worker.dispatchEvent(Object.assign(new Event('error'), { message: 'gone' }))
   await running
   // However long a caller's chain of promises, the waiting calls have not failed yet.
   for (let i = 0; i < 1000; i++) await Promise.resolve()
