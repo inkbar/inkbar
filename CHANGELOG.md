@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.19.0](https://github.com/inkbar/inkbar/compare/v0.18.0...v0.19.0) (2026-11-27)
+
+
+### Features
+
+* **core:** read every file with the engine ([#532](https://github.com/inkbar/inkbar/issues/532)) ([83ce4fc](https://github.com/inkbar/inkbar/commit/83ce4fc8edb84d2ef5c8fc7a41545af3e02be413))
+* **core:** save and redact with the reader's engine when the engine reads the file ([#527](https://github.com/inkbar/inkbar/issues/527)) ([8c7889b](https://github.com/inkbar/inkbar/commit/8c7889bb3e48735633225f1b4e5bfec135c13bb2))
+* **core:** save while the viewer is stopped and need less from a content security policy ([#537](https://github.com/inkbar/inkbar/issues/537)) ([7c26264](https://github.com/inkbar/inkbar/commit/7c2626494984d909d591412aabec8ba3cd7de48a))
+* **core:** stop a document whose engine keeps failing and let it be restarted ([#528](https://github.com/inkbar/inkbar/issues/528)) ([1f7d09c](https://github.com/inkbar/inkbar/commit/1f7d09c32d7f8e9799ecde4a674de21373b884d7))
+* **core:** tell the user when the viewer has stopped and let them start it again ([#529](https://github.com/inkbar/inkbar/issues/529)) ([0043823](https://github.com/inkbar/inkbar/commit/00438236cb9e713ffb7342d2b9faa6f058c604f0))
+* draw thumbnails behind every other engine call ([#525](https://github.com/inkbar/inkbar/issues/525)) ([c2ebb88](https://github.com/inkbar/inkbar/commit/c2ebb88a9cbc0cc64236e8cfd30a67e2d0b95935))
+* **engine:** add an entry that takes its binary and worker from the caller ([#524](https://github.com/inkbar/inkbar/issues/524)) ([0b5f4a7](https://github.com/inkbar/inkbar/commit/0b5f4a79c372a1a41dfa225e54dfe411871dd63f))
+* **sandbox:** show the sandbox in the chosen language and tidy its layout ([#539](https://github.com/inkbar/inkbar/issues/539)) ([d965477](https://github.com/inkbar/inkbar/commit/d965477f2ced1dbd6b3449cd5657ee4c4e50dd97))
+
+
+### Bug Fixes
+
+* correct the stopped viewer, a page that stops the engine and workers on another origin ([#536](https://github.com/inkbar/inkbar/issues/536)) ([c6730bf](https://github.com/inkbar/inkbar/commit/c6730bf8eb7ba9f47f8131a0700efd7fa25f67fe))
+
 ## [0.18.0](https://github.com/inkbar/inkbar/compare/v0.17.0...v0.18.0) (2026-11-26)
 
 
