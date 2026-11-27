@@ -9,9 +9,16 @@
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Inkbar sandbox</title>
-    <script type="module" crossorigin src="/assets/index-Cf417IEb.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/preload-helper-CFijIu3R.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BS54yeMh.css">
+    <script>
+      // A French or German address names the page's language before anything renders.
+      ;(function () {
+        var lang = new URLSearchParams(location.search).get('lang')
+        if (lang === 'fr' || lang === 'de') document.documentElement.lang = lang
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-B7Lt4tNX.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/storage-4_COst0V-uMXSWOPV.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-zMU2j4Cz.css">
   </head>
   <body>
     <div id="app"></div>
