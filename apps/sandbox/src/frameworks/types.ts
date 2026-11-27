@@ -1,4 +1,5 @@
 import type { ScenarioId } from '../scenarios/registry.ts'
+import type { ScenarioLabels } from '../shared/strings/types.ts'
 import type { DocumentSource, InkDocument, InkMessagesInput } from '@inkbar/core'
 
 export type Log = (name: string, value: unknown) => void
@@ -10,6 +11,8 @@ export interface ScenarioProps {
   messages: InkMessagesInput | undefined
   /** The locale for dates and numbers; `undefined` follows `messages`. */
   locale: string | undefined
+  /** The words the scenario supplies itself, in the same language as `messages`. */
+  labels: ScenarioLabels
   log: Log
   /** Passed to the scenario's viewer ready callback. */
   onDocument(this: void, doc: InkDocument): void
@@ -20,7 +23,11 @@ export interface ScenarioProps {
 export interface MountedScenario {
   update(source: DocumentSource): void
   /** Changes the language in place: the viewer stays mounted and keeps its state. */
-  setLanguage(messages: InkMessagesInput | undefined, locale: string | undefined): void
+  setLanguage(
+    messages: InkMessagesInput | undefined,
+    locale: string | undefined,
+    labels: ScenarioLabels
+  ): void
   unmount(): void
 }
 

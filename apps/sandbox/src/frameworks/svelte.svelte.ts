@@ -14,6 +14,7 @@ export function mountSvelte(
   let source = $state.raw(props.source)
   let messages = $state.raw(props.messages)
   let locale = $state.raw(props.locale)
+  let labels = $state.raw(props.labels)
   const app = mount(Scenario, {
     target: el,
     props: {
@@ -26,6 +27,9 @@ export function mountSvelte(
       get locale() {
         return locale
       },
+      get labels() {
+        return labels
+      },
       log: props.log,
       onDocument: props.onDocument,
       openFile: props.openFile,
@@ -35,9 +39,10 @@ export function mountSvelte(
     update(next) {
       source = next
     },
-    setLanguage(nextMessages, nextLocale) {
+    setLanguage(nextMessages, nextLocale, nextLabels) {
       messages = nextMessages
       locale = nextLocale
+      labels = nextLabels
     },
     unmount: () => void unmount(app),
   }

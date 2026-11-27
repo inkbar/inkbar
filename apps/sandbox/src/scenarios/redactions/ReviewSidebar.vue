@@ -18,7 +18,10 @@ import { computed, ref, watch } from 'vue'
 
 import { acceptedFrom, type Suggestion } from '../../plugin/suggestions'
 
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { SidebarOpen } from '@inkbar/core/dom'
+
+const { labels } = defineProps<{ labels: ScenarioLabels }>()
 
 const { records, handle } = useRecords<Suggestion>('sandbox.suggestions')
 const { annotations, remove } = useAnnotations()
@@ -48,22 +51,24 @@ function undoAccept(suggestion: Suggestion): void {
   <InkSidebar v-model:open="open" name="redactions-right" side="right" layout="rail">
     <InkPanel
       id="suggestions"
-      label="Suggestions"
+      :label="labels.suggestions"
       :icon="SquareDashed"
       :badge="openCount"
     >
       <InkRecordList records="sandbox.suggestions" />
     </InkPanel>
-    <InkPanel id="accepted" label="Accepted" :icon="Check">
+    <InkPanel id="accepted" :label="labels.accepted" :icon="Check">
       <div class="accepted">
         <ul v-if="accepted.length">
           <li v-for="s in accepted" :key="s.id">
-            <span class="accepted-reason">{{ s.reason }}</span>
-            <span class="accepted-meta">{{ s.text }}, page {{ s.page + 1 }}</span>
-            <button type="button" @click="undoAccept(s)">Undo accept</button>
+            <span class="accepted-reason">{{ labels.plugin.reasons[s.kind] }}</span>
+            <span class="accepted-meta">{{
+              labels.acceptedAt({ text: s.text, page: s.page + 1 })
+            }}</span>
+            <button type="button" @click="undoAccept(s)">{{ labels.undoAccept }}</button>
           </li>
         </ul>
-        <p v-else class="accepted-empty">Nothing accepted yet.</p>
+        <p v-else class="accepted-empty">{{ labels.nothingAccepted }}</p>
       </div>
     </InkPanel>
   </InkSidebar>

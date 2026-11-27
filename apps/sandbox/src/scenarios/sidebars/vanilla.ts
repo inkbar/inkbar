@@ -21,6 +21,7 @@ import {
   createZoomOut,
   createZoomSelect,
   type SidebarLayout,
+  type SidebarPanelInfo,
 } from '@inkbar/core/dom'
 import { Info, Search, Square } from '@inkbar/icons'
 import '@inkbar/theme/theme.css'
@@ -30,25 +31,28 @@ import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { DocumentSource, InkMessagesInput } from '@inkbar/core'
-
-function group(
-  label: string,
-  className: string,
-  ...controls: HTMLElement[]
-): HTMLElement {
-  const g = document.createElement('div')
-  g.className = className
-  g.setAttribute('role', 'group')
-  g.setAttribute('aria-label', label)
-  g.append(...controls)
-  return g
-}
 
 export function mount(
   el: HTMLElement,
-  { source, messages, locale, log, onDocument, openFile }: ScenarioProps
+  { source, messages, locale, labels, log, onDocument, openFile }: ScenarioProps
 ) {
+  /** The groups this file names itself, each with its name in a set of labels. */
+  const groups: [HTMLElement, (words: ScenarioLabels) => string][] = []
+  function group(
+    label: (words: ScenarioLabels) => string,
+    className: string,
+    ...controls: HTMLElement[]
+  ): HTMLElement {
+    const g = document.createElement('div')
+    g.className = className
+    g.setAttribute('role', 'group')
+    g.append(...controls)
+    groups.push([g, label])
+    return g
+  }
+
   const viewer = createViewer(el, {
     storage,
     source,
@@ -65,21 +69,22 @@ export function mount(
   // The layout picker: a select of your own, setting both sidebars.
   const picker = document.createElement('select')
   picker.className = 'ink-select'
-  for (const [value, text] of [
-    ['rail', 'Rail'],
-    ['tabs', 'Tabs'],
-    ['stack', 'Stack'],
-  ] as const)
-    picker.append(new Option(text, value))
+  const options = {
+    rail: new Option('', 'rail'),
+    tabs: new Option('', 'tabs'),
+    stack: new Option('', 'stack'),
+  }
+  picker.append(options.rail, options.tabs, options.stack)
+  const layoutText = document.createTextNode('')
   const layoutLabel = document.createElement('label')
   layoutLabel.className = 'scenario-layout'
-  layoutLabel.append('Layout', picker)
+  layoutLabel.append(layoutText, picker)
 
   const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
     group(
-      'Tools',
+      (w) => w.tools,
       'scenario-group',
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select')
@@ -87,11 +92,11 @@ export function mount(
     layoutLabel
   )
 
-  const status = createToolbar({ label: 'Page and zoom' })
+  const status = createToolbar({ label: labels.pageAndZoom })
   status.classList.add('scenario-status-bar')
   status.append(
     group(
-      'Page',
+      (w) => w.page,
       'scenario-group',
       createPrevPage(viewer),
       createPageInput(viewer),
@@ -99,7 +104,7 @@ export function mount(
       createNextPage(viewer)
     ),
     group(
-      'Zoom',
+      (w) => w.zoom,
       'scenario-group scenario-zoom',
       createZoomOut(viewer),
       createZoomSelect(viewer),
@@ -110,13 +115,12 @@ export function mount(
   // Your own button joins the toolbar like the built-in ones: arrow keys reach it.
   const openButton = document.createElement('button')
   openButton.type = 'button'
-  openButton.setAttribute('aria-label', 'Open a PDF')
-  openButton.title = 'Open a PDF'
-  openButton.append(createIcon(FileUp), 'Open')
+  const openText = document.createTextNode('')
+  openButton.append(createIcon(FileUp), openText)
   openButton.addEventListener('click', openFile)
   tools.append(
     group(
-      'File',
+      (w) => w.file,
       'scenario-group scenario-file',
       openButton,
       createDownloadButton(viewer),
@@ -125,34 +129,33 @@ export function mount(
   )
 
   // Thumbnails and search on the left; your own About on the right.
+  const leftPanels = (words: ScenarioLabels): SidebarPanelInfo[] => [
+    { id: 'pages', label: words.pages, icon: Square },
+    { id: 'search', label: words.search, icon: Search },
+  ]
+  const rightPanels = (words: ScenarioLabels): SidebarPanelInfo[] => [
+    { id: 'about', label: words.about, icon: Info },
+  ]
   const left = createSidebar({
     storage,
     name: 'sidebars-left',
     side: 'left',
     layout: 'rail',
-    panels: [
-      { id: 'pages', label: 'Pages', icon: Square },
-      { id: 'search', label: 'Search', icon: Search },
-    ],
+    panels: leftPanels(labels),
     content: { pages: createThumbnails(viewer), search: createSearchResults(viewer) },
   })
 
   const about = document.createElement('div')
   about.className = 'sidebar-about'
-  for (const text of [
-    'Fill a sidebar with whatever you need: page thumbnails, search results or components of your own.',
-    'Panels can read and write plugin records, so a list here shows the same data a plugin marks on the page.',
-  ]) {
-    const p = document.createElement('p')
-    p.textContent = text
-    about.append(p)
-  }
+  const aboutFill = document.createElement('p')
+  const aboutRecords = document.createElement('p')
+  about.append(aboutFill, aboutRecords)
   const right = createSidebar({
     storage,
     name: 'sidebars-right',
     side: 'right',
     layout: 'rail',
-    panels: [{ id: 'about', label: 'About', icon: Info }],
+    panels: rightPanels(labels),
     content: { about },
   })
 
@@ -172,9 +175,32 @@ export function mount(
   viewer.element.prepend(tools)
   viewer.element.append(status)
 
+  /** Writes the words this file supplies itself; a change of language writes them again. */
+  function showLabels(words: ScenarioLabels): void {
+    for (const [g, label] of groups) g.setAttribute('aria-label', label(words))
+    status.setAttribute('aria-label', words.pageAndZoom)
+    openButton.setAttribute('aria-label', words.openPdf)
+    openButton.title = words.openPdf
+    openText.data = words.open
+    layoutText.data = words.layout
+    options.rail.text = words.rail
+    options.tabs.text = words.tabs
+    options.stack.text = words.stack
+    aboutFill.textContent = words.aboutFill
+    aboutRecords.textContent = words.aboutRecords
+    left.controller.update({ panels: leftPanels(words) })
+    right.controller.update({ panels: rightPanels(words) })
+  }
+  showLabels(labels)
+
   return {
     open: (next: DocumentSource) => viewer.open(next),
-    setLanguage(m: InkMessagesInput | undefined, l: string | undefined) {
+    setLanguage(
+      m: InkMessagesInput | undefined,
+      l: string | undefined,
+      words: ScenarioLabels
+    ) {
+      showLabels(words)
       viewer.setMessages(m)
       viewer.setLocale(l)
     },

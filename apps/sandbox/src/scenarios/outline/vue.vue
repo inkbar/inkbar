@@ -42,7 +42,7 @@ import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, ViewerAction } from '@inkbar/core'
 import type { SidebarOpen } from '@inkbar/core/dom'
 
-const { source, messages, locale, log, onDocument, openFile } =
+const { source, messages, locale, labels, log, onDocument, openFile } =
   defineProps<ScenarioProps>()
 
 // The panel the left sidebar starts on.
@@ -71,18 +71,22 @@ function onAction(action: ViewerAction): void {
     @action="onAction"
   >
     <InkToolbar class="scenario-toolbar">
-      <div class="scenario-group" role="group" aria-label="Tools">
+      <div class="scenario-group" role="group" :aria-label="labels.tools">
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
       </div>
-      <div class="scenario-group" role="group" aria-label="History">
+      <div class="scenario-group" role="group" :aria-label="labels.history">
         <InkBack />
         <InkForward />
       </div>
-      <div class="scenario-group scenario-file" role="group" aria-label="File">
-        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+      <div class="scenario-group scenario-file" role="group" :aria-label="labels.file">
+        <InkToolbarButton
+          :aria-label="labels.openPdf"
+          :title="labels.openPdf"
+          @click="openFile"
+        >
           <InkIcon :icon="FileUp" />
-          Open
+          {{ labels.open }}
         </InkToolbarButton>
         <InkDownloadButton />
         <InkPrintButton />
@@ -90,26 +94,26 @@ function onAction(action: ViewerAction): void {
     </InkToolbar>
     <div class="scenario-body">
       <InkSidebar v-model:open="openPanel" name="outline" side="left">
-        <InkPanel id="outline" label="Outline" :icon="List">
+        <InkPanel id="outline" :label="labels.outline" :icon="List">
           <InkOutline />
         </InkPanel>
-        <InkPanel id="pages" label="Pages" :icon="Square">
+        <InkPanel id="pages" :label="labels.pages" :icon="Square">
           <InkThumbnails />
         </InkPanel>
-        <InkPanel id="search" label="Search" :icon="Search">
+        <InkPanel id="search" :label="labels.search" :icon="Search">
           <InkSearchResults />
         </InkPanel>
       </InkSidebar>
       <InkViewport />
     </div>
-    <InkToolbar label="Page and zoom" class="scenario-status-bar">
-      <div class="scenario-group" role="group" aria-label="Page">
+    <InkToolbar :label="labels.pageAndZoom" class="scenario-status-bar">
+      <div class="scenario-group" role="group" :aria-label="labels.page">
         <InkPrevPage />
         <InkPageInput />
         <InkPageCount />
         <InkNextPage />
       </div>
-      <div class="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+      <div class="scenario-group scenario-zoom" role="group" :aria-label="labels.zoom">
         <InkZoomOut />
         <InkZoomSelect />
         <InkZoomIn />

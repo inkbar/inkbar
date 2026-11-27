@@ -17,7 +17,10 @@
 
   import { acceptedFrom, type Suggestion } from '../../plugin/suggestions'
 
+  import type { ScenarioLabels } from '../../shared/strings/types'
   import type { SidebarOpen } from '@inkbar/core/dom'
+
+  let { labels }: { labels: ScenarioLabels } = $props()
 
   const suggestions = useRecords<Suggestion>('sandbox.suggestions')
   const annotations = useAnnotations()
@@ -48,23 +51,32 @@
 </script>
 
 <InkSidebar name="redactions-right" side="right" layout="rail" bind:open>
-  <InkPanel id="suggestions" label="Suggestions" icon={SquareDashed} badge={openCount}>
+  <InkPanel
+    id="suggestions"
+    label={labels.suggestions}
+    icon={SquareDashed}
+    badge={openCount}
+  >
     <InkRecordList records="sandbox.suggestions" />
   </InkPanel>
-  <InkPanel id="accepted" label="Accepted" icon={Check}>
+  <InkPanel id="accepted" label={labels.accepted} icon={Check}>
     <div class="accepted">
       {#if accepted.length > 0}
         <ul>
           {#each accepted as s (s.id)}
             <li>
-              <span class="accepted-reason">{s.reason}</span>
-              <span class="accepted-meta">{s.text}, page {s.page + 1}</span>
-              <button type="button" onclick={() => undoAccept(s)}>Undo accept</button>
+              <span class="accepted-reason">{labels.plugin.reasons[s.kind]}</span>
+              <span class="accepted-meta">
+                {labels.acceptedAt({ text: s.text, page: s.page + 1 })}
+              </span>
+              <button type="button" onclick={() => undoAccept(s)}
+                >{labels.undoAccept}</button
+              >
             </li>
           {/each}
         </ul>
       {:else}
-        <p class="accepted-empty">Nothing accepted yet.</p>
+        <p class="accepted-empty">{labels.nothingAccepted}</p>
       {/if}
     </div>
   </InkPanel>

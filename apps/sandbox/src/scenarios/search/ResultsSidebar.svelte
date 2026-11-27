@@ -6,12 +6,16 @@
    */
   import { InkSearchResults, useSearch } from '@inkbar/svelte'
 
+  import type { ScenarioLabels } from '../../shared/strings/types'
+
+  let { labels }: { labels: ScenarioLabels } = $props()
+
   const search = useSearch()
   const hasResults = $derived(search.state.hits.length > 0)
 </script>
 
 <!-- Hidden rather than removed, so the list keeps its scroll between searches. -->
 <aside class="results-aside" aria-labelledby="results-title" hidden={!hasResults}>
-  <h2 id="results-title" class="results-aside-title">Search results</h2>
+  <h2 id="results-title" class="results-aside-title">{labels.searchResults}</h2>
   <InkSearchResults field={false} />
 </aside>

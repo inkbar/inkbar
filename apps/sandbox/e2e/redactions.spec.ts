@@ -418,12 +418,14 @@ for (const framework of FRAMEWORK_ORDER) {
       await open(page, framework)
       await page.getByRole('tab', { name: 'Code' }).click()
       const files = page.getByRole('tablist', { name: 'Files' })
-      // Vue and Svelte add the right sidebar's component; Svelte also the command's log.
+      // The scenario, the plugin, its words and its styles. Vue and Svelte add the right
+      // sidebar's component; Svelte also the command's log.
       const extra = framework === 'svelte' ? 2 : framework === 'vue' ? 1 : 0
-      await expect(files.getByRole('tab')).toHaveCount(3 + extra)
+      await expect(files.getByRole('tab')).toHaveCount(4 + extra)
+      await expect(files.getByRole('tab', { name: 'suggestions-text.ts' })).toBeVisible()
       await files.getByRole('tab', { name: 'suggestions.ts' }).click()
       await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
-        "definePlugin<SuggestionsOptions>('sandbox'"
+        'definePlugin<SuggestionsOptions>('
       )
     })
   })

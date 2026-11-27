@@ -3,6 +3,7 @@
  * MAX_EVENTS, so a long session never slows the page.
  */
 import type { Log } from '../frameworks/types.ts'
+import type { ShellText } from '../shared/strings/types.ts'
 
 export const MAX_EVENTS = 200
 const MAX_PAYLOAD = 300
@@ -28,24 +29,43 @@ export function formatTime(date: Date): string {
     .join(':')
 }
 
+export interface EventLog {
+  log: Log
+  clear(): void
+  /** Shows the panel's own words in another language; the events stay as they are. */
+  setText(text: ShellText): void
+}
+
 /** Renders the panel into `el` and returns the log that writes to it. */
-export function createEventLog(el: HTMLElement): { log: Log; clear(): void } {
+export function createEventLog(el: HTMLElement, initial: ShellText): EventLog {
   el.innerHTML = `
 <div class="panel-head">
-  <h2 id="events-title">Events</h2>
-  <span class="event-count" data-event-count>0</span>
-  <button type="button" class="link-button" data-clear-events>Clear</button>
+  <h2 id="events-title" data-events-title></h2>
+  <span class="event-count" data-event-count aria-hidden="true">0</span>
+  <span class="visually-hidden" data-event-count-text></span>
+  <button type="button" class="link-button" data-clear-events></button>
 </div>
 <ol class="event-list" aria-live="polite" aria-labelledby="events-title" tabindex="0"></ol>
-<p class="panel-empty" data-events-empty>Use the viewer. Its callbacks show up here.</p>`
+<p class="panel-empty" data-events-empty></p>`
   const list = el.querySelector<HTMLOListElement>('ol')!
   const count = el.querySelector<HTMLElement>('[data-event-count]')!
+  const countText = el.querySelector<HTMLElement>('[data-event-count-text]')!
   const empty = el.querySelector<HTMLElement>('[data-events-empty]')!
+  let text = initial
 
   const sync = (): void => {
     const n = list.childElementCount
     count.textContent = String(n)
+    countText.textContent = text.eventCount({ count: n })
     empty.hidden = n > 0
+  }
+
+  const setText = (next: ShellText): void => {
+    text = next
+    el.querySelector('[data-events-title]')!.textContent = text.events
+    el.querySelector('[data-clear-events]')!.textContent = text.clear
+    empty.textContent = text.eventsEmpty
+    sync()
   }
 
   const log: Log = (name, value) => {
@@ -74,6 +94,6 @@ export function createEventLog(el: HTMLElement): { log: Log; clear(): void } {
     sync()
   }
   el.querySelector('[data-clear-events]')!.addEventListener('click', clear)
-  sync()
-  return { log, clear }
+  setText(initial)
+  return { log, clear, setText }
 }

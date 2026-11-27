@@ -36,7 +36,8 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, labels, log, onDocument, openFile }: ScenarioProps =
+    $props()
 
   const tools = [highlightTool(), noteTool()]
 
@@ -60,31 +61,35 @@
 >
   <InkToolbar class="scenario-toolbar">
     <InkHighlightMenu />
-    <div class="scenario-group" role="group" aria-label="Tools">
+    <div class="scenario-group" role="group" aria-label={labels.tools}>
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="note" />
     </div>
     <InkUndo />
     <InkRedo />
-    <div class="scenario-group scenario-file" role="group" aria-label="File">
-      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+    <div class="scenario-group scenario-file" role="group" aria-label={labels.file}>
+      <InkToolbarButton
+        aria-label={labels.openPdf}
+        title={labels.openPdf}
+        onclick={openFile}
+      >
         <InkIcon icon={FileUp} />
-        Open
+        {labels.open}
       </InkToolbarButton>
       <InkDownloadButton />
       <InkPrintButton />
     </div>
   </InkToolbar>
   <InkViewport />
-  <InkToolbar label="Page and zoom" class="scenario-status-bar">
-    <div class="scenario-group" role="group" aria-label="Page">
+  <InkToolbar label={labels.pageAndZoom} class="scenario-status-bar">
+    <div class="scenario-group" role="group" aria-label={labels.page}>
       <InkPrevPage />
       <InkPageInput />
       <InkPageCount />
       <InkNextPage />
     </div>
-    <div class="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+    <div class="scenario-group scenario-zoom" role="group" aria-label={labels.zoom}>
       <InkZoomOut />
       <InkZoomSelect />
       <InkZoomIn />

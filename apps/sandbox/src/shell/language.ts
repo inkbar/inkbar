@@ -1,3 +1,5 @@
+import { loadStrings, type SandboxStrings } from '../shared/strings/index.ts'
+
 import type { LangId } from './route.ts'
 import type { InkMessagesInput } from '@inkbar/core'
 
@@ -5,16 +7,26 @@ export interface Language {
   /** `undefined` is Inkbar's English. */
   messages: InkMessagesInput | undefined
   locale: string | undefined
+  /** The sandbox's own words. */
+  strings: SandboxStrings
 }
 
-/** Loads a language set on demand, so English never downloads French or German. */
-export async function loadLanguage(id: LangId): Promise<Language> {
+async function loadMessages(id: LangId): Promise<InkMessagesInput | undefined> {
   switch (id) {
     case 'fr':
-      return { messages: (await import('@inkbar/core/locales/fr')).fr, locale: 'fr' }
+      return (await import('@inkbar/core/locales/fr')).fr
     case 'de':
-      return { messages: (await import('@inkbar/core/locales/de')).de, locale: 'de' }
+      return (await import('@inkbar/core/locales/de')).de
     case 'en':
-      return { messages: undefined, locale: undefined }
+      return undefined
   }
+}
+
+/**
+ * Loads a language on demand, the viewer's words and the sandbox's together, so English never
+ * downloads French or German.
+ */
+export async function loadLanguage(id: LangId): Promise<Language> {
+  const [messages, strings] = await Promise.all([loadMessages(id), loadStrings(id)])
+  return { messages, locale: id === 'en' ? undefined : id, strings }
 }

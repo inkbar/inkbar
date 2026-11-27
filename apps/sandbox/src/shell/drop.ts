@@ -4,6 +4,7 @@
  * its own error. The latest file wins: a read that finishes after a newer one began, or after
  * `reset`, is dropped.
  */
+import type { ShellText } from '../shared/strings/types.ts'
 import type { DocumentSource } from '@inkbar/core'
 
 export interface DropOptions {
@@ -14,6 +15,8 @@ export interface DropOptions {
   status: HTMLElement
   /** Returns whether a viewer took the source; false when no viewer can. */
   open(this: void, source: DocumentSource): boolean
+  /** The words for the status, in the current language. */
+  text(this: void): ShellText
 }
 
 export interface DropHandle {
@@ -21,6 +24,8 @@ export interface DropHandle {
   noViewer(): void
   /** Forgets any read still under way and clears the status. */
   reset(): void
+  /** Writes the status again in the current language. */
+  refresh(): void
 }
 
 const isPdf = (file: File): boolean =>
@@ -43,22 +48,34 @@ function guardWindow(): void {
   })
 }
 
-export function handleDrops({ target, input, status, open }: DropOptions): DropHandle {
+export function handleDrops({
+  target,
+  input,
+  status,
+  open,
+  text,
+}: DropOptions): DropHandle {
   let latest = 0
   /** The name of the file a viewer last took, for `noViewer`. */
   let opened: string | null = null
+  /** The status shown, kept as words to write again when the language changes. */
+  let shown: ((t: ShellText) => string) | null = null
+  const say = (message: ((t: ShellText) => string) | null): void => {
+    shown = message
+    status.textContent = message ? message(text()) : ''
+  }
 
   async function read(file: File): Promise<void> {
     const request = ++latest
     if (!isPdf(file)) {
-      status.textContent = `${file.name} is not a PDF.`
+      say((t) => t.notPdf({ name: file.name }))
       return
     }
     let data: Uint8Array
     try {
       data = new Uint8Array(await file.arrayBuffer())
     } catch {
-      if (request === latest) status.textContent = `${file.name} could not be read.`
+      if (request === latest) say((t) => t.unreadable({ name: file.name }))
       return
     }
     if (request !== latest) return
@@ -67,9 +84,7 @@ export function handleDrops({ target, input, status, open }: DropOptions): DropH
       key: `file:${file.name}:${file.size}:${file.lastModified}`,
     })
     opened = taken ? file.name : null
-    status.textContent = taken
-      ? `Opened ${file.name}.`
-      : `There is no viewer to open ${file.name} in.`
+    say((t) => (taken ? t.opened({ name: file.name }) : t.noViewer({ name: file.name })))
   }
 
   guardWindow()
@@ -98,12 +113,16 @@ export function handleDrops({ target, input, status, open }: DropOptions): DropH
 
   return {
     noViewer() {
-      if (opened) status.textContent = `There is no viewer to open ${opened} in.`
+      const name = opened
+      if (name) say((t) => t.noViewer({ name }))
     },
     reset() {
       latest++
       opened = null
-      status.textContent = ''
+      say(null)
+    },
+    refresh() {
+      say(shown)
     },
   }
 }

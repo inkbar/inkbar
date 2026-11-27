@@ -50,32 +50,38 @@ import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { DocumentSource, InkMessagesInput } from '@inkbar/core'
-
-function group(
-  label: string,
-  className: string,
-  ...controls: HTMLElement[]
-): HTMLElement {
-  const g = document.createElement('div')
-  g.className = className
-  g.setAttribute('role', 'group')
-  g.setAttribute('aria-label', label)
-  g.append(...controls)
-  return g
-}
 
 export function mount(
   el: HTMLElement,
-  { source, messages, locale, log, onDocument, openFile }: ScenarioProps
+  { source, messages, locale, labels, log, onDocument, openFile }: ScenarioProps
 ) {
+  /** The groups this file names itself, each with its name in a set of labels. */
+  const groups: [HTMLElement, (words: ScenarioLabels) => string][] = []
+  function group(
+    label: (words: ScenarioLabels) => string,
+    className: string,
+    ...controls: HTMLElement[]
+  ): HTMLElement {
+    const g = document.createElement('div')
+    g.className = className
+    g.setAttribute('role', 'group')
+    g.append(...controls)
+    groups.push([g, label])
+    return g
+  }
+
+  /** The words this file supplies itself, and the plugin's; a change of language replaces them. */
+  let current = labels
   const viewer = createViewer(el, {
     source,
     ...(messages ? { messages } : {}),
     ...(locale ? { locale } : {}),
     assets,
     tools: allTools(),
-    plugins: [suggestionsPlugin()],
+    // The plugin reads its words when it shows them, so they follow the language.
+    plugins: [suggestionsPlugin({ text: () => current.plugin })],
     storage,
     signatureFonts,
     onReady: (doc) => {
@@ -98,7 +104,7 @@ export function mount(
   tools.append(
     createHighlightMenu(viewer),
     group(
-      'Tools',
+      (w) => w.tools,
       'scenario-group',
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
@@ -113,7 +119,7 @@ export function mount(
     ),
     createToolbarSeparator(),
     group(
-      'Style',
+      (w) => w.style,
       'scenario-group',
       createLineStyleMenu(viewer),
       createColorMenu(viewer, { property: 'border' }),
@@ -122,14 +128,18 @@ export function mount(
     ),
     createUndo(viewer),
     createRedo(viewer),
-    group('Suggest', 'scenario-actions', createCommandButton(viewer, 'sandbox.suggest'))
+    group(
+      (w) => w.suggest,
+      'scenario-actions',
+      createCommandButton(viewer, 'sandbox.suggest')
+    )
   )
 
-  const status = createToolbar({ label: 'Page and zoom' })
+  const status = createToolbar({ label: labels.pageAndZoom })
   status.classList.add('scenario-status-bar')
   status.append(
     group(
-      'Page',
+      (w) => w.page,
       'scenario-group',
       createPrevPage(viewer),
       createPageInput(viewer),
@@ -137,7 +147,7 @@ export function mount(
       createNextPage(viewer)
     ),
     group(
-      'Zoom',
+      (w) => w.zoom,
       'scenario-group scenario-zoom',
       createZoomOut(viewer),
       createZoomSelect(viewer),
@@ -148,13 +158,12 @@ export function mount(
   // Your own button joins the toolbar like the built-in ones: arrow keys reach it.
   const openButton = document.createElement('button')
   openButton.type = 'button'
-  openButton.setAttribute('aria-label', 'Open a PDF')
-  openButton.title = 'Open a PDF'
-  openButton.append(createIcon(FileUp), 'Open')
+  const openText = document.createTextNode('')
+  openButton.append(createIcon(FileUp), openText)
   openButton.addEventListener('click', openFile)
   tools.append(
     group(
-      'File',
+      (w) => w.file,
       'scenario-group scenario-file',
       openButton,
       createDownloadButton(viewer),
@@ -162,6 +171,9 @@ export function mount(
     )
   )
 
+  const leftPanels = (words: ScenarioLabels): SidebarPanelInfo[] => [
+    { id: 'pages', label: words.pages, icon: Square },
+  ]
   // Thumbnails of the pages, in a sidebar on the left. It starts closed, leaving the pages the
   // room.
   const left = createSidebar({
@@ -169,7 +181,7 @@ export function mount(
     name: 'redactions-left',
     side: 'left',
     layout: 'rail',
-    panels: [{ id: 'pages', label: 'Pages', icon: Square }],
+    panels: leftPanels(labels),
     open: null,
     content: { pages: createThumbnails(viewer) },
     onOpenChange: (open) => left.controller.update({ open }),
@@ -179,8 +191,8 @@ export function mount(
   // accepted so far. Closed until Suggest has something to show.
   const suggestions = viewer.records<Suggestion>('sandbox.suggestions')
   const panels = (open: number): SidebarPanelInfo[] => [
-    { id: 'suggestions', label: 'Suggestions', icon: SquareDashed, badge: open },
-    { id: 'accepted', label: 'Accepted', icon: Check },
+    { id: 'suggestions', label: current.suggestions, icon: SquareDashed, badge: open },
+    { id: 'accepted', label: current.accepted, icon: Check },
   ]
   const accepted = document.createElement('div')
   accepted.className = 'accepted'
@@ -215,13 +227,13 @@ export function mount(
         const li = document.createElement('li')
         const reason = document.createElement('span')
         reason.className = 'accepted-reason'
-        reason.textContent = s.reason
+        reason.textContent = current.plugin.reasons[s.kind]
         const meta = document.createElement('span')
         meta.className = 'accepted-meta'
-        meta.textContent = `${s.text}, page ${s.page + 1}`
+        meta.textContent = current.acceptedAt({ text: s.text, page: s.page + 1 })
         const undo = document.createElement('button')
         undo.type = 'button'
-        undo.textContent = 'Undo accept'
+        undo.textContent = current.undoAccept
         undo.addEventListener('click', () => undoAccept(s))
         li.append(reason, meta, undo)
         return li
@@ -229,7 +241,7 @@ export function mount(
     if (items.length === 0) {
       const empty = document.createElement('p')
       empty.className = 'accepted-empty'
-      empty.textContent = 'Nothing accepted yet.'
+      empty.textContent = current.nothingAccepted
       accepted.replaceChildren(empty)
     } else {
       const ul = document.createElement('ul')
@@ -238,12 +250,13 @@ export function mount(
     }
   }
 
-  const unfollowRecords = suggestions.list.subscribe((list) => {
+  const showSuggestions = (list: readonly Suggestion[]): void => {
     right.controller.update({
       panels: panels(list.filter((s) => s.status === 'suggested').length),
     })
     showAccepted(list)
-  })
+  }
+  const unfollowRecords = suggestions.list.subscribe(showSuggestions)
 
   // Suggest opens the Suggestions panel when it finishes.
   let wasBusy = false
@@ -263,9 +276,27 @@ export function mount(
   viewer.element.prepend(tools)
   viewer.element.append(status)
 
+  /** Writes the words this file supplies itself; a change of language writes them again. */
+  function showLabels(words: ScenarioLabels): void {
+    current = words
+    for (const [g, label] of groups) g.setAttribute('aria-label', label(words))
+    status.setAttribute('aria-label', words.pageAndZoom)
+    openButton.setAttribute('aria-label', words.openPdf)
+    openButton.title = words.openPdf
+    openText.data = words.open
+    left.controller.update({ panels: leftPanels(words) })
+    showSuggestions(suggestions.list.get())
+  }
+  showLabels(labels)
+
   return {
     open: (next: DocumentSource) => viewer.open(next),
-    setLanguage(m: InkMessagesInput | undefined, l: string | undefined) {
+    setLanguage(
+      m: InkMessagesInput | undefined,
+      l: string | undefined,
+      words: ScenarioLabels
+    ) {
+      showLabels(words)
       viewer.setMessages(m)
       viewer.setLocale(l)
     },

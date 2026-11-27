@@ -97,6 +97,7 @@ void test('only forms has a values panel', () => {
   }
   assert.deepEqual(SCENARIOS.find((s) => s.id === 'redactions')?.extraFiles, [
     'src/plugin/suggestions.ts',
+    'src/plugin/suggestions-text.ts',
     'src/plugin/suggestions.css',
   ])
 })

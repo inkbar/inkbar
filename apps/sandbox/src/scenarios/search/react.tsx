@@ -34,19 +34,20 @@ import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
+import type { ScenarioLabels } from '../../shared/strings/types'
 import type { InkDocument } from '@inkbar/core'
 
 /**
  * Every hit, in a panel right of the pages; the find bar is the query field. Your code decides
  * when it shows: here, while the search has hits. It sits inside InkRoot to reach search.
  */
-function ResultsSidebar() {
+function ResultsSidebar({ labels }: { labels: ScenarioLabels }) {
   const hasResults = useSearch().state.hits.length > 0
   // Hidden rather than removed, so the list keeps its scroll between searches.
   return (
     <aside className="results-aside" aria-labelledby="results-title" hidden={!hasResults}>
       <h2 id="results-title" className="results-aside-title">
-        Search results
+        {labels.searchResults}
       </h2>
       <InkSearchResults field={false} />
     </aside>
@@ -70,6 +71,7 @@ export default function SearchLongDocument({
   source,
   messages,
   locale,
+  labels,
   log,
   onDocument,
   openFile,
@@ -90,15 +92,23 @@ export default function SearchLongDocument({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <div className="scenario-group" role="group" aria-label="Tools">
+        <div className="scenario-group" role="group" aria-label={labels.tools}>
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
         </div>
         <InkSearchButton />
-        <div className="scenario-group scenario-file" role="group" aria-label="File">
-          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+        <div
+          className="scenario-group scenario-file"
+          role="group"
+          aria-label={labels.file}
+        >
+          <InkToolbarButton
+            aria-label={labels.openPdf}
+            title={labels.openPdf}
+            onClick={openFile}
+          >
             <InkIcon icon={FileUp} />
-            Open
+            {labels.open}
           </InkToolbarButton>
           <InkDownloadButton />
           <InkPrintButton />
@@ -106,17 +116,21 @@ export default function SearchLongDocument({
       </InkToolbar>
       <div className="scenario-body">
         <InkViewport />
-        <ResultsSidebar />
+        <ResultsSidebar labels={labels} />
       </div>
       <InkFindBar />
-      <InkToolbar label="Page and zoom" className="scenario-status-bar">
-        <div className="scenario-group" role="group" aria-label="Page">
+      <InkToolbar label={labels.pageAndZoom} className="scenario-status-bar">
+        <div className="scenario-group" role="group" aria-label={labels.page}>
           <InkPrevPage />
           <InkPageInput />
           <InkPageCount />
           <InkNextPage />
         </div>
-        <div className="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <div
+          className="scenario-group scenario-zoom"
+          role="group"
+          aria-label={labels.zoom}
+        >
           <InkZoomOut />
           <InkZoomSelect />
           <InkZoomIn />

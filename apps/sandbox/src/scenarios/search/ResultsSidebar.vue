@@ -6,6 +6,10 @@
 import { InkSearchResults, useSearch } from '@inkbar/vue'
 import { computed } from 'vue'
 
+import type { ScenarioLabels } from '../../shared/strings/types'
+
+const { labels } = defineProps<{ labels: ScenarioLabels }>()
+
 const { state } = useSearch()
 const hasResults = computed(() => state.value.hits.length > 0)
 </script>
@@ -13,7 +17,7 @@ const hasResults = computed(() => state.value.hits.length > 0)
 <template>
   <!-- Hidden rather than removed, so the list keeps its scroll between searches. -->
   <aside class="results-aside" aria-labelledby="results-title" :hidden="!hasResults">
-    <h2 id="results-title" class="results-aside-title">Search results</h2>
+    <h2 id="results-title" class="results-aside-title">{{ labels.searchResults }}</h2>
     <InkSearchResults :field="false" />
   </aside>
 </template>

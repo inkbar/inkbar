@@ -9,7 +9,8 @@ import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
 const guard = guardConsole(test)
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
-const languageSelect = (page: Page) => page.getByRole('combobox', { name: 'Language' })
+/** The language select. Its label follows the language, so it is found by its id. */
+const languageSelect = (page: Page) => page.locator('#language-select')
 
 /** The French set's chunk in the build. */
 const FR_CHUNK = /\/assets\/fr-[\w-]+\.js$/

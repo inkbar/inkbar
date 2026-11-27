@@ -40,6 +40,7 @@ export default function Sidebars({
   source,
   messages,
   locale,
+  labels,
   log,
   onDocument,
   openFile,
@@ -62,26 +63,34 @@ export default function Sidebars({
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
-        <div className="scenario-group" role="group" aria-label="Tools">
+        <div className="scenario-group" role="group" aria-label={labels.tools}>
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
         </div>
         <label className="scenario-layout">
-          Layout
+          {labels.layout}
           <select
             className="ink-select"
             value={layout}
             onChange={(e) => setLayout(e.target.value as SidebarLayout)}
           >
-            <option value="rail">Rail</option>
-            <option value="tabs">Tabs</option>
-            <option value="stack">Stack</option>
+            <option value="rail">{labels.rail}</option>
+            <option value="tabs">{labels.tabs}</option>
+            <option value="stack">{labels.stack}</option>
           </select>
         </label>
-        <div className="scenario-group scenario-file" role="group" aria-label="File">
-          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+        <div
+          className="scenario-group scenario-file"
+          role="group"
+          aria-label={labels.file}
+        >
+          <InkToolbarButton
+            aria-label={labels.openPdf}
+            title={labels.openPdf}
+            onClick={openFile}
+          >
             <InkIcon icon={FileUp} />
-            Open
+            {labels.open}
           </InkToolbarButton>
           <InkDownloadButton />
           <InkPrintButton />
@@ -89,37 +98,35 @@ export default function Sidebars({
       </InkToolbar>
       <div className="scenario-body">
         <InkSidebar name="sidebars-left" side="left" layout={layout}>
-          <InkPanel id="pages" label="Pages" icon={Square}>
+          <InkPanel id="pages" label={labels.pages} icon={Square}>
             <InkThumbnails />
           </InkPanel>
-          <InkPanel id="search" label="Search" icon={Search}>
+          <InkPanel id="search" label={labels.search} icon={Search}>
             <InkSearchResults />
           </InkPanel>
         </InkSidebar>
         <InkViewport />
         <InkSidebar name="sidebars-right" side="right" layout={layout}>
-          <InkPanel id="about" label="About" icon={Info}>
+          <InkPanel id="about" label={labels.about} icon={Info}>
             <div className="sidebar-about">
-              <p>
-                Fill a sidebar with whatever you need: page thumbnails, search results or
-                components of your own.
-              </p>
-              <p>
-                Panels can read and write plugin records, so a list here shows the same
-                data a plugin marks on the page.
-              </p>
+              <p>{labels.aboutFill}</p>
+              <p>{labels.aboutRecords}</p>
             </div>
           </InkPanel>
         </InkSidebar>
       </div>
-      <InkToolbar label="Page and zoom" className="scenario-status-bar">
-        <div className="scenario-group" role="group" aria-label="Page">
+      <InkToolbar label={labels.pageAndZoom} className="scenario-status-bar">
+        <div className="scenario-group" role="group" aria-label={labels.page}>
           <InkPrevPage />
           <InkPageInput />
           <InkPageCount />
           <InkNextPage />
         </div>
-        <div className="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <div
+          className="scenario-group scenario-zoom"
+          role="group"
+          aria-label={labels.zoom}
+        >
           <InkZoomOut />
           <InkZoomSelect />
           <InkZoomIn />

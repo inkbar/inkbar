@@ -38,7 +38,7 @@ import ResultsSidebar from './ResultsSidebar.vue'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, messages, locale, log, onDocument, openFile } =
+const { source, messages, locale, labels, log, onDocument, openFile } =
   defineProps<ScenarioProps>()
 
 /**
@@ -79,15 +79,19 @@ function onReady(doc: InkDocument): void {
     @ready="onReady"
   >
     <InkToolbar class="scenario-toolbar">
-      <div class="scenario-group" role="group" aria-label="Tools">
+      <div class="scenario-group" role="group" :aria-label="labels.tools">
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
       </div>
       <InkSearchButton />
-      <div class="scenario-group scenario-file" role="group" aria-label="File">
-        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+      <div class="scenario-group scenario-file" role="group" :aria-label="labels.file">
+        <InkToolbarButton
+          :aria-label="labels.openPdf"
+          :title="labels.openPdf"
+          @click="openFile"
+        >
           <InkIcon :icon="FileUp" />
-          Open
+          {{ labels.open }}
         </InkToolbarButton>
         <InkDownloadButton />
         <InkPrintButton />
@@ -95,17 +99,17 @@ function onReady(doc: InkDocument): void {
     </InkToolbar>
     <div class="scenario-body">
       <InkViewport />
-      <ResultsSidebar />
+      <ResultsSidebar :labels="labels" />
     </div>
     <InkFindBar />
-    <InkToolbar label="Page and zoom" class="scenario-status-bar">
-      <div class="scenario-group" role="group" aria-label="Page">
+    <InkToolbar :label="labels.pageAndZoom" class="scenario-status-bar">
+      <div class="scenario-group" role="group" :aria-label="labels.page">
         <InkPrevPage />
         <InkPageInput />
         <InkPageCount />
         <InkNextPage />
       </div>
-      <div class="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+      <div class="scenario-group scenario-zoom" role="group" :aria-label="labels.zoom">
         <InkZoomOut />
         <InkZoomSelect />
         <InkZoomIn />
