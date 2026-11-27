@@ -75,4 +75,19 @@ describe('the stop count', () => {
     expect(count.found(undefined, true, 'g')).toEqual({ kind: 'go-on' })
     expect(count.found(undefined, true, 'h')).toEqual({ kind: 'stop' })
   })
+
+  it("takes back a page's stop when no engine starts to replace the one it dropped", () => {
+    const { count } = counted()
+    count.found(3, true, 'a')
+    count.notReplaced()
+    // Page 3 has no stop left: its next stop does not block it.
+    expect(count.found(3, true, 'b')).toEqual({ kind: 'go-on' })
+    count.replaced()
+    count.notReplaced()
+    // The stop stood once an engine started: this one blocks.
+    expect(count.found(3, false, 'c')).toMatchObject({ kind: 'blocked' })
+    // A block is never taken back.
+    count.notReplaced()
+    expect(count.blocked(3)).toBeDefined()
+  })
 })

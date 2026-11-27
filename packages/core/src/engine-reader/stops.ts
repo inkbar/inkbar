@@ -38,6 +38,15 @@ export interface StopCount {
    * which is not counted, so the same pages cannot stop the document again and again.
    */
   forgetCounted(): void
+  /** An engine started to replace a stopped one: the stop that dropped the last one stands. */
+  replaced(): void
+  /**
+   * An engine started to replace a stopped one could not start. The page whose call found the
+   * stop that dropped the last engine loses that stop, unless it blocked the page: an engine
+   * that cannot start points at the engine, not the page, and a page's stops last until the file
+   * is opened again.
+   */
+  notReplaced(): void
 }
 
 /** @internal `now` gives the time in milliseconds; tests pass their own. */
@@ -46,9 +55,12 @@ export function createStopCount(now: () => number = Date.now): StopCount {
   const blocks = new Map<number, InkError>()
   /** When each counted stop was found, the earliest first. */
   let times: number[] = []
+  /** The page charged with the last stop, until an engine starts to replace the one it dropped. */
+  let unproven: number | undefined
 
   return {
     found(page, counts, cause) {
+      unproven = undefined
       if (page !== undefined) {
         const stops = (pageStops.get(page) ?? 0) + 1
         pageStops.set(page, stops)
@@ -62,6 +74,7 @@ export function createStopCount(now: () => number = Date.now): StopCount {
           blocks.set(page, error)
           return { kind: 'blocked', error }
         }
+        unproven = page
       }
       if (!counts) return { kind: 'go-on' }
       const at = now()
@@ -72,6 +85,17 @@ export function createStopCount(now: () => number = Date.now): StopCount {
     blocked: (page) => blocks.get(page),
     forgetCounted() {
       times = []
+      unproven = undefined
+    },
+    replaced() {
+      unproven = undefined
+    },
+    notReplaced() {
+      if (unproven === undefined) return
+      const stops = (pageStops.get(unproven) ?? 1) - 1
+      if (stops > 0) pageStops.set(unproven, stops)
+      else pageStops.delete(unproven)
+      unproven = undefined
     },
   }
 }

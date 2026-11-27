@@ -3039,6 +3039,63 @@ describe('the stopped state', () => {
       expect(seen).toEqual([false, true])
     })
 
+    /**
+     * A file whose page 2 stops the engine as often as `stopsLeft` says. `stopUnderPage` has page
+     * 2's read stop the engine once while the engine to replace it cannot start, so the document
+     * stops, and then restarts it.
+     */
+    const startFails = async () => {
+      let stopsLeft = 0
+      const t = setup({
+        pageCount: 4,
+        pageText: (index) => {
+          if (index !== 2 || stopsLeft === 0) return Promise.resolve(hiText())
+          stopsLeft--
+          return Promise.reject(engineError('engine-failure'))
+        },
+      })
+      const reader = await t.open()
+      await reader.pageInfo(0)
+      return {
+        t,
+        reader,
+        stops: (n: number) => {
+          stopsLeft = n
+        },
+        stopUnderPage: async () => {
+          stopsLeft = 1
+          t.createEngine.mockRejectedValueOnce(new Error('no wasm'))
+          await expect(read(reader, 2)).rejects.toMatchObject(unavailable)
+          expect(reader.engineStopped.get()).toBe(true)
+          await reader.restart()
+          expect(reader.engineStopped.get()).toBe(false)
+        },
+      }
+    }
+
+    it('counts no stop against a page when the engine to replace the one it stopped cannot start', async () => {
+      const { t, reader, stops, stopUnderPage } = await startFails()
+      await stopUnderPage()
+      // Two stops of its own are needed to block page 2: the first is retried on a new engine,
+      // which the second stops.
+      const started = t.createEngine.mock.calls.length
+      stops(2)
+      await expect(read(reader, 2)).rejects.toMatchObject({
+        ...unavailable,
+        details: { page: 2 },
+      })
+      expect(t.createEngine).toHaveBeenCalledTimes(started + 1)
+      expect(t.engines.at(-1)!.doc.pageText).toHaveBeenCalledTimes(1)
+      expect(reader.engineStopped.get()).toBe(false)
+    })
+
+    it('leaves a page unblocked after two such stops, with a restart between', async () => {
+      const { reader, stopUnderPage } = await startFails()
+      await stopUnderPage()
+      await stopUnderPage()
+      await expect(read(reader, 2)).resolves.toMatchObject({ page: 2 })
+    })
+
     it('makes one engine for two calls at once', async () => {
       const { t, reader } = await stoppedReader()
       const engines = t.createEngine.mock.calls.length
