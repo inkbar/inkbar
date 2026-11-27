@@ -74,11 +74,11 @@ describe('how the worker is started', () => {
 })
 
 describe('the hint for a worker on another origin', () => {
-  test('names its origin in worker-src, with blob:, and in connect-src', () => {
+  test('names its origin in worker-src, with blob:, and the binary and fonts for connect-src', () => {
     const hint = crossOriginHint('https://cdn.example.com/app/worker.mjs')
     expect(hint).toContain('(https://cdn.example.com)')
     expect(hint).toContain('CORS')
     expect(hint).toContain('blob: and https://cdn.example.com in worker-src')
-    expect(hint).toContain('https://cdn.example.com in connect-src')
+    expect(hint).toContain("the origins of the engine's binary and fonts in connect-src")
   })
 })

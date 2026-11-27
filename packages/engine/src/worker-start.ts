@@ -42,7 +42,7 @@ export function workerStart(
 /**
  * What a worker script at `href`, on another origin than the page, needs, said when its worker
  * fails to start: the worker runs under the page's policy, which checks its import of the script
- * against `worker-src` and the engine's fetches against `connect-src`.
+ * against `worker-src`, and the fetches of the engine's binary and fonts against `connect-src`.
  */
 export function crossOriginHint(href: string): string {
   const { origin } = new URL(href)
@@ -50,6 +50,6 @@ export function crossOriginHint(href: string): string {
     `The worker script is on another origin than the page (${origin}), so it is started from ` +
     'a blob: module that imports it: that origin must send CORS headers for it ' +
     '(Access-Control-Allow-Origin), and a content security policy must allow blob: and ' +
-    `${origin} in worker-src, and ${origin} in connect-src.`
+    `${origin} in worker-src, and the origins of the engine's binary and fonts in connect-src.`
   )
 }
