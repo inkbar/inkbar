@@ -20,13 +20,13 @@
 
 ---
 
-`@inkbar/core` opens PDFs, renders pages with PDF.js and keeps annotations as typed data. The Vue, React and Svelte packages build on it. You can also use it on its own: `createViewer` puts a complete viewer, with a comment thread popover and controls to build your toolbars from, into any element in a plain TypeScript app.
+`@inkbar/core` opens PDFs, renders pages with [`@inkbar/engine`](https://github.com/inkbar/inkbar/tree/main/packages/engine), PDFium compiled to WebAssembly, and keeps annotations as typed data. The Vue, React and Svelte packages build on it. You can also use it on its own: `createViewer` puts a complete viewer, with a comment thread popover and controls to build your toolbars from, into any element in a plain TypeScript app.
 
 Every coordinate is stored in PDF user space (points, origin bottom-left, before `/Rotate`), so annotations stay put whatever the zoom, rotation or screen.
 
 - `@inkbar/core` holds the document model and annotation store. It is safe to import during server rendering.
 - `@inkbar/core/dom` renders pages, text layers and annotation layers into the DOM.
-- `@inkbar/core/vite` is a Vite plugin that serves the PDF.js assets.
+- `@inkbar/core/vite` is a Vite plugin that serves Inkbar's files: the engine, the fallback fonts and the form script sandbox.
 
 ## Install
 
@@ -53,7 +53,7 @@ A document that fails to open still resolves: `doc.status` turns to `{ state: 'e
 
 `exportAnnotations('json')` returns a [Gloss](https://gloss-format.org) document, an open JSON format for PDF annotations, and `importAnnotations` reads one. Gloss has no loupe, mask, pen pressure or free-text border colour, so Inkbar writes them under `custom.inkbar`. It writes a loupe as a circle and a mask as a circle or square, so other Gloss readers can still draw them. Inkbar leaves your own keys under `custom` as they are. In the store and the API, loupes, masks, `pressure` and `borderColor` keep their plain names.
 
-`doc.save()` writes the annotations and changed form values into the PDF when you pass the `engine` option; [Saving into the PDF](#saving-into-the-pdf) explains it. To keep annotations outside the file instead, store `exportAnnotations('json')` and import it on the next open. `doc.key` stays the same between opens only when you open with a key: a URL string, `{ url, key }` or `{ data, key }`. A `File`, `Blob` or raw bytes get a new random key each time.
+`doc.save()` writes the annotations and changed form values into the PDF; [Saving into the PDF](#saving-into-the-pdf) explains it. To keep annotations outside the file instead, store `exportAnnotations('json')` and import it on the next open. `doc.key` stays the same between opens only when you open with a key: a URL string, `{ url, key }` or `{ data, key }`. A `File`, `Blob` or raw bytes get a new random key each time.
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use [`@inkbar/vue`](https://github.com/inkbar/inkbar/tree/main/packages/vue), React hosts [`@inkbar/react`](https://github.com/inkbar/inkbar/tree/main/packages/react), Svelte hosts [`@inkbar/svelte`](https://github.com/inkbar/inkbar/tree/main/packages/svelte). Below `mountViewer` sit `createViewport`, `createPageRenderer`, `createTextLayer`, `createOverlay` and `createPageMount`, for a host that wires its own.
 
@@ -113,11 +113,11 @@ viewer.open(lockedFile, { password }) // this password applies to this load only
 viewer.destroy()
 ```
 
-It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `source` and `assets` (both required), `password`, `passwordPrompt`, `defaults`, `history`, `annotations`, `fields`, `onReady` and `onError`. Pass `annotations: { mode: 'controlled', initial, onChange }` to own the session annotation list: `onChange` hears each proposed list, and you push it back with `viewer.document.get()?.annotations.setControlledValue(next)`. `initial` applies to every document the viewer opens, so a host that keeps its own list pushes it with `setControlledValue` in `onReady` for each new document. Undo and redo are inert in controlled mode. Set `threads` to `false` to leave out the thread popover. `viewer.status`, `viewer.document`, `viewer.engine` (the viewer engine, as `mountViewer` returns it), `viewer.viewport` and `viewer.tools` are readables; the last two change when the viewer engine rebuilds. `viewer.activated` is a readable too: the id of the annotation the user last clicked or activated with Enter, or `null`. `viewer.setActivated(id)` activates one from your code without calling `onActivate`; it ignores an id the document doesn't have, and `setActivated(null)` clears it. A password you pass to `open` replaces the `createViewer` one for that load. `viewer.download({ filename })` and `viewer.print()` download and print the open PDF, and Ctrl or Cmd+S and +P inside the root do the same; they do nothing while no document is open. The download is named by `doc.fileName`: the opened `File`'s name, else the URL's last segment, else `document.pdf`. Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` option both hand over the file with this session's changes written into it, and without it the file as it was opened; [Saving into the PDF](#saving-into-the-pdf) has the details. For a host of your own, `downloadDocument(doc, opts)`, `printDocument(doc, { messages })` and `attachFileKeys(el, () => doc, { onError, messages })` do the same for any document. `messages` gives the words a print shows on iOS while the copy is written, English by default; `attachFileKeys` takes a function that returns them, so it reads the current language at each key. `onError` hears a download or print started by a key that fails. `fileBusy(doc)` is a readable that is true while a copy is being written, and `fileActionFailure(error, messages)` gives the words to show for a failed one. The controls are `createToolButton`, `createUndo`, `createRedo`, `createDownloadButton`, `createPrintButton`, `createApplyRedactionsButton` (see [Applying redactions](#applying-redactions)), `createZoomIn`, `createZoomOut`, `createZoomSelect`, `createPageInput`, `createPageCount`, `createPrevPage`, `createNextPage` and `createCommandButton`. `createHighlightMenu`, `createShapeMenu` and `createSignatureMenu` are split buttons for those tools, and `createColorMenu`, `createLineStyleMenu` and `createTextStyleMenu` edit the selection's style, or the active tool's when nothing is selected. Each one disables itself while no document is ready and lives as long as its viewer. Buttons show an icon from [`@inkbar/icons`](https://github.com/inkbar/inkbar/tree/main/packages/icons). Replace their children with your own icon and the accessible name stays; `createIcon` draws any `@inkbar/icons` icon for your own buttons. For a tool the viewer doesn't have, `createToolButton` and the highlight, shape and signature menus log `InkError('UnknownTool')`. The button renders disabled and the menus render nothing. `createToolbar` gives one Tab stop to all its buttons, with arrow keys between them, and `createToolbarSeparator` divides groups of controls in it. `createCommandButton(viewer, id)` places a plugin command: a `div.ink-command` holding a button named by the command's label (disabled with the command; while it runs, it keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing) and a `span.ink-command-status[role="status"]` with its status text; for an id no plugin registered it logs an `InkError('UnknownCommand')` to the console, naming the id and the ones that are registered, and returns the same markup disabled and hidden (`aria-hidden`, no label). Pass `plugins: [...]` to `createViewer` to register plugins; their tools join the viewer's, and `createToolButton` takes a plugin tool's own label and icon. `viewer.commands.get(id)` returns a command. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
+It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `source` and `assets` (both required), `password`, `passwordPrompt`, `defaults`, `history`, `annotations`, `fields`, `onReady` and `onError`. Pass `annotations: { mode: 'controlled', initial, onChange }` to own the session annotation list: `onChange` hears each proposed list, and you push it back with `viewer.document.get()?.annotations.setControlledValue(next)`. `initial` applies to every document the viewer opens, so a host that keeps its own list pushes it with `setControlledValue` in `onReady` for each new document. Undo and redo are inert in controlled mode. Set `threads` to `false` to leave out the thread popover. `viewer.status`, `viewer.document`, `viewer.engine` (the viewer engine, as `mountViewer` returns it), `viewer.viewport` and `viewer.tools` are readables; the last two change when the viewer engine rebuilds. `viewer.activated` is a readable too: the id of the annotation the user last clicked or activated with Enter, or `null`. `viewer.setActivated(id)` activates one from your code without calling `onActivate`; it ignores an id the document doesn't have, and `setActivated(null)` clears it. A password you pass to `open` replaces the `createViewer` one for that load. `viewer.download({ filename })` and `viewer.print()` download and print the open PDF, and Ctrl or Cmd+S and +P inside the root do the same; they do nothing while no document is open. The download is named by `doc.fileName`: the opened `File`'s name, else the URL's last segment, else `document.pdf`. Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Both hand over the file with this session's changes written into it; [Saving into the PDF](#saving-into-the-pdf) has the details. For a host of your own, `downloadDocument(doc, opts)`, `printDocument(doc, { messages })` and `attachFileKeys(el, () => doc, { onError, messages })` do the same for any document. `messages` gives the words a print shows on iOS while the copy is written, English by default; `attachFileKeys` takes a function that returns them, so it reads the current language at each key. `onError` hears a download or print started by a key that fails. `fileBusy(doc)` is a readable that is true while a copy is being written, and `fileActionFailure(error, messages)` gives the words to show for a failed one. The controls are `createToolButton`, `createUndo`, `createRedo`, `createDownloadButton`, `createPrintButton`, `createApplyRedactionsButton` (see [Applying redactions](#applying-redactions)), `createZoomIn`, `createZoomOut`, `createZoomSelect`, `createPageInput`, `createPageCount`, `createPrevPage`, `createNextPage` and `createCommandButton`. `createHighlightMenu`, `createShapeMenu` and `createSignatureMenu` are split buttons for those tools, and `createColorMenu`, `createLineStyleMenu` and `createTextStyleMenu` edit the selection's style, or the active tool's when nothing is selected. Each one disables itself while no document is ready and lives as long as its viewer. Buttons show an icon from [`@inkbar/icons`](https://github.com/inkbar/inkbar/tree/main/packages/icons). Replace their children with your own icon and the accessible name stays; `createIcon` draws any `@inkbar/icons` icon for your own buttons. For a tool the viewer doesn't have, `createToolButton` and the highlight, shape and signature menus log `InkError('UnknownTool')`. The button renders disabled and the menus render nothing. `createToolbar` gives one Tab stop to all its buttons, with arrow keys between them, and `createToolbarSeparator` divides groups of controls in it. `createCommandButton(viewer, id)` places a plugin command: a `div.ink-command` holding a button named by the command's label (disabled with the command; while it runs, it keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing) and a `span.ink-command-status[role="status"]` with its status text; for an id no plugin registered it logs an `InkError('UnknownCommand')` to the console, naming the id and the ones that are registered, and returns the same markup disabled and hidden (`aria-hidden`, no label). Pass `plugins: [...]` to `createViewer` to register plugins; their tools join the viewer's, and `createToolButton` takes a plugin tool's own label and icon. `viewer.commands.get(id)` returns a command. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
 
 #### Locked files
 
-When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and for no other file, and it doesn't reach the status, the error or storage. With `engine`, the open document keeps the password until it closes, because a save opens the file again in the engine. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. For a host of your own, `createPasswordDialog({ onSubmit, onCancel })` builds the same dialog.
+When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and for no other file, and it doesn't reach the status, the error or storage. The open document keeps the password until it closes, because a save, and a restart after the engine stops, open the file again in the engine. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. For a host of your own, `createPasswordDialog({ onSubmit, onCancel })` builds the same dialog.
 
 `createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 
@@ -155,26 +155,27 @@ Options:
 - `onBuild(viewport, tools)` fires after every build, the first one included, before `mountViewer` returns. Subscribe to the new viewport and tool controller here.
 - `onPageMount(page, mount, host)` and `onPageUnmount(page)` fire as pages enter and leave the mounted range.
 - `onPageError(page, error)` reports a page whose canvas or text layer failed, and `onPageError(page, null)` once every failed layer renders again. Unmounting a failed page emits no `null`, so clear any per-page error in `onPageUnmount`.
+- `onError(error)` hears `EngineUnavailable` once each time the document stops (see [When the engine stops](#when-the-engine-stops)).
 
 To open your own card next to an annotation, use `createPopover`: it anchors a panel to the annotation's element, follows it as pages mount and unmount, and calls your `onDismiss` on Escape or a press outside. `placePanel` positions a panel against any other rectangle.
 
 The viewport mounts pages synchronously, so a build's page callbacks fire before its `onBuild`. During a rebuild, `engine.viewport` and `engine.tools` still point at the destroyed objects while those callbacks run. Read the arguments instead, or wait for `onBuild`.
 
+## When the engine stops
+
+The engine runs in a worker. If it stops while a file is open, core starts a new one and opens the file in it again, and the reader sees nothing. When that fails, or the engine has stopped three times within 60 seconds, the document is stopped: `doc.engineStopped`, a readable, is true, every read rejects with `EngineUnavailable`, and `doc.status` stays `ready`. A page whose reads stopped the engine twice is blocked on its own: it shows its page error, and the other pages read on.
+
+`doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were.
+
+While the document is stopped, `doc.save()` with no changes still resolves with the bytes the file was opened from. With changes it rejects with `EngineUnavailable`, and so does `doc.applyRedactions()`.
+
+`mountViewer`, and so `createViewer` and the Vue, React and Svelte packages, shows a notice over the pages while the document is stopped: "The viewer stopped working. Your changes are kept.", with a "Try again" button that calls `doc.restartEngine()`. While the restart runs the button is busy and the notice reads "Starting again…". When it works the notice goes and the pages draw again; when it fails the first words come back. The notice is `[data-ink-engine-notice]` with `role="alert"`, and its words are `engineStopped`, `engineRetry` and `engineRestarting` in the `viewer` group of `messages`.
+
+While the notice is up, annotating pauses: the pages take no input, so no tool draws and no form field takes typing, no annotation activates, and undo and redo do nothing. Scrolling, zooming and the sidebars keep working, and pages already drawn keep their image. Download and Print stay enabled; with changes they show "Saving is not available right now". `onError` on `mountViewer` and `createViewer`, and the `error` event of each framework package, hear `EngineUnavailable` once each time the document stops.
+
 ## Saving into the PDF
 
-Install `@inkbar/engine` and pass a loader for it as `engine`: to `createViewer`, to `openDocument`, or as the `engine` prop of the Vue, React or Svelte `InkRoot`.
-
-```ts
-const viewer = createViewer(el, {
-  source,
-  assets,
-  engine: () => import('@inkbar/engine'),
-})
-```
-
-Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P then hand over the file with this session's annotations and changed form values written into it, and `doc.save()` resolves with the same bytes. Core loads the engine on the first save that has changes or the first apply of redactions. With no changes, a save gives the bytes the file was opened from and the engine never loads. A bundler picks up the engine's wasm and worker from the package, so there is no setup; the [`@inkbar/engine` README](https://github.com/inkbar/inkbar/tree/main/packages/engine#serving-the-files) covers serving those files yourself. The engine's binary is 2.9 MB gzipped.
-
-Without the loader nothing changes. Download and Print give the file as it was opened, the engine is not bundled, and `doc.save()` rejects with `EngineUnavailable` once there are changes. With or without it, `doc.getData()` gives the bytes the file was opened from.
+Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P hand over the file with this session's annotations and changed form values written into it, and `doc.save()` resolves with the same bytes. With no changes, a save gives the bytes the file was opened from. With changes, it writes through the document's engine, so that engine must be running: while the document is stopped ([When the engine stops](#when-the-engine-stops)), `doc.save()` rejects with `EngineUnavailable`. `doc.getData()` always gives the bytes the file was opened from.
 
 A host that calls `openDocument` itself passes one more option, `pictures`. In a browser `savePictures(document)` from `@inkbar/core/dom` supplies it. `createViewer` and the Vue, React and Svelte bindings pass it for you.
 
@@ -184,7 +185,6 @@ import { savePictures } from '@inkbar/core/dom'
 
 const doc = await openDocument(file, {
   assets,
-  engine: () => import('@inkbar/engine'),
   pictures: savePictures(document),
 })
 ```
@@ -229,11 +229,11 @@ XFA forms are not supported.
 
 ### When a save fails
 
-When the engine cannot be loaded or cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'engine'` when the engine could not be loaded or started, as when offline, and `'write'` when it could not open or write this file. When one annotation is the cause, `details.annotation` holds its id. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
+When the engine cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'write'`: the engine could not open or write this file, or an annotation could not be drawn for it. When one annotation is the cause, `details.annotation` holds its id. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
 
 ### Applying redactions
 
-`doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`: the redacted file and what was done. It needs the `engine` option. The engine works on the file as it was opened:
+`doc.applyRedactions()` removes the content under every redaction mark of the session and resolves with `{ bytes, result }`: the redacted file and what was done. The engine works on the file as it was opened:
 
 1. It removes the text, image samples and drawing under each mark, and leaves an opaque box in the mark's fill colour in its place, with the mark's overlay text if it has one.
 2. It removes every annotation a mark overlaps, Inkbar's and the file's own, except masks and redaction marks from other programs that stayed locked. Then it writes the other annotations and the changed form values.
@@ -253,7 +253,7 @@ if (await ask(preview)) {
 }
 ```
 
-`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: `marks`, `pages`, `overlapped` (the other annotations the marks overlap) and `signed`. In an encrypted file, `lockedMarks` counts the locked Redact annotations. Some may be marks Inkbar saved earlier, which the apply removes the content under. Others may come from other programs, which core cannot tell apart; `result.ownLockedMarks` says how many were applied.
+`doc.redactionPreview()` gives the counts a confirmation needs without calling the engine: `marks`, `pages`, `overlapped` (the other annotations the marks overlap) and `signed`. In an encrypted file, `lockedMarks` counts the locked Redact annotations. Some may be marks Inkbar saved earlier, which the apply removes the content under. Others may come from other programs, which core cannot tell apart; `result.ownLockedMarks` says how many were applied.
 
 An apply never overlaps a save. A save that has started writing finishes first; one that has not may run after the apply. A second call while an apply runs gets the same promise.
 
@@ -272,7 +272,6 @@ const viewer = createViewer(el, {
   source,
   assets,
   tools: [redactAreaTool()],
-  engine: () => import('@inkbar/engine'),
   onRedacted: ({ bytes }) => store(bytes),
 })
 
@@ -281,15 +280,14 @@ bar.append(createToolButton(viewer, 'redact-area'), createApplyRedactionsButton(
 viewer.element.prepend(bar)
 ```
 
-The button shows "Apply redactions" as text. It is disabled while no document is ready, without the `engine` option and while there is no mark. While the marks are applied it says "Applying redactions…", keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing. The document takes no input while redactions are being applied, until the redacted file has replaced it or the apply has failed: the pages take no presses or keys and do not scroll, Undo and Redo are disabled and their keys do nothing, an open comment thread or signature menu closes and no thread opens, the style menus change no annotation, plugin commands are disabled, plugin list actions do nothing, an open plugin card closes and none opens, and Download and Print are disabled. Meanwhile a polite live region beside the pages (`[data-ink-redaction-status]`, visually hidden with `.ink-visually-hidden`) says "Applying redactions…" for screen readers.
+The button shows "Apply redactions" as text. It is disabled while no document is ready and while there is no mark. While the marks are applied it says "Applying redactions…", keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing. The document takes no input while redactions are being applied, until the redacted file has replaced it or the apply has failed: the pages take no presses or keys and do not scroll, Undo and Redo are disabled and their keys do nothing, an open comment thread or signature menu closes and no thread opens, the style menus change no annotation, plugin commands are disabled, plugin list actions do nothing, an open plugin card closes and none opens, and Download and Print are disabled. Meanwhile a polite live region beside the pages (`[data-ink-redaction-status]`, visually hidden with `.ink-visually-hidden`) says "Applying redactions…" for screen readers.
 
 A press, or `viewer.applyRedactions()`, asks first with the built-in "Apply redactions?" dialog. It says how many marks on how many pages will have the content under them removed, and that this cannot be undone. It adds a line when the marks overlap other annotations, which go too, when the file is signed, since its signature will stop verifying, and when an encrypted file holds marks saved earlier, which are applied too unless another program made them. When the only marks are those saved earlier in an encrypted file, the dialog leaves out the count of marks and pages, and the line about earlier marks comes first. Focus starts on Cancel. When the document closes or another opens, the dialog closes and nothing is applied. To ask your own way, pass `redactionConfirm: (preview) => Promise<boolean>` to `createViewer`: it gets `doc.redactionPreview()`, and resolving true applies. `redactionConfirm: false` applies without asking.
 
 The engine refuses a mark over content it cannot remove from the file, before anything changes. The apply removes text, blanks image samples and cuts paths. A file can also define content once and paint it through a reference, and cutting the shape that paints it would leave that content in the file. The engine refuses a mark that touches a shape painted with a tiling pattern, a picture gradient (a mesh or function-based gradient, or a linear or radial gradient whose colour function is not a simple ramp), artwork under a soft mask that holds more than a simple fade, or a Type 3 glyph that paints outside the box it declares. A simple ramp blends from colour to colour in at most eight stretches. A simple fade is a soft mask made of at most four plain rectangles or simple-ramp gradients, which is how gradient transparency is drawn. Hatching and textures are tiling patterns, and drop shadows and feathered edges are usually drawn with soft masks that hold more than a fade. Covering the whole shape does not help. Content under a simple fade, and linear and radial gradients with a simple ramp, are redacted. Move or delete the refused marks and apply again.
 
-When the apply fails, nothing is handed over and the open document stays as it was. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark or the engine applied none (every mark has no area or lies wholly off its page), and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is:
+When the apply fails, nothing is handed over and the open document stays as it was. `doc.applyRedactions()` rejects with `EngineUnavailable` while the document is stopped (see [When the engine stops](#when-the-engine-stops)), with `NothingToRedact` when there is no mark or the engine applied none (every mark has no area or lies wholly off its page), and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is:
 
-- `'engine'` when the engine could not be loaded or started.
 - `'apply'` when the engine refused the marks, or could not apply them or write the rest. `details.page` and `details.annotation` name the page and the annotation when one was the cause.
 - `'verify'` when the check could not run or did not find every mark's place clean. `details.regions` lists the page and rectangle of each place it did not find clean, and `details.page` names a page the check could not read.
 
@@ -363,13 +361,13 @@ Inkbar measures the text itself, from width tables for the standard character se
 
 ## Limits of PDF import
 
-Inkbar reads the annotations embedded in a PDF through PDF.js, which passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Once the document is ready, Inkbar reads from the file itself the fields PDF.js leaves out: a FreeText's `callout`, `fringe`, `head` and font, and a note's icon. They arrive as one `replace` change with `reason: 'embedded'`. That change adds no undo step and keeps the undo history.
+Inkbar reads the annotations embedded in a PDF in two passes. The first, before `ready`, passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Once the document is ready, Inkbar reads from the file itself the fields the first pass leaves out: a FreeText's `callout`, `fringe`, `head` and font, and a note's icon. They arrive as one `replace` change with `reason: 'embedded'`. That change adds no undo step and keeps the undo history.
 
 Inkbar does not read callout, icon or font fields from encrypted PDFs, from annotations stored as direct objects, or from a file with a broken cross-reference table.
 
 One gap remains:
 
-- Keep line endings Inkbar does not know on lines and polylines. PDF.js turns them into `None`. Annotations loaded from JSON keep them.
+- Keep line endings Inkbar does not know on lines and polylines. The first pass turns them into `None`. Annotations loaded from JSON keep them.
 
 ## Tools and keyboard
 
@@ -763,7 +761,7 @@ Pass `fields: { mode: 'controlled', initial, onChange }` to `openDocument` or `c
 
 Each fillable field has a light tint. `formHighlight: false` turns it off when the viewer opens. To change it later, call `viewer.setFormHighlight(on)` on a `createViewer` viewer, or `engine.setFormHighlight(on)` on the viewer engine `mountViewer` returns. Neither renders a page again, and a focused field keeps its focus and typed text.
 
-An empty signature field opens a menu of your saved signatures in `createViewer` (`createSignFieldMenu`). With `mountViewer`, handle `onSignField(req)` and call `signField` with the one picked. A script's `app.alert` shows in a message box (`createFormAlert`); pass `onFormAlert(message)` to show it yourself. A failing form script reaches `onError` as `FormScriptError`. `viewer.form` is a readable of the open document's form. `exportAnnotations('json')` also writes the form's values under `fields`, and `importAnnotations` restores them without an undo step. With the `engine` option, saving writes changed values into the file itself (see [Saving into the PDF](#saving-into-the-pdf)). XFA forms are not supported.
+An empty signature field opens a menu of your saved signatures in `createViewer` (`createSignFieldMenu`). With `mountViewer`, handle `onSignField(req)` and call `signField` with the one picked. A script's `app.alert` shows in a message box (`createFormAlert`); pass `onFormAlert(message)` to show it yourself. A failing form script reaches `onError` as `FormScriptError`. `viewer.form` is a readable of the open document's form. `exportAnnotations('json')` also writes the form's values under `fields`, and `importAnnotations` restores them without an undo step. Saving writes changed values into the file itself (see [Saving into the PDF](#saving-into-the-pdf)). XFA forms are not supported.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 
@@ -917,9 +915,11 @@ definePlugin('review', (plugin) => {
 
 A card's `actions` is an array of `{ label, run }`, so each label can be a function too. `en` is the default set and the shape a translation follows.
 
-## Serving PDF.js assets
+## Serving Inkbar's files
 
-PDF.js needs a worker script plus directories of CMaps, standard fonts, wasm decoders and ICC profiles. Inkbar loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
+Inkbar loads its own files at runtime: the engine's binary and worker, fallback fonts for text a file does not embed, and the sandbox that runs a form's scripts. It loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
+
+Opening a file loads about 840 KB of JavaScript (260 KB gzipped), the engine's worker included, and the engine's 7.1 MB binary (3.0 MB gzipped). A font is fetched only when a page needs it, and the sandbox only when a file has scripts.
 
 ### With Vite
 
@@ -941,7 +941,7 @@ Then import the URLs from the virtual module:
 import { assets } from 'virtual:inkbar-assets'
 ```
 
-In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/`. The URLs respect your `base`. With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name.
+In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/<version>/`, where `<version>` is the installed `@inkbar/core` version, so a file a browser has cached is never served for a later release. The URLs respect your `base`. With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name in place of `inkbar`.
 
 For TypeScript, reference the module declaration once, for example in `env.d.ts`:
 
@@ -951,27 +951,38 @@ For TypeScript, reference the module declaration once, for example in `env.d.ts`
 
 ### Without Vite
 
-Copy these from the installed `pdfjs-dist` package to a path your server exposes:
+Copy these files to a path your server exposes. Take each from the package `@inkbar/core` depends on, at the version it installs; a package manager that does not hoist dependencies, such as pnpm, keeps those packages beside `@inkbar/core` rather than at the top of `node_modules`.
 
-- `build/pdf.worker.min.mjs`
-- `cmaps/`
-- `standard_fonts/`
-- `wasm/`
-- `iccs/` (optional)
+| File                                                                                                                                                         | From             | Copy to    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- | ---------- |
+| `dist/inkbar-pdfium.wasm`                                                                                                                                    | `@inkbar/engine` | `./`       |
+| `dist/worker.mjs`                                                                                                                                            | `@inkbar/engine` | `./`       |
+| `files/NotoSans-Regular.ttf`, `files/NotoSansJP-Regular.otf`, `files/NotoSansKR-Regular.otf`, `files/NotoSansSC-Regular.otf`, `files/NotoSansTC-Regular.otf` | `@inkbar/fonts`  | `fonts/`   |
+| `wasm/quickjs-eval.js`, `wasm/quickjs-eval.wasm`                                                                                                             | `pdfjs-dist`     | `sandbox/` |
 
-Pass their URLs. Directory URLs end in `/`:
+Put them under a directory named for the installed `@inkbar/core` version, as the plugin does, so a cached file is never stale after an upgrade. Then pass their URLs:
 
 ```ts
+const base = '/inkbar/<version>/' // the installed @inkbar/core version
+
 const assets = {
-  worker: '/pdfjs/pdf.worker.min.mjs',
-  cMaps: '/pdfjs/cmaps/',
-  standardFonts: '/pdfjs/standard_fonts/',
-  wasm: '/pdfjs/wasm/',
-  icc: '/pdfjs/iccs/',
+  engine: `${base}inkbar-pdfium.wasm`,
+  worker: `${base}worker.mjs`,
+  fonts: `${base}fonts/`,
+  sandbox: `${base}sandbox/`,
 }
 ```
 
-Use the `pdfjs-dist` version that `@inkbar/core` depends on, so the worker matches the library.
+- `engine` is the URL of `inkbar-pdfium.wasm`.
+- `worker` is the URL of `worker.mjs`. A browser starts a worker only from the page's own origin, so serve `worker.mjs` from the page's origin even when the other files come from elsewhere, such as a CDN.
+- `fonts` is the URL of the directory holding the five fonts. Pass one URL per font instead, as `{ default, japanese, 'simplified-chinese', 'traditional-chinese', korean }`, to name each file yourself or to leave some out. Pass `false` for no fallback fonts: Latin text in the standard fonts still draws, but Chinese, Japanese, Korean, Cyrillic or Greek text in a font the file does not embed draws wrong or not at all. Each Chinese, Japanese or Korean font is 4 to 8 MB.
+- `sandbox` is the URL of the directory holding `quickjs-eval.js` and `quickjs-eval.wasm`.
+
+A key that is missing or of the wrong type fails the open with `AssetConfigMissing`, and `details.key` names it. When the engine's binary or worker cannot be fetched or started, the open fails with `AssetLoadFailed`. A font that cannot be fetched is reported with `console.warn`, and its text draws with a substitute. When the sandbox cannot be loaded, the form stays fillable and its scripts do not run: the viewer's `onError` hears a `FormScriptError`.
+
+In Node, `engine` may be a file path or a `file:` URL, and `worker` is ignored, since the engine runs in the calling thread. Form scripts do not run in Node.
+
+Each file keeps the licence of its package: the engine's binary is PDFium and the libraries linked into it, listed in `dist/THIRD-PARTY-NOTICES` of `@inkbar/engine`; the fonts are under the SIL Open Font License, in `OFL.txt` of `@inkbar/fonts`; and the sandbox files come with `pdfjs-dist` under the Apache License 2.0, in its `LICENSE`.
 
 ## Licence
 

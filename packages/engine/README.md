@@ -20,17 +20,9 @@
 
 ---
 
-`@inkbar/engine` writes annotations and form values into a PDF, applies redactions, and checks what is left under them. `@inkbar/core` uses it to save: Download, Print and `doc.save()` then hand over the file with the session's changes written in. Most hosts never call it directly. They install it and pass a loader to core:
+`@inkbar/engine` opens, draws and reads PDFs, writes annotations and form values into them, applies redactions, and checks what is left under them. `@inkbar/core` depends on it and reads every file with it, so a host that uses core, or the Vue, React or Svelte packages, does not install or import the engine: core's `assets` option says where its files are served from, and the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-inkbars-files) covers that.
 
-```ts
-const viewer = createViewer(el, {
-  source,
-  assets,
-  engine: () => import('@inkbar/engine'),
-})
-```
-
-The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#saving-into-the-pdf) describes saving: what goes into the file, what comes back editable, and where the saved file differs from the screen.
+Use the engine directly to work with PDFs without Inkbar's viewer: to draw pages or read text in your own code, to write annotations, or to check a redacted file from elsewhere with [`checkRedaction`](#checking-a-redaction).
 
 ## Install
 
@@ -38,34 +30,33 @@ The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/
 pnpm add @inkbar/engine
 ```
 
-The package holds a 6.9 MB WebAssembly binary (2.9 MB gzipped) and a worker script. Core loads them on the first save that has changes, or on the first apply of redactions. A host that does not pass the loader bundles none of it.
+The package holds a 7.1 MB WebAssembly binary (3.0 MB gzipped) and a worker script.
 
 ## Serving the files
 
 With Vite there is nothing to set up. The engine names its files with `new URL('./inkbar-pdfium.wasm', import.meta.url)` and `new Worker(new URL('./worker.mjs', import.meta.url))`, and a production build emits the wasm and a worker beside your code. The dev server serves them too, also when it pre-bundles the package, so you do not need `optimizeDeps.exclude`. Other bundlers that follow these two forms should emit the files the same way; Inkbar is tested with Vite only.
 
-Without a bundler, or to serve the files from a path of your own, copy `dist/inkbar-pdfium.wasm` and `dist/worker.mjs` from the package and pass their URLs. `worker.mjs` imports nothing, so it can sit alone beside the wasm. A browser starts a worker only from the page's own origin. With core, wrap `createEngine` in the loader:
+Without a bundler, or to serve the files from a path of your own, copy `dist/inkbar-pdfium.wasm` and `dist/worker.mjs` from the package and pass their URLs to `createEngine`. `worker.mjs` imports nothing, so it can sit alone beside the wasm. A browser starts a worker only from the page's own origin.
 
 ```ts
-const engine = async () => {
-  const { createEngine } = await import('@inkbar/engine')
-  return {
-    createEngine: () =>
-      createEngine({ wasm: '/pdf/inkbar-pdfium.wasm', worker: '/pdf/worker.mjs' }),
-  }
-}
+import { createEngine } from '@inkbar/engine'
+
+const engine = await createEngine({
+  wasm: '/pdf/inkbar-pdfium.wasm',
+  worker: '/pdf/worker.mjs',
+})
 ```
 
-Two things to know about this wrapper:
+Two things to know when you name the files yourself:
 
-- In a bundled app, `index.mjs` still holds the engine's own `new URL(...)` forms, so the bundler still emits the default wasm and worker beside your copies. The wrapper changes which files load; the build contains both sets.
+- In a bundled app, `index.mjs` still holds the engine's own `new URL(...)` forms, so the bundler still emits the default wasm and worker beside your copies. Import from [`@inkbar/engine/bare`](#naming-the-files-yourself) instead to leave them out.
 - Without a bundler, the browser cannot resolve the bare name `@inkbar/engine`. Map it with an import map, or import `dist/index.mjs` by its full URL.
 
 In Node (22.3 or later) the engine runs in the calling thread and reads the wasm from the package on disk.
 
 ## Naming the files yourself
 
-`@inkbar/engine/bare` is for code that always passes its own wasm and worker, such as a library that depends on the engine and lets its host choose where the files live. It exports what the main entry does, but `createEngine` has no default file locations and its built code holds no `new URL('./inkbar-pdfium.wasm', import.meta.url)` or worker form. A bundler therefore emits nothing for it, and a host that serves the files itself does not also ship a second copy of the 7 MB binary.
+`@inkbar/engine/bare` is for code that always passes its own wasm and worker, such as a library that depends on the engine and lets its host choose where the files live. `@inkbar/core` imports the engine this way and takes the URLs from its `assets` option. It exports what the main entry does, but `createEngine` has no default file locations and its built code holds no `new URL('./inkbar-pdfium.wasm', import.meta.url)` or worker form. A bundler therefore emits nothing for it, and a host that serves the files itself does not also ship a second copy of the 7 MB binary.
 
 Both `wasm` and `worker` are required. `wasm` is a URL or the bytes, and `worker` is a URL, a `Worker` or `false` to run in the calling thread. Without one of them `createEngine` rejects with a `TypeError` that names it. Where there is no `Worker` global, such as Node, a URL for `worker` is ignored and the engine runs in the calling thread.
 
@@ -80,7 +71,7 @@ const engine = await createEngine({
 
 ## Fallback fonts
 
-Some PDFs name a font without embedding it. The engine has no system fonts. It draws the standard Latin fonts, such as Helvetica, Times and Arial, from its own set. Japanese, Chinese, Korean, Cyrillic or Greek text in a font the file does not carry needs a font from you, or the engine draws it wrong or leaves it out.
+Some PDFs name a font without embedding it. The engine has no system fonts. It draws the standard Latin fonts, such as Helvetica, Times and Arial, from its own set. Japanese, Chinese, Korean, Cyrillic or Greek text in a font the file does not carry needs a font from you, or the engine draws it wrong or leaves it out. `@inkbar/core` passes the fonts named in its `assets` option, so a host that uses core has nothing to do here.
 
 Pass `fallbackFonts`: for each key, a URL, a file path in Node, or the font's bytes.
 
