@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /*
  * Download and Print write the session into the PDF: each annotation as a standard PDF
- * annotation other programs can read, and changed form values. The `engine` option loads
- * @inkbar/engine on the first save with changes; with no changes it never loads, and without
- * the option you get the file as it was opened. Open the saved file here and Inkbar's own
+ * annotation other programs can read, and changed form values. With no changes you
+ * get the file as it was opened. Open the saved file here and Inkbar's own
  * annotations come back ready to edit.
  */
 import { highlightTool, noteTool } from '@inkbar/core/dom'
@@ -42,7 +41,6 @@ const { source, messages, locale, log, onDocument, openFile } =
   defineProps<ScenarioProps>()
 
 const tools = [highlightTool(), noteTool()]
-const engine = () => import('@inkbar/engine')
 
 function onReady(doc: InkDocument): void {
   log('@ready', { pages: doc.pages.length })
@@ -66,7 +64,6 @@ function onTool(tool: ToolId): void {
     :assets="assets"
     :storage="storage"
     :tools="tools"
-    :engine="engine"
     class="scenario-root"
     @ready="onReady"
     @error="onError"

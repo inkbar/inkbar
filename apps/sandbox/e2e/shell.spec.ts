@@ -320,8 +320,6 @@ for (const fw of FRAMEWORK_ORDER) {
     await expect(
       viewer(page).getByText('This document could not be opened.')
     ).toBeVisible()
-    // PDF.js logs its parse failure; that is the expected outcome of this file.
-    guard.take(/^Warning: Indexing all PDF objects$/)
     const letter = await (await request.get('documents/letter.pdf')).body()
     await page.locator('input[type=file]').setInputFiles({
       name: 'letter.pdf',

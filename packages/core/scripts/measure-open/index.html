@@ -1,8 +1,7 @@
 <!doctype html>
 <!--
   The page scripts/measure-open.ts builds and loads: a host that opens a file in the viewer, as
-  any host would, and reports how long the first page took to appear. With `?reader=engine` it
-  turns core's internal reader switch on first.
+  any host would, and reports how long the first page took to appear.
 -->
 <html lang="en">
   <head>
@@ -25,9 +24,6 @@
       import '@inkbar/theme/theme.css'
       import { createViewer } from '@inkbar/core/dom'
       import { assets } from 'virtual:inkbar-assets'
-
-      if (new URLSearchParams(location.search).get('reader') === 'engine')
-        globalThis.__INKBAR_READER__ = 'engine'
 
       const firstPage = (root) =>
         new Promise((resolve) => {
@@ -54,7 +50,6 @@
         const viewer = createViewer(container, {
           source: { data, key: url },
           assets,
-          engine: () => import('@inkbar/engine'),
         })
         await firstPage(container)
         const elapsed = performance.now() - start

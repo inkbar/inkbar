@@ -1,7 +1,7 @@
 // Test support only, never production code: browser tests import it. It renders a page as the
 // screen shows it and as the saved file draws it, so a test can hold the two side by side.
 //
-// The screen: the page mounted as the viewer mounts it (PDF.js's canvas, the overlay, its masks
+// The screen: the page mounted as the viewer mounts it (the page's canvas, the overlay, its masks
 // and loupes) at two pixels a point, photographed. The file: `save()`, then the page rendered
 // with its annotations by @inkbar/engine and, as a second reader, by PDF.js.
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -10,14 +10,17 @@ import { page as browserPage } from 'vitest/browser'
 import { drawingFor } from '../dom/drawing-context'
 import { createPageMount } from '../dom/page-mount'
 import { savePictures } from '../dom/save-pictures'
-import { mountContainer, nextFrame, until } from '../dom/test-utils'
+import { mountContainer, nextFrame, parkPointer, until } from '../dom/test-utils'
 import { createPageTransform, type PageTransform } from '../dom/transform'
 import { padRect, paintedRect } from '../model/annotations/drawing/extent'
 import { openDocument, type InkDocument } from '../model/document'
 
+import { openWithPdfjsReader } from './pdfjs-reader'
+
 import type { DrawItem, TextMeasure } from '../model/annotations/drawing/types'
 import type { Annotation, AnnotationInput } from '../model/annotations/types'
 import type { Rect } from '../model/geometry'
+import type { PdfjsHandles } from '../pdfjs/handles'
 import type { Engine } from '@inkbar/engine'
 
 /** Pixels per point of every render compared. */
@@ -84,13 +87,11 @@ export interface SavedRenders {
   destroy(): void
 }
 
-const engineLoader = () => import('@inkbar/engine')
-
 let engine: Promise<Engine> | undefined
 
 /** One engine for the run, to render saved files with. */
 function renderEngine(): Promise<Engine> {
-  engine ??= engineLoader().then(({ createEngine }) => createEngine())
+  engine ??= import('@inkbar/engine').then(({ createEngine }) => createEngine())
   return engine
 }
 
@@ -146,6 +147,8 @@ async function screenOf(doc: InkDocument, page: number): Promise<Pixels> {
     Math.ceil(transform.cssWidth) + 40,
     Math.ceil(transform.cssHeight) + 40
   )
+  // Nothing photographed may be under the mouse, or it shows its hover ring.
+  await parkPointer()
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   host.style.background = '#ffffff'
   const mount = createPageMount({
@@ -173,11 +176,13 @@ async function screenOf(doc: InkDocument, page: number): Promise<Pixels> {
 }
 
 /** A page as PDF.js draws it with every annotation the file holds. */
-async function pdfjsOf(doc: InkDocument, page: number): Promise<Pixels> {
-  const proxy = await doc._pdfjs!.getPage(page)
-  const viewport = proxy.getViewport({
-    scale: PIXELS_PER_POINT / doc.pages[page]!.userUnit,
-  })
+async function pdfjsOf(
+  handles: PdfjsHandles,
+  page: number,
+  userUnit: number
+): Promise<Pixels> {
+  const proxy = await handles.getPage(page)
+  const viewport = proxy.getViewport({ scale: PIXELS_PER_POINT / userUnit })
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(viewport.width)
   canvas.height = Math.round(viewport.height)
@@ -185,7 +190,7 @@ async function pdfjsOf(doc: InkDocument, page: number): Promise<Pixels> {
     canvas,
     viewport,
     background: '#ffffff',
-    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE,
+    annotationMode: handles.module.AnnotationMode.ENABLE,
   }).promise
   const pixels = canvasPixels(canvas)
   canvas.width = canvas.height = 0
@@ -214,10 +219,10 @@ export async function renderSaved(
 ): Promise<SavedRenders> {
   const doc = await openDocument(fixtureUrl(fixture), {
     assets: browserAssets(),
-    engine: engineLoader,
     pictures: savePictures(document),
   })
-  let saved: InkDocument | undefined
+  let saved: Awaited<ReturnType<typeof openWithPdfjsReader>> | undefined
+  let original: Awaited<ReturnType<typeof openWithPdfjsReader>> | undefined
   try {
     await doc.ready
     await doc._liftSettled
@@ -234,8 +239,8 @@ export async function renderSaved(
     const renderer = await renderEngine()
     const fileDoc = await renderer.open(bytes)
     const openedDoc = await renderer.open(opened)
-    saved = await openDocument(bytes.slice(), { assets: browserAssets() })
-    await saved.ready
+    saved = await openWithPdfjsReader(bytes)
+    original = await openWithPdfjsReader(opened)
     const pages = new Map<number, SavedPage>()
     try {
       for (const p of pageIndexes) {
@@ -247,7 +252,10 @@ export async function renderSaved(
             page: await fileDoc.renderPage(p, options),
             base: await openedDoc.renderPage(p, options),
           },
-          pdfjs: { page: await pdfjsOf(saved, p), base: await pdfjsOf(doc, p) },
+          pdfjs: {
+            page: await pdfjsOf(saved.handles, p, info.userUnit),
+            base: await pdfjsOf(original.handles, p, info.userUnit),
+          },
           transform: createPageTransform(info, PIXELS_PER_POINT / info.userUnit),
         })
       }
@@ -262,19 +270,20 @@ export async function renderSaved(
       if (!drawing) throw new Error(`${annotation.type} ${annotation.id} has no drawing`)
       return { annotation, region: pixelRect(padRect(drawing.bounds, GROW), transform) }
     })
-    const done = saved
+    const readers = [saved, original]
     return {
       pages,
       compared,
       bytes,
       destroy() {
         doc.destroy()
-        done.destroy()
+        for (const r of readers) void r.destroy()
       },
     }
   } catch (error) {
     doc.destroy()
-    saved?.destroy()
+    void saved?.destroy()
+    void original?.destroy()
     throw error
   }
 }

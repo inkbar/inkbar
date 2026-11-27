@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: acroform-basic 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: acroform-basic 1`] = `
 [
   {
     "flags": {
@@ -117,7 +117,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: border-dashes 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: border-dashes 1`] = `
 [
   {
     "flags": {
@@ -271,7 +271,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: certified 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: certified 1`] = `
 [
   {
     "flags": {
@@ -376,7 +376,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: corpus-annots 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: corpus-annots 1`] = `
 [
   {
     "flags": {
@@ -444,7 +444,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-bare-appearances 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-bare-appearances 1`] = `
 [
   {
     "defaultValue": "Off",
@@ -561,7 +561,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-choices 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-choices 1`] = `
 [
   {
     "flags": {
@@ -700,7 +700,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-fieldmdp 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-fieldmdp 1`] = `
 [
   {
     "flags": {
@@ -858,7 +858,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-fields 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-fields 1`] = `
 [
   {
     "flags": {
@@ -2078,7 +2078,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-format 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-format 1`] = `
 [
   {
     "flags": {
@@ -2136,7 +2136,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-goto 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-goto 1`] = `
 [
   {
     "flags": {
@@ -2513,7 +2513,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-range 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-range 1`] = `
 [
   {
     "flags": {
@@ -2689,7 +2689,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-restricted 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-restricted 1`] = `
 [
   {
     "flags": {
@@ -2806,7 +2806,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-rollover 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-rollover 1`] = `
 [
   {
     "flags": {
@@ -2913,7 +2913,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-scripted 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-scripted 1`] = `
 [
   {
     "flags": {
@@ -3857,7 +3857,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-scripted-kinds 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-scripted-kinds 1`] = `
 [
   {
     "flags": {
@@ -4716,7 +4716,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-scripted-parents 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-scripted-parents 1`] = `
 [
   {
     "flags": {
@@ -5043,7 +5043,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-shared-scripted 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-shared-scripted 1`] = `
 [
   {
     "defaultValue": "Off",
@@ -5141,7 +5141,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-signed 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-signed 1`] = `
 [
   {
     "flags": {
@@ -5246,7 +5246,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-structure 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-structure 1`] = `
 [
   {
     "flags": {
@@ -5410,7 +5410,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-timer 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-timer 1`] = `
 [
   {
     "flags": {
@@ -5521,7 +5521,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-tree 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-tree 1`] = `
 [
   {
     "flags": {
@@ -5620,7 +5620,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-uppercase 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-uppercase 1`] = `
 [
   {
     "flags": {
@@ -5678,7 +5678,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: form-values 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: form-values 1`] = `
 [
   {
     "flags": {
@@ -6224,7 +6224,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: link-order 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: link-order 1`] = `
 [
   {
     "flags": {
@@ -6323,7 +6323,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: redact-annotations 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: redact-annotations 1`] = `
 [
   {
     "flags": {
@@ -6422,7 +6422,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: redact-file-signed 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: redact-file-signed 1`] = `
 [
   {
     "flags": {
@@ -6471,7 +6471,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: saved-signed 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: saved-signed 1`] = `
 [
   {
     "flags": {
@@ -7691,7 +7691,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: signed 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: signed 1`] = `
 [
   {
     "flags": {
@@ -7796,7 +7796,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: signed-encrypted 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: signed-encrypted 1`] = `
 [
   {
     "flags": {
@@ -7900,7 +7900,7 @@ exports[`form building across the fixtures > builds every fixture's fields the s
 ]
 `;
 
-exports[`form building across the fixtures > builds every fixture's fields the same from the shape as from PDF.js data: unembedded-japanese-field 1`] = `
+exports[`form building across the fixtures > builds every fixture's fields from the engine reader's data: unembedded-japanese-field 1`] = `
 [
   {
     "flags": {

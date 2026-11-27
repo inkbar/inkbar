@@ -17,10 +17,6 @@
 //   resamples to the render's two; the screen draws the glyphs themselves.
 // A pixel left uncounted for the page's own sake is still in the region, and a case fails when
 // more than MAX_EXCLUDED of its region is left out so.
-//
-// It runs only with PDF.js reading the file (not in the `browser-engine` project): the saved
-// file is drawn by PDF.js and by the engine side by side, through PDF.js's own handles on the
-// opened document, which the engine reader does not have.
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
@@ -49,6 +45,7 @@ import {
   type SavedRenders,
   type TextBand,
 } from '../test-support/compare-saved'
+import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { canvasTextPicture, savePictures } from './save-pictures'
 import { checkTextFonts, type TextClass } from './text-font-check'
@@ -848,13 +845,12 @@ describe("another program's redaction marks, adopted", () => {
   const opened: InkDocument[] = []
   afterEach(() => opened.splice(0).forEach((d) => d.destroy()))
 
-  /** `source` opened as a viewer opens it, with the real engine, once lifting has settled. */
+  /** `source` opened as a viewer opens it, once lifting has settled. */
   async function open(source: FixtureName | Uint8Array): Promise<InkDocument> {
     const doc = await openDocument(
       typeof source === 'string' ? fixtureUrl(source) : source.slice(),
       {
         assets: browserAssets(),
-        engine: () => import('@inkbar/engine'),
         pictures: savePictures(document),
       }
     )
@@ -864,16 +860,22 @@ describe("another program's redaction marks, adopted", () => {
     return doc
   }
 
-  /** The text of every page of `bytes`, as PDF.js reads it. */
+  /** The text of every page of `bytes`. */
   async function textOf(bytes: Uint8Array): Promise<string> {
     const doc = await open(bytes)
     const pages = await Promise.all(doc.pages.map((_, i) => doc.pageText(i)))
     return pages.join('\n')
   }
 
-  /** How many annotations page 0 of `doc` lists in its `/Annots`, as PDF.js reads them. */
-  const annotsOn = async (doc: InkDocument) =>
-    (await (await doc._pdfjs!.getPage(0)).getAnnotations()).length
+  /** How many annotations page 0 of the file `doc` opened lists in its `/Annots`, as PDF.js reads them. */
+  const annotsOn = async (doc: InkDocument) => {
+    const pdfjs = await openWithPdfjsReader(await doc.getData())
+    try {
+      return (await (await pdfjs.handles.getPage(0)).getAnnotations()).length
+    } finally {
+      await pdfjs.destroy()
+    }
+  }
 
   /**
    * One page with SECRET-GAMMA and REPLIED-OMEGA under two Redact annotations another program

@@ -5,6 +5,7 @@ import {
   sandboxLoader,
   type PdfjsSandbox,
 } from '../../pdfjs/sandbox'
+import { sandboxDirectory } from '../assets'
 import { InkError } from '../errors'
 
 import { submitValues } from './submit'
@@ -20,8 +21,8 @@ import type {
   FormWidget,
   WidgetOverride,
 } from './types'
-import type { PdfAssets } from '../../pdfjs/types'
 import type { DocumentReader } from '../../reader/types'
+import type { PdfAssets } from '../assets'
 
 export interface FormScriptingOptions {
   reader: DocumentReader
@@ -103,7 +104,9 @@ export async function createFormScripting(
   let sandbox: PdfjsSandbox | undefined
   try {
     sandbox = await withTimeout(
-      sandboxLoader.load().then(({ QuickJSSandbox }) => QuickJSSandbox(assets.wasm)),
+      sandboxLoader
+        .load()
+        .then(({ QuickJSSandbox }) => QuickJSSandbox(sandboxDirectory(assets))),
       SANDBOX_TIMEOUT_MS
     )
     const support = sandbox.support

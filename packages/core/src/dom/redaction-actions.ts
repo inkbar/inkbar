@@ -74,13 +74,13 @@ export function redactionBusy(doc: InkDocument): Readable<boolean> {
 }
 
 /**
- * True when `doc` was opened with an `engine` and has a redaction mark to apply (or, in an
- * encrypted file, a locked one Inkbar may have saved earlier). It follows the marks as they are
+ * True when `doc` has a redaction mark to apply (or, in an encrypted file, a locked one Inkbar
+ * may have saved earlier). It follows the marks as they are
  * added and removed. The same store on every call.
  */
 export function canRedact(doc: InkDocument): Readable<boolean> {
   const state = stateOf(doc)
-  state.can ??= derived(doc.annotations.list, () => doc._saves && holdsMarks(doc))
+  state.can ??= derived(doc.annotations.list, () => holdsMarks(doc))
   return state.can
 }
 
@@ -117,8 +117,8 @@ async function run(
   state.running = true
   let applied = false
   try {
-    let preview = doc._saves ? doc.redactionPreview() : undefined
-    if (preview && hasMarks(preview)) {
+    let preview = doc.redactionPreview()
+    if (hasMarks(preview)) {
       // The marks can change while the reader is asked (a host's list, a call through the API):
       // the apply goes ahead only on the marks the reader confirmed, else the reader is asked
       // again about the marks there are now.
@@ -147,8 +147,8 @@ async function run(
  * asked again with the new preview; when every mark has gone by then, nothing is applied.
  * Resolves with the redacted bytes and what was done, or null when the reader cancelled,
  * nothing was left to apply, or a run of `doc` was already going (a second press does nothing).
- * Without an engine or a mark nothing is asked, and it rejects as `doc.applyRedactions()` does:
- * with `EngineUnavailable`, `NothingToRedact` or `RedactionFailed`. The open document is not
+ * Without a mark nothing is asked, and it rejects as `doc.applyRedactions()` does: with
+ * `EngineUnavailable`, `NothingToRedact` or `RedactionFailed`. The open document is not
  * changed either way.
  */
 export async function runRedaction(
@@ -170,11 +170,10 @@ const refusedMarks = (error: InkError): string[] => {
 /**
  * The error a run of `runRedaction` failed with, as one to report, with the words to tell the
  * reader: `viewer.redactUnremovable` when marks lie over content the apply cannot remove,
- * `viewer.redactUnavailable` when the engine could not be loaded or started, or the document
- * has stopped reading (`EngineUnavailable`),
+ * `viewer.redactUnavailable` when the document has stopped reading (`EngineUnavailable`),
  * `viewer.redactUnverified` when the check found content left under a mark or the engine could
- * not look under the marks, and `viewer.redactFailed` otherwise. An error that is not an `InkError` is wrapped in a
- * `RedactionFailed`. Undefined when the document was closed meanwhile: there is nothing to say.
+ * not look under the marks, and `viewer.redactFailed` otherwise. An error that is not an
+ * `InkError` is wrapped in a `RedactionFailed`. Undefined when the document was closed meanwhile: there is nothing to say.
  */
 export function redactionFailure(
   error: unknown,
@@ -200,7 +199,7 @@ export function redactionFailure(
         ? v.redactUnremovable({ count: Math.max(refusedMarks(ink).length, 1) })
         : reason === 'could-not-inspect' || stage === 'verify'
           ? v.redactUnverified
-          : stage === 'engine' || ink.code === 'EngineUnavailable'
+          : ink.code === 'EngineUnavailable'
             ? v.redactUnavailable
             : v.redactFailed,
   }

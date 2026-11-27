@@ -1,7 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument } from './document'
 
@@ -10,7 +10,6 @@ import type { PageLink } from './links'
 async function open() {
   const doc = await openDocument(await fixtureBytes('links'), {
     assets: nodeAssets(),
-    verbosity: 0,
   })
   await doc.ready
   return doc
@@ -83,7 +82,7 @@ describe('links', () => {
 
   it('resolveDestination caches', async () => {
     const doc = await open()
-    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getDestination')
+    const spy = vi.spyOn(doc._reader, 'resolveDestination')
     const first = await doc.resolveDestination('chapter-3')
     const second = await doc.resolveDestination('chapter-3')
     expect(first).toMatchObject({ page: 2, fit: 'fit' })

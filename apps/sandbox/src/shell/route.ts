@@ -15,20 +15,17 @@ export interface Route {
   framework: FrameworkId
   scenario: ScenarioId
   lang: LangId
-  /** Whether the engine draws the pages: `?reader=engine`. Off when absent. */
-  engine: boolean
 }
 
 const DEFAULT_ROUTE: Route = {
   framework: 'react',
   scenario: 'tour',
   lang: 'en',
-  engine: false,
 }
 
 /**
- * Reads `#/<framework>/<scenario>` and the `lang` and `reader` query parameters. Anything empty
- * or unknown is the default: the React tour, in English, its pages drawn as usual.
+ * Reads `#/<framework>/<scenario>` and the `lang` query parameter. Anything empty or unknown is
+ * the default: the React tour, in English.
  */
 export function parseRoute(hash: string, search = ''): Route {
   const [framework, scenario] = hash.replace(/^#\/?/, '').split('/')
@@ -41,7 +38,6 @@ export function parseRoute(hash: string, search = ''): Route {
     framework: base.framework,
     scenario: base.scenario,
     lang: lang?.id ?? 'en',
-    engine: params.get('reader') === 'engine',
   }
 }
 
@@ -54,20 +50,11 @@ export function withLang(r: Route, lang: LangId): Route {
   return { ...r, lang }
 }
 
-export function withEngine(r: Route, engine: boolean): Route {
-  return { ...r, engine }
-}
-
-/**
- * `search` with `lang` set to the route's language, or dropped for English, and `reader=engine`
- * while the engine draws the pages, or dropped. Other parameters stay.
- */
+/** `search` with `lang` set to the route's language, or dropped for English. Other parameters stay. */
 export function formatSearch(r: Route, search: string): string {
   const params = new URLSearchParams(search)
   if (r.lang === 'en') params.delete('lang')
   else params.set('lang', r.lang)
-  if (r.engine) params.set('reader', 'engine')
-  else params.delete('reader')
   const text = params.toString()
   return text ? `?${text}` : ''
 }

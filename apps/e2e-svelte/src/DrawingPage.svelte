@@ -1,11 +1,9 @@
 <script lang="ts">
   /*
-   * A fixture whose pages, thumbnails and loupes the engine draws, and whose text, links and
-   * outline it reads: the route turned core's switch on before this mounted. The status names
-   * the reader, for the tests.
+   * A fixture with its thumbnails and outline beside the pages, and the shape tools, which
+   * draw loupes.
    */
   import { allTools } from '@inkbar/core/dom'
-  import { readerOf } from '@inkbar/e2e-shared/engine-reader'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
     InkFindBar,
@@ -22,18 +20,13 @@
   } from '@inkbar/svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import type { InkDocument } from '@inkbar/core'
-
   let { fixture }: { fixture: string } = $props()
 
-  const engine = () => import('@inkbar/engine')
   const tools = allTools()
   const src = $derived({ url: fixtureUrl(fixture as FixtureName), key: fixture })
   let status = $state('loading')
-  let reader = $state('')
 
-  function onReady(doc: InkDocument): void {
-    reader = readerOf(doc)
+  function onReady(): void {
     status = 'ready'
   }
 </script>
@@ -41,7 +34,6 @@
 <InkRoot
   {src}
   {assets}
-  {engine}
   {tools}
   class="sandbox-root"
   {onReady}
@@ -66,7 +58,7 @@
       <InkFindBar />
     </div>
   </div>
-  <p class="sandbox-status" role="status" data-testid="status" data-reader={reader}>
+  <p class="sandbox-status" role="status" data-testid="status">
     {status}
   </p>
 </InkRoot>

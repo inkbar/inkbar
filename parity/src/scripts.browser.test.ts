@@ -29,7 +29,9 @@ async function scriptsOf(doc: InkDocument, pageCount: number): Promise<ScriptRea
   return { scripts: await doc._reader.scripts(), pages }
 }
 
-describe.each(opening)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(opening)('%s', (name) => {
   it('reads the JavaScript as parity.json records', async () => {
     const verdict = verdictOn(name, 'scripts')
     const lines = await withBoth(name, async (pdfjs, engine, _pages, pageCount) =>

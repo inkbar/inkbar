@@ -4,7 +4,7 @@ import { renderToString } from 'vue/server-renderer'
 
 import type * as Entry from './index'
 
-const evaluated = vi.hoisted(() => ({ pdfjs: false }))
+const evaluated = vi.hoisted(() => ({ pdfjs: false, engine: false }))
 
 // `#pdfjs` belongs to @inkbar/core's package imports and resolves to the legacy build in Node,
 // so mock that file by its resolved path from core's directory.
@@ -21,7 +21,27 @@ vi.mock(pdfjsPath, () => {
   return { GlobalWorkerOptions: {} }
 })
 
-const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
+// Core imports the engine through `@inkbar/engine/bare` at the first open. Mocked by its resolved
+// path from core's directory, as PDF.js is above, so an import of it from anywhere is seen.
+const enginePath = await vi.hoisted(async () => {
+  const { createRequire } = await import('node:module')
+  const path = await import('node:path')
+  const fromVue = createRequire(import.meta.url)
+  const core = path.dirname(fromVue.resolve('@inkbar/core/package.json'))
+  return createRequire(`${core}/`).resolve('@inkbar/engine/bare')
+})
+
+vi.mock(enginePath, () => {
+  evaluated.engine = true
+  return { createEngine: () => Promise.reject(new Error('No engine on the server')) }
+})
+
+const assets = {
+  engine: '/inkbar/inkbar-pdfium.wasm',
+  worker: '/inkbar/worker.mjs',
+  fonts: '/inkbar/fonts/',
+  sandbox: '/inkbar/sandbox/',
+}
 
 describe('@inkbar/vue on the server', () => {
   let entry: typeof Entry
@@ -34,7 +54,7 @@ describe('@inkbar/vue on the server', () => {
     entry = await import('./index')
   }, 30_000)
 
-  it('imports without a DOM or PDF.js, and InkRoot renders its slot without opening', async () => {
+  it('imports without a DOM, PDF.js or the engine, and InkRoot renders its slot without opening', async () => {
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'InkRoot',
@@ -78,6 +98,7 @@ describe('@inkbar/vue on the server', () => {
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
+    expect(evaluated.engine).toBe(false)
 
     // Plugins are set up only once mounted in the browser: on the server a command button
     // renders disabled.
@@ -142,11 +163,15 @@ describe('@inkbar/vue on the server', () => {
     expect(button).not.toMatch(/aria-label|title=/)
     expect(setup).not.toHaveBeenCalled()
     expect(evaluated.pdfjs).toBe(false)
+    expect(evaluated.engine).toBe(false)
 
-    // Control: the same mock fires once a document actually opens, so the falses above mean something.
+    // Control: the engine's mock fires once a document actually opens, so the falses above mean
+    // something. PDF.js is loaded by no open: only a browser's form scripts load its sandbox.
     const { openDocument } = await import('@inkbar/core')
-    await openDocument(new Uint8Array([1]), { assets })
-    expect(evaluated.pdfjs).toBe(true)
+    const doc = await openDocument(new Uint8Array([1]), { assets })
+    await expect(doc.ready).rejects.toMatchObject({ code: 'AssetLoadFailed' })
+    expect(evaluated.engine).toBe(true)
+    expect(evaluated.pdfjs).toBe(false)
   })
 
   it('InkApplyRedactions renders disabled on the server', async () => {
@@ -155,12 +180,10 @@ describe('@inkbar/vue on the server', () => {
       return () =>
         h('output', { 'data-can-redact': canRedact.value, 'data-busy': busy.value })
     })
-    // A loader that never settles: the server must not call it.
-    const engine = vi.fn(() => new Promise<never>(() => {}))
     const html = await renderToString(
       createSSRApp({
         render: () =>
-          h(entry.InkRoot, { src: '/doc.pdf', assets, engine }, () => [
+          h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
             h(entry.InkToolbar, null, () => [h(entry.InkApplyRedactions)]),
             h(Probe),
           ]),
@@ -172,7 +195,6 @@ describe('@inkbar/vue on the server', () => {
     expect(html).toMatch(/data-ink-apply-redactions[^>]*>(<!--[[\]]-->)*Apply redactions/)
     expect(html).toContain('<output data-can-redact="false" data-busy="false"></output>')
     expect(html).not.toContain('data-ink-redaction-dialog')
-    expect(engine).not.toHaveBeenCalled()
   })
 
   it('InkOutline renders an empty tree on the server', async () => {

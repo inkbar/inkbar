@@ -5,7 +5,6 @@
  * bytes are kept for the tests, and "Open the redacted file" passes the last as a new `src`.
  */
 import { allTools } from '@inkbar/core/dom'
-import { readerOf } from '@inkbar/e2e-shared/engine-reader'
 import { keepRedacted } from '@inkbar/e2e-shared/redaction-page'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -23,23 +22,14 @@ import {
 import { assets } from 'virtual:inkbar-assets'
 import { computed, ref, shallowRef } from 'vue'
 
-import type {
-  Annotation,
-  DocumentSource,
-  InkDocument,
-  RedactionResult,
-} from '@inkbar/core'
+import type { Annotation, DocumentSource, RedactionResult } from '@inkbar/core'
 
 const props = defineProps<{ fixture: string; controlled: boolean; confirm: boolean }>()
 
-const engine = () => import('@inkbar/engine')
 const tools = allTools()
 const status = ref('loading')
-/** Which reader opened the document, for the tests. */
-const reader = ref('')
 
-function onReady(doc: InkDocument): void {
-  reader.value = readerOf(doc)
+function onReady(): void {
   status.value = 'ready'
 }
 const annotations = ref<Annotation[]>([])
@@ -78,7 +68,6 @@ function openRedacted(): void {
     :tools="tools"
     :src="src"
     :assets="assets"
-    :engine="engine"
     :redaction-confirm="confirm ? undefined : false"
     class="sandbox-root"
     @ready="onReady"
@@ -114,7 +103,6 @@ function openRedacted(): void {
       role="status"
       data-testid="status"
       :data-applied="applied?.marks ?? ''"
-      :data-reader="reader"
     >
       {{ status }}
     </p>

@@ -1,7 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument } from './document'
 
@@ -116,10 +116,8 @@ describe('openDocument', () => {
   })
 
   it('surfaces unreadable bytes as InvalidPdf', async () => {
-    // PDF.js warns while it tries to recover the truncated file; expected here.
     const doc = await openDocument(await fixtureBytes('malformed-truncated'), {
       assets: nodeAssets(),
-      verbosity: 0,
     })
     const status = doc.status.get()
     expect(status.state).toBe('error')
@@ -200,9 +198,6 @@ describe('openDocument', () => {
     await expect(doc.text(7)).rejects.toMatchObject({ code: 'PageOutOfRange' })
     doc.destroy()
     await expect(doc.text(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
-    await expect(doc._pdfjs!.getPage(0)).rejects.toMatchObject({
-      code: 'DocumentDestroyed',
-    })
   })
 
   it('joins page text the way the page reads', async () => {

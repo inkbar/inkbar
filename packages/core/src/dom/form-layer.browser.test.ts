@@ -6,13 +6,18 @@ import { page as browserPage, userEvent } from 'vitest/browser'
 import { template } from '../messages'
 import { openDocument } from '../model/document'
 import { InkError } from '../model/errors'
-import { readerKind } from '../reader/select'
 
 import { SCRATCH_BUDGET } from './form-appearance'
 import { createMessageState } from './messages-state'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
-import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
+import {
+  mountContainer,
+  nextFrame,
+  openFixtureInBrowser,
+  parkPointer,
+  until,
+} from './test-utils'
 import { drawTool } from './tools'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 import { mountViewer } from './viewer-engine'
@@ -375,28 +380,15 @@ describe('form layer', () => {
     expect(input.offsetWidth).toBeCloseTo(turned.height, 0)
   })
 
-  it('no form layer and ENABLE mode for a PDF without fields', async () => {
+  it('no form layer, and every widget drawn with the page, for a PDF without fields', async () => {
     const doc = await open('text-simple')
     const draws = vi.spyOn(doc._reader, 'draw')
-    const modes: unknown[] = []
-    // The engine reader draws the page itself: PDF.js's render, and its mode, are not used.
-    if (readerKind() === 'pdfjs') {
-      const page = await doc._pdfjs!.getPage(0)
-      const render = page.render.bind(page)
-      vi.spyOn(page, 'render').mockImplementation((params) => {
-        modes.push(params.annotationMode)
-        return render(params)
-      })
-    }
     const p = mountPage(doc)
     await p.mount.renderer.rendered
     expect(p.mount.form).toBeUndefined()
     expect(p.host.querySelector('[data-ink-form-layer]')).toBeNull()
     // Nothing is left out of the page: every widget and annotation is drawn with it.
     expect(draws.mock.calls.map(([request]) => request.hide)).toEqual([[]])
-    if (readerKind() === 'pdfjs')
-      expect(modes).toEqual([doc._pdfjs!.module.AnnotationMode.ENABLE])
-    else expect(doc._pdfjs).toBeUndefined()
   })
 
   it('renders a form page once, into one canvas, and each widget’s appearance apart', async () => {
@@ -1254,6 +1246,7 @@ describe('form layer', () => {
       probe.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;`
       host.append(probe)
       host.scrollIntoView()
+      await parkPointer()
       const base64 = await browserPage.screenshot({
         element: probe,
         base64: true,
@@ -1326,6 +1319,7 @@ describe('form layer', () => {
     probe.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;`
     p.host.append(probe)
     p.host.scrollIntoView()
+    await parkPointer()
     const base64 = await browserPage.screenshot({
       element: probe,
       base64: true,
@@ -1447,37 +1441,6 @@ async function reference(
 }
 
 /**
- * A page of `doc` drawn by PDF.js alone, each checkbox or radio in `states` on or off, as
- * PDF.js draws a form's stored states.
- */
-async function storedReference(
-  doc: InkDocument,
-  transform: PageTransform,
-  states: [string, boolean][]
-) {
-  const host = mountContainer(transform.cssWidth, transform.cssHeight)
-  cleanup.push(() => host.remove())
-  for (const [id, on] of states)
-    doc._pdfjs!.proxy.annotationStorage.setValue(id, { value: on })
-  const pdfPage = await doc._pdfjs!.getPage(transform.page.index)
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(transform.cssWidth)
-  canvas.height = Math.round(transform.cssHeight)
-  canvas.style.cssText = `position:absolute;left:0;top:0;width:${transform.cssWidth}px;height:${transform.cssHeight}px;`
-  await pdfPage.render({
-    canvas,
-    viewport: pdfPage.getViewport({
-      scale: transform.zoom,
-      rotation: transform.totalRotation,
-    }),
-    background: '#ffffff',
-    annotationMode: doc._pdfjs!.module.AnnotationMode.ENABLE_STORAGE,
-  }).promise
-  host.append(canvas)
-  return host
-}
-
-/**
  * A page of `doc` saved and opened again, drawn by the page canvas alone: each checkbox and radio
  * in the state the saved file holds, as the engine draws a file's states.
  */
@@ -1495,6 +1458,7 @@ async function shot(host: HTMLElement, transform: PageTransform, rect: Rect) {
   probe.style.cssText = `position:absolute;left:${css.left}px;top:${css.top}px;width:${css.width}px;height:${css.height}px;pointer-events:none;`
   host.append(probe)
   host.scrollIntoView()
+  await parkPointer()
   const base64 = await browserPage.screenshot({
     element: probe,
     base64: true,
@@ -1592,12 +1556,8 @@ describe('checkboxes, radios, choices and buttons', () => {
     await userEvent.click(controlOf(p.host, agree!))
     controlOf(p.host, agree!).blur()
     await settled(p)
-    // PDF.js draws the on state from its annotation storage; the engine has none, and draws the
-    // state a saved file holds.
-    const checked =
-      readerKind() === 'pdfjs'
-        ? await storedReference(await open('form-fields'), t, [[agree!.id, true]])
-        : await savedReference(doc, t)
+    // The engine draws the state a saved file holds.
+    const checked = await savedReference(doc, t)
     const agreeOn = await shot(p.host, t, agree!.rect)
     expect(differing(agreeOn, await shot(checked, t, agree!.rect))).toBeLessThanOrEqual(
       0.02

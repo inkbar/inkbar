@@ -30,7 +30,6 @@ import '@inkbar/theme/theme.css'
 import { useEffect } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -87,7 +86,6 @@ export default function SearchLongDocument({
       locale={locale}
       assets={assets}
       storage={storage}
-      engine={engine}
       onReady={onReady}
       className="scenario-root"
     >

@@ -13,12 +13,11 @@ export * from './model/records'
 export { mergeLineRects } from './model/selection'
 
 export { openDocument } from './model/document'
-/** @internal For tests: makes every engine a document starts, in place of the `engine` option. */
+/** @internal For tests: makes every engine a document starts, in place of the one core starts. */
 export { setEngineFactory as _setEngineFactory } from './model/engine-factory'
 export type {
   DocumentInfo,
   DocumentStatus,
-  EngineLoader,
   InkDocument,
   InkStatus,
   LockedStatus,
@@ -31,8 +30,6 @@ export type {
   RedactionResult,
   RedactionSanitised,
   RedactSaveInput,
-  SaveEngine,
-  SaveEngineDocument,
   SaveInput,
   SavePictures,
   TextFont,
@@ -53,7 +50,7 @@ export type {
 export type { PageLink } from './model/links'
 export type { OutlineItem } from './model/outline'
 export type { SearchHit, SearchOptions, SearchResults } from './model/search'
-export type { PdfAssets } from './pdfjs/types'
+export type { PdfAssets } from './model/assets'
 export * from './model/annotations/types'
 export { FringeSchema, type Fringe } from './model/annotations/callout'
 export * from './model/annotations/pdf-names'

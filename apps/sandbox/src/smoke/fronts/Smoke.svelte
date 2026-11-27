@@ -22,7 +22,7 @@
   import '@inkbar/theme/theme.css'
   import { assets } from 'virtual:inkbar-assets'
 
-  import { engine, redactionConfirm, tools as makeTools } from '../front.ts'
+  import { redactionConfirm, tools as makeTools } from '../front.ts'
 
   import Apply from './SmokeApply.svelte'
 
@@ -38,7 +38,6 @@
   {messages}
   {assets}
   {tools}
-  {engine}
   {redactionConfirm}
   {onReady}
   onRedacted={({ bytes }) => onRedacted(bytes)}

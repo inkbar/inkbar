@@ -1,19 +1,13 @@
 // Inline styles here are structural only: the layer covers the page host
 // (`position:absolute; inset:0`) and its text must stay selectable whatever the page around it
-// sets (`user-select:text`). PDF.js sets the layer's width/height from `--total-scale-factor`.
-// Span styling (transparent colour, absolute positioning, font sizing, rotation transforms)
-// is the theme's job. When the engine reads the file, core lays the spans out itself from the
-// reader's text, in the same DOM.
-import { InkError } from '../model/errors'
-import { mountPdfjsTextLayer, type MountedTextLayer } from '../pdfjs/text-layer'
-
+// sets (`user-select:text`). Span styling (transparent colour, absolute positioning, font
+// sizing, rotation transforms) is the theme's job. Core lays the spans out itself from the
+// reader's text.
 import { mountTextSpans } from './text-spans'
 
 import type { PageTransform } from './transform'
 import type { EngineDocumentReader } from '../engine-reader/reader'
 import type { InkDocument } from '../model/document'
-import type { PdfjsHandles } from '../pdfjs/handles'
-import type { DocumentReader } from '../reader/types'
 
 export interface TextLayerOptions {
   document: InkDocument
@@ -48,25 +42,12 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
   opts.host.append(el)
 
   const abort = new AbortController()
-  let mounted: MountedTextLayer | undefined
   /** The spans built from the engine reader's text, once mounted. */
   let spans: ReturnType<typeof mountTextSpans> | undefined
 
-  /** The engine reader, when it reads this document. A destroyed document takes PDF.js's path. */
-  const engineReader = (): EngineDocumentReader | undefined => {
-    let reader: DocumentReader
-    try {
-      reader = doc._reader
-    } catch {
-      return undefined
-    }
-    return reader.kind === 'engine' ? (reader as EngineDocumentReader) : undefined
-  }
-
-  const mountSpans = async (
-    reader: EngineDocumentReader,
-    transform: PageTransform
-  ): Promise<void> => {
+  const mount = async (transform: PageTransform): Promise<void> => {
+    // Throws, as `_reader` does, while the document is not ready.
+    const reader = doc._reader as EngineDocumentReader
     // Destroying the layer cancels its read, so a page scrolled past does not hold up the next.
     const [content, families, baselines, info] = await Promise.all([
       reader.text(page, { glyphs: false, signal: abort.signal }),
@@ -86,28 +67,6 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     opts.onRendered?.()
   }
 
-  /**
-   * The document's PDF.js handles: the layer reads PDF.js's text only while PDF.js reads the
-   * file.
-   */
-  const pdfjs = (): PdfjsHandles => {
-    const handles = doc._pdfjs
-    if (!handles)
-      throw new InkError('InvalidPdf', 'The document has no PDF.js text to show')
-    return handles
-  }
-
-  const viewportFor = async (transform: PageTransform) => {
-    const pdfPage = await pdfjs().getPage(page)
-    return {
-      pdfPage,
-      viewport: pdfPage.getViewport({
-        scale: transform.zoom,
-        rotation: transform.totalRotation,
-      }),
-    }
-  }
-
   // A throwing `onError` must not reject `ready`: its exception is rethrown from a microtask,
   // so it still surfaces as an uncaught error.
   const report = (error: unknown) => {
@@ -119,23 +78,6 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
         throw thrown
       })
     }
-  }
-
-  const mount = async (transform: PageTransform): Promise<void> => {
-    const engine = engineReader()
-    if (engine) return mountSpans(engine, transform)
-    const { pdfPage, viewport } = await viewportFor(transform)
-    if (abort.signal.aborted) return
-    const { module, textReads } = pdfjs()
-    mounted = await mountPdfjsTextLayer({
-      module,
-      pdfPage,
-      container: el,
-      viewport,
-      signal: abort.signal,
-      reads: textReads,
-    })
-    if (!abort.signal.aborted) opts.onRendered?.()
   }
 
   let ready: Promise<void> = mount(opts.transform).catch(report)
@@ -158,15 +100,8 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
             return
           }
           // A mount that failed is tried again, so the layer can recover with the page.
-          if (!mounted) {
-            el.replaceChildren()
-            await mount(transform)
-            return
-          }
-          const { viewport } = await viewportFor(transform)
-          if (abort.signal.aborted) return
-          mounted.update(viewport)
-          opts.onRendered?.()
+          el.replaceChildren()
+          await mount(transform)
         })
         .catch(report)
     },
@@ -180,7 +115,7 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
   // A document that has stopped reading and starts again: a mount that failed meanwhile is
   // tried again (`update` does that), so the page's text comes back with its pixels.
   const stopRestart = doc.engineStopped.subscribe((stopped) => {
-    if (!stopped && !spans && !mounted) api.update(latest)
+    if (!stopped && !spans) api.update(latest)
   })
   return api
 }

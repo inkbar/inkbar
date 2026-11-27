@@ -20,7 +20,6 @@
     "@inkbar/e2e-shared": "workspace:*",
     "@inkbar/engine": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
-    "@inkbar/fonts": "^1.0.0",
     "@inkbar/icons": "workspace:*",
     "@inkbar/react": "workspace:*",
     "@inkbar/svelte": "workspace:*",

@@ -11,6 +11,13 @@ import type { Plugin } from 'vite'
 const here = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const pdfjsRoot = dirname(require.resolve('pdfjs-dist/package.json'))
+/** The fallback fonts' directory in the installed `@inkbar/fonts`. */
+const fontsDir = dirname(require.resolve('@inkbar/fonts/files/NotoSans-Regular.ttf'))
+/**
+ * The engine's build in this repository: `@inkbar/engine` takes this package as a development
+ * dependency, so this one cannot take the engine.
+ */
+const engineDist = join(here, '..', 'packages', 'engine', 'dist')
 
 const TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -20,6 +27,7 @@ const TYPES: Record<string, string> = {
   '.bcmap': 'application/octet-stream',
   '.pfb': 'application/octet-stream',
   '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
   '.icc': 'application/vnd.iccprofile',
 }
 
@@ -93,10 +101,17 @@ function serveDir(prefix: string, dir: string): Middleware {
   )
 }
 
-/** Serves the fixture PDFs (and the corpus) at /fixtures/ and the installed pdfjs-dist at /pdfjs/ in Vite dev and preview servers. */
+/**
+ * Serves, in Vite dev and preview servers, the fixture PDFs (and the corpus) at /fixtures/, and
+ * the files `browserAssets()` names: the engine's binary and worker at /inkbar-engine/, the
+ * fallback fonts at /inkbar-fonts/, and the installed pdfjs-dist at /pdfjs/: its sandbox files,
+ * and its reader, which tests open saved files with.
+ */
 export function serveFixtures(): Plugin {
   const handlers = [
     serve(fixtureFileForUrl, [join(here, 'pdf'), join(here, 'corpus')]),
+    serveDir('/inkbar-engine/', engineDist),
+    serveDir('/inkbar-fonts/', fontsDir),
     serveDir('/pdfjs/', pdfjsRoot),
   ]
   return {

@@ -16,7 +16,6 @@
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/react": "workspace:*",
     "@inkbar/e2e-shared": "workspace:*",
-    "@inkbar/engine": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

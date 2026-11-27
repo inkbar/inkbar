@@ -30,7 +30,6 @@
   import { onDestroy } from 'svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import { engine } from '../../shared/engine'
   import { FileUp } from '../../shared/file-up'
   import { changedFields } from '../../shared/form'
   import { signatureFonts, storage } from '../../shared/signatures'
@@ -67,7 +66,6 @@
   {locale}
   {assets}
   {storage}
-  {engine}
   {signatureFonts}
   {onReady}
   {onaction}

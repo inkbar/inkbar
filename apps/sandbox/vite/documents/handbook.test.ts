@@ -13,16 +13,15 @@ import {
 
 import { makeHandbook } from './handbook.ts'
 
-/** PDF.js's files from core's own copy, as file paths for Node. */
+/** The engine's files from the installed package, as file paths for Node, which runs no form scripts. */
 function nodeAssets() {
-  const require = createRequire(fileURLToPath(import.meta.resolve('@inkbar/core')))
-  const root = dirname(require.resolve('pdfjs-dist/package.json'))
+  const require = createRequire(fileURLToPath(import.meta.url))
+  const engine = join(dirname(require.resolve('@inkbar/engine/package.json')), 'dist')
   return {
-    worker: require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs'),
-    cMaps: join(root, 'cmaps') + '/',
-    standardFonts: join(root, 'standard_fonts') + '/',
-    wasm: join(root, 'wasm') + '/',
-    icc: join(root, 'iccs') + '/',
+    engine: join(engine, 'inkbar-pdfium.wasm'),
+    worker: join(engine, 'worker.mjs'),
+    fonts: false as const,
+    sandbox: '/',
   }
 }
 
@@ -82,7 +81,7 @@ const within = (items: Item[], link: PageLink): Item[] =>
   )
 
 /**
- * The runs that reach into a link's rectangle. PDF.js joins neighbouring text into one run,
+ * The runs that reach into a link's rectangle. The reader joins neighbouring text into one run,
  * so a link in the middle of a sentence is found by overlap rather than by where a run starts.
  */
 const touching = (items: Item[], link: PageLink): Item[] =>
@@ -187,12 +186,24 @@ void test('index page numbers link to their pages', async () => {
   const last = doc.pages.length - 1
   const links = doc.links(last)
   assert.ok(links.length >= 30, `${links.length} index links`)
-  const printed = await runs(doc, last)
+  const { items } = await doc.text(last)
   for (const link of links) {
-    const text = within(printed, link)
-      .map((i) => i.str)
-      .join('')
-      .replace(/[^\d]/g, '')
+    // The characters whose middle the link covers, from where the page draws each: an entry's
+    // numbers may share a run with each other and with the entry.
+    const covered = items.flatMap((i) =>
+      [...i.str].filter((_, n) => {
+        const at = i.advances ?? [...i.str, ''].map((__, k) => k / i.str.length)
+        const x = i.rect.x + ((at[n]! + at[n + 1]!) / 2) * i.rect.width
+        const y = i.rect.y + i.rect.height / 2
+        return (
+          x >= link.rect.x &&
+          x <= link.rect.x + link.rect.width &&
+          y >= link.rect.y &&
+          y <= link.rect.y + link.rect.height
+        )
+      })
+    )
+    const text = covered.join('').replace(/[^\d]/g, '')
     assert.equal((await pageOf(doc, link)) + 1, Number(text), `link at y ${link.rect.y}`)
   }
 })
@@ -203,7 +214,7 @@ void test('one external link', async () => {
   for (let p = 0; p < doc.pages.length; p++)
     for (const link of doc.links(p))
       if (link.target.kind === 'url') urls.push(link.target.url)
-  // PDF.js writes the bare host with a trailing slash.
+  // The bare host is given with a trailing slash.
   assert.deepEqual(urls, ['https://inkbar.dev/'])
 })
 

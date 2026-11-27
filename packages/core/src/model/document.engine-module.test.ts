@@ -1,10 +1,10 @@
-// The engine reader's module is loaded only when the engine reads the file. When it cannot be
-// loaded (a chunk the host's server no longer has, say), the open fails with EngineUnavailable,
-// as when the engine itself cannot start.
+// The engine reader's module is loaded at the first open. When it cannot be loaded (a chunk the
+// host's server no longer has, say), the open fails with AssetLoadFailed, as when the engine's
+// own files cannot be loaded.
 import { fixtureBytes } from '@inkbar/fixtures'
-import { afterEach, expect, it, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument } from './document'
 
@@ -16,24 +16,16 @@ vi.mock(import('../engine-reader/reader'), () => {
   throw failed
 })
 
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-
-afterEach(() => {
-  delete flag.__INKBAR_READER__
-})
-
-it("gives EngineUnavailable, with the cause, when the engine reader's module cannot be loaded", async () => {
-  flag.__INKBAR_READER__ = 'engine'
+it("gives AssetLoadFailed, with the cause, when the engine reader's module cannot be loaded", async () => {
   const doc = await openDocument(await fixtureBytes('text-simple'), {
     assets: nodeAssets(),
-    engine: () => import('@inkbar/engine'),
   })
   await expect(doc.ready).rejects.toMatchObject({
-    code: 'EngineUnavailable',
+    code: 'AssetLoadFailed',
     details: { cause: expect.anything() as unknown },
   })
   expect(doc.status.get()).toMatchObject({
     state: 'error',
-    error: { code: 'EngineUnavailable' },
+    error: { code: 'AssetLoadFailed' },
   })
 })

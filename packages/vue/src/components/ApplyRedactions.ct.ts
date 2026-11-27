@@ -57,16 +57,6 @@ test('is disabled without marks', async ({ mount, page }) => {
   await expect(probe).toHaveAttribute('data-can-redact', 'false')
 })
 
-test('is disabled without the engine prop', async ({ mount, page }) => {
-  const cmp = await mount(Harness, { props: { src: fixtureUrl('redact-text'), assets } })
-  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
-  await mark(page)
-  // The mark is in the document, and still there is nothing to apply it with.
-  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Apply redactions' })).toBeDisabled()
-  await expect(cmp.getByTestId('probe')).toHaveAttribute('data-can-redact', 'false')
-})
-
 test('shows busy while applying', async ({ mount, page }) => {
   const cmp = await mount(Harness, {
     props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },

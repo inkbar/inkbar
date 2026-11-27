@@ -7,9 +7,11 @@ import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/te
  * passes its own dev-server and preview ports. The commands run in the sandbox's directory (the
  * directory of the config that calls this), so `pnpm dev` starts that sandbox.
  *
- * With `E2E_PREVIEW=1` it runs instead only the `preview` project: the engine-reader spec
- * against a production build served by `vite preview`, so the engine's worker, binary and glue
- * are known to survive the bundler with no setting of their own. Only that run builds, so a
+ * With `E2E_PREVIEW=1` it runs instead only the `preview` project: the drawing page's test, a
+ * download that writes the session into the file, and the scripted form, against a production
+ * build served by `vite preview`, so the engine's worker and binary, the fallback fonts and the
+ * form script sandbox, as the Vite plugin copies them, are known to work in a build. (The rest
+ * of the review spec reads metrics only a development build records.) Only that run builds, so a
  * broken build fails it alone. The build goes to `dist-e2e`, never replacing Turbo's `dist`.
  */
 export function defineSandboxConfig(opts: {
@@ -40,7 +42,14 @@ export function defineSandboxConfig(opts: {
         reuseExistingServer: false,
         timeout: 180_000,
       },
-      projects: [{ name: 'preview', testMatch: 'engine-reader.spec.ts', use: chrome }],
+      projects: [
+        {
+          name: 'preview',
+          testMatch: ['review.spec.ts', 'file-actions.spec.ts', 'forms.spec.ts'],
+          grep: /drawing page|Download and Print|a scripted form/,
+          use: chrome,
+        },
+      ],
     })
   return defineConfig({
     ...base,

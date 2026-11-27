@@ -61,13 +61,13 @@ import { createThreadPopover } from './thread-popover'
 import type { InkMessages, InkMessagesInput } from '../../messages'
 import type { PluginHistory } from '../../model/annotations/history'
 import type { Annotation } from '../../model/annotations/types'
+import type { PdfAssets } from '../../model/assets'
 import type { LinkTarget } from '../../model/destination'
 import type { FormController } from '../../model/form/controller'
 import type { FieldsMode } from '../../model/form/types'
 import type { RecordBase } from '../../model/records'
 import type { RedactionPreview, RedactionResult } from '../../model/redaction/types'
 import type { DocumentSource } from '../../model/source'
-import type { PdfAssets } from '../../pdfjs/types'
 import type { Navigation } from '../navigation'
 import type { Command, InkPlugin } from '../plugins/define'
 import type { Tool, ToolController } from '../tools'
@@ -104,14 +104,6 @@ export interface CreateViewerOptions extends Omit<
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
-  /**
-   * Loads @inkbar/engine, so that Download, Print and Ctrl+S or Ctrl+P hand over the file with
-   * this session's annotations and changed form values written into it:
-   * `engine: () => import('@inkbar/engine')`. It loads on the first of those with changes, never
-   * before. Without it they hand over the file as it was opened, and the engine is not bundled.
-   * Every document the viewer opens is given it.
-   */
-  engine?: OpenOptions['engine']
   /**
    * Form field values; defaults to uncontrolled, starting from the PDF's. Controlled:
    * `{ mode: 'controlled', initial, onChange }`, where `onChange` hears every commit with the
@@ -254,8 +246,8 @@ export interface Viewer {
   open(source: DocumentSource, opts?: { password?: string }): void
   /**
    * Saves the open document's file through the browser's download, under its `fileName` or
-   * `opts.filename`. With the `engine` option and changes, that is a copy with them written in
-   * (`document.save()`); otherwise the file as it was opened. Does nothing while no document is
+   * `opts.filename`. With changes, that is a copy with them written in (`document.save()`);
+   * otherwise the file as it was opened. Does nothing while no document is
    * open, while a download or print is writing its copy (`fileBusy`), or while the document's
    * redaction marks are applied (`redactionBusy`). When the copy cannot be written it downloads
    * nothing, reports the `SaveFailed` (or, while the document has stopped reading, the
@@ -315,7 +307,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     passwordPrompt = true,
     defaults,
     history,
-    engine: engineLoader,
     fields,
     annotations,
     plugins,
@@ -805,7 +796,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       password: pw,
       defaults: defaults ?? cssVariableDefaults(root),
       pictures: savePictures(root.ownerDocument),
-      engine: engineLoader,
       history,
       fields,
       annotations:

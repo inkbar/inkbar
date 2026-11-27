@@ -69,7 +69,9 @@ async function record(
   })
 }
 
-describe.each(opening)('%s', (name) => {
+// Skipped: this compares two readers, and the comparison is being replaced by a comparison of the
+// engine with committed results.
+describe.skip.each(opening)('%s', (name) => {
   it('reads text as parity.json records', async () => {
     const verdict = verdictOn(name, 'text')
     const reason = verdict.state === 'different' ? verdict.reason : ''

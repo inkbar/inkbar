@@ -1,11 +1,10 @@
-// With the engine reading the file, PDF.js is never loaded: `loadPdfjs` is never called, PDF.js's
+// The engine reads the file, and PDF.js is never loaded: `loadPdfjs` is never called, PDF.js's
 // module is never evaluated, and no request for its module, worker or assets is made. Only a
-// document with scripts loads the kept scripting sandbox. Runs in the `browser-engine` project,
-// whose setup file turns the switch on and passes every document the engine.
+// document with scripts loads the kept scripting sandbox.
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { readerKind } from '../reader/select'
+import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { mountContainer, until } from './test-utils'
 import { createViewer } from './viewer/create-viewer'
@@ -57,7 +56,8 @@ async function requestsDuring(work: () => Promise<void>): Promise<string[]> {
 
 /**
  * A request for PDF.js: its package (the module, its worker, the sandbox), its worker file, or a
- * file of the assets the tests serve it under `/pdfjs/` (CMaps, fonts, WebAssembly).
+ * file the tests serve under `/pdfjs/` (the sandbox's files, and PDF.js's own for the tests'
+ * second reader).
  */
 const isPdfjs = (url: string): boolean =>
   url.includes('pdfjs-dist') ||
@@ -89,9 +89,8 @@ async function view(name: FixtureName): Promise<InkDocument> {
   return viewer.document.get()!
 }
 
-describe('with the engine reading the file', () => {
+describe('a document', () => {
   it('opens, fills, searches and saves a form without loading PDF.js', async () => {
-    expect(readerKind()).toBe('engine')
     let doc!: InkDocument
     const urls = await requestsDuring(async () => {
       doc = await view('form-fields')
@@ -105,7 +104,6 @@ describe('with the engine reading the file', () => {
       expect(saved.byteLength).toBeGreaterThan(0)
     })
     expect(doc._reader.kind).toBe('engine')
-    expect(doc._pdfjs).toBeUndefined()
     // The page's own requests were seen: the fixture, and the engine's worker.
     expect(urls.some((url) => url.includes('form-fields.pdf'))).toBe(true)
     expect(urls.filter(isPdfjs)).toEqual([])
@@ -119,22 +117,22 @@ describe('with the engine reading the file', () => {
       // The open has run the file's scripts.
       await until(() => doc.form.fields.get().length > 0)
     })
-    expect(doc._pdfjs).toBeUndefined()
     const pdfjs = urls.filter(isPdfjs)
     expect(pdfjs.length).toBeGreaterThan(0)
     expect(pdfjs.filter((url) => !isSandbox(url))).toEqual([])
     expect(pdfjsUse).toEqual({ evaluated: false, loads: 0 })
   })
 
-  // Control, last as it loads PDF.js into the page: with the switch off the same watch sees it.
-  it('sees PDF.js load when PDF.js reads the file', async () => {
-    const flag = globalThis as { __INKBAR_READER__?: unknown }
-    delete flag.__INKBAR_READER__
-    let doc!: InkDocument
+  // Control, last as it loads PDF.js into the page: the same watch sees PDF.js load when the
+  // tests' second reader opens a file with it.
+  it('sees PDF.js load when it opens a file', async () => {
     const urls = await requestsDuring(async () => {
-      doc = await view('text-simple')
+      const bytes = new Uint8Array(
+        await (await fetch(fixtureUrl('text-simple'))).arrayBuffer()
+      )
+      const opened = await openWithPdfjsReader(bytes)
+      await opened.destroy()
     })
-    expect(doc._reader.kind).toBe('pdfjs')
     expect(pdfjsUse).toEqual({ evaluated: true, loads: 1 })
     expect(urls.filter(isPdfjs)).not.toEqual([])
   })

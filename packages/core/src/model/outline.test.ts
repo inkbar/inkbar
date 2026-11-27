@@ -1,7 +1,7 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
 
 import { openDocument } from './document'
 
@@ -10,7 +10,6 @@ import type { OutlineItem } from './outline'
 async function open(name: 'outline' | 'text-simple' = 'outline') {
   const doc = await openDocument(await fixtureBytes(name), {
     assets: nodeAssets(),
-    verbosity: 0,
   })
   await doc.ready
   return doc
@@ -117,7 +116,7 @@ describe('outline', () => {
 
   it('reads nothing until called', async () => {
     const doc = await open()
-    const spy = vi.spyOn(doc._pdfjs!.proxy, 'getOutline')
+    const spy = vi.spyOn(doc._reader, 'outline')
     await new Promise((r) => setTimeout(r, 20))
     expect(spy).not.toHaveBeenCalled()
     const first = await doc.outline()

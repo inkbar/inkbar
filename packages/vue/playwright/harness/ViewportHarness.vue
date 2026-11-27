@@ -40,8 +40,9 @@ const decorate = computed(() => {
     a.type === 'text' ? { data: { 'test-mark': mark } } : undefined
 })
 
-// Stands in for a page PDF.js cannot render: the canvas and text layer both look the page up
-// through `_pdfjs.getPage`, so failing it fails that page's mount and nothing else.
+// Stands in for a page the engine cannot render: the canvas draws through the reader's `draw` and
+// the text layer reads through its `text`, so failing them fails that page's mount and nothing
+// else.
 let failing = true
 function heal(): void {
   failing = false
@@ -50,20 +51,20 @@ function onReady(doc: InkDocument): void {
   const target = props.failPage
   const textTarget = props.failText
   if (target === undefined && textTarget === undefined) return
-  const handles = doc._pdfjs!
-  const original = handles.getPage.bind(handles)
-  handles.getPage = async (index) => {
-    if (failing && index === target)
+  const reader = doc._reader
+  const draw = reader.draw.bind(reader)
+  reader.draw = async (request, ...rest) => {
+    if (failing && request.page === target)
       throw new Error('The page could not be drawn by the engine')
-    const page = await original(index)
-    // Only the text layer streams text content: failing the stream fails that layer alone.
-    if (index === textTarget) {
-      page.streamTextContent = () =>
-        new ReadableStream({
-          start: (controller) => controller.error(new Error('No text from the engine')),
-        })
-    }
-    return page
+    return draw(request, ...rest)
+  }
+  const text = reader.text.bind(reader)
+  reader.text = async (page, ...rest) => {
+    if (failing && page === target)
+      throw new Error('The page could not be drawn by the engine')
+    // Only the text layer reads text here: failing the read fails that layer alone.
+    if (page === textTarget) throw new Error('No text from the engine')
+    return text(page, ...rest)
   }
 }
 </script>

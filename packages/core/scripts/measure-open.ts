@@ -1,5 +1,4 @@
-// Measures what opening a file costs a host in Chromium, with core's internal reader switch off
-// (PDF.js reads the file) and on (the engine reads it): the time from the viewer's open to page
+// Measures what opening a file costs a host in Chromium: the time from the viewer's open to page
 // 1 drawn, the peak memory while it opens, and the JavaScript the page loads by then.
 //
 //   node scripts/measure-open.ts [runs] [out]    default 5 runs, out .tmp/measures.json
@@ -13,8 +12,7 @@
 // - memory: the resident memory of the browser's process tree (every process under the one
 //   Playwright launched, from /proc, so Linux only), sampled every 5 ms from just before the
 //   open until page 1 is drawn; the peak less the sample taken just before. It holds the page's
-//   and every worker's JavaScript heap, PDF.js's worker and the engine's WebAssembly memory
-//   alike. The main thread's JavaScript heap is also read, through the DevTools protocol, at the
+//   and every worker's JavaScript heap and the engine's WebAssembly memory alike. The main thread's JavaScript heap is also read, through the DevTools protocol, at the
 //   same times;
 // - JavaScript: every .js or .mjs response the browser received from page load until page 1 is
 //   drawn, workers' included, sized from the built files on disk, raw and gzipped (level 9); the
@@ -46,8 +44,6 @@ const FILES = {
     new Uint8Array(readFileSync(join(REPO, 'fixtures', 'pdf', 'form-fields.pdf'))),
 } as const
 type FileName = keyof typeof FILES
-const READERS = ['pdfjs', 'engine'] as const
-type Reader = (typeof READERS)[number]
 
 /** Serves the measured files at `/measure/<name>.pdf` from the preview server. */
 function serveFiles(files: Record<string, Uint8Array>): Plugin {
@@ -114,7 +110,7 @@ interface Run {
   binaries: string[]
 }
 
-async function once(base: string, file: FileName, reader: Reader): Promise<Run> {
+async function once(base: string, file: FileName): Promise<Run> {
   const server = await chromium.launchServer({ headless: true })
   try {
     const browser = await chromium.connect(server.wsEndpoint())
@@ -127,8 +123,7 @@ async function once(base: string, file: FileName, reader: Reader): Promise<Run> 
       if (path.endsWith('.wasm')) binaries.add(path)
     })
     const page = await context.newPage()
-    const query = reader === 'engine' ? '?reader=engine' : ''
-    await page.goto(`${base}/${query}`)
+    await page.goto(`${base}/`)
     await page.waitForFunction(
       () => (globalThis as { measureReady?: boolean }).measureReady
     )
@@ -168,8 +163,8 @@ async function once(base: string, file: FileName, reader: Reader): Promise<Run> 
     }
     treePeak = Math.max(treePeak, residentBytes(processTree(root)))
     heapPeak = Math.max(heapPeak, await mainHeap(cdp))
-    if (result.reader !== reader)
-      throw new Error(`${file} opened with ${result.reader}, not ${reader}`)
+    if (result.reader !== 'engine')
+      throw new Error(`${file} opened with ${result.reader}, not the engine`)
     await browser.close()
     return {
       ms: result.elapsed,
@@ -230,34 +225,33 @@ const commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
 }).trim()
 const results: Record<string, unknown> = {}
 try {
-  for (const file of Object.keys(FILES) as FileName[])
-    for (const reader of READERS) {
-      const measured: Run[] = []
-      for (let i = 0; i < runs; i++) measured.push(await once(base, file, reader))
-      const sizes = sizesOf(OUT_DIR, measured[0]!.scripts)
-      const wasm = sizesOf(OUT_DIR, measured[0]!.binaries)
-      const row = {
-        runs,
-        openToFirstPageMs: Number(median(measured.map((r) => r.ms)).toFixed(1)),
-        peakProcessTreeRssIncreaseMB: mb(median(measured.map((r) => r.peakTreeBytes))),
-        peakMainThreadJsHeapMB: mb(median(measured.map((r) => r.peakMainHeapBytes))),
-        javascriptAtOpen: { raw: sizes.raw, gzip: sizes.gzip, files: sizes.files },
-        webAssemblyAtOpen: { raw: wasm.raw, gzip: wasm.gzip, files: wasm.files },
-        each: measured.map((r) => ({
-          ms: Number(r.ms.toFixed(1)),
-          treeMB: mb(r.peakTreeBytes),
-          heapMB: mb(r.peakMainHeapBytes),
-        })),
-      }
-      results[`${file}, switch ${reader === 'engine' ? 'on' : 'off'}`] = row
-      console.log(
-        `${file.padEnd(12)} switch ${reader === 'engine' ? 'on ' : 'off'}  ` +
-          `${String(row.openToFirstPageMs).padStart(7)} ms  ` +
-          `tree +${row.peakProcessTreeRssIncreaseMB} MB  ` +
-          `main heap ${row.peakMainThreadJsHeapMB} MB  ` +
-          `JS ${sizes.raw.toLocaleString('en')} B (${sizes.gzip.toLocaleString('en')} gzipped)`
-      )
+  for (const file of Object.keys(FILES) as FileName[]) {
+    const measured: Run[] = []
+    for (let i = 0; i < runs; i++) measured.push(await once(base, file))
+    const sizes = sizesOf(OUT_DIR, measured[0]!.scripts)
+    const wasm = sizesOf(OUT_DIR, measured[0]!.binaries)
+    const row = {
+      runs,
+      openToFirstPageMs: Number(median(measured.map((r) => r.ms)).toFixed(1)),
+      peakProcessTreeRssIncreaseMB: mb(median(measured.map((r) => r.peakTreeBytes))),
+      peakMainThreadJsHeapMB: mb(median(measured.map((r) => r.peakMainHeapBytes))),
+      javascriptAtOpen: { raw: sizes.raw, gzip: sizes.gzip, files: sizes.files },
+      webAssemblyAtOpen: { raw: wasm.raw, gzip: wasm.gzip, files: wasm.files },
+      each: measured.map((r) => ({
+        ms: Number(r.ms.toFixed(1)),
+        treeMB: mb(r.peakTreeBytes),
+        heapMB: mb(r.peakMainHeapBytes),
+      })),
     }
+    results[file] = row
+    console.log(
+      `${file.padEnd(12)} ` +
+        `${String(row.openToFirstPageMs).padStart(7)} ms  ` +
+        `tree +${row.peakProcessTreeRssIncreaseMB} MB  ` +
+        `main heap ${row.peakMainThreadJsHeapMB} MB  ` +
+        `JS ${sizes.raw.toLocaleString('en')} B (${sizes.gzip.toLocaleString('en')} gzipped)`
+    )
+  }
 } finally {
   await server.close()
 }

@@ -1,0 +1,70 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 0 > checked 1`] = `
+[
+  "36R",
+  "42R",
+  "47R",
+  "53R",
+  "58R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 0 > own 1`] = `
+[
+  "11R",
+  "15R",
+  "18R",
+  "21R",
+  "24R",
+  "27R",
+  "30R",
+  "33R",
+  "36R",
+  "42R",
+  "47R",
+  "53R",
+  "58R",
+  "64R",
+  "67R",
+  "70R",
+  "75R",
+  "83R",
+  "88R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 0 > unchecked 1`] = `
+[
+  "36R",
+  "42R",
+  "47R",
+  "53R",
+  "58R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 1 > checked 1`] = `[]`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 1 > own 1`] = `
+[
+  "77R",
+  "80R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-fields page 1 > unchecked 1`] = `[]`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-rollover page 0 > checked 1`] = `
+[
+  "8R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-rollover page 0 > own 1`] = `
+[
+  "8R",
+]
+`;
+
+exports[`field appearances drawn by the engine > resolves the ids it resolved before for each look, form-rollover page 0 > unchecked 1`] = `[]`;

@@ -1,9 +1,8 @@
 /*
  * Which files the page fetches while something runs, from Resource Timing. Each context sees only
- * its own requests, and both readers fetch most of their files from a module worker: the engine
- * its binary and fonts, PDF.js its CMaps, fonts and WebAssembly. So while watching, every module
- * worker the page starts goes through a small module that imports the real worker script and
- * posts that worker's own entries back over a BroadcastChannel. The worker runs as it would,
+ * its own requests, and the engine fetches its binary and fonts from a module worker. So while
+ * watching, every module worker the page starts goes through a small module that imports the
+ * real worker script and posts that worker's own entries back over a BroadcastChannel. The worker runs as it would,
  * but for one thing: its base URL is the wrapper's `blob:` URL, so its `fetch` resolves a
  * relative URL against the real script's URL first, as it would have been. No request is
  * otherwise changed or held up. A classic worker is only recorded as started.

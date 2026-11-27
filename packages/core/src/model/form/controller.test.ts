@@ -1,8 +1,8 @@
 import { fixtureBytes } from '@inkbar/fixtures'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../../pdfjs/node-assets'
 import { formFieldsOf } from '../../test-support/form'
+import { nodeAssets } from '../../test-support/node-assets'
 import { openDocument } from '../document'
 import { InkError } from '../errors'
 

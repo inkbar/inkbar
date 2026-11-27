@@ -29,7 +29,6 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -59,7 +58,6 @@ function onTool(tool: ToolId): void {
     :locale="locale"
     :assets="assets"
     :storage="storage"
-    :engine="engine"
     :tools="tools"
     class="scenario-root"
     @ready="onReady"

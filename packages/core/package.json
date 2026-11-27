@@ -53,10 +53,11 @@
     "generate:metrics": "node scripts/generate-font-metrics.ts",
     "measure:open": "node scripts/measure-open.ts",
     "test": "vitest run --project node",
-    "test:browser": "vitest run --project browser",
-    "test:browser:engine": "vitest run --project browser-engine"
+    "test:browser": "vitest run --project browser"
   },
   "dependencies": {
+    "@inkbar/engine": "workspace:^",
+    "@inkbar/fonts": "^1.0.0",
     "@inkbar/icons": "workspace:^",
     "gloss-format": "^1.2.0",
     "pdfjs-dist": "^6.4.299",
@@ -65,21 +66,15 @@
     "zod": "^4.6.6"
   },
   "peerDependencies": {
-    "@inkbar/engine": "workspace:^",
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
-    "@inkbar/engine": {
-      "optional": true
-    },
     "vite": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@inkbar/engine": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
-    "@inkbar/fonts": "^1.0.0",
     "@inkbar/theme": "workspace:*",
     "@pdf-lib/standard-fonts": "1.0.0",
     "@vitest/browser-playwright": "^5.0.4",

@@ -1,6 +1,8 @@
 /*
- * Download and print buttons in a toolbar over a document. `engine` gives the root a stand-in
- * engine (`held-engine.ts`); the codes of the errors the root reports show in `errors`.
+ * Download and print buttons in a toolbar over a document. `engine` makes the held engine
+ * (`held-engine.ts`) the one the root's document uses, through core's engine factory: `held`
+ * holds its writes, `unavailable` stops it at its first write with no engine starting after it.
+ * The codes of the errors the root reports show in `errors`.
  */
 import { useEffect, useState } from 'react'
 
@@ -10,7 +12,7 @@ import { InkRoot } from '../../src/components/InkRoot'
 import { InkToolbar } from '../../src/components/InkToolbar'
 import { InkViewport } from '../../src/components/InkViewport'
 
-import { heldEngine, holdEngine } from './held-engine'
+import { holdEngine } from './held-engine'
 
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
@@ -25,12 +27,10 @@ export function FileHarness({
   filename?: string
   engine?: 'held' | 'unavailable'
 }) {
-  // `held` is core's engine factory, which the root's document uses with no `engine` option,
-  // cleared on unmount; `unavailable` is a loader that fails.
-  const [loader] = useState(() =>
-    engine === 'unavailable' ? heldEngine(true) : undefined
+  // Core's engine factory, cleared on unmount.
+  const [release] = useState(() =>
+    engine ? holdEngine(engine === 'unavailable') : undefined
   )
-  const [release] = useState(() => (engine === 'held' ? holdEngine() : undefined))
   useEffect(() => release, [release])
   const [errors, setErrors] = useState<string[]>([])
   return (
@@ -38,7 +38,6 @@ export function FileHarness({
       src={src}
       assets={assets}
       zoom={1}
-      engine={loader}
       onError={(e) => setErrors((prev) => [...prev, e.code])}
     >
       <InkToolbar>

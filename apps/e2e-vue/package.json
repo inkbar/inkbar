@@ -15,7 +15,6 @@
     "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/e2e-shared": "workspace:*",
-    "@inkbar/engine": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@inkbar/vue": "workspace:*",
     "vue": "^3.5.43"

@@ -1,7 +1,8 @@
-// What the engine reader asks of @inkbar/engine, declared by shape: core names nothing from the
-// engine, and the loader's public type stays the saver's.
+// What the engine reader asks of @inkbar/engine, declared by shape and checked when a file is
+// opened, so these types name nothing from the engine.
 import type { PageChars } from './runs'
 import type { Rect } from '../model/geometry'
+import type { SaveEngine, SaveEngineDocument } from '../model/save/saver'
 
 /**
  * @internal The engine's open document, as far as drawing pages and reading their text, links
@@ -462,4 +463,15 @@ export interface OutlineShape {
 export interface ReaderEngine {
   open(bytes: Uint8Array, options?: { password?: string }): Promise<ReaderEngineDocument>
   destroy(): Promise<void>
+}
+
+/** @internal A document open in the engine core runs: read by the reader, written by the saver. */
+export interface CoreEngineDocument extends ReaderEngineDocument, SaveEngineDocument {}
+
+/**
+ * @internal The engine core runs for a document. The reader opens the file in it, and lends it
+ * to the saver for each write.
+ */
+export interface CoreEngine extends ReaderEngine, SaveEngine {
+  open(bytes: Uint8Array, options?: { password?: string }): Promise<CoreEngineDocument>
 }

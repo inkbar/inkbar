@@ -17,16 +17,15 @@ import {
   type SuggestionsOptions,
 } from './suggestions.ts'
 
-/** PDF.js's files from core's own copy, as file paths for Node. */
+/** The engine's files from the installed package, as file paths for Node, which runs no form scripts. */
 function nodeAssets() {
-  const require = createRequire(fileURLToPath(import.meta.resolve('@inkbar/core')))
-  const root = dirname(require.resolve('pdfjs-dist/package.json'))
+  const require = createRequire(fileURLToPath(import.meta.url))
+  const engine = join(dirname(require.resolve('@inkbar/engine/package.json')), 'dist')
   return {
-    worker: require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs'),
-    cMaps: join(root, 'cmaps') + '/',
-    standardFonts: join(root, 'standard_fonts') + '/',
-    wasm: join(root, 'wasm') + '/',
-    icc: join(root, 'iccs') + '/',
+    engine: join(engine, 'inkbar-pdfium.wasm'),
+    worker: join(engine, 'worker.mjs'),
+    fonts: false as const,
+    sandbox: '/',
   }
 }
 

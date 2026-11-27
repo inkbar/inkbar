@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: acroform-basic 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: acroform-basic 1`] = `
 [
   {
     "annotations": [],
@@ -12,7 +12,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annot-direct 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annot-direct 1`] = `
 [
   {
     "annotations": [
@@ -41,7 +41,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
         "contents": "A Square written inline",
         "createdAt": "2026-10-12T00:00:00.000Z",
         "hasAppearance": true,
-        "id": "pdf:0:annot_p0_1",
+        "id": "pdf:0:p0i1",
         "locked": true,
         "modifiedAt": "2026-10-12T00:00:00.000Z",
         "opacity": 1,
@@ -61,7 +61,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
         "contents": "A Highlight written inline",
         "createdAt": "2026-10-12T00:00:00.000Z",
         "hasAppearance": true,
-        "id": "pdf:0:annot_p0_2",
+        "id": "pdf:0:p0i2",
         "locked": true,
         "modifiedAt": "2026-10-12T00:00:00.000Z",
         "opacity": 1,
@@ -105,7 +105,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-markup 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-markup 1`] = `
 [
   {
     "annotations": [
@@ -275,7 +275,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-notes-threaded 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-notes-threaded 1`] = `
 [
   {
     "annotations": [
@@ -374,7 +374,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-redact 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-redact 1`] = `
 [
   {
     "annotations": [
@@ -425,7 +425,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-shapes 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-shapes 1`] = `
 [
   {
     "annotations": [
@@ -622,7 +622,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: annotated-unsupported 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: annotated-unsupported 1`] = `
 [
   {
     "annotations": [],
@@ -636,7 +636,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: bad-appended 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-appended 1`] = `
 [
   {
     "annotations": [],
@@ -646,7 +646,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: bad-black-box 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-black-box 1`] = `
 [
   {
     "annotations": [],
@@ -656,7 +656,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: bad-unapplied 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: bad-unapplied 1`] = `
 [
   {
     "annotations": [
@@ -688,7 +688,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: border-dashes 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: border-dashes 1`] = `
 [
   {
     "annotations": [
@@ -778,7 +778,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: callout-bad-xref 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-bad-xref 1`] = `
 [
   {
     "annotations": [
@@ -829,7 +829,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: callout-encrypted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-encrypted 1`] = `
 [
   {
     "annotations": [
@@ -880,7 +880,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: callout-incremental 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-incremental 1`] = `
 [
   {
     "annotations": [
@@ -931,7 +931,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: callout-xref-stream 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: callout-xref-stream 1`] = `
 [
   {
     "annotations": [
@@ -982,7 +982,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: certified 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: certified 1`] = `
 [
   {
     "annotations": [],
@@ -994,7 +994,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: check-form-text 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-form-text 1`] = `
 [
   {
     "annotations": [],
@@ -1004,7 +1004,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: check-image 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-image 1`] = `
 [
   {
     "annotations": [],
@@ -1014,7 +1014,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: check-inline-image 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-inline-image 1`] = `
 [
   {
     "annotations": [],
@@ -1024,7 +1024,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: check-pattern-text 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: check-pattern-text 1`] = `
 [
   {
     "annotations": [],
@@ -1034,7 +1034,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-alpha-composite 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-alpha-composite 1`] = `
 [
   {
     "annotations": [],
@@ -1044,7 +1044,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-annots 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-annots 1`] = `
 [
   {
     "annotations": [
@@ -1203,7 +1203,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-842 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-842 1`] = `
 [
   {
     "annotations": [],
@@ -1213,7 +1213,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1087 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1087 1`] = `
 [
   {
     "annotations": [],
@@ -1223,7 +1223,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1236 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1236 1`] = `
 [
   {
     "annotations": [],
@@ -1233,7 +1233,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1388 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1388 1`] = `
 [
   {
     "annotations": [],
@@ -1243,7 +1243,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1399 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1399 1`] = `
 [
   {
     "annotations": [],
@@ -1255,7 +1255,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1469 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1469 1`] = `
 [
   {
     "annotations": [],
@@ -1265,7 +1265,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1558 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1558 1`] = `
 [
   {
     "annotations": [],
@@ -1275,7 +1275,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1746 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1746 1`] = `
 [
   {
     "annotations": [],
@@ -1285,7 +1285,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1768 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1768 1`] = `
 [
   {
     "annotations": [],
@@ -1295,7 +1295,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1822 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1822 1`] = `
 [
   {
     "annotations": [],
@@ -1305,7 +1305,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1845 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1845 1`] = `
 [
   {
     "annotations": [],
@@ -1315,7 +1315,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1883 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1883 1`] = `
 [
   {
     "annotations": [
@@ -1568,7 +1568,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1976 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1976 1`] = `
 [
   {
     "annotations": [],
@@ -1578,7 +1578,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-631912 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-631912 1`] = `
 [
   {
     "annotations": [],
@@ -1588,7 +1588,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1258968 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1258968 1`] = `
 [
   {
     "annotations": [],
@@ -1598,7 +1598,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1302355 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1302355 1`] = `
 [
   {
     "annotations": [],
@@ -1608,7 +1608,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1396264 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1396264 1`] = `
 [
   {
     "annotations": [],
@@ -1618,7 +1618,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-1479436 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-1479436 1`] = `
 [
   {
     "annotations": [],
@@ -1628,7 +1628,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-42270471 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-42270471 1`] = `
 [
   {
     "annotations": [],
@@ -1638,7 +1638,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-bug-557320961 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-bug-557320961 1`] = `
 [
   {
     "annotations": [],
@@ -1648,7 +1648,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-dashed-lines 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-dashed-lines 1`] = `
 [
   {
     "annotations": [],
@@ -1658,7 +1658,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-embedpdf-chrome-type3-text 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-embedpdf-chrome-type3-text 1`] = `
 [
   {
     "annotations": [],
@@ -1668,118 +1668,8 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-embedpdf-tiling-patterns 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-embedpdf-tiling-patterns 1`] = `
 [
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-gradient-pattern-stroke-order 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-jpxdecode 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-long-dashed-line 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-matte 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-pattern-fill 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-pattern-stroke-uncolored 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-radial-shading-point-at-center 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-rectangles-multi-pages 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
   {
     "annotations": [],
     "counts": {},
@@ -1803,48 +1693,13 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-shade 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-gradient-pattern-stroke-order 1`] = `
 [
   {
     "annotations": [],
     "counts": {},
     "targets": [],
   },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-shade-tensor 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-smask-blend 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-text-render-mode 1`] = `
-[
-  {
-    "annotations": [],
-    "counts": {},
-    "targets": [],
-  },
-]
-`;
-
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-transfer-function 1`] = `
-[
   {
     "annotations": [],
     "counts": {},
@@ -1858,7 +1713,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: corpus-type3 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-jpxdecode 1`] = `
 [
   {
     "annotations": [],
@@ -1868,7 +1723,152 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: cropbox-offset 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-long-dashed-line 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-matte 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-pattern-fill 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-pattern-stroke-uncolored 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-radial-shading-point-at-center 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-rectangles-multi-pages 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-shade 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-shade-tensor 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-smask-blend 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-text-render-mode 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-transfer-function 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: corpus-type3 1`] = `
+[
+  {
+    "annotations": [],
+    "counts": {},
+    "targets": [],
+  },
+]
+`;
+
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: cropbox-offset 1`] = `
 [
   {
     "annotations": [
@@ -1900,7 +1900,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: encrypted-aes 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: encrypted-aes 1`] = `
 [
   {
     "annotations": [],
@@ -1910,7 +1910,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: encrypted-rc4 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: encrypted-rc4 1`] = `
 [
   {
     "annotations": [],
@@ -1920,7 +1920,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-bare-appearances 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-bare-appearances 1`] = `
 [
   {
     "annotations": [],
@@ -1932,7 +1932,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-choices 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-choices 1`] = `
 [
   {
     "annotations": [],
@@ -1944,7 +1944,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-fieldmdp 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-fieldmdp 1`] = `
 [
   {
     "annotations": [],
@@ -1956,7 +1956,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-fields 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-fields 1`] = `
 [
   {
     "annotations": [],
@@ -1975,7 +1975,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-format 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-format 1`] = `
 [
   {
     "annotations": [],
@@ -1987,7 +1987,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-goto 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-goto 1`] = `
 [
   {
     "annotations": [],
@@ -2009,7 +2009,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-range 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-range 1`] = `
 [
   {
     "annotations": [],
@@ -2021,7 +2021,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-restricted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-restricted 1`] = `
 [
   {
     "annotations": [],
@@ -2033,7 +2033,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-rollover 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-rollover 1`] = `
 [
   {
     "annotations": [],
@@ -2045,7 +2045,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-scripted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted 1`] = `
 [
   {
     "annotations": [],
@@ -2057,7 +2057,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-scripted-kinds 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted-kinds 1`] = `
 [
   {
     "annotations": [],
@@ -2069,7 +2069,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-scripted-parents 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-scripted-parents 1`] = `
 [
   {
     "annotations": [],
@@ -2081,7 +2081,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-shared-scripted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-shared-scripted 1`] = `
 [
   {
     "annotations": [],
@@ -2093,7 +2093,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-signed 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-signed 1`] = `
 [
   {
     "annotations": [],
@@ -2105,7 +2105,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-structure 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-structure 1`] = `
 [
   {
     "annotations": [],
@@ -2122,7 +2122,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-timer 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-timer 1`] = `
 [
   {
     "annotations": [],
@@ -2134,7 +2134,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-tree 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-tree 1`] = `
 [
   {
     "annotations": [],
@@ -2146,7 +2146,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-uppercase 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-uppercase 1`] = `
 [
   {
     "annotations": [],
@@ -2158,7 +2158,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: form-values 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: form-values 1`] = `
 [
   {
     "annotations": [],
@@ -2170,7 +2170,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: freetext-fonts 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: freetext-fonts 1`] = `
 [
   {
     "annotations": [
@@ -2328,7 +2328,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: incremental-saved 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: incremental-saved 1`] = `
 [
   {
     "annotations": [
@@ -2379,7 +2379,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: link-order 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: link-order 1`] = `
 [
   {
     "annotations": [
@@ -2413,7 +2413,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: link-targets 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: link-targets 1`] = `
 [
   {
     "annotations": [],
@@ -2425,7 +2425,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: links 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: links 1`] = `
 [
   {
     "annotations": [],
@@ -2449,7 +2449,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: malformed-missing-xref 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: malformed-missing-xref 1`] = `
 [
   {
     "annotations": [],
@@ -2469,7 +2469,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: mixed-page-sizes 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: mixed-page-sizes 1`] = `
 [
   {
     "annotations": [],
@@ -2494,7 +2494,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: note-icon-ap 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: note-icon-ap 1`] = `
 [
   {
     "annotations": [
@@ -2538,7 +2538,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: object-streams 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: object-streams 1`] = `
 [
   {
     "annotations": [],
@@ -2548,7 +2548,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: outline 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: outline 1`] = `
 [
   {
     "annotations": [],
@@ -2583,7 +2583,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-annotation-loupe 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe 1`] = `
 [
   {
     "annotations": [
@@ -2615,7 +2615,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-annotation-loupe-drawing 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-drawing 1`] = `
 [
   {
     "annotations": [],
@@ -2627,7 +2627,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-annotation-loupe-elsewhere 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-elsewhere 1`] = `
 [
   {
     "annotations": [],
@@ -2639,7 +2639,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-annotation-loupe-rewritten 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotation-loupe-rewritten 1`] = `
 [
   {
     "annotations": [],
@@ -2649,7 +2649,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-annotations 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-annotations 1`] = `
 [
   {
     "annotations": [
@@ -2685,7 +2685,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-copy-pieceinfo 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-pieceinfo 1`] = `
 [
   {
     "annotations": [],
@@ -2695,7 +2695,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-copy-thumbnail 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-thumbnail 1`] = `
 [
   {
     "annotations": [],
@@ -2705,7 +2705,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-copy-xmp 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-copy-xmp 1`] = `
 [
   {
     "annotations": [],
@@ -2715,7 +2715,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-fill 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-fill 1`] = `
 [
   {
     "annotations": [],
@@ -2725,7 +2725,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-function-shading 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-function-shading 1`] = `
 [
   {
     "annotations": [],
@@ -2735,7 +2735,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-function-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-function-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -2745,7 +2745,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-hatch 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-hatch 1`] = `
 [
   {
     "annotations": [],
@@ -2755,7 +2755,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-hatch-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-hatch-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -2765,7 +2765,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-mesh 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh 1`] = `
 [
   {
     "annotations": [],
@@ -2775,7 +2775,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-mesh-pattern 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh-pattern 1`] = `
 [
   {
     "annotations": [],
@@ -2785,7 +2785,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-mesh-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-mesh-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -2795,7 +2795,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-miter-reach 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-miter-reach 1`] = `
 [
   {
     "annotations": [],
@@ -2805,7 +2805,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-negative-width 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-negative-width 1`] = `
 [
   {
     "annotations": [],
@@ -2815,7 +2815,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-pattern 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern 1`] = `
 [
   {
     "annotations": [],
@@ -2825,7 +2825,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-pattern-colour-kept 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-colour-kept 1`] = `
 [
   {
     "annotations": [],
@@ -2835,7 +2835,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-pattern-miter 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-miter 1`] = `
 [
   {
     "annotations": [],
@@ -2845,7 +2845,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-pattern-past-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-past-mark 1`] = `
 [
   {
     "annotations": [],
@@ -2855,7 +2855,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-pattern-side 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-pattern-side 1`] = `
 [
   {
     "annotations": [],
@@ -2865,7 +2865,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-sampled-axial 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-sampled-axial 1`] = `
 [
   {
     "annotations": [],
@@ -2875,7 +2875,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-shading 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-shading 1`] = `
 [
   {
     "annotations": [],
@@ -2885,7 +2885,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-drawing-stroke 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-drawing-stroke 1`] = `
 [
   {
     "annotations": [],
@@ -2895,7 +2895,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-attachment 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-attachment 1`] = `
 [
   {
     "annotations": [],
@@ -2907,7 +2907,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-encrypted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-encrypted 1`] = `
 [
   {
     "annotations": [],
@@ -2917,7 +2917,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-hidden-layer 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-hidden-layer 1`] = `
 [
   {
     "annotations": [],
@@ -2927,7 +2927,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-revisions 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-revisions 1`] = `
 [
   {
     "annotations": [],
@@ -2937,7 +2937,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-script 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-script 1`] = `
 [
   {
     "annotations": [],
@@ -2947,7 +2947,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-file-signed 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-file-signed 1`] = `
 [
   {
     "annotations": [],
@@ -2959,7 +2959,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-foreign-encrypted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-encrypted 1`] = `
 [
   {
     "annotations": [
@@ -2991,7 +2991,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-foreign-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-mark 1`] = `
 [
   {
     "annotations": [],
@@ -3028,7 +3028,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-foreign-popup 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-foreign-popup 1`] = `
 [
   {
     "annotations": [
@@ -3061,7 +3061,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-hidden-layer 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-hidden-layer 1`] = `
 [
   {
     "annotations": [],
@@ -3071,7 +3071,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-1bit 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-1bit 1`] = `
 [
   {
     "annotations": [],
@@ -3081,7 +3081,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-ccitt 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-ccitt 1`] = `
 [
   {
     "annotations": [],
@@ -3091,7 +3091,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-flate 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-flate 1`] = `
 [
   {
     "annotations": [],
@@ -3101,7 +3101,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-jbig2 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jbig2 1`] = `
 [
   {
     "annotations": [],
@@ -3111,7 +3111,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-jpeg 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jpeg 1`] = `
 [
   {
     "annotations": [],
@@ -3121,7 +3121,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-jpx 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-jpx 1`] = `
 [
   {
     "annotations": [],
@@ -3131,7 +3131,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-mask 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-mask 1`] = `
 [
   {
     "annotations": [],
@@ -3141,7 +3141,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-rotated 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-rotated 1`] = `
 [
   {
     "annotations": [],
@@ -3151,7 +3151,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-shared 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-shared 1`] = `
 [
   {
     "annotations": [],
@@ -3166,7 +3166,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-skewed 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-skewed 1`] = `
 [
   {
     "annotations": [],
@@ -3176,7 +3176,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-smask 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-smask 1`] = `
 [
   {
     "annotations": [],
@@ -3186,7 +3186,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-stencil 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-stencil 1`] = `
 [
   {
     "annotations": [],
@@ -3196,7 +3196,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-image-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-image-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -3206,7 +3206,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-mask-group-past-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-mask-group-past-mark 1`] = `
 [
   {
     "annotations": [],
@@ -3216,7 +3216,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-mask-group-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-mask-group-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -3226,7 +3226,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-page-cropbox 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-cropbox 1`] = `
 [
   {
     "annotations": [],
@@ -3236,7 +3236,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-page-no-contents 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-no-contents 1`] = `
 [
   {
     "annotations": [],
@@ -3248,7 +3248,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-page-rotate-90 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-rotate-90 1`] = `
 [
   {
     "annotations": [],
@@ -3258,7 +3258,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-page-rotate-270 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-rotate-270 1`] = `
 [
   {
     "annotations": [],
@@ -3268,7 +3268,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-page-userunit 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-page-userunit 1`] = `
 [
   {
     "annotations": [],
@@ -3278,7 +3278,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-path 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-path 1`] = `
 [
   {
     "annotations": [],
@@ -3288,7 +3288,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text 1`] = `
 [
   {
     "annotations": [],
@@ -3298,7 +3298,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-beside-carriers 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-beside-carriers 1`] = `
 [
   {
     "annotations": [],
@@ -3308,7 +3308,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-clip 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-clip 1`] = `
 [
   {
     "annotations": [],
@@ -3318,7 +3318,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-composite 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-composite 1`] = `
 [
   {
     "annotations": [],
@@ -3328,7 +3328,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-fade 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-fade 1`] = `
 [
   {
     "annotations": [],
@@ -3338,7 +3338,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-form-under-mark 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-form-under-mark 1`] = `
 [
   {
     "annotations": [],
@@ -3348,7 +3348,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-half-word 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-half-word 1`] = `
 [
   {
     "annotations": [],
@@ -3358,7 +3358,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-nested-form 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-nested-form 1`] = `
 [
   {
     "annotations": [],
@@ -3368,7 +3368,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-pattern 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-pattern 1`] = `
 [
   {
     "annotations": [],
@@ -3378,7 +3378,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-rotated 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-rotated 1`] = `
 [
   {
     "annotations": [],
@@ -3388,7 +3388,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-shaped-fade 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-shaped-fade 1`] = `
 [
   {
     "annotations": [],
@@ -3398,7 +3398,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-shared-form 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-shared-form 1`] = `
 [
   {
     "annotations": [],
@@ -3413,7 +3413,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-type3 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-type3 1`] = `
 [
   {
     "annotations": [],
@@ -3423,7 +3423,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: redact-text-vertical 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: redact-text-vertical 1`] = `
 [
   {
     "annotations": [],
@@ -3433,7 +3433,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-annotations 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-annotations 1`] = `
 [
   {
     "annotations": [
@@ -3635,9 +3635,9 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
         "contents": "Saved by Inkbar",
         "createdAt": "2026-11-17T09:30:00.000Z",
         "defaultStyle": {
-          "color": "#000000",
+          "color": "#151820",
           "fontFamily": "Helvetica",
-          "fontSize": 10,
+          "fontSize": 12,
           "textAlign": "left",
         },
         "hasAppearance": true,
@@ -3923,7 +3923,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-encrypted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-encrypted 1`] = `
 [
   {
     "annotations": [
@@ -3987,7 +3987,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-incremental 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-incremental 1`] = `
 [
   {
     "annotations": [
@@ -4189,9 +4189,9 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
         "contents": "Saved by Inkbar",
         "createdAt": "2026-11-17T09:30:00.000Z",
         "defaultStyle": {
-          "color": "#000000",
+          "color": "#151820",
           "fontFamily": "Helvetica",
-          "fontSize": 10,
+          "fontSize": 12,
           "textAlign": "left",
         },
         "hasAppearance": true,
@@ -4477,7 +4477,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-replied 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-replied 1`] = `
 [
   {
     "annotations": [
@@ -4625,7 +4625,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-signed 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-signed 1`] = `
 [
   {
     "annotations": [],
@@ -4645,7 +4645,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: saved-tampered 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: saved-tampered 1`] = `
 [
   {
     "annotations": [
@@ -4735,7 +4735,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: scanned-no-text 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: scanned-no-text 1`] = `
 [
   {
     "annotations": [],
@@ -4745,7 +4745,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: script-page-only 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: script-page-only 1`] = `
 [
   {
     "annotations": [],
@@ -4755,7 +4755,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: signed 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: signed 1`] = `
 [
   {
     "annotations": [],
@@ -4767,7 +4767,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: signed-encrypted 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: signed-encrypted 1`] = `
 [
   {
     "annotations": [],
@@ -4779,7 +4779,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: standard-callout 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: standard-callout 1`] = `
 [
   {
     "annotations": [
@@ -4830,7 +4830,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-cjk 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-cjk 1`] = `
 [
   {
     "annotations": [],
@@ -4840,7 +4840,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-rotated-90 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-90 1`] = `
 [
   {
     "annotations": [],
@@ -4850,7 +4850,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-rotated-180 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-180 1`] = `
 [
   {
     "annotations": [],
@@ -4860,7 +4860,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-rotated-270 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rotated-270 1`] = `
 [
   {
     "annotations": [],
@@ -4870,7 +4870,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-rtl 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-rtl 1`] = `
 [
   {
     "annotations": [],
@@ -4880,7 +4880,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-search 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-search 1`] = `
 [
   {
     "annotations": [],
@@ -4890,7 +4890,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-simple 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-simple 1`] = `
 [
   {
     "annotations": [],
@@ -4910,7 +4910,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: text-vertical 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: text-vertical 1`] = `
 [
   {
     "annotations": [],
@@ -4920,7 +4920,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-arial 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-arial 1`] = `
 [
   {
     "annotations": [],
@@ -4930,7 +4930,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-cyrillic 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-cyrillic 1`] = `
 [
   {
     "annotations": [],
@@ -4940,7 +4940,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-greek 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-greek 1`] = `
 [
   {
     "annotations": [],
@@ -4950,7 +4950,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-japanese 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-japanese 1`] = `
 [
   {
     "annotations": [],
@@ -4960,7 +4960,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-japanese-field 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-japanese-field 1`] = `
 [
   {
     "annotations": [],
@@ -4972,7 +4972,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-korean 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-korean 1`] = `
 [
   {
     "annotations": [],
@@ -4982,7 +4982,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-simplified-chinese 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-simplified-chinese 1`] = `
 [
   {
     "annotations": [],
@@ -4992,7 +4992,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: unembedded-traditional-chinese 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: unembedded-traditional-chinese 1`] = `
 [
   {
     "annotations": [],
@@ -5002,7 +5002,7 @@ exports[`embedded import across the fixtures > imports every fixture page the sa
 ]
 `;
 
-exports[`embedded import across the fixtures > imports every fixture page the same from the shape as from PDF.js data: userunit-2 1`] = `
+exports[`embedded import across the fixtures > imports every fixture page from the engine reader's data: userunit-2 1`] = `
 [
   {
     "annotations": [],

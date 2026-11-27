@@ -1,50 +1,19 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { basename, dirname, join } from 'node:path'
-
 import { serveFixtures } from '@inkbar/fixtures/vite-serve'
 import { playwright } from '@vitest/browser-playwright'
-import { defineConfig, type Plugin } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 
 import pkg from './package.json' with { type: 'json' }
 
 /** What tsdown defines at build time: `version` in src/index.ts. */
 const define = { __INKBAR_VERSION__: JSON.stringify(pkg.version) }
 
-/** Serves the `@inkbar/fonts` files at `/inkbar-fonts/`, for the engine's fallback fonts. */
-function serveFonts(): Plugin {
-  const dir = dirname(
-    createRequire(import.meta.url).resolve('@inkbar/fonts/files/NotoSans-Regular.ttf')
-  )
-  return {
-    name: 'inkbar-serve-fonts',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        const path = req.url?.split('?')[0] ?? ''
-        if (!path.startsWith('/inkbar-fonts/')) return next()
-        const file = join(dir, basename(decodeURIComponent(path)))
-        if (!existsSync(file)) {
-          res.statusCode = 404
-          res.end()
-          return
-        }
-        res.setHeader('Content-Type', file.endsWith('.ttf') ? 'font/ttf' : 'font/otf')
-        res.end(readFileSync(file))
-      })
-    },
-  }
-}
-
 /**
- * The settings both browser projects share: Chromium, the fixtures and the fallback fonts. Made
- * afresh for each project, as Vitest names each browser instance after its project.
+ * The browser project: Chromium, with the fixtures and Inkbar's own files (the engine, the
+ * fallback fonts and the sandbox) served.
  */
-const browserProject = (
-  name: string,
-  test: { include: string[]; exclude?: string[]; setupFiles?: string[] }
-) => ({
+const browserProject = (name: string, test: { include: string[] }) => ({
   define,
-  plugins: [serveFixtures(), serveFonts()],
+  plugins: [serveFixtures()],
   // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
   optimizeDeps: {
     include: [
@@ -52,6 +21,7 @@ const browserProject = (
       'pdfjs-dist/build/pdf.sandbox.mjs',
       '@inkbar/fixtures > pdf-lib',
       '@inkbar/fonts',
+      '@inkbar/engine/bare',
     ],
   },
   test: {
@@ -83,50 +53,7 @@ export default defineConfig({
           testTimeout: 20_000,
         },
       },
-      browserProject('browser', {
-        include: ['src/**/*.browser.test.ts'],
-        // Its subject is the engine reading the file: it runs in `browser-engine` alone.
-        exclude: ['src/dom/no-pdfjs.browser.test.ts'],
-      }),
-      // The tests that read text, search, links, the outline, the form and its scripts, and draw
-      // pages, thumbnails and the viewer with the file's annotations, with the engine reading the
-      // file, and save, download and apply redactions from it: the setup file switches the reader
-      // and passes every document the engine. The saved-file comparison is left out; its reason
-      // is at the top of that file.
-      browserProject('browser-engine', {
-        include: [
-          'src/dom/no-pdfjs.browser.test.ts',
-          'src/dom/text-layer.browser.test.ts',
-          'src/dom/text-spans.browser.test.ts',
-          'src/dom/search/*.browser.test.ts',
-          'src/model/search.browser.test.ts',
-          'src/model/text-stream.browser.test.ts',
-          'src/dom/link-layer.browser.test.ts',
-          'src/dom/links-press.browser.test.ts',
-          'src/dom/outline/*.browser.test.ts',
-          'src/dom/tools.browser.test.ts',
-          'src/dom/overlay.browser.test.ts',
-          'src/dom/form-layer.browser.test.ts',
-          'src/dom/viewer/create-viewer.browser.test.ts',
-          'src/model/form/scripting.browser.test.ts',
-          'src/dom/page-renderer.browser.test.ts',
-          'src/dom/loupe-layer.browser.test.ts',
-          'src/dom/lifted.browser.test.ts',
-          'src/dom/thumbnails/*.browser.test.ts',
-          'src/dom/viewer-engine.browser.test.ts',
-          'src/dom/engine-notice.browser.test.ts',
-          'src/dom/viewer/create-viewer-messages.browser.test.ts',
-          'src/dom/viewer/form-alert.browser.test.ts',
-          'src/dom/viewer/messages-live.browser.test.ts',
-          'src/dom/viewer/password-dialog.browser.test.ts',
-          'src/dom/viewer/popover.browser.test.ts',
-          'src/dom/viewer/redaction-dialog.browser.test.ts',
-          'src/dom/viewer/file-buttons.browser.test.ts',
-          'src/dom/file-actions.browser.test.ts',
-          'src/dom/redaction-actions.browser.test.ts',
-        ],
-        setupFiles: ['src/test-support/engine-reader-setup.ts'],
-      }),
+      browserProject('browser', { include: ['src/**/*.browser.test.ts'] }),
     ],
   },
 })

@@ -9,7 +9,7 @@ import { pdfString, winAnsi } from './win-ansi'
 import type { TextPicture, TextPictureRequest, ToPng } from './pictures'
 import type { Point, Rect } from '../../../geometry'
 import type { DrawItem, Drawing, Paint, PathCommand, TextFont } from '../types'
-import type { Appearance, StandardFont } from '@inkbar/engine'
+import type { Appearance, StandardFont } from '@inkbar/engine/bare'
 
 export type { TextPicture, TextPictureRequest, ToPng } from './pictures'
 

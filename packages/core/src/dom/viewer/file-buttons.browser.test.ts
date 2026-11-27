@@ -3,7 +3,8 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
-import { readerKind } from '../../reader/select'
+import { setEngineFactory } from '../../model/engine-factory'
+import { stoppableEngines } from '../../test-support/stoppable-engines'
 import { mountContainer, until } from '../test-utils'
 
 import {
@@ -14,7 +15,6 @@ import {
 } from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 
-import type { EngineLoader } from '../../model/document'
 import type { InkError } from '../../model/errors'
 import type { Engine } from '@inkbar/engine'
 
@@ -107,17 +107,17 @@ describe('download and print', () => {
 })
 
 /**
- * An engine whose every write waits for the test: `finish()` lets it save, `fail(e)` makes it
- * reject with `e`. With the PDF.js reader the save loads a stand-in engine; `unavailable` makes
- * that load fail, as offline, and `saves` counts those loads. With the engine reader the save
- * writes with the reader's engine, the real one, whose documents' writes are held, and `saves`
- * is never called.
+ * The real engine as the engine every document reads and writes with, the writes of every
+ * document opened in it held: `finish()` lets a write save, `fail(e)` makes it reject with `e`.
+ * `writes` counts the writes asked for.
  */
-function heldEngine(opts: { unavailable?: boolean } = {}) {
+function heldEngine() {
   let settle: { finish: () => void; fail: (e: Error) => void } | undefined
+  let writes = 0
   const writing = () => settle !== undefined
-  const write = () =>
-    new Promise<void>((resolve, reject) => {
+  const write = () => {
+    writes++
+    return new Promise<void>((resolve, reject) => {
       settle = {
         finish: () => {
           settle = undefined
@@ -129,16 +129,7 @@ function heldEngine(opts: { unavailable?: boolean } = {}) {
         },
       }
     })
-  const engine = {
-    open: () =>
-      Promise.resolve({
-        pageCount: 1,
-        write,
-        save: () => Promise.resolve(new Uint8Array([37, 80, 68, 70, 45])),
-        close: () => Promise.resolve(),
-      }),
-    destroy: () => Promise.resolve(),
-  } as unknown as Engine
+  }
   /** `real`, with the writes of every document it opens held. */
   const holdingWrites = (real: Engine): Engine =>
     new Proxy(real, {
@@ -162,21 +153,13 @@ function heldEngine(opts: { unavailable?: boolean } = {}) {
         }
       },
     })
-  const saves = vi.fn<EngineLoader>(() =>
-    opts.unavailable
-      ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
-      : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
-  )
-  let opened = readerKind() !== 'engine'
-  const loader: EngineLoader = async () => {
-    if (opened) return saves()
-    opened = true
+  setEngineFactory(async () => {
     const { createEngine } = await import('@inkbar/engine')
-    return { createEngine: () => createEngine().then(holdingWrites) }
-  }
+    return holdingWrites(await createEngine())
+  })
+  cleanup.push(() => setEngineFactory(undefined))
   return {
-    loader,
-    saves,
+    writes: () => writes,
     writing,
     finish: () => settle!.finish(),
     fail: (e: Error) => settle!.fail(e),
@@ -197,7 +180,7 @@ const alertText = () =>
 const busy = (b: HTMLButtonElement) =>
   b.getAttribute('aria-busy') === 'true' && b.getAttribute('aria-disabled') === 'true'
 
-describe('with an engine', () => {
+describe('with changes to write', () => {
   afterEach(() =>
     document.querySelectorAll('[data-ink-form-alert]').forEach((a) => a.remove())
   )
@@ -205,7 +188,7 @@ describe('with an engine', () => {
   it('the buttons are busy while the copy is written, then download it', async () => {
     const clicked = catchDownloads()
     const held = heldEngine()
-    const viewer = make({ engine: held.loader })
+    const viewer = make()
     const download = createDownloadButton(viewer)
     const print = createPrintButton(viewer)
     viewer.element.prepend(download, print)
@@ -226,8 +209,7 @@ describe('with an engine', () => {
     expect(busy(download)).toBe(false)
     expect(download.disabled).toBe(false)
     expect(print.disabled).toBe(false)
-    // With the engine reader the save writes with the reader's engine and loads none.
-    expect(held.saves).toHaveBeenCalledTimes(readerKind() === 'engine' ? 0 : 1)
+    expect(held.writes()).toBe(1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
     expect(clicked).toHaveLength(1)
   })
@@ -239,7 +221,7 @@ describe('with an engine', () => {
     cleanup.push(() => style.remove())
     catchDownloads()
     const held = heldEngine()
-    const viewer = make({ engine: held.loader })
+    const viewer = make()
     const bar = createToolbar()
     const download = createDownloadButton(viewer)
     // Nothing to undo: natively disabled, the look a busy button should share.
@@ -276,7 +258,7 @@ describe('with an engine', () => {
     const clicked = catchDownloads()
     const held = heldEngine()
     const errors: InkError[] = []
-    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+    const viewer = make({ onError: (e) => errors.push(e) })
     const download = createDownloadButton(viewer)
     const print = createPrintButton(viewer)
     await until(() => viewer.status.get().state === 'ready')
@@ -305,7 +287,7 @@ describe('with an engine', () => {
   it('Ctrl+S that fails is reported as the button is', async () => {
     const held = heldEngine()
     const errors: InkError[] = []
-    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+    const viewer = make({ onError: (e) => errors.push(e) })
     await until(() => viewer.status.get().state === 'ready')
     addSquare(viewer)
     const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
@@ -324,39 +306,37 @@ describe('with an engine', () => {
     expect(alertText()).toBe('Your changes could not be written into this file.')
   })
 
-  // With the engine reader a save loads no engine: it writes with the reader's, so it cannot
-  // fail to load one. A reader whose engine cannot start again is covered in core's save tests.
-  it.skipIf(readerKind() === 'engine')(
-    'says saving is unavailable when the engine cannot be loaded',
-    async () => {
-      const clicked = catchDownloads()
-      const held = heldEngine({ unavailable: true })
-      const errors: InkError[] = []
-      const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
-      const download = createDownloadButton(viewer)
-      await until(() => viewer.status.get().state === 'ready')
-      addSquare(viewer)
-      download.click()
-      await until(() => errors.length === 1)
-      expect(errors[0]).toMatchObject({
-        code: 'SaveFailed',
-        details: { stage: 'engine' },
-      })
-      expect(alertText()).toBe(
-        'Saving is not available right now. Check your connection and try again.'
-      )
-      expect(clicked).toHaveLength(0)
-      expect(busy(download)).toBe(false)
-    }
-  )
+  it('says saving is unavailable while the document has stopped', async () => {
+    const clicked = catchDownloads()
+    const engines = stoppableEngines()
+    cleanup.push(() => engines.restore())
+    const errors: InkError[] = []
+    const viewer = make({ onError: (e) => errors.push(e) })
+    const download = createDownloadButton(viewer)
+    viewer.element.prepend(download)
+    await until(() => viewer.status.get().state === 'ready')
+    addSquare(viewer)
+    await engines.stop(viewer.document.get()!)
+    // The stop, reported as it happens.
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable'])
+    download.click()
+    await until(() => errors.length === 2)
+    // The press that found it stopped reports its own failure, as a failed download does.
+    expect(errors.map((e) => e.code)).toEqual(['EngineUnavailable', 'EngineUnavailable'])
+    expect(alertText()).toBe(
+      'Saving is not available right now. Check your connection and try again.'
+    )
+    expect(clicked).toHaveLength(0)
+    expect(busy(download)).toBe(false)
+  })
 
-  it('with no changes downloads the opened file and loads no engine', async () => {
+  it('with no changes downloads the opened file and writes nothing', async () => {
     const clicked = catchDownloads()
     const held = heldEngine()
-    const viewer = make({ engine: held.loader })
+    const viewer = make()
     await until(() => viewer.status.get().state === 'ready')
     await viewer.download()
     expect(clicked).toHaveLength(1)
-    expect(held.saves).not.toHaveBeenCalled()
+    expect(held.writes()).toBe(0)
   })
 })

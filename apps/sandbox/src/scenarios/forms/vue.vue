@@ -30,7 +30,6 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { onBeforeUnmount } from 'vue'
 
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { changedFields } from '../../shared/form'
 import { signatureFonts, storage } from '../../shared/signatures'
@@ -69,7 +68,6 @@ function onAction(action: ViewerAction): void {
     :locale="locale"
     :assets="assets"
     :storage="storage"
-    :engine="engine"
     :signature-fonts="signatureFonts"
     class="scenario-root"
     @ready="onReady"

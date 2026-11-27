@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 import { openDocument } from '../model/document'
 import { approxEqual } from '../model/geometry'
-import { nodeAssets } from '../pdfjs/node-assets'
+import { nodeAssets } from '../test-support/node-assets'
+import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { createPageTransform, normalizeRotation, type ViewRotation } from './transform'
 
@@ -40,7 +41,8 @@ describe('createPageTransform', () => {
     await doc.ready
     const page = doc.pages[0]!
     if (name === 'userunit-2') expect(page.userUnit).toBe(2)
-    const proxy = await doc._pdfjs!.getPage(0)
+    const pdfjs = await openWithPdfjsReader(await fixtureBytes(name))
+    const proxy = await pdfjs.handles.getPage(0)
     for (const rotation of ROTATIONS) {
       for (const zoom of [0.5, 1, 1.333, 3]) {
         const t = createPageTransform(page, zoom, rotation)
@@ -74,6 +76,7 @@ describe('createPageTransform', () => {
       }
     }
     doc.destroy()
+    await pdfjs.destroy()
   })
 
   it('round-trips arbitrary points within 0.01pt, including offset boxes', () => {

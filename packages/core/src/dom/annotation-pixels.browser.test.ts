@@ -10,7 +10,7 @@ import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
 import { createOverlay } from './overlay'
-import { mountContainer } from './test-utils'
+import { mountContainer, parkPointer } from './test-utils'
 import { createPageTransform } from './transform'
 
 import type { AnnotationInput } from '../model/annotations/types'
@@ -142,6 +142,7 @@ async function measure(
   await settled(host)
   mutate?.(host)
   await settled(host)
+  await parkPointer()
   const base64 = await browserPage.screenshot({ element: host, save: false })
   const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0))
   const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }))

@@ -23,7 +23,12 @@ import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
 import { handleBox, renderAnnotationContent, renderHitArea } from './overlay-render'
 import { createPageMount } from './page-mount'
-import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
+import {
+  mountContainer,
+  openFixtureInBrowser,
+  parkPointer,
+  TEXT_LAYER_CSS,
+} from './test-utils'
 import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
@@ -965,6 +970,7 @@ describe('createOverlay', () => {
       // And on screen: the text is on top. Over the glyphs' pixels there is blue, and none of the
       // press area's red.
       host.style.background = '#fff'
+      await parkPointer()
       const png = await browserPage.screenshot({ element: host, save: false })
       const bitmap = await createImageBitmap(
         new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], {

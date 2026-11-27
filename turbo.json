@@ -23,7 +23,6 @@
       ]
     },
     "test:browser": { "dependsOn": ["^build", "build"] },
-    "test:browser:engine": { "dependsOn": ["^build", "build"] },
     "generate": { "cache": false }
   }
 }

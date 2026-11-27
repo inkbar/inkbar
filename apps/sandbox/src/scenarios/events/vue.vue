@@ -28,7 +28,6 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { pressesPlugin } from '../../plugin/presses'
 import '../../plugin/presses.css'
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -53,7 +52,6 @@ function onReady(doc: InkDocument): void {
     :locale="locale"
     :assets="assets"
     :storage="storage"
-    :engine="engine"
     :plugins="plugins"
     class="scenario-root"
     @ready="onReady"

@@ -18,8 +18,17 @@ import type {
 } from './dom'
 import type { CreateViewerOptions } from './dom/viewer/create-viewer'
 import type { MountViewerOptions } from './dom/viewer-engine'
-// @ts-expect-error `FormAction` is gone: use `ViewerAction`.
-import type { FormAction } from './index'
+import type {
+  // @ts-expect-error `FormAction` is gone: use `ViewerAction`.
+  FormAction,
+  // @ts-expect-error `EngineLoader` is gone: core starts the engine from `assets`.
+  EngineLoader,
+  OpenOptions,
+  // @ts-expect-error `SaveEngine` is gone with the `engine` option.
+  SaveEngine,
+  // @ts-expect-error `SaveEngineDocument` is gone with the `engine` option.
+  SaveEngineDocument,
+} from './index'
 import type { SignatureStore } from './model/signatures'
 
 // `pnpm typecheck` covers this file: each `@ts-expect-error` fails the build if its name or
@@ -86,5 +95,28 @@ describe('label tables are gone', () => {
     ] as const satisfies { length: GoneTables['length'] }
     for (const name of names) expect(entry[name]).toBeUndefined()
     expect(entry.createMessageState).toBeTypeOf('function')
+  })
+})
+
+describe('the engine option is gone', () => {
+  it('is taken by neither openDocument nor createViewer, nor is verbosity', () => {
+    const open: Partial<OpenOptions> = {
+      // @ts-expect-error `engine` is gone: core starts the engine from `assets`.
+      engine: () => Promise.reject(new Error('gone')),
+    }
+    const quiet: Partial<OpenOptions> = {
+      // @ts-expect-error `verbosity` is gone with PDF.js.
+      verbosity: 0,
+    }
+    const viewer: Partial<CreateViewerOptions> = {
+      // @ts-expect-error `engine` is gone: core starts the engine from `assets`.
+      engine: () => Promise.reject(new Error('gone')),
+    }
+    expect([open, quiet, viewer]).toHaveLength(3)
+  })
+
+  it('no longer exports the types that described it', () => {
+    const gone: [EngineLoader?, SaveEngine?, SaveEngineDocument?] = []
+    expect(gone).toEqual([])
   })
 })

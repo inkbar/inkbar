@@ -46,7 +46,6 @@ import { defineComponent, ref, watch } from 'vue'
 
 import { suggestionsPlugin } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -92,7 +91,6 @@ function onActivate(id: string): void {
     :tools="tools"
     :plugins="plugins"
     :storage="storage"
-    :engine="engine"
     :signature-fonts="signatureFonts"
     class="scenario-root"
     @ready="onReady"

@@ -1,6 +1,6 @@
 // The engine reader's field appearances, drawn by the engine: each on the page canvas's pixel
 // grid, in the state each look names, and never on a canvas whose draw was given up.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { hiddenFromIds, pageCanvasSize } from '../dom/draw-request'
 import { annotsOrder } from '../dom/form-order'
@@ -10,57 +10,43 @@ import {
   type PageTransform,
   type ViewRotation,
 } from '../dom/transform'
+import { setEngineFactory } from '../model/engine-factory'
 
-import type { InkDocument, EngineLoader } from '../model/document'
+import type { InkDocument } from '../model/document'
 import type { FormWidget } from '../model/form/types'
 import type { Rect } from '../model/geometry'
 import type { FieldLook } from '../reader/types'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-
 let cleanup: (() => unknown)[] = []
-beforeEach(() => {
-  flag.__INKBAR_READER__ = 'engine'
-})
 afterEach(async () => {
-  delete flag.__INKBAR_READER__
+  setEngineFactory(undefined)
   for (const f of cleanup.reverse()) await f()
   cleanup = []
 })
 
-/** The real engine; `onFieldDraw` is called as each field draw is asked of it. */
-const engine =
-  (onFieldDraw?: () => void): EngineLoader =>
-  async () => {
+/** The real engine, made the engine every document uses; `onFieldDraw` is called as each field draw is asked of it. */
+const engine = (onFieldDraw: () => void): void =>
+  setEngineFactory(async () => {
     const real = await import('@inkbar/engine')
-    return {
-      createEngine: async () => {
-        const made = await real.createEngine()
-        const open = made.open.bind(made)
-        made.open = async (...args) => {
-          const doc = await open(...args)
-          const draw = doc.renderAnnotations.bind(doc)
-          doc.renderAnnotations = (...drawArgs) => {
-            const drawing = draw(...drawArgs)
-            onFieldDraw?.()
-            return drawing
-          }
-          return doc
-        }
-        return made
-      },
+    const made = await real.createEngine()
+    const open = made.open.bind(made)
+    made.open = async (...args) => {
+      const doc = await open(...args)
+      const draw = doc.renderAnnotations.bind(doc)
+      doc.renderAnnotations = (...drawArgs) => {
+        const drawing = draw(...drawArgs)
+        onFieldDraw()
+        return drawing
+      }
+      return doc
     }
-  }
+    return made
+  })
 
-/** `name` read by the engine reader, or by PDF.js with `pdfjs`. */
-async function open(
-  name: FixtureName,
-  opts: { pdfjs?: boolean; engine?: EngineLoader } = {}
-): Promise<InkDocument> {
-  if (opts.pdfjs) delete flag.__INKBAR_READER__
-  const doc = await openFixtureInBrowser(name, { engine: opts.engine ?? engine() })
-  flag.__INKBAR_READER__ = 'engine'
+/** `name`, read by the engine reader. */
+async function open(name: FixtureName): Promise<InkDocument> {
+  const doc = await openFixtureInBrowser(name)
   cleanup.push(() => doc.destroy())
   return doc
 }
@@ -250,11 +236,9 @@ describe('field appearances drawn by the engine', () => {
     ['form-fields', 1],
     ['form-rollover', 0],
   ] as const)(
-    'resolves the ids PDF.js resolves for each look, %s page %i',
+    'resolves the ids it resolved before for each look, %s page %i',
     async (name, page) => {
       const doc = await open(name)
-      const plain = await open(name, { pdfjs: true })
-      expect(plain._reader.kind).toBe('pdfjs')
       // Every widget of the page, those it hides included, each asked for in every look.
       const ids = doc.form.fields
         .get()
@@ -264,9 +248,7 @@ describe('field appearances drawn by the engine', () => {
       expect(ids.length).toBeGreaterThan(1)
       const t = createPageTransform(doc.pages[page]!, 1, 0)
       const g = { x: 0, y: 0, ...pageCanvasSize(t, 1) }
-      // The one difference: PDF.js gives every button widget a canvas of its own, so it has a
-      // run, an empty one, for a push button with no normal appearance. The engine has nothing to
-      // draw for it and leaves it out. Neither draws a pixel of it.
+      // A push button with no normal appearance has nothing to draw, and is left out.
       const blank = doc.form.fields
         .get()
         .filter((f) => f.type === 'button')
@@ -275,14 +257,9 @@ describe('field appearances drawn by the engine', () => {
         .map((w) => w.id)
       for (const look of ['own', 'checked', 'unchecked'] as const) {
         const drawn = await drawFields(doc, page, t, 1, g, ids, look)
-        const pdfjs = await drawFields(plain, page, t, 1, g, ids, look)
-        const expected = [...pdfjs.found].filter(
-          (id) => look !== 'own' || !blank.includes(id)
-        )
-        expect([...drawn.found].sort(), look).toEqual(expected.sort())
-        if (look === 'own')
-          for (const id of blank)
-            expect(pdfjs.found.has(id), `${id} with PDF.js`).toBe(true)
+        const found = [...drawn.found].sort()
+        for (const id of blank) expect(found, `${id}, ${look}`).not.toContain(id)
+        expect(found).toMatchSnapshot(look)
       }
     }
   )
@@ -363,12 +340,11 @@ describe('a field draw given up', () => {
     const controller = new AbortController()
     const reason = new Error('moved on')
     let asked = 0
-    const doc = await open('form-fields', {
-      engine: engine(() => {
-        asked++
-        controller.abort(reason)
-      }),
+    engine(() => {
+      asked++
+      controller.abort(reason)
     })
+    const doc = await open('form-fields')
     const { canvas, request, untouched } = filled(doc)
     await expect(doc._reader.drawFields(request, canvas, controller.signal)).rejects.toBe(
       reason
@@ -380,12 +356,11 @@ describe('a field draw given up', () => {
   it('rejects with DocumentDestroyed once the document is destroyed mid-draw, the canvas untouched', async () => {
     const held: { doc?: InkDocument } = {}
     let asked = 0
-    const doc = await open('form-fields', {
-      engine: engine(() => {
-        asked++
-        void held.doc?.destroy()
-      }),
+    engine(() => {
+      asked++
+      void held.doc?.destroy()
     })
+    const doc = await open('form-fields')
     held.doc = doc
     const { canvas, request, untouched } = filled(doc)
     await expect(doc._reader.drawFields(request, canvas)).rejects.toMatchObject({

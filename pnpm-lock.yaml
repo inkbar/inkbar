@@ -271,9 +271,6 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
-      '@inkbar/engine':
-        specifier: workspace:*
-        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -336,9 +333,6 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
-      '@inkbar/engine':
-        specifier: workspace:*
-        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -376,9 +370,6 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
-      '@inkbar/engine':
-        specifier: workspace:*
-        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -431,9 +422,6 @@ importers:
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
-      '@inkbar/fonts':
-        specifier: ^1.0.0
-        version: 1.0.0
       '@inkbar/icons':
         specifier: workspace:*
         version: link:../../packages/icons
@@ -520,6 +508,9 @@ importers:
         specifier: ^1.17.1
         version: 1.17.1
     devDependencies:
+      '@inkbar/fonts':
+        specifier: ^1.0.0
+        version: 1.0.0
       pdfjs-dist:
         specifier: ^6.4.299
         version: 6.4.299
@@ -535,6 +526,12 @@ importers:
 
   packages/core:
     dependencies:
+      '@inkbar/engine':
+        specifier: workspace:^
+        version: link:../engine
+      '@inkbar/fonts':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@inkbar/icons':
         specifier: workspace:^
         version: link:../icons
@@ -554,15 +551,9 @@ importers:
         specifier: ^4.6.6
         version: 4.6.6
     devDependencies:
-      '@inkbar/engine':
-        specifier: workspace:*
-        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
-      '@inkbar/fonts':
-        specifier: ^1.0.0
-        version: 1.0.0
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../theme
@@ -658,6 +649,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -713,6 +707,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -777,6 +774,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures

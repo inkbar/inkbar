@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
+import { InkError } from '../model/errors'
 import { mapInOrder } from '../model/map-in-order'
 
 import { createEngineReader, MAX_PIXELS } from './reader'
 import { explicitDest } from './test-utils'
 
-import type { ReaderEngine, ReaderEngineDocument } from './types'
-import type { EngineLoader } from '../model/save/saver'
+import type { CoreEngine, ReaderEngine, ReaderEngineDocument } from './types'
 import type { DrawRequest, FieldDrawRequest } from '../reader/types'
 import type * as EngineModule from '@inkbar/engine'
 
@@ -340,16 +340,16 @@ function setup(
     engines.push(engine)
     return Promise.resolve(engine)
   })
-  const loader = vi.fn(() => Promise.resolve({ createEngine }))
+  const start = createEngine as unknown as () => Promise<CoreEngine>
   const warn = vi.fn<(message: string) => void>()
   const open = () =>
     createEngineReader({
-      loader: loader as unknown as EngineLoader,
+      start,
       bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
       password: undefined,
       warn,
     })
-  return { engines, states, renders, fieldRenders, createEngine, loader, warn, open }
+  return { engines, states, renders, fieldRenders, createEngine, start, warn, open }
 }
 
 /**
@@ -435,6 +435,7 @@ describe('the engine shapes', () => {
   it('asks of the engine only what the engine has', () => {
     expectTypeOf<EngineModule.Engine>().toExtend<ReaderEngine>()
     expectTypeOf<EngineModule.EngineDocument>().toExtend<ReaderEngineDocument>()
+    expectTypeOf<EngineModule.Engine>().toExtend<CoreEngine>()
   })
 })
 
@@ -451,7 +452,7 @@ describe('opening', () => {
   it('passes the password', async () => {
     const t = setup()
     await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
+      start: t.start,
       bytes: () => Promise.resolve(new Uint8Array([1])),
       password: 'secret',
     })
@@ -460,40 +461,37 @@ describe('opening', () => {
     })
   })
 
-  it('passes an empty password, as the PDF.js reader does', async () => {
+  it('passes an empty password', async () => {
     const t = setup()
     await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
+      start: t.start,
       bytes: () => Promise.resolve(new Uint8Array([1])),
       password: '',
     })
     expect(t.engines[0]!.open).toHaveBeenCalledWith(new Uint8Array([1]), { password: '' })
   })
 
-  it('rejects with EngineUnavailable, with the cause, when the loader fails', async () => {
-    const offline = new Error('offline')
+  it('rejects with AssetLoadFailed, with the cause, when the engine cannot start', async () => {
+    const noWasm = new Error('no wasm')
     const reader = createEngineReader({
-      loader: () => Promise.reject(offline),
+      start: () => Promise.reject(noWasm),
       bytes: () => Promise.resolve(new Uint8Array()),
       password: undefined,
     })
     await expect(reader).rejects.toMatchObject({
-      code: 'EngineUnavailable',
-      details: { cause: offline },
+      code: 'AssetLoadFailed',
+      details: { cause: noWasm },
     })
   })
 
-  it('rejects with EngineUnavailable, with the cause, when createEngine fails', async () => {
-    const noWasm = new Error('no wasm')
+  it('passes on an InkError the start rejects with', async () => {
+    const failed = new InkError('AssetLoadFailed', 'no binary', { cause: 'offline' })
     const reader = createEngineReader({
-      loader: () => Promise.resolve({ createEngine: () => Promise.reject(noWasm) }),
+      start: () => Promise.reject(failed),
       bytes: () => Promise.resolve(new Uint8Array()),
       password: undefined,
     })
-    await expect(reader).rejects.toMatchObject({
-      code: 'EngineUnavailable',
-      details: { cause: noWasm },
-    })
+    await expect(reader).rejects.toBe(failed)
   })
 
   /** A reader whose engine refuses the file with `refusal`, opened with `password`. */
@@ -508,7 +506,7 @@ describe('opening', () => {
       return Promise.resolve(engine as unknown as FakeEngine)
     })
     const error: unknown = await createEngineReader({
-      loader: t.loader as unknown as EngineLoader,
+      start: t.start,
       bytes: () => Promise.resolve(new Uint8Array([1])),
       password,
     }).catch((e: unknown) => e)
@@ -1299,7 +1297,7 @@ describe('links, the outline and destinations', () => {
     expect(t.engines[1]!.doc.pageLinks).toHaveBeenCalledWith(0)
   })
 
-  it('gives no links for a page whose links cannot be read, as the PDF.js reader does', async () => {
+  it('gives no links for a page whose links cannot be read', async () => {
     const t = setup({ pageLinks: () => Promise.reject(engineError('engine-failure')) })
     const reader = await t.open()
     await expect(reader.links(0)).resolves.toEqual([])
@@ -1680,7 +1678,7 @@ describe('links, the outline and destinations', () => {
     expect(t.createEngine).toHaveBeenCalledTimes(1)
   })
 
-  it('an outline that cannot be read rejects, as the PDF.js reader does', async () => {
+  it('an outline that cannot be read rejects', async () => {
     const t = setup({ outline: () => Promise.reject(new Error('cannot read')) })
     const reader = await t.open()
     await expect(reader.outline()).rejects.toThrow('cannot read')

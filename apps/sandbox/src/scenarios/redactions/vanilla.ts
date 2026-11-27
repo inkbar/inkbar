@@ -46,7 +46,6 @@ import {
   type Suggestion,
 } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
-import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -78,7 +77,6 @@ export function mount(
     tools: allTools(),
     plugins: [suggestionsPlugin()],
     storage,
-    engine,
     signatureFonts,
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })

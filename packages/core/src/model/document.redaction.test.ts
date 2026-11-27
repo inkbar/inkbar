@@ -2,15 +2,15 @@ import { EngineError } from '@inkbar/engine'
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { nodeAssets } from '../pdfjs/node-assets'
 import { drawn, FakeImageData, heldEngines } from '../test-support/held-engines'
+import { nodeAssets } from '../test-support/node-assets'
+import { openWithPdfjsReader } from '../test-support/pdfjs-reader'
 
 import { openDocument, type InkDocument, type OpenOptions } from './document'
 import { setEngineFactory } from './engine-factory'
 
 import type { Annotation } from './annotations/types'
 import type { Quad } from './geometry'
-import type { EngineLoader } from './save/saver'
 import type {
   CheckRedactionOptions,
   Engine,
@@ -20,8 +20,6 @@ import type {
   RedactionCandidate,
   WriteInput,
 } from '@inkbar/engine'
-
-const flag = globalThis as { __INKBAR_READER__?: unknown }
 
 const quad = (x: number, y: number, width: number, height: number): Quad => ({
   p1: { x, y: y + height },
@@ -44,8 +42,10 @@ const nothingSanitised: RedactResult['sanitised'] = {
 }
 
 /**
- * A stand-in engine that records its calls and what each `redact` and check is given. Its calls
- * run one at a time in the order they were made. A redaction applies every mark, on its page,
+ * A stand-in engine, made the engine every document opened from here on uses, that records its
+ * calls and what each `redact` and check is given. It reads the file with the real engine, and
+ * stands in for opening, writing, applying, saving, checking and closing. Those calls run one at a
+ * time in the order they were made. A redaction applies every mark, on its page,
  * unless `pages` says otherwise; the check finds every region clean unless `verdicts` says
  * otherwise. `hold(op)` holds the next call of that kind until `release`.
  */
@@ -70,8 +70,10 @@ function fakeEngine() {
     answer?: (candidates: RedactionCandidate[]) => RedactionCandidate[]
   } = {}
   let engines = 0
-  const createEngine = vi.fn(() => {
+  const createEngine = vi.fn(async () => {
     const n = ++engines
+    const { createEngine: createReal } = await import('@inkbar/engine')
+    const real = await createReal({ worker: false })
     let queue: Promise<unknown> = Promise.resolve()
     const queued = <T>(op: string, work: () => T | Promise<T>): Promise<T> => {
       const result = queue.then(async () => {
@@ -85,20 +87,8 @@ function fakeEngine() {
       queue = result.catch(() => undefined)
       return result
     }
-    const doc: EngineDocument = {
-      pageCount: 1,
-      pageInfo: () => Promise.reject(new Error('unused')),
-      renderPage: () => Promise.reject(new Error('unused')),
-      pageText: () => Promise.reject(new Error('unused')),
-      pageLinks: () => Promise.reject(new Error('unused')),
-      outline: () => Promise.reject(new Error('unused')),
-      namedDestination: () => Promise.reject(new Error('unused')),
-      documentFacts: () => Promise.reject(new Error('unused')),
-      pageAnnotations: () => Promise.reject(new Error('unused')),
-      formFields: () => Promise.reject(new Error('unused')),
-      scripts: () => Promise.reject(new Error('unused')),
-      structureOrder: () => Promise.reject(new Error('unused')),
-      renderAnnotations: () => Promise.reject(new Error('unused')),
+    /** The calls stood in for; every other call goes to the real engine's document. */
+    const standIns: Pick<EngineDocument, 'write' | 'redact' | 'save'> = {
       write: (_input: WriteInput) => queued('write', () => undefined),
       redact: (input) =>
         queued('redact', () => {
@@ -128,10 +118,22 @@ function fakeEngine() {
           }
         }),
       save: () => queued('save', () => new TextEncoder().encode('%PDF-redacted')),
-      close: () => queued('close', () => undefined),
     }
     const engine: Engine = {
-      open: () => queued('open', () => doc),
+      open: (bytes, options) =>
+        queued('open', async () => {
+          const doc = await real.open(bytes, options)
+          return new Proxy(doc, {
+            get(target, key, receiver) {
+              if (key === 'close') return () => queued('close', () => target.close())
+              if (key in standIns) return standIns[key as keyof typeof standIns]
+              const value = Reflect.get(target, key, receiver) as unknown
+              return typeof value === 'function'
+                ? (value as (...a: unknown[]) => unknown).bind(target)
+                : value
+            },
+          })
+        }),
       checkRedaction: (_bytes, options = {}) =>
         queued('check', () => {
           checks.push(options)
@@ -160,46 +162,35 @@ function fakeEngine() {
         }),
       destroy() {
         calls.push(`destroy ${n}`)
-        return Promise.resolve()
+        return real.destroy()
       },
     }
-    return Promise.resolve(engine)
+    return engine
   })
-  const loader = vi.fn<EngineLoader>(() => Promise.resolve({ createEngine }))
+  setEngineFactory(createEngine)
   return {
     calls,
     redactions,
     checks,
     state,
-    loader,
     hold: (op: string) => (held = op),
     release: () => release?.(),
   }
 }
 
-/**
- * A loader that gives the real engine, in this thread. `last` keeps the last engine made, so a
- * test can check bytes with it.
- */
+/** Makes the real engine, in this thread, the engine every document opened from here on uses. */
 function realEngine() {
-  const made: Engine[] = []
-  const loader: EngineLoader = async () => {
+  setEngineFactory(async () => {
     const m = await import('@inkbar/engine')
-    return {
-      createEngine: async () => {
-        const engine = await m.createEngine({ worker: false })
-        made.push(engine)
-        return engine
-      },
-    }
-  }
-  return { loader, made }
+    return m.createEngine({ worker: false })
+  })
 }
 
 /** Every document a test opened, with the bytes it was opened from. */
 const opened: { doc: InkDocument; bytes: Uint8Array }[] = []
 
 afterEach(async () => {
+  setEngineFactory(undefined)
   const docs = opened.splice(0)
   try {
     // Whatever was applied, the document's own data stays the bytes it was opened from.
@@ -211,10 +202,9 @@ afterEach(async () => {
 })
 
 async function openBytes(bytes: Uint8Array, opts: Partial<OpenOptions> = {}) {
-  // PDF.js detaches what it is given, so it gets a copy and the original stays to compare.
+  // A copy is opened, so the original stays to compare.
   const doc = await openDocument(bytes.slice(), {
     assets: nodeAssets(),
-    verbosity: 0,
     ...opts,
   })
   opened.push({ doc, bytes })
@@ -247,8 +237,8 @@ const session = (doc: InkDocument) =>
 
 describe('applyRedactions', () => {
   it('resolves with redacted bytes and a result and leaves the document as it was', async () => {
-    const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    fakeEngine()
+    const doc = await open('redact-text')
     const mark = markOver(doc)
     const kept = doc.annotations.add({ type: 'highlight', page: 0, quads: [KEEP] })
     const before = doc.annotations.list.get()
@@ -277,7 +267,7 @@ describe('applyRedactions', () => {
 
   it('writes marks first, then the kept annotations, and leaves out the removed ones', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     const mark = markOver(doc)
     const under = doc.annotations.add({
       type: 'highlight',
@@ -306,7 +296,7 @@ describe('applyRedactions', () => {
 
   it('passes the mark regions to the check', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     doc.annotations.add({
       type: 'redact',
@@ -319,6 +309,7 @@ describe('applyRedactions', () => {
       'redact 1',
       'save 1',
       'check 1',
+      'close 1',
     ])
     expect(fake.checks).toEqual([
       {
@@ -332,7 +323,7 @@ describe('applyRedactions', () => {
 
   it('rejects with RedactionFailed at verify when the check finds content', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.state.verdicts = ['content-remains']
     const failed = await doc.applyRedactions().then(
@@ -360,7 +351,7 @@ describe('applyRedactions', () => {
     ]
     it.each(answers)('%s', async (_, answer) => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
       fake.state.answer = answer
@@ -381,7 +372,7 @@ describe('applyRedactions', () => {
       ['no index', undefined],
     ])('rejects a region answer that is not clean under %s', async (_, region) => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       fake.state.answer = (c) => {
         const stray: RedactionCandidate = { ...c[0]!, verdict: 'content-remains' }
@@ -397,7 +388,7 @@ describe('applyRedactions', () => {
 
     it('names the regions not answered clean', async () => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
       fake.state.answer = (c) => [c[0]!]
@@ -417,7 +408,7 @@ describe('applyRedactions', () => {
     ['a crash', new Error('worker crashed')],
   ])('fails at verify when the check throws %s', async (_, cause) => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.state.failCheck = cause
     await expect(doc.applyRedactions()).rejects.toMatchObject({
@@ -425,8 +416,6 @@ describe('applyRedactions', () => {
       details: { stage: 'verify' },
       cause,
     })
-    const stopped = cause instanceof EngineError
-    expect(fake.calls.includes('destroy 1')).toBe(stopped)
   })
 
   describe("checks Inkbar's earlier marks the engine applied", () => {
@@ -434,7 +423,7 @@ describe('applyRedactions', () => {
 
     it('after the session marks', async () => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       fake.state.ownLockedRegions = [earlier]
       const { result } = await doc.applyRedactions()
@@ -446,7 +435,7 @@ describe('applyRedactions', () => {
 
     it('rejects when one is not clean', async () => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       fake.state.ownLockedRegions = [earlier]
       fake.state.verdicts = ['clean', 'content-remains']
@@ -461,7 +450,7 @@ describe('applyRedactions', () => {
 
     it('rejects when one has no answer', async () => {
       const fake = fakeEngine()
-      const doc = await open('redact-text', { engine: fake.loader })
+      const doc = await open('redact-text')
       markOver(doc)
       fake.state.ownLockedRegions = [earlier]
       fake.state.answer = (c) => c.slice(0, 1)
@@ -477,7 +466,7 @@ describe('applyRedactions', () => {
 
   it('rejects with RedactionFailed at verify when the check could not inspect', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     const cause = new EngineError('check-failed', 'Page 1 could not be inspected.', {
       page: 0,
@@ -492,7 +481,7 @@ describe('applyRedactions', () => {
 
   it('names the page and mark the engine could not apply', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     const mark = markOver(doc)
     fake.state.failRedact = new EngineError('redaction-failed', 'no', {
       page: 0,
@@ -506,7 +495,7 @@ describe('applyRedactions', () => {
 
   it('names every mark over content the engine cannot remove', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     const first = markOver(doc)
     const second = markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
     fake.state.failRedact = new EngineError('redaction-failed', 'refused', {
@@ -532,7 +521,7 @@ describe('applyRedactions', () => {
 
   it('says when the engine could not look under the marks', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.state.failRedact = new EngineError('redaction-failed', 'blind', {
       page: 0,
@@ -546,18 +535,18 @@ describe('applyRedactions', () => {
 
   it('rejects NothingToRedact with no marks', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     doc.annotations.add({ type: 'highlight', page: 0, quads: [KEEP] })
     await expect(doc.applyRedactions()).rejects.toMatchObject({
       name: 'InkError',
       code: 'NothingToRedact',
     })
-    expect(fake.loader).not.toHaveBeenCalled()
+    expect(fake.calls.filter((c) => c.startsWith('redact'))).toEqual([])
   })
 
   it("applies another program's marks alone, each adopted as a mark of the session", async () => {
     const fake = fakeEngine()
-    const doc = await open('annotated-redact', { engine: fake.loader })
+    const doc = await open('annotated-redact')
     const { result } = await doc.applyRedactions()
     expect(result.marks).toBe(2)
     const [input] = fake.redactions
@@ -569,7 +558,7 @@ describe('applyRedactions', () => {
 
   it('applies an adopted mark', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-foreign-mark', { engine: fake.loader })
+    const doc = await open('redact-foreign-mark')
     expect(doc.redactionPreview().marks).toBe(1)
     await doc.applyRedactions()
     const [input] = fake.redactions
@@ -585,7 +574,7 @@ describe('applyRedactions', () => {
 
   it('removes the pop-up with the file copy', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-foreign-popup', { engine: fake.loader })
+    const doc = await open('redact-foreign-popup')
     await doc.applyRedactions()
     const [input] = fake.redactions
     expect(input!.marks).toHaveLength(1)
@@ -622,7 +611,7 @@ describe('applyRedactions', () => {
     file += `trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
 
     const fake = fakeEngine()
-    const doc = await openBytes(new TextEncoder().encode(file), { engine: fake.loader })
+    const doc = await openBytes(new TextEncoder().encode(file))
     expect(doc.annotations.list.get().map((a) => [a.id, a.source])).toEqual([
       ['pdf:0:6R', 'pdf'],
       ['redact-7R', 'session'],
@@ -635,18 +624,9 @@ describe('applyRedactions', () => {
     ])
   })
 
-  it('rejects EngineUnavailable without a loader', async () => {
-    const doc = await open('redact-text')
-    markOver(doc)
-    await expect(doc.applyRedactions()).rejects.toMatchObject({
-      name: 'InkError',
-      code: 'EngineUnavailable',
-    })
-  })
-
   it('returns the same promise for a second call while one runs', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     const first = doc.applyRedactions()
     expect(doc.applyRedactions()).toBe(first)
@@ -661,7 +641,7 @@ describe('applyRedactions', () => {
 
   it('waits for a save in flight', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.hold('write')
     const saving = doc.save()
@@ -672,23 +652,28 @@ describe('applyRedactions', () => {
     expect(fake.calls).not.toContain('redact 1')
     fake.release()
     await Promise.all([saving, applying])
+    // The reader's open, then a document of its own for each write.
     expect(fake.calls).toEqual([
+      'open 1',
       'open 1',
       'write 1',
       'save 1',
+      'close 1',
+      'open 1',
       'redact 1',
       'save 1',
       'check 1',
+      'close 1',
     ])
     // A save after the apply writes into the file as opened, not into the redacted copy.
     doc.annotations.add({ type: 'highlight', page: 0, quads: [KEEP] })
     await doc.save()
-    expect(fake.calls.slice(6)).toEqual(['close 1', 'open 1', 'write 1', 'save 1'])
+    expect(fake.calls.slice(10)).toEqual(['open 1', 'write 1', 'save 1', 'close 1'])
   })
 
   it('rejects DocumentDestroyed when destroyed mid-apply and releases the engine', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.hold('redact')
     const applying = doc.applyRedactions()
@@ -703,24 +688,9 @@ describe('applyRedactions', () => {
     })
   })
 
-  it('drops the engine when it stops, as a save does', async () => {
-    const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
-    markOver(doc)
-    fake.state.failRedact = new EngineError('engine-failure', 'gone')
-    await expect(doc.applyRedactions()).rejects.toMatchObject({
-      code: 'RedactionFailed',
-      details: { stage: 'apply' },
-    })
-    expect(fake.calls).toContain('destroy 1')
-    delete fake.state.failRedact
-    await doc.applyRedactions()
-    expect(fake.calls).toContain('redact 2')
-  })
-
   it('rejects NothingToRedact when the engine applied no mark, and saves as before', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc, { x: 2000, y: 2000, width: 50, height: 20 })
     // The engine skips the one mark: it lies off the page.
     fake.state.pages = []
@@ -728,15 +698,15 @@ describe('applyRedactions', () => {
       name: 'InkError',
       code: 'NothingToRedact',
     })
-    // The engine's copy holds the redaction, so the next save opens the file again.
+    // The next save opens the file as it was opened, in a document of its own.
     const bytes = await doc.save()
     expect(new TextDecoder().decode(bytes)).toBe('%PDF-redacted')
-    expect(fake.calls.slice(-4)).toEqual(['close 1', 'open 1', 'write 1', 'save 1'])
+    expect(fake.calls.slice(-4)).toEqual(['open 1', 'write 1', 'save 1', 'close 1'])
   })
 
   it('reports the fields the engine skipped', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.state.fieldsSkipped = ['name']
     const { result } = await doc.applyRedactions()
@@ -745,7 +715,7 @@ describe('applyRedactions', () => {
 
   it('fails at verify when the engine applied earlier marks and gave no regions for them', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     fake.state.ownLockedMarks = 1
     fake.state.ownLockedRegions = []
@@ -757,7 +727,7 @@ describe('applyRedactions', () => {
 
   it('names the marks it applied to the viewer only, for a host to drop from its list', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     const mark = markOver(doc)
     const internal = doc._applyRedactions()
     const applied = await doc.applyRedactions()
@@ -768,7 +738,7 @@ describe('applyRedactions', () => {
 
   it('counts a mark off the page as skipped, not as a failure', async () => {
     const fake = fakeEngine()
-    const doc = await open('redact-text', { engine: fake.loader })
+    const doc = await open('redact-text')
     markOver(doc)
     markOver(doc, { x: 2000, y: 2000, width: 50, height: 20 })
     // The engine skips the second and applies the first.
@@ -842,8 +812,8 @@ describe('redactionPreview', () => {
 
 describe('applyRedactions with the engine', () => {
   it('redacts a fixture end to end', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     markOver(doc)
     const kept = doc.annotations.add({ type: 'highlight', page: 0, quads: [KEEP] })
     expect(await doc.pageText(0)).toContain('SECRET')
@@ -856,7 +826,7 @@ describe('applyRedactions with the engine', () => {
       removed: { session: [], file: 0 },
     })
     expect(result.sanitised.metadata).toBe(true)
-    const back = await openBytes(bytes, { engine: loader })
+    const back = await openBytes(bytes)
     const list = back.annotations.list.get()
     expect(list.filter((a) => a.type === 'redact')).toEqual([])
     expect(list).toEqual([expect.objectContaining({ id: kept.id, source: 'session' })])
@@ -868,8 +838,8 @@ describe('applyRedactions with the engine', () => {
   })
 
   it('refuses a mark over a hatch and changes nothing', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-drawing-hatch', { engine: loader })
+    realEngine()
+    const doc = await open('redact-drawing-hatch')
     // The fixture's region, over the hatched band.
     const mark = markOver(doc, { x: 110, y: 110, width: 80, height: 80 })
     const before = doc.annotations.list.get()
@@ -887,8 +857,8 @@ describe('applyRedactions with the engine', () => {
   })
 
   it('a loupe saved before the apply is clean after it', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     const beside = doc.annotations.add({
       type: 'loupe',
       page: 0,
@@ -901,7 +871,7 @@ describe('applyRedactions with the engine', () => {
     })
     const saved = await doc.save()
 
-    const reopened = await openBytes(saved, { engine: loader })
+    const reopened = await openBytes(saved)
     expect(session(reopened).map((a) => a.id)).toEqual([beside.id, over.id])
     markOver(reopened)
     const { bytes, result } = await reopened.applyRedactions()
@@ -909,14 +879,14 @@ describe('applyRedactions with the engine', () => {
     // The lens over the mark goes; the one beside it is written from the redacted page.
     expect(result.removed.session).toEqual([over.id])
     expect(result.findings.candidates.map((c) => c.verdict)).toEqual(['clean'])
-    const back = await openBytes(bytes, { engine: loader })
+    const back = await openBytes(bytes)
     expect(session(back).map((a) => a.id)).toEqual([beside.id])
     expect(await back.pageText(0)).not.toContain('SECRET')
   })
 
   it('applies a mark without its pieces of no area', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     doc.annotations.add({
       type: 'redact',
       page: 0,
@@ -932,8 +902,8 @@ describe('applyRedactions with the engine', () => {
   })
 
   it('skips a mark of no area beside one that applies', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     markOver(doc)
     doc.annotations.add({
       type: 'redact',
@@ -968,7 +938,9 @@ describe('applyRedactions with the engine', () => {
 
   /** The text runs of `doc`'s first page whose boxes share area with `rect`. */
   async function textIn(doc: InkDocument, rect: typeof SECRET): Promise<string[]> {
-    const content = await (await doc._pdfjs!.getPage(0)).getTextContent()
+    const pdfjs = await openWithPdfjsReader(await doc.getData())
+    const content = await (await pdfjs.handles.getPage(0)).getTextContent()
+    await pdfjs.destroy()
     return content.items.flatMap((item) => {
       if (!('str' in item) || !item.str.trim()) return []
       const [, , , , x, y] = item.transform as number[]
@@ -982,8 +954,8 @@ describe('applyRedactions with the engine', () => {
   }
 
   it('a crossed rectangle over text removes the whole rectangle', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     // SECRET-ALPHA reaches into the rectangle's left and right thirds, not only its middle.
     for (const third of [
       { ...SECRET, width: SECRET.width / 3 },
@@ -1005,8 +977,8 @@ describe('applyRedactions with the engine', () => {
   })
 
   it('a crossed rectangle beside a real piece is never skipped', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     doc.annotations.add({
       type: 'redact',
       page: 0,
@@ -1020,8 +992,8 @@ describe('applyRedactions with the engine', () => {
   })
 
   it('rejects NothingToRedact when every mark has no area', async () => {
-    const { loader } = realEngine()
-    const doc = await open('redact-text', { engine: loader })
+    realEngine()
+    const doc = await open('redact-text')
     markOver(doc, { x: 45, y: 190, width: 170, height: 0 })
     doc.annotations.add({
       type: 'redact',
@@ -1036,15 +1008,15 @@ describe('applyRedactions with the engine', () => {
   })
 
   it("applies Inkbar's earlier marks in an encrypted file", async () => {
-    const { loader } = realEngine()
+    realEngine()
     const password = manifest['encrypted-aes'].password
-    const doc = await open('encrypted-aes', { engine: loader })
+    const doc = await open('encrypted-aes')
     // The file's one word, Encrypted, runs from x 72 to 135 on the baseline y 700.
     markOver(doc, { x: 70, y: 695, width: 25, height: 20 })
     const saved = await doc.save()
 
     // An encrypted file lifts nothing: the mark comes back locked.
-    const reopened = await openBytes(saved, { engine: loader, password })
+    const reopened = await openBytes(saved, { password })
     expect(session(reopened)).toEqual([])
     expect(reopened.redactionPreview()).toMatchObject({ marks: 0, lockedMarks: 1 })
     const { bytes, result } = await reopened.applyRedactions()
@@ -1062,14 +1034,11 @@ describe('applyRedactions with the engine', () => {
   })
 })
 
-describe('applyRedactions with the engine reading the file', () => {
+describe("applyRedactions with the reader's engine", () => {
   beforeEach(() => {
-    flag.__INKBAR_READER__ = 'engine'
     vi.stubGlobal('ImageData', FakeImageData)
   })
   afterEach(() => {
-    setEngineFactory(undefined)
-    delete flag.__INKBAR_READER__
     vi.unstubAllGlobals()
   })
 

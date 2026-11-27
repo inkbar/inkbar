@@ -24,6 +24,25 @@ export async function openFixtureInBrowser(
 export const nextFrame = (): Promise<void> =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
+/**
+ * Moves the mouse to the frame's bottom-right corner, clear of a host mounted at the top left.
+ * The mouse stays where the last test in the tab left it, often an earlier file, and an
+ * annotation drawn under it shows its hover ring in a photograph. Call it before mounting what a
+ * test photographs, or before the photograph.
+ */
+export async function parkPointer(): Promise<void> {
+  const { userEvent } = await import('vitest/browser')
+  const corner = document.createElement('div')
+  corner.style.cssText =
+    'position:fixed;right:0;bottom:0;width:2px;height:2px;z-index:2147483647;'
+  document.body.append(corner)
+  try {
+    await userEvent.hover(corner)
+  } finally {
+    corner.remove()
+  }
+}
+
 export const settle = (ms = 50): Promise<void> =>
   new Promise<void>((resolve) => setTimeout(resolve, ms))
 

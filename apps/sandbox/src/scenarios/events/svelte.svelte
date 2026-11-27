@@ -28,7 +28,6 @@
 
   import { pressesPlugin } from '../../plugin/presses'
   import '../../plugin/presses.css'
-  import { engine } from '../../shared/engine'
   import { FileUp } from '../../shared/file-up'
   import { storage } from '../../shared/signatures'
 
@@ -52,7 +51,6 @@
   {locale}
   {assets}
   {storage}
-  {engine}
   {plugins}
   {onReady}
   class="scenario-root"

@@ -30,7 +30,7 @@ const MARK_TYPES: Record<string, string> = {
 
 /**
  * The marks the viewer draws per page, read from the tour document itself. A reply (it has
- * /IRT) lives in its note's thread, and the signature stamp is painted into the page by PDF.js
+ * /IRT) lives in its note's thread, and the signature stamp is painted into the page by the engine
  * with no overlay of its own, so neither is a mark.
  */
 async function embeddedMarksByPage(): Promise<string[][]> {
@@ -138,7 +138,7 @@ for (const framework of FRAMEWORK_ORDER) {
       )
       await expect(callout).toHaveCount(1)
       await expect(callout).toHaveAttribute('data-locked', '')
-      // PDF.js paints the callout; Inkbar adds only the invisible hit area over it.
+      // The engine paints the callout; Inkbar adds only the invisible hit area over it.
       await expect(callout.locator('svg[data-ink-hit]')).toHaveCount(1)
     })
 

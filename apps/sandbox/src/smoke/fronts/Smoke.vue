@@ -24,7 +24,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { defineComponent } from 'vue'
 
-import { engine, redactionConfirm, tools as makeTools } from '../front.ts'
+import { redactionConfirm, tools as makeTools } from '../front.ts'
 
 import type { FrontProps } from '../front.ts'
 import type { InkError } from '@inkbar/core'
@@ -50,7 +50,6 @@ const Apply = defineComponent(() => {
     :messages="props.messages"
     :assets="assets"
     :tools="tools"
-    :engine="engine"
     :redaction-confirm="redactionConfirm"
     @ready="props.onReady"
     @redacted="({ bytes }) => props.onRedacted(bytes)"

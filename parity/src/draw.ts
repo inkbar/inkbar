@@ -1,60 +1,36 @@
-// Draws a fixture's pages with both readers, through core's internal reader, at one size.
-import {
-  openDocument,
-  type EngineLoader,
-  type InkDocument,
-  type PageInfo,
-} from '@inkbar/core'
+// Draws a fixture's pages through core's reader, at one size.
+import { openDocument, type InkDocument, type PageInfo } from '@inkbar/core'
 import { createPageMount, createPageTransform } from '@inkbar/core/dom'
 import manifest from '@inkbar/fixtures/manifest.json'
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
-import { fontUrls } from '@inkbar/fonts'
 
 export { PAGES_PER_FIXTURE } from './pages'
 export const PIXELS_PER_POINT = 2
 
+/**
+ * The reader a comparison names. There is one reader now, the engine: both names open with it,
+ * until the comparison of two readers is replaced by a comparison with committed results.
+ */
 export type ReaderKind = 'pdfjs' | 'engine'
 
-/** Where the test server serves the `@inkbar/fonts` files. */
-const FONTS_BASE = '/inkbar-fonts/'
-
-/** The real engine, with the fallback fonts the sandbox gives it. */
-const engineWithFonts: EngineLoader = async () => {
-  const real = await import('@inkbar/engine')
-  return {
-    createEngine: () => real.createEngine({ fallbackFonts: fontUrls(FONTS_BASE) }),
-  }
-}
-
-/** The core switch that makes `openDocument` read with the engine. Never public. */
-const flag = globalThis as { __INKBAR_READER__?: unknown }
-
-/** Opens `name` with one reader, the manifest's password included. Rejects if it does not open. */
+/**
+ * Opens `name`, the manifest's password included, with the fallback fonts the test server
+ * serves. Rejects if it does not open.
+ */
 export async function openWith(
   name: FixtureName,
-  kind: ReaderKind
+  _kind?: ReaderKind
 ): Promise<InkDocument> {
   const password = (manifest as Record<string, { password?: string }>)[name]?.password
-  if (kind === 'engine') flag.__INKBAR_READER__ = 'engine'
-  let doc: InkDocument
-  try {
-    doc = await openDocument(fixtureUrl(name), {
-      assets: browserAssets(),
-      engine: engineWithFonts,
-      ...(password !== undefined && { password }),
-    })
-  } finally {
-    delete flag.__INKBAR_READER__
-  }
+  const doc = await openDocument(fixtureUrl(name), {
+    assets: browserAssets(),
+    ...(password !== undefined && { password }),
+  })
   try {
     await doc.ready
   } catch (err) {
     doc.destroy()
     throw err
-  }
-  if (doc._reader.kind !== kind) {
-    doc.destroy()
-    throw new Error(`${name} opened with ${doc._reader.kind}, not ${kind}`)
   }
   return doc
 }

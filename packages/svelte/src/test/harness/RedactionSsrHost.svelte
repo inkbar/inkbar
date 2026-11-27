@@ -5,12 +5,12 @@
 
   import RedactionProbe from './RedactionProbe.svelte'
 
-  import type { EngineLoader, PdfAssets } from '@inkbar/core'
+  import type { PdfAssets } from '@inkbar/core'
 
-  let { assets, engine }: { assets: PdfAssets; engine: EngineLoader } = $props()
+  let { assets }: { assets: PdfAssets } = $props()
 </script>
 
-<InkRoot src="/doc.pdf" {assets} {engine}>
+<InkRoot src="/doc.pdf" {assets}>
   <InkToolbar>
     <InkApplyRedactions />
   </InkToolbar>

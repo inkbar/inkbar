@@ -1,30 +1,29 @@
 /*
- * The measure page, for maintainers and linked from nowhere:
- * `<base>measure/?file=<name>&reader=engine|pdfjs`. The slash after `measure` is needed: without
- * it `vite preview` serves the sandbox's own page.
+ * The measure page, for maintainers and linked from nowhere: `<base>measure/?file=<name>`. The
+ * slash after `measure` is needed: without it `vite preview` serves the sandbox's own page.
  *
- * It opens one file with one reader and prints, as plain text, the bytes fetched from the open
+ * It opens one file and prints, as plain text, the bytes fetched from the open
  * on, the time from the open to the first page drawn, and then the first page drawn at each step
  * of Zoom in (×1.25) from zoom 1 to the viewer's largest, 8: per step the canvas size, the draw
  * time, `ok` or the error, and whether the canvas is over the most pixels the engine draws in
  * one bitmap, so that the engine drew it smaller and stretched it. It asserts nothing.
  *
- * The page loads afresh for each measurement, so one reader's files never count for the other;
- * the HTTP cache still serves what an earlier load fetched (transfer 0). The results are also on
+ * The page loads afresh for each measurement; the HTTP cache still serves what an earlier load
+ * fetched (transfer 0). The results are also on
  * `window.__inkbarMeasure`, and POSTed as JSON to `?report=<url>` when the URL has one.
  */
 import { openDocument, type DocumentSource, type InkDocument } from '@inkbar/core'
 import { createPageRenderer, createPageTransform } from '@inkbar/core/dom'
 import { assets } from 'virtual:inkbar-assets'
 
-import { engine, FONT_BASE } from '../shared/engine.ts'
-import { readerOf, setEngineReader } from '../shared/reader.ts'
 import { watchRequests, type SeenRequest } from '../shared/requests.ts'
 
 // Watching from the first line, so the open's requests are all seen.
 const watch = watchRequests()
 
 const BASE = import.meta.env.BASE_URL
+/** Where the Vite plugin serves Inkbar's own files: the engine, the fonts and the sandbox. */
+const INKBAR_FILES = `${BASE}inkbar/`
 /**
  * The most pixels the engine draws in one bitmap; a larger canvas is drawn smaller and
  * stretched.
@@ -87,7 +86,6 @@ interface Step {
 interface Measurement {
   done: boolean
   file: string
-  reader: string
   devicePixelRatio: number
   userAgent: string
   firstPageMs?: number
@@ -107,7 +105,6 @@ const out = document.querySelector<HTMLElement>('[data-measure-results]')!
 const pageBox = document.querySelector<HTMLElement>('[data-measure-page]')!
 const form = document.querySelector<HTMLFormElement>('[data-measure-form]')!
 const fileSelect = form.elements.namedItem('file') as HTMLSelectElement
-const readerSelect = form.elements.namedItem('reader') as HTMLSelectElement
 const ownInput = form.elements.namedItem('own') as HTMLInputElement
 
 fileSelect.innerHTML = Object.entries(FILES)
@@ -118,8 +115,8 @@ fileSelect.innerHTML = Object.entries(FILES)
 function kindOf(r: SeenRequest): string {
   const path = new URL(r.name).pathname
   if (/\/inkbar-pdfium[^/]*\.wasm$/.test(path)) return 'engine binary'
-  if (path.startsWith(FONT_BASE)) return 'fallback fonts'
-  if (path.startsWith(`${BASE}inkbar/`)) return 'PDF.js files'
+  if (path.startsWith(INKBAR_FILES) && path.includes('/fonts/')) return 'fallback fonts'
+  if (path.startsWith(INKBAR_FILES) && path.includes('/sandbox/')) return 'form sandbox'
   if (path.endsWith('.pdf')) return 'the file'
   // Any other worker's script, and what that worker fetched, is the engine's.
   if (r.from !== 'page' || watch.workers().includes(r.name)) return 'engine worker'
@@ -130,7 +127,7 @@ const KINDS = [
   'engine binary',
   'engine worker',
   'fallback fonts',
-  'PDF.js files',
+  'form sandbox',
   'page scripts',
   'the file',
 ]
@@ -140,7 +137,7 @@ const pad = (text: string | number, width: number) => String(text).padEnd(width)
 
 function format(m: Measurement): string {
   const lines = [
-    `file: ${m.file}   reader: ${m.reader}   devicePixelRatio: ${m.devicePixelRatio}`,
+    `file: ${m.file}   devicePixelRatio: ${m.devicePixelRatio}`,
     m.userAgent,
     '',
   ]
@@ -187,7 +184,7 @@ function format(m: Measurement): string {
     lines.push(
       '',
       first
-        ? `the stretch starts at zoom ${first.zoom.toFixed(2)}${m.reader === 'engine' ? '' : ' (for the engine; this reader does not stretch)'}`
+        ? `the stretch starts at zoom ${first.zoom.toFixed(2)}`
         : 'no step is over the engine’s cap, so nothing is stretched'
     )
   }
@@ -215,15 +212,10 @@ const zoomSteps = (): number[] => {
 /** Waits for the workers' reports: each posts its entries as they come in. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 1_000))
 
-async function measure(
-  file: string,
-  source: () => Promise<DocumentSource>,
-  reader: string
-) {
+async function measure(file: string, source: () => Promise<DocumentSource>) {
   const m: Measurement = {
     done: false,
     file,
-    reader,
     devicePixelRatio: window.devicePixelRatio,
     userAgent: navigator.userAgent,
     requests: [],
@@ -232,12 +224,11 @@ async function measure(
   window.__inkbarMeasure = m
   const show = () => (out.textContent = format(m))
   show()
-  setEngineReader(reader === 'engine')
   let doc: InkDocument | undefined
   try {
     const from = watch.list().length
     const t0 = performance.now()
-    doc = await openDocument(await source(), { assets, engine })
+    doc = await openDocument(await source(), { assets })
     const info = doc.pages[0]!
     const host = document.createElement('div')
     pageBox.replaceChildren(host)
@@ -257,7 +248,6 @@ async function measure(
     })
     await renderer.rendered
     m.firstPageMs = performance.now() - t0
-    if (readerOf(doc) !== reader) m.error = `the page was drawn by ${readerOf(doc)}`
     await settle()
     m.requests = watch
       .list()
@@ -293,7 +283,6 @@ async function measure(
     m.error = describe(error)
   } finally {
     doc?.destroy()
-    setEngineReader(false)
     m.done = true
     show()
     document.body.dataset.measure = 'done'
@@ -312,29 +301,22 @@ form.addEventListener('submit', (event) => {
   event.preventDefault()
   const next = new URLSearchParams(location.search)
   next.set('file', fileSelect.value)
-  next.set('reader', readerSelect.value)
   location.search = next.toString()
 })
 // Your own PDF is measured on this load, so the files fetched so far count too.
 ownInput.addEventListener('change', () => {
   const picked = ownInput.files?.[0]
   if (!picked) return
-  void measure(
-    picked.name,
-    async () => ({
-      data: new Uint8Array(await picked.arrayBuffer()),
-      key: `own:${picked.name}`,
-    }),
-    readerSelect.value
-  )
+  void measure(picked.name, async () => ({
+    data: new Uint8Array(await picked.arrayBuffer()),
+    key: `own:${picked.name}`,
+  }))
 })
 
 const asked = params.get('file')
-const askedReader = params.get('reader') === 'engine' ? 'engine' : 'pdfjs'
-readerSelect.value = askedReader
 if (asked && Object.hasOwn(FILES, asked)) {
   fileSelect.value = asked
-  void measure(asked, FILES[asked]!.source, askedReader)
+  void measure(asked, FILES[asked]!.source)
 } else {
-  out.textContent = 'Pick a file and a reader, then Measure.'
+  out.textContent = 'Pick a file, then Measure.'
 }

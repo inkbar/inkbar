@@ -1,13 +1,4 @@
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { cssRectsToUserRects, getSelectionQuads } from './selection'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
@@ -15,7 +6,6 @@ import { createTextLayer, type TextLayerOptions } from './text-layer'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
 import type { EngineDocumentReader } from '../engine-reader/reader'
-import type { EngineLoader } from '../model/document'
 
 let style: HTMLStyleElement
 beforeAll(() => {
@@ -263,18 +253,9 @@ describe('text layer', () => {
   })
 })
 
-describe('text layer, when the engine reads the file', () => {
-  const flag = globalThis as { __INKBAR_READER__?: unknown }
-  const engine: EngineLoader = () => import('@inkbar/engine')
-  beforeEach(() => {
-    flag.__INKBAR_READER__ = 'engine'
-  })
-  afterEach(() => {
-    delete flag.__INKBAR_READER__
-  })
-
+describe("text layer, from the engine reader's text", () => {
   async function engineLayer(opts: Partial<TextLayerOptions> = {}) {
-    const doc = await openFixtureInBrowser('text-simple', { engine })
+    const doc = await openFixtureInBrowser('text-simple')
     expect(doc._reader.kind).toBe('engine')
     const t = createPageTransform(doc.pages[0]!, 1, 0)
     const host = mountContainer(t.cssWidth, t.cssHeight)
