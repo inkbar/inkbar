@@ -276,9 +276,9 @@ export interface InkDocument {
    * Starts a new engine for a stopped document and opens the file in it again. Resolves when the
    * document reads again, and rejects with EngineUnavailable when it does not; it then stays
    * stopped. It forgets the stops counted towards stopping the document, and keeps what it has
-   * learnt about pages: a page whose reads stopped the engine twice stays blocked, and a page that
-   * stopped it once is blocked at its next stop, which does not count towards stopping the
-   * document. A blocked page stays blocked until the file is opened again. The session's
+   * learnt about pages: a page whose reads stopped the engine more than once stays blocked, and a
+   * page that stopped it once is blocked at its next stop, which does not count towards stopping
+   * the document. A blocked page stays blocked until the file is opened again. The session's
    * annotations, form values and history are untouched either way. Calls made while one runs share
    * it. Resolves at once, doing nothing, for a document that is not stopped. A blocked page's
    * reads reject with EngineUnavailable, its `details.page` naming the page. Rejects with
@@ -562,8 +562,8 @@ export async function openDocument(
     const opened = opening
     const read = (async () => {
       const perPage = await mapInOrder(pageCount, EMBEDDED_CONCURRENCY, async (i) => {
-        // A page whose reads stopped the engine twice gives no annotations, as it gives no
-        // links: the file opens without them rather than not at all.
+        // A page whose reads stopped the engine more than once gives no annotations, as it gives
+        // no links: the file opens without them rather than not at all.
         const annotations = await opened.annotations(i).catch((error: unknown) => {
           if (blockedPage(error, i) && opened.unavailable() === undefined) return []
           throw error
@@ -629,8 +629,8 @@ export async function openDocument(
       const structured = [...formData.extras.tabs].flatMap(([page, order]) =>
         order === 'S' && withFields.has(page) ? [page] : []
       )
-      // A page whose reads stopped the engine twice has no structure order, as a page whose
-      // order the engine cannot read: its fields go in page order.
+      // A page whose reads stopped the engine more than once has no structure order, as a page
+      // whose order the engine cannot read: its fields go in page order.
       const orders = await mapInOrder(structured.length, EMBEDDED_CONCURRENCY, (i) =>
         opened.tabOrder(structured[i]!).catch((error: unknown) => {
           if (blockedPage(error, structured[i]!) && opened.unavailable() === undefined)
@@ -1244,7 +1244,7 @@ function errorMessage(cause: unknown): string {
   return String(cause)
 }
 
-/** Whether `error` is the one a page's reads reject with once they stopped the engine twice. */
+/** Whether `error` is the one a page's reads reject with once they stopped the engine again. */
 function blockedPage(error: unknown, page: number): boolean {
   return (
     isInkError(error) &&

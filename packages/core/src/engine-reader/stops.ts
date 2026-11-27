@@ -70,7 +70,7 @@ export function createStopCount(now: () => number = Date.now): StopCount {
         if (stops >= PAGE_STOPS) {
           const error = new InkError(
             'EngineUnavailable',
-            `Reading page ${page + 1} stopped the engine twice; the page is not read again`,
+            `Reading page ${page + 1} stopped the engine again; the page is not read again`,
             { page, cause },
             cause
           )

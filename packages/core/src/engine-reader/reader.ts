@@ -217,11 +217,11 @@ const free = (s: Session): Promise<void> =>
  *
  * An engine that stops is replaced, and the call that found it stopped runs once more on the new
  * one. A call whose replacement stops too, or cannot start, rejects with `EngineUnavailable`.
- * A page whose reads stopped the engine twice is blocked: its reads reject at once with the
- * error the second stop gave. When a replacement cannot start, or the engine has stopped 3 times
- * within 60 seconds, the reader is stopped: no engine runs, and every call from then on, and
- * every call still waiting, rejects with `EngineUnavailable` until `restart`. A restart keeps
- * each page's stops and blocks; only a new reader starts with none.
+ * A page whose reads stopped the engine more than once is blocked: its reads reject at once
+ * with the error the blocking stop gave. When a replacement cannot start, or the engine has
+ * stopped 3 times within 60 seconds, the reader is stopped: no engine runs, and every call from
+ * then on, and every call still waiting, rejects with `EngineUnavailable` until `restart`. A
+ * restart keeps each page's stops and blocks; only a new reader starts with none.
  *
  * @internal
  */
