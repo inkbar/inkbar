@@ -43,8 +43,9 @@ export interface StopCount {
   /**
    * An engine started to replace a stopped one could not start. The page whose call found the
    * stop that dropped the last engine loses that stop, unless it blocked the page: an engine
-   * that cannot start points at the engine, not the page, and a page's stops last until the file
-   * is opened again.
+   * that cannot start points at the engine, not the page. Each page loses at most one stop this
+   * way, so a page whose stops also keep the next engine from starting is still blocked at its
+   * third. A page's stops last until the file is opened again.
    */
   notReplaced(): void
 }
@@ -57,6 +58,8 @@ export function createStopCount(now: () => number = Date.now): StopCount {
   let times: number[] = []
   /** The page charged with the last stop, until an engine starts to replace the one it dropped. */
   let unproven: number | undefined
+  /** The pages that have had a stop taken back. */
+  const forgiven = new Set<number>()
 
   return {
     found(page, counts, cause) {
@@ -91,7 +94,11 @@ export function createStopCount(now: () => number = Date.now): StopCount {
       unproven = undefined
     },
     notReplaced() {
-      if (unproven === undefined) return
+      if (unproven === undefined || forgiven.has(unproven)) {
+        unproven = undefined
+        return
+      }
+      forgiven.add(unproven)
       const stops = (pageStops.get(unproven) ?? 1) - 1
       if (stops > 0) pageStops.set(unproven, stops)
       else pageStops.delete(unproven)

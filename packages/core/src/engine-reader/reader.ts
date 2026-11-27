@@ -113,13 +113,13 @@ export interface EngineDocumentReader extends DocumentReader {
    * Starts an engine for a stopped reader, opens the file in it again with the same bytes and
    * password, and resolves once a read works there. The stops counted towards stopping it are
    * forgotten; each page's stops and blocks are kept, so a blocked page stays blocked and a page
-   * that stopped the engine once is blocked at its next stop, which is not counted. A file with
-   * six or more pages that stop every engine, read in one pass, can stop the reader once more
-   * after a restart; no page is counted twice, so after enough restarts the rest read on. Rejects
-   * with `EngineUnavailable` when that fails, and the reader stays stopped; with
-   * `DocumentDestroyed` when the reader is destroyed first or under it, and any engine it started
-   * is destroyed. Calls made while one runs share it. On a reader that is not stopped it resolves
-   * at once and does nothing.
+   * that stopped the engine once is blocked at its next stop, which is not counted. Pages that
+   * stop every engine and have not stopped it yet can stop the reader again after a restart: in
+   * one pass, each further three such pages stop it once more. No page is counted twice, so this
+   * ends, and after enough restarts the rest read on. Rejects with `EngineUnavailable` when that
+   * fails, and the reader stays stopped; with `DocumentDestroyed` when the reader is destroyed
+   * first or under it, and any engine it started is destroyed. Calls made while one runs share
+   * it. On a reader that is not stopped it resolves at once and does nothing.
    */
   restart(): Promise<void>
   /**

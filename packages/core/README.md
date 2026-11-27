@@ -167,7 +167,7 @@ The engine runs in a worker. If it stops while a file is open, core starts a new
 
 `doc.restartEngine()` starts a new engine and opens the file in it again. It resolves once the document reads again, and rejects with `EngineUnavailable` when it does not, leaving the document stopped. Either way the session's annotations, form values and history stay as they were. On a document that is not stopped it does nothing.
 
-A page that keeps stopping the engine stays out of use until the file is opened again. "Try again" and `doc.restartEngine()` do not bring it back. A blocked page stays blocked after a restart, and a page that stopped the engine once before is blocked at its next stop. That stop does not count towards the three, so the pages that stopped the document cannot stop it again.
+A page that keeps stopping the engine stays out of use until the file is opened again. "Try again" and `doc.restartEngine()` do not bring it back. A blocked page stays blocked after a restart, and a page that stopped the engine once before is blocked at its next stop. That stop does not count towards the three, so after "Try again" the same pages do not stop it again, though a file with many such pages can stop it again.
 
 While the document is stopped, `doc.save()` with no changes still resolves with the bytes the file was opened from. With changes, `doc.save()` and `doc.applyRedactions()` start an engine of their own for that one write and destroy it after. A write draws no pages, so it often finishes where the reads kept stopping the engine. They reject with `EngineUnavailable` only when that engine cannot start or stops too. The document stays stopped either way: only `doc.restartEngine()` brings its reads back.
 

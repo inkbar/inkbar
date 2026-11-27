@@ -3089,11 +3089,24 @@ describe('the stopped state', () => {
       expect(reader.engineStopped.get()).toBe(false)
     })
 
-    it('leaves a page unblocked after two such stops, with a restart between', async () => {
-      const { reader, stopUnderPage } = await startFails()
+    it('takes back only the first such stop of a page, so its next stop blocks it', async () => {
+      const { t, reader, stops, stopUnderPage } = await startFails()
       await stopUnderPage()
+      // The second stop stands although no engine could replace the one it dropped either.
       await stopUnderPage()
-      await expect(read(reader, 2)).resolves.toMatchObject({ page: 2 })
+      const started = t.createEngine.mock.calls.length
+      stops(1)
+      await expect(read(reader, 2)).rejects.toMatchObject({
+        ...unavailable,
+        details: { page: 2 },
+      })
+      // The stop blocked the page: no engine is started for it and the document reads on.
+      expect(t.createEngine).toHaveBeenCalledTimes(started)
+      expect(reader.engineStopped.get()).toBe(false)
+      await expect(read(reader, 2)).rejects.toMatchObject({ details: { page: 2 } })
+      expect(t.createEngine).toHaveBeenCalledTimes(started)
+      expect(reader.engineStopped.get()).toBe(false)
+      await expect(read(reader, 1)).resolves.toMatchObject({ page: 1 })
     })
 
     it('makes one engine for two calls at once', async () => {

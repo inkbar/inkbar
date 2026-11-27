@@ -282,8 +282,8 @@ export interface InkDocument {
    * document. A blocked page stays blocked until the file is opened again. The session's
    * annotations, form values and history are untouched either way. Calls made while one runs share
    * it. Resolves at once, doing nothing, for a document that is not stopped. A blocked page's
-   * reads reject with EngineUnavailable, its `details.page` naming the page. Rejects with DocumentDestroyed once the document is destroyed, also when that happens
-   * while it runs.
+   * reads reject with EngineUnavailable, its `details.page` naming the page. Rejects with
+   * DocumentDestroyed once the document is destroyed, also when that happens while it runs.
    */
   restartEngine(): Promise<void>
   /**

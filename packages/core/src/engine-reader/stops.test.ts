@@ -90,4 +90,18 @@ describe('the stop count', () => {
     count.notReplaced()
     expect(count.blocked(3)).toBeDefined()
   })
+
+  it('takes back at most one stop for each page', () => {
+    const { count } = counted()
+    count.found(3, true, 'a')
+    count.notReplaced()
+    count.found(3, true, 'b')
+    // Page 3 has had a stop taken back: this one stands.
+    count.notReplaced()
+    expect(count.found(3, false, 'c')).toMatchObject({ kind: 'blocked' })
+    // Another page still has a stop of its own taken back.
+    count.found(5, false, 'd')
+    count.notReplaced()
+    expect(count.found(5, false, 'e')).toEqual({ kind: 'go-on' })
+  })
 })
