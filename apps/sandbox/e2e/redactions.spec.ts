@@ -459,6 +459,10 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
         'definePlugin<SuggestionsOptions>('
       )
+      // The plugin's id, which Prettier puts on the line after the call.
+      await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
+        /definePlugin<SuggestionsOptions>\(\s*'sandbox'/
+      )
     })
   })
 }
