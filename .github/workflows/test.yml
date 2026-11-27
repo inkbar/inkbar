@@ -115,7 +115,8 @@ jobs:
             pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE"
           fi
       # Three specs again, against the app's production build (vite preview): the drawing page,
-      # Download and Print, and a scripted form.
+      # Download and Print, and a scripted form. e2e-vue also serves that build under the content
+      # security policy the core README gives, and opens, draws, fills a form and saves under it.
       - if: startsWith(matrix.package, 'e2e-')
         env:
           PACKAGE: ${{ matrix.package }}

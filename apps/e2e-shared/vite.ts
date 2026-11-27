@@ -3,6 +3,20 @@ import { createRequire } from 'node:module'
 import type { Plugin } from 'vite'
 
 /**
+ * Sends the content security policy in `E2E_CSP`, when it is set, with every response of
+ * `vite preview`. The Playwright config sets it for the preview server the policy spec runs
+ * against.
+ */
+export function previewPolicy(): Plugin {
+  const policy = process.env.E2E_CSP
+  return {
+    name: 'inkbar-sandbox:preview-policy',
+    config: () =>
+      policy ? { preview: { headers: { 'Content-Security-Policy': policy } } } : {},
+  }
+}
+
+/**
  * A Vite plugin every sandbox lists. Its `config` hook is deep-merged with the sandbox's own
  * config, so a sandbox can still add its own aliases or `optimizeDeps.include`.
  *
