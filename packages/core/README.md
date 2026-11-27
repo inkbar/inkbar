@@ -987,15 +987,18 @@ The files may be on another origin than the page, such as a CDN, when that origi
 Under a content security policy, with the files on the page's origin, Inkbar works with this policy:
 
 ```
-default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; frame-src blob:
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; img-src 'self' data: blob:; frame-src blob:
 ```
 
 - `script-src 'wasm-unsafe-eval'`: the engine compiles its binary with WebAssembly in its worker, and the sandbox that runs a form's scripts compiles its own on the page. Neither needs `'unsafe-eval'`: the sandbox runs a form's scripts inside WebAssembly, not with `eval`.
 - `script-src 'self'`: the page imports `quickjs-eval.js` from the `sandbox` directory.
 - `worker-src 'self'`: the engine starts its worker from `worker.mjs`. Without `worker-src` the browser applies `script-src`.
-- `connect-src`, here given by `default-src 'self'`: the engine fetches its binary and the fonts, and the sandbox fetches its binary. The fonts are fetched as data, so they need no `font-src`.
+- `connect-src`, here given by `default-src 'self'`: the engine fetches its binary and the fallback fonts, and the sandbox fetches its binary. The fallback fonts are fetched as data, so they need no `font-src`.
+- `img-src 'self' data: blob:`: the theme draws a native select's chevron, such as the zoom select's, from a `data:` URL. A signature or stamp made from an image is kept and drawn as a `data:` URL. An image chosen for a signature is read through a `blob:` URL; that one use is not covered by Inkbar's own test of this policy.
 - `frame-src blob:`: Print loads the file into a hidden frame from a `blob:` URL. Download needs nothing.
-- `img-src 'self' data: blob:`, which the policy above leaves out: a signature or stamp made from an image is kept and drawn as a `data:` URL, and an image chosen for a signature is read through a `blob:` URL.
+- `font-src`: typed signatures use fonts your page loads with `@font-face`, so a font on another origin needs that origin in `font-src`.
+
+Safari before 16.4 has no adopted style sheets, so a plugin's layer adds a `<style>` element there, which needs `style-src-elem 'unsafe-inline'`.
 
 When the files are on another origin, allow that origin in `script-src`, for the sandbox, and in `connect-src`, for the binaries and fonts. Add `blob:` and that origin to `worker-src`: the engine starts its worker from a `blob:` module of the page's own, which runs under the page's policy and imports `worker.mjs`, and the browser checks a module worker's imports against `worker-src`.
 
